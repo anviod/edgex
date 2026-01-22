@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industrial Edge Gateway</title>
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Element Plus -->
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+    <script src="https://unpkg.com/element-plus"></script>
+    <!-- Icons -->
+    <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+            background-color: #f5f7fa;
+        }
+        .el-header {
+            background-color: #fff;
+            border-bottom: 1px solid #dcdfe6;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        .logo {
+            font-size: 20px;
+            font-weight: bold;
+            color: #303133;
+        }
+        .main-container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .value-card {
+            margin-bottom: 20px;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-good { background-color: #67c23a; }
+        .status-bad { background-color: #f56c6c; }
+        .breadcrumb {
+            margin-bottom: 20px;
+        }
+        .channel-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .channel-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        .channel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        .channel-item {
+            padding: 15px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #dcdfe6;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .channel-item:hover {
+            border-color: #409eff;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        }
+        .channel-name {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        .channel-info {
+            font-size: 12px;
+            color: #909399;
+        }
+        .breadcrumb-link {
+            cursor: pointer;
+            color: #409eff;
+        }
+        .breadcrumb-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <el-container>
+            <el-header height="60px">
+                <div class="logo">Industrial Edge Gateway</div>
+                <div>
+                    <el-tag type="success" effect="dark" v-if="wsConnected">Connected</el-tag>
+                    <el-tag type="danger" effect="dark" v-else>Disconnected</el-tag>
+                </div>
+            </el-header>
+            <el-main>
+                <div class="main-container">
+                    <!-- 采集通道列表页面 -->
+                    <div v-if="currentView === 'channels'">
+                        <div class="breadcrumb">
+                            <span>采集通道</span>
+                        </div>
+                        <el-row :gutter="20">
+                            <el-col :span="24">
+                                <el-card class="box-card" shadow="hover">
+                                    <template #header>
+                                        <div class="card-header">
+                                            <span>采集通道列表</span>
+                                            <el-button type="primary" @click="refreshChannels">刷新</el-button>
+                                        </div>
+                                    </template>
+                                    <div v-if="channelList.length > 0" class="channel-grid">
+                                        <div v-for="channel in channelList" :key="channel.id" class="channel-item" @click="selectChannel(channel)">
+                                            <div class="channel-name">{{ channel.name }}</div>
+                                            <div class="channel-info">
+                                                <div>ID: {{ channel.id }}</div>
+                                                <div>协议: {{ channel.protocol }}</div>
+                                                <div>状态: 
+                                                    <el-tag :type="channel.enable ? 'success' : 'info'" size="small">{{ channel.enable ? '启用' : '禁用' }}</el-tag>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div v-else>
+                                        <el-empty description="没有采集通道"></el-empty>
+                                    </div>
+                                </el-card>
+                            </el-col>
+                        </el-row>
+                    </div>
+
+                    <!-- 设备列表页面 -->
+                    <div v-if="currentView === 'devices'">
+                        <div class="breadcrumb">
+                            <span class="breadcrumb-link" @click="currentView = 'channels'">采集通道</span>
+                            <span> / {{ selectedChannel.name }}</span>
+                        </div>
+                        <el-row :gutter="20">
+                            <el-col :span="24">
+                                <el-card class="box-card" shadow="hover">
+                                    <template #header>
+                                        <div class="card-header">
+                                            <span>设备列表 - {{ selectedChannel.name }}</span>
+                                            <el-button type="default" @click="currentView = 'channels'">返回</el-button>
+                                        </div>
+                                    </template>
+                                    <el-table :data="deviceList" style="width: 100%" stripe>
+                                        <el-table-column prop="id" label="设备ID" width="150"></el-table-column>
+                                        <el-table-column prop="name" label="设备名称" width="150"></el-table-column>
+                                        <el-table-column prop="enable" label="状态" width="100">
+                                            <template #default="scope">
+                                                <el-tag :type="scope.row.enable ? 'success' : 'info'" size="small">{{ scope.row.enable ? '启用' : '禁用' }}</el-tag>
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column prop="interval" label="采集间隔" width="120"></el-table-column>
+                                        <el-table-column label="操作" width="150">
+                                            <template #default="scope">
+                                                <el-button type="primary" size="small" @click="selectDevice(scope.row)">查看点位</el-button>
+                                            </template>
+                                        </el-table-column>
+                                    </el-table>
+                                </el-card>
+                            </el-col>
+                        </el-row>
+                    </div>
+
+                    <!-- 点位数据页面 -->
+                    <div v-if="currentView === 'points'">
+                        <div class="breadcrumb">
+                            <span class="breadcrumb-link" @click="currentView = 'channels'">采集通道</span>
+                            <span> / </span>
+                            <span class="breadcrumb-link" @click="currentView = 'devices'">{{ selectedChannel.name }}</span>
+                            <span> / {{ selectedDevice.name }}</span>
+                        </div>
+                        <el-row :gutter="20">
+                            <el-col :span="24">
+                                <el-card class="box-card" shadow="hover">
+                                    <template #header>
+                                        <div class="card-header">
+                                            <span>点位数据 - {{ selectedDevice.name }}</span>
+                                            <div>
+                                                <el-button type="default" @click="currentView = 'devices'" style="margin-right: 10px">返回</el-button>
+                                                <el-button type="primary" @click="refreshPointData">刷新</el-button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    
+                                    <el-table :data="pointDataList" style="width: 100%" stripe>
+                                        <el-table-column prop="id" label="点位ID" width="150"></el-table-column>
+                                        <el-table-column prop="name" label="点位名称" width="150"></el-table-column>
+                                        <el-table-column prop="value" label="数值">
+                                            <template #default="scope">
+                                                <span style="font-weight: bold; font-size: 1.1em;">{{ formatValue(scope.row.value) }}</span>
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column prop="quality" label="质量" width="100">
+                                            <template #default="scope">
+                                                <el-tag :type="scope.row.quality === 'Good' || scope.row.quality === 'good' ? 'success' : 'danger'" size="small">{{ scope.row.quality }}</el-tag>
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column prop="timestamp" label="时间戳" width="220">
+                                            <template #default="scope">
+                                                {{ formatDate(scope.row.timestamp) }}
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column label="操作" width="150">
+                                            <template #default="scope">
+                                                <el-button type="primary" size="small" @click="openWriteDialog(scope.row)">写入</el-button>
+                                            </template>
+                                        </el-table-column>
+                                    </el-table>
+                                </el-card>
+                            </el-col>
+                        </el-row>
+                    </div>
+                </div>
+            </el-main>
+        </el-container>
+
+        <!-- Write Dialog -->
+        <el-dialog v-model="writeDialogVisible" title="写入数值" width="30%">
+            <el-form :model="writeForm" label-width="120px">
+                <el-form-item label="设备ID">
+                    <el-input v-model="writeForm.deviceID" disabled></el-input>
+                </el-form-item>
+                <el-form-item label="点位ID">
+                    <el-input v-model="writeForm.pointID" disabled></el-input>
+                </el-form-item>
+                <el-form-item label="新数值">
+                    <el-input v-model="writeForm.value" placeholder="输入数值"></el-input>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="writeDialogVisible = false">取消</el-button>
+                    <el-button type="primary" @click="submitWrite">确认</el-button>
+                </span>
+            </template>
+        </el-dialog>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, reactive } = Vue;
+
+        const app = createApp({
+            setup() {
+                // View management
+                const currentView = ref('channels'); // 'channels', 'devices', 'points'
+                const selectedChannel = ref(null);
+                const selectedDevice = ref(null);
+
+                // Data
+                const channelList = ref([]);
+                const deviceList = ref([]);
+                const pointDataList = ref([]);
+                const wsConnected = ref(false);
+                let ws = null;
+
+                // Write dialog
+                const writeDialogVisible = ref(false);
+                const writeForm = reactive({
+                    channelID: '',
+                    deviceID: '',
+                    pointID: '',
+                    value: ''
+                });
+
+                // Fetch all channels
+                const refreshChannels = async () => {
+                    try {
+                        const response = await fetch('/api/channels');
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const data = await response.json();
+                        channelList.value = data || [];
+                    } catch (error) {
+                        console.error('Error fetching channels:', error);
+                        ElementPlus.ElMessage.error('获取采集通道失败: ' + error.message);
+                    }
+                };
+
+                // Select channel and fetch devices
+                const selectChannel = async (channel) => {
+                    selectedChannel.value = channel;
+                    try {
+                        const response = await fetch(`/api/channels/${channel.id}/devices`);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const data = await response.json();
+                        deviceList.value = data || [];
+                        currentView.value = 'devices';
+                    } catch (error) {
+                        console.error('Error fetching devices:', error);
+                        ElementPlus.ElMessage.error('获取设备列表失败: ' + error.message);
+                    }
+                };
+
+                // Select device and fetch points
+                const selectDevice = async (device) => {
+                    selectedDevice.value = device;
+                    await refreshPointData();
+                    currentView.value = 'points';
+                };
+
+                // Refresh point data
+                const refreshPointData = async () => {
+                    try {
+                        const response = await fetch(`/api/channels/${selectedChannel.value.id}/devices/${selectedDevice.value.id}/points`);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const data = await response.json();
+                        pointDataList.value = data || [];
+                    } catch (error) {
+                        console.error('Error fetching points:', error);
+                        ElementPlus.ElMessage.error('获取点位数据失败: ' + error.message);
+                    }
+                };
+
+                // Connect WebSocket for real-time updates
+                const connectWebSocket = () => {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    ws = new WebSocket(`${protocol}//${window.location.host}/api/ws/values`);
+
+                    ws.onopen = () => {
+                        wsConnected.value = true;
+                        console.log('WebSocket connected');
+                    };
+
+                    ws.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            // Update point data if we're on the points view
+                            if (currentView.value === 'points' && selectedChannel.value && selectedDevice.value) {
+                                // Check if this update is for the current device
+                                if (data.channel_id === selectedChannel.value.id && data.device_id === selectedDevice.value.id) {
+                                    const index = pointDataList.value.findIndex(item => item.id === data.point_id);
+                                    if (index !== -1) {
+                                        // Update existing point
+                                        pointDataList.value[index].value = data.value;
+                                        pointDataList.value[index].quality = data.quality;
+                                        pointDataList.value[index].timestamp = data.timestamp;
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error parsing WS message:', e);
+                        }
+                    };
+
+                    ws.onclose = () => {
+                        wsConnected.value = false;
+                        console.log('WebSocket disconnected, retrying in 3s...');
+                        setTimeout(connectWebSocket, 3000);
+                    };
+                };
+
+                // Format value
+                const formatValue = (val) => {
+                    if (typeof val === 'number') {
+                        return val.toFixed(2);
+                    }
+                    return val;
+                };
+
+                // Format date
+                const formatDate = (ts) => {
+                    return new Date(ts).toLocaleString();
+                };
+
+                // Open write dialog
+                const openWriteDialog = (row) => {
+                    writeForm.channelID = selectedChannel.value.id;
+                    writeForm.deviceID = selectedDevice.value.id;
+                    writeForm.pointID = row.id;
+                    writeForm.value = '';
+                    writeDialogVisible.value = true;
+                };
+
+                // Submit write
+                const submitWrite = async () => {
+                    try {
+                        const response = await fetch('/api/write', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                channel_id: writeForm.channelID,
+                                device_id: writeForm.deviceID,
+                                point_id: writeForm.pointID,
+                                value: writeForm.value
+                            })
+                        });
+
+                        const result = await response.json();
+                        if (response.ok) {
+                            ElementPlus.ElMessage.success('写入命令已发送');
+                            writeDialogVisible.value = false;
+                        } else {
+                            ElementPlus.ElMessage.error('写入失败: ' + result.error);
+                        }
+                    } catch (error) {
+                        ElementPlus.ElMessage.error('网络错误: ' + error.message);
+                    }
+                };
+
+                onMounted(() => {
+                    refreshChannels();
+                    connectWebSocket();
+                });
+
+                return {
+                    currentView,
+                    selectedChannel,
+                    selectedDevice,
+                    channelList,
+                    deviceList,
+                    pointDataList,
+                    wsConnected,
+                    writeDialogVisible,
+                    writeForm,
+                    refreshChannels,
+                    selectChannel,
+                    selectDevice,
+                    refreshPointData,
+                    formatValue,
+                    formatDate,
+                    openWriteDialog,
+                    submitWrite
+                };
+            }
+        });
+
+        app.use(ElementPlus);
+        app.mount('#app');
+    </script>
+</body>
+</html>

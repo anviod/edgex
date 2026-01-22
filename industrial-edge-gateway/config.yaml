@@ -1,0 +1,948 @@
+server:
+    port: 8082
+storage:
+    path: ./data/gateway.db
+northbound:
+    mqtt:
+        enable: true
+        broker: tcp://127.0.0.1:1883
+        client_id: industrial_gateway_001
+        topic: gateway/uplink
+        username: ""
+        password: ""
+        devices:
+            opcua-device-1:
+                enable: false
+                strategy: periodic
+                interval: 0s
+            remote-slave-1:
+                enable: false
+                strategy: periodic
+                interval: 0s
+            rtu-device-1:
+                enable: false
+                strategy: periodic
+                interval: 0s
+            s7-pressure-sensor:
+                enable: false
+                strategy: periodic
+                interval: 0s
+            s7-pump-1:
+                enable: false
+                strategy: periodic
+                interval: 0s
+            s7-water-meter:
+                enable: false
+                strategy: periodic
+                interval: 0s
+            slave-1:
+                enable: true
+                strategy: periodic
+                interval: 10s
+            slave-2:
+                enable: true
+                strategy: periodic
+                interval: 30s
+    opcua:
+        enable: true
+        port: 5000
+        endpoint: /test
+        devices:
+            opcua-device-1: false
+            remote-slave-1: false
+            rtu-device-1: false
+            s7-pressure-sensor: true
+            s7-pump-1: true
+            s7-water-meter: true
+            slave-1: true
+            slave-2: false
+channels:
+    - id: opcua-sim-1
+      name: OPC UA Simulator Channel
+      protocol: opc-ua
+      enable: true
+      config:
+        url: opc.tcp://127.0.0.1:4840
+      devices:
+        - id: opcua-device-1
+          name: Simulated Machine A
+          enable: true
+          interval: 2s
+          config: {}
+          points:
+            - id: machine_speed
+              name: Machine Speed
+              address: ns=2;s=Machine.Speed
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: rpm
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: machine_status
+              name: Machine Status
+              address: ns=2;s=Machine.Status
+              datatype: string
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: machine_temp
+              name: Core Temperature
+              address: ns=2;s=Machine.Temp
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: °C
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+    - id: modbus-tcp-2
+      name: Modbus TCP Channel 2 (远程机房)
+      protocol: modbus-tcp
+      enable: false
+      config:
+        group_threshold: 50
+        max_packet_size: 125
+        url: tcp://192.168.1.100:502
+      devices:
+        - id: remote-slave-1
+          name: Remote Slave 1
+          enable: true
+          interval: 10s
+          config:
+            slave_id: 1
+          points:
+            - id: remote_temp
+              name: Remote Temperature
+              address: "40001"
+              datatype: int16
+              scale: 0.1
+              offset: 0
+              unit: °C
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+    - id: bac-test-1
+      name: BAC测试
+      protocol: bacnet-ip
+      enable: true
+      config:
+        ip: 192.168.3.122
+        port: 47808
+      devices:
+        - id: bacnet-2228316
+          name: RoomController.Simulator
+          enable: true
+          interval: 10s
+          config:
+            device_id: 2.228316e+06
+            ip: 192.168.3.122
+            port: 47808
+          points:
+            - id: AnalogInput_0
+              name: Temperature.Indoor
+              address: AnalogInput:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogInput_1
+              name: Temperature.Water
+              address: AnalogInput:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogInput_2
+              name: Temperature.Outdoor
+              address: AnalogInput:2
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_0
+              name: SetPoint.Value
+              address: AnalogValue:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_1
+              name: Setpoint.1
+              address: AnalogValue:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_2
+              name: Setpoint.2
+              address: AnalogValue:2
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_3
+              name: Setpoint.3
+              address: AnalogValue:3
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: BinaryValue_0
+              name: State.Heater
+              address: BinaryValue:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: BinaryValue_1
+              name: State.Chiller
+              address: BinaryValue:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: MultiStateValue_0
+              name: State
+              address: MultiStateValue:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: MultiStateValue_1
+              name: State.VentilationLevel
+              address: MultiStateValue:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+        - id: bacnet-2228317
+          name: Device 2228317
+          enable: true
+          interval: 10s
+          config:
+            device_id: 2.228317e+06
+            ip: 192.168.3.122
+            port: 47808
+          points:
+            - id: AnalogInput_0
+              name: Temperature.Indoor
+              address: AnalogInput:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogInput_1
+              name: Temperature.Water
+              address: AnalogInput:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogInput_2
+              name: Temperature.Outdoor
+              address: AnalogInput:2
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_0
+              name: SetPoint.Value
+              address: AnalogValue:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_1
+              name: Setpoint.1
+              address: AnalogValue:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_2
+              name: Setpoint.2
+              address: AnalogValue:2
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_3
+              name: Setpoint.3
+              address: AnalogValue:3
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: BinaryValue_0
+              name: State.Heater
+              address: BinaryValue:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: BinaryValue_1
+              name: State.Chiller
+              address: BinaryValue:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: MultiStateValue_0
+              name: State
+              address: MultiStateValue:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: MultiStateValue_1
+              name: State.VentilationLevel
+              address: MultiStateValue:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+    - id: modbus-rtu-1
+      name: Modbus RTU Channel (本地网关)
+      protocol: modbus-rtu
+      enable: false
+      config:
+        baudrate: 9600
+        port: /dev/ttyUSB0
+        timeout: 5s
+      devices:
+        - id: rtu-device-1
+          name: RTU Device 1
+          enable: true
+          interval: 2s
+          config:
+            slave_id: 1
+          points:
+            - id: rtu_temp
+              name: Temperature
+              address: "0"
+              datatype: int16
+              scale: 0.1
+              offset: 0
+              unit: °C
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+    - id: s7-channel-1
+      name: Siemens S7 Channel
+      protocol: s7
+      enable: true
+      config:
+        address: 192.168.1.200:102
+      devices:
+        - id: s7-pump-1
+          name: 冷却泵1
+          enable: true
+          interval: 1s
+          config: {}
+          points:
+            - id: pump_status
+              name: 开关状态
+              address: I:2.0
+              datatype: bool
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: pump_on_off
+              name: 启停开关
+              address: DB3:332.1
+              datatype: bool
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: pump_fault_status
+              name: 水泵故障反馈
+              address: DB3:12.4
+              datatype: bool
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: pump_man_status
+              name: 手自动状态
+              address: DB3:332.0
+              datatype: bool
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: pump_run_hours
+              name: 累计运行时长
+              address: DB3:334
+              datatype: int32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: fault_status
+              name: 变频器故障反馈
+              address: I:2.1
+              datatype: bool
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: frequency
+              name: 频率反馈
+              address: DB3:342
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: freq_spt_set_manual
+              name: 手动频率设定
+              address: DB3:338
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: spt_set
+              name: 设定值
+              address: DB14:2
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: set_feedback_value
+              name: 设定反馈值
+              address: DB14:6
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: p_value
+              name: P值
+              address: DB14:14
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: i_value
+              name: I值
+              address: DB14:18
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: d_value
+              name: D值
+              address: DB14:22
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: freq_upper_limit
+              name: 频率上限
+              address: DB14:26
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: freq_lower_limit
+              name: 频率下限
+              address: DB14:30
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+        - id: s7-water-meter
+          name: 水表
+          enable: true
+          interval: 5s
+          config: {}
+          points:
+            - id: accumulated_amount
+              name: 水表数值
+              address: DB1:7408
+              datatype: uint16
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+        - id: s7-pressure-sensor
+          name: 压力温度传感器
+          enable: true
+          interval: 1s
+          config: {}
+          points:
+            - id: P1
+              name: P1
+              address: DB3:20
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P2
+              name: P2
+              address: DB3:24
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P3
+              name: P3
+              address: DB3:28
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P4
+              name: P4
+              address: DB3:32
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P5
+              name: P5
+              address: DB3:36
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P6
+              name: P6
+              address: DB3:40
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P7
+              name: P7
+              address: DB3:44
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P8
+              name: P8
+              address: DB3:48
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P9
+              name: P9
+              address: DB3:52
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P10
+              name: P10
+              address: DB3:56
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P11
+              name: P11
+              address: DB3:60
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P12
+              name: P12
+              address: DB3:64
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P13
+              name: P13
+              address: DB3:68
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P14
+              name: P14
+              address: DB3:72
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P15
+              name: P15
+              address: DB3:76
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P16
+              name: P16
+              address: DB3:80
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P17
+              name: P17
+              address: DB3:84
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P18
+              name: P18
+              address: DB3:88
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P19
+              name: P19
+              address: DB3:92
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P20
+              name: P20
+              address: DB3:96
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P21
+              name: P21
+              address: DB3:100
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+    - id: modbus-tcp-1
+      name: Modbus TCP Channel 1
+      protocol: modbus-tcp
+      enable: true
+      config:
+        group_threshold: 50
+        max_packet_size: 125
+        url: tcp://127.0.0.1:502
+      devices:
+        - id: slave-1
+          name: Slave Device 1
+          enable: true
+          interval: 5s
+          config:
+            slave_id: 1
+          points:
+            - id: dev1_temp
+              name: Temperature
+              address: "40001"
+              datatype: int16
+              scale: 0.1
+              offset: 0
+              unit: °C
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: dev1_humidity
+              name: Humidity
+              address: "40002"
+              datatype: int16
+              scale: 0.1
+              offset: 0
+              unit: '%'
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: dev1_pressure
+              name: Pressure
+              address: "40018"
+              datatype: int16
+              scale: 1
+              offset: 0
+              unit: kPa
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+        - id: slave-2
+          name: Slave Device 2
+          enable: true
+          interval: 5s
+          config:
+            slave_id: 2
+          points:
+            - id: dev2_temp
+              name: Temperature
+              address: "40001"
+              datatype: int16
+              scale: 0.1
+              offset: 0
+              unit: °C
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: dev2_current
+              name: Current
+              address: "40004"
+              datatype: int16
+              scale: 1
+              offset: 0
+              unit: A
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: dev2_pressure
+              name: Pressure
+              address: "40018"
+              datatype: int16
+              scale: 1
+              offset: 0
+              unit: kPa
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null

@@ -1,0 +1,119 @@
+package main
+
+import (
+	"flag"
+	"industrial-edge-gateway/internal/config"
+	"industrial-edge-gateway/internal/core"
+	_ "industrial-edge-gateway/internal/driver/bacnet"
+	_ "industrial-edge-gateway/internal/driver/modbus"
+	_ "industrial-edge-gateway/internal/driver/opcua"
+	_ "industrial-edge-gateway/internal/driver/s7"
+	"industrial-edge-gateway/internal/model"
+	"industrial-edge-gateway/internal/server"
+	"industrial-edge-gateway/internal/storage"
+	"log"
+	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
+)
+
+func main() {
+	// Parse command-line flags
+	configPath := flag.String("config", "config.yaml", "Path to configuration file")
+	flag.Parse()
+
+	log.Println("Starting Industrial Edge Gateway...")
+
+	// 1. Load Config
+	cfg, err := config.LoadConfig(*configPath)
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// 2. Init Storage
+	store, err := storage.NewStorage(cfg.Storage.Path)
+	if err != nil {
+		log.Printf("Warning: Failed to init storage: %v (continuing without storage)", err)
+		store = nil
+	}
+	if store != nil {
+		defer store.Close()
+	}
+
+	// 3. Init Core Components
+	pipeline := core.NewDataPipeline(100)
+
+	// Register pipeline handlers
+	// a. Save to storage
+	pipeline.AddHandler(func(v model.Value) {
+		if store != nil {
+			if err := store.SaveValue(v); err != nil {
+				log.Printf("Failed to save value: %v", err)
+			}
+		}
+	})
+
+	pipeline.Start()
+
+	// 5. Init Northbound Manager
+	nbm := core.NewNorthboundManager(cfg.Northbound, pipeline, func(nbCfg model.NorthboundConfig) error {
+		cfg.Northbound = nbCfg
+		return config.SaveConfig(*configPath, cfg)
+	})
+	nbm.Start()
+	defer nbm.Stop()
+
+	// 使用新的 ChannelManager（支持三级结构）
+	cm := core.NewChannelManager(pipeline, func(channels []model.Channel) error {
+		cfg.Channels = channels
+		return config.SaveConfig(*configPath, cfg)
+	})
+
+	// 4. Init Web Server
+	srv := server.NewServer(cm, store, pipeline, nbm)
+
+	// Register pipeline handler for WebSocket broadcast
+	pipeline.AddHandler(func(v model.Value) {
+		srv.BroadcastValue(v)
+	})
+
+	// 6. Start Channels from Config
+	for _, chConfig := range cfg.Channels {
+		// Create a copy to avoid loop variable issues
+		ch := chConfig
+		ch.StopChan = make(chan struct{})
+
+		err := cm.AddChannel(&ch)
+		if err != nil {
+			log.Printf("Failed to add channel %s: %v", ch.Name, err)
+			continue
+		}
+
+		err = cm.StartChannel(ch.ID)
+		if err != nil {
+			log.Printf("Failed to start channel %s: %v", ch.Name, err)
+		}
+	}
+
+	// 6. Start Web Server
+	go func() {
+		port := 8080
+		if cfg.Server.Port != 0 {
+			port = cfg.Server.Port
+		}
+		addr := ":" + strconv.Itoa(port)
+		log.Printf("Web server starting on %s", addr)
+		if err := srv.Start(addr); err != nil {
+			log.Fatalf("Web server failed: %v", err)
+		}
+	}()
+
+	// 7. Wait for shutdown signal
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	<-sigChan
+
+	log.Println("Shutting down...")
+	cm.Shutdown()
+}

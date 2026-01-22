@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据采集网关</title>
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.x/css/materialdesignicons.min.css" rel="stylesheet">
+    <!-- Vuetify 3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@3.4.10/dist/vuetify.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* Fonts */
+            --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            
+            /* Colors */
+            --color-gray-50: #f9fafb;
+            --color-gray-900: #111827;
+            --color-blue-50: #eff6ff;
+            --color-purple-50: #faf5ff;
+            
+            /* Spacing & Radius */
+            --spacing: 0.25rem;
+            --radius-2xl: 1rem;
+            
+            /* Animations */
+            --animate-float: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .blink {
+            animation: blink 1s linear infinite;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            margin: 0;
+            overflow: hidden;
+            color: var(--color-gray-900);
+        }
+        
+        .app-background {
+            /* Fallback for browsers not supporting complex gradients */
+            background: linear-gradient(135deg, var(--color-gray-50), var(--color-blue-50), var(--color-purple-50));
+            background-size: cover;
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border-radius: var(--radius-2xl) !important;
+            
+            /* Shadow */
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+            
+            /* 3D Transform */
+            transform-style: preserve-3d;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            transform: perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1);
+        }
+        
+        .glass-card:not(.no-hover):hover {
+            transform: perspective(1000px) rotateX(1deg) rotateY(1deg) scale3d(1.01, 1.01, 1.01);
+            box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .glass-app-bar {
+            background: rgba(255, 255, 255, 0.6) !important;
+            backdrop-filter: blur(10px) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+        }
+
+        .glass-drawer {
+            background: rgba(255, 255, 255, 0.4) !important;
+            backdrop-filter: blur(20px) saturate(180%) !important;
+            -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
+            box-shadow: 5px 0 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .v-list-item--active {
+            background: rgba(79, 70, 229, 0.1) !important;
+            color: #4f46e5 !important;
+            font-weight: bold;
+        }
+
+        .v-table {
+            background: transparent !important;
+        }
+        
+        .v-table .v-table__wrapper > table > thead > tr > th {
+            background: rgba(255, 255, 255, 0.3) !important;
+            color: #333 !important;
+            font-weight: 600 !important;
+        }
+        
+        .v-table .v-table__wrapper > table > tbody > tr:hover td {
+            background: rgba(255, 255, 255, 0.2) !important;
+        }
+        
+        .channel-icon {
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            padding: 12px;
+            display: inline-flex;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Custom Text Colors to match theme */
+        .text-primary {
+            color: #4f46e5 !important; /* Indigo-600-ish */
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <v-app class="app-background">
+            <!-- Navigation Drawer -->
+            <v-navigation-drawer 
+                app 
+                permanent 
+                class="glass-drawer" 
+                :rail="drawerRail"
+                width="260"
+            >
+                <div class="d-flex align-center justify-center pa-4" style="height: 64px;">
+                    <v-icon icon="mdi-hexagon-multiple" size="32" color="primary"></v-icon>
+                    <span v-if="!drawerRail" class="text-h6 font-weight-bold ml-2 text-primary text-truncate">Edge Gateway</span>
+                </div>
+                
+                <v-list nav class="bg-transparent">
+                    <v-list-item 
+                        prepend-icon="mdi-lan-connect" 
+                        title="南向采集" 
+                        to="/"
+                        active-class="v-list-item--active"
+                        rounded="xl"
+                    ></v-list-item>
+                    <v-list-item 
+                        prepend-icon="mdi-cloud-upload" 
+                        title="北向上报" 
+                        to="/northbound"
+                        active-class="v-list-item--active"
+                        rounded="xl"
+                    ></v-list-item>
+                </v-list>
+
+                <template v-slot:append>
+                    <div class="pa-2">
+                        <v-btn 
+                            block 
+                            variant="text" 
+                            :icon="drawerRail ? 'mdi-chevron-right' : undefined"
+                            @click="drawerRail = !drawerRail"
+                        >
+                            <v-icon v-if="drawerRail">mdi-chevron-right</v-icon>
+                            <span v-else class="d-flex align-center">
+                                <v-icon start>mdi-chevron-left</v-icon> 收起菜单
+                            </span>
+                        </v-btn>
+                    </div>
+                </template>
+            </v-navigation-drawer>
+
+            <!-- App Bar -->
+            <v-app-bar app class="glass-app-bar" elevation="0">
+                <v-app-bar-title class="font-weight-bold text-h5 text-primary">
+                    边缘计算网关
+                    <span v-if="$route.meta.title" class="text-grey-darken-1 font-weight-light">
+                        / {{ $route.meta.title }}
+                    </span>
+                    <span v-if="globalState.navTitle" class="text-grey-darken-1 font-weight-light">
+                        / {{ globalState.navTitle }}
+                    </span>
+                </v-app-bar-title>
+                <template v-slot:append>
+                    <v-chip
+                        :color="wsStatus.connected ? 'success' : 'error'"
+                        variant="elevated"
+                        class="font-weight-medium"
+                    >
+                        <v-icon start :icon="wsStatus.connected ? 'mdi-wifi' : 'mdi-wifi-off'"></v-icon>
+                        {{ wsStatus.connected ? 'Connected' : 'Disconnected' }}
+                    </v-chip>
+                </template>
+            </v-app-bar>
+
+            <!-- Main Content -->
+            <v-main>
+                <v-container fluid class="pa-6">
+                    <router-view :key="$route.fullPath"></router-view>
+                </v-container>
+            </v-main>
+
+            <!-- Global Snackbar -->
+            <v-snackbar v-model="snackbar.show" :color="snackbar.color" location="top">
+                {{ snackbar.text }}
+                <template v-slot:actions>
+                    <v-btn variant="text" @click="snackbar.show = false">关闭</v-btn>
+                </template>
+            </v-snackbar>
+        </v-app>
+    </div>
+
+    <!-- TEMPLATES -->
+
+    <!-- Channel List Template -->
+    <script type="text/x-template" id="channel-list-template">
+        <div>
+            <div class="d-flex justify-end align-center mb-6">
+                <v-btn 
+                    color="white" 
+                    prepend-icon="mdi-refresh" 
+                    variant="flat" 
+                    @click="fetchChannels"
+                    :loading="loading"
+                    class="text-primary"
+                >
+                    刷新
+                </v-btn>
+            </div>
+            
+            <div v-if="loading && channels.length === 0" class="d-flex justify-center mt-12">
+                <v-progress-circular indeterminate color="white" size="64"></v-progress-circular>
+            </div>
+
+            <div v-else-if="channels.length > 0">
+                <v-row>
+                    <v-col 
+                        v-for="channel in channels" 
+                        :key="channel.id" 
+                        cols="12" sm="6" md="4" lg="3"
+                    >
+                        <v-card class="glass-card pa-4 h-100" @click="goToDevices(channel)" v-ripple>
+                            <div class="d-flex flex-column h-100 justify-space-between">
+                                <div>
+                                    <div class="d-flex justify-space-between align-start">
+                                        <div class="channel-icon text-primary">
+                                            <v-icon icon="mdi-lan-connect" size="large"></v-icon>
+                                        </div>
+                                        <v-chip size="small" :color="channel.enable ? 'success' : 'grey'">
+                                            {{ channel.enable ? '启用' : '禁用' }}
+                                        </v-chip>
+                                    </div>
+                                    <div class="text-h6 font-weight-bold mt-2 text-truncate">{{ channel.name }}</div>
+                                    <div class="text-caption text-grey-darken-1">ID: {{ channel.id }}</div>
+                                </div>
+                                <div class="mt-4 pt-3 border-t">
+                                    <div class="d-flex align-center text-body-2 text-grey-darken-2">
+                                        <v-icon icon="mdi-protocol" size="small" class="mr-2"></v-icon>
+                                        {{ channel.protocol }}
+                                    </div>
+                                </div>
+                            </div>
+                        </v-card>
+                    </v-col>
+                </v-row>
+            </div>
+            <div v-else class="text-center mt-12">
+                <v-icon icon="mdi-lan-disconnect" size="100" color="white" style="opacity: 0.5"></v-icon>
+                <div class="text-h5 text-white mt-4">没有采集通道</div>
+            </div>
+        </div>
+    </script>
+
+    <!-- Device List Template -->
+    <script type="text/x-template" id="device-list-template">
+        <div>
+            <v-card class="glass-card">
+                <v-card-title class="d-flex align-center py-4 px-6 border-b">
+                    <v-btn 
+                        prepend-icon="mdi-arrow-left" 
+                        variant="flat" 
+                        color="white" 
+                        class="mr-4 text-primary font-weight-bold"
+                        elevation="2"
+                        @click="$router.push('/')"
+                    >
+                        返回通道
+                    </v-btn>
+                </v-card-title>
+                
+                <v-progress-linear v-if="loading" indeterminate color="primary"></v-progress-linear>
+
+                <v-card-text class="pa-0">
+                    <v-table hover>
+                        <thead>
+                            <tr>
+                                <th class="text-left">设备ID</th>
+                                <th class="text-left">设备名称</th>
+                                <th class="text-left">状态</th>
+                                <th class="text-left">采集间隔</th>
+                                <th class="text-left">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="device in devices" :key="device.id">
+                                <td class="font-weight-medium">{{ device.id }}</td>
+                                <td>{{ device.name }}</td>
+                                <td>
+                                    <v-chip size="small" :color="device.enable ? 'success' : 'grey'" variant="flat">
+                                        {{ device.enable ? '启用' : '禁用' }}
+                                    </v-chip>
+                                </td>
+                                <td>{{ device.interval }}</td>
+                                <td>
+                                    <v-btn 
+                                        color="primary" 
+                                        size="small" 
+                                        variant="tonal"
+                                        prepend-icon="mdi-eye"
+                                        @click="goToPoints(device)"
+                                    >
+                                        查看点位
+                                    </v-btn>
+                                </td>
+                            </tr>
+                            <tr v-if="!loading && devices.length === 0">
+                                <td colspan="5" class="text-center pa-8 text-grey">暂无设备</td>
+                            </tr>
+                        </tbody>
+                    </v-table>
+                </v-card-text>
+            </v-card>
+        </div>
+    </script>
+
+    <!-- Point List Template -->
+    <script type="text/x-template" id="point-list-template">
+        <div>
+            <v-card class="glass-card no-hover">
+                <v-card-title class="d-flex align-center py-4 px-6 border-b">
+                    <v-btn 
+                        prepend-icon="mdi-arrow-left" 
+                        variant="flat" 
+                        color="white" 
+                        class="mr-4 text-primary font-weight-bold"
+                        elevation="2"
+                        @click="$router.back()"
+                    >
+                        返回设备
+                    </v-btn>
+
+                    <v-spacer></v-spacer>
+                    <v-btn 
+                        color="primary" 
+                        variant="tonal" 
+                        prepend-icon="mdi-refresh" 
+                        @click="fetchPoints"
+                        :loading="loading"
+                    >
+                        刷新
+                    </v-btn>
+                </v-card-title>
+                
+                <v-progress-linear v-if="loading" indeterminate color="primary"></v-progress-linear>
+
+                <v-card-text class="pa-0">
+                    <v-table hover>
+                        <thead>
+                            <tr>
+                                <th class="text-left">点位ID</th>
+                                <th class="text-left">点位名称</th>
+                                <th class="text-left">数值</th>
+                                <th class="text-left">质量</th>
+                                <th class="text-left">时间戳</th>
+                                <th class="text-left">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="point in points" :key="point.id">
+                                <td class="font-weight-medium">{{ point.id }}</td>
+                                <td>{{ point.name }}</td>
+                                <td>
+                                    <span class="text-h6 font-weight-bold text-primary">{{ formatValue(point.value) }}</span>
+                                    <span v-if="point.unit" class="text-caption ml-1">{{ point.unit }}</span>
+                                </td>
+                                <td>
+                                    <v-chip 
+                                        size="small" 
+                                        :color="isQualityGood(point.quality) ? 'success' : 'error'" 
+                                        variant="flat"
+                                    >
+                                        {{ point.quality }}
+                                    </v-chip>
+                                </td>
+                                <td class="text-body-2">{{ formatDate(point.timestamp) }}</td>
+                                <td>
+                                    <v-btn 
+                                        v-if="point.readwrite === 'RW' || point.readwrite === 'W'"
+                                        color="secondary" 
+                                        size="small" 
+                                        variant="tonal"
+                                        prepend-icon="mdi-pencil"
+                                        @click="openWriteDialog(point)"
+                                    >
+                                        写入
+                                    </v-btn>
+                                </td>
+                            </tr>
+                            <tr v-if="!loading && points.length === 0">
+                                <td colspan="6" class="text-center pa-8 text-grey">暂无点位数据</td>
+                            </tr>
+                        </tbody>
+                    </v-table>
+                </v-card-text>
+            </v-card>
+
+            <!-- Write Dialog -->
+            <v-dialog v-model="writeDialog.visible" max-width="400" persistent>
+                <v-card class="rounded-xl bg-white elevation-10">
+                    <v-card-title class="text-h5 pa-4 bg-primary text-white">
+                        <v-icon icon="mdi-pencil" class="mr-2"></v-icon>
+                        写入数值
+                    </v-card-title>
+                    <v-card-text class="pa-4 pt-6">
+                        <v-form @submit.prevent="submitWrite">
+                            <v-text-field
+                                v-model="writeDialog.deviceID"
+                                label="设备ID"
+                                variant="outlined"
+                                readonly
+                                density="compact"
+                                prepend-inner-icon="mdi-devices"
+                                class="mb-2"
+                            ></v-text-field>
+                            <v-text-field
+                                v-model="writeDialog.pointID"
+                                label="点位ID"
+                                variant="outlined"
+                                readonly
+                                density="compact"
+                                prepend-inner-icon="mdi-tag"
+                                class="mb-2"
+                            ></v-text-field>
+                            <v-text-field
+                                v-model="writeDialog.value"
+                                label="新数值"
+                                variant="outlined"
+                                density="comfortable"
+                                prepend-inner-icon="mdi-numeric"
+                                placeholder="请输入要写入的值"
+                                autofocus
+                            ></v-text-field>
+                        </v-form>
+                    </v-card-text>
+                    <v-card-actions class="pa-4 pt-0">
+                        <v-spacer></v-spacer>
+                        <v-btn color="grey-darken-1" variant="text" @click="writeDialog.visible = false">取消</v-btn>
+                        <v-btn color="primary" variant="elevated" @click="submitWrite" :loading="writeDialog.loading">确认写入</v-btn>
+                    </v-card-actions>
+                </v-card>
+            <!-- OPC UA Settings Dialog -->
+            <v-dialog v-model="opcuaDialog.visible" max-width="800px">
+                <v-card>
+                    <v-card-title class="text-h5 pa-4">OPC UA 配置</v-card-title>
+                    <v-card-text>
+                        <v-form>
+                            <v-switch v-model="opcuaDialog.config.enable" label="启用 OPC UA 服务" color="primary" inset></v-switch>
+                            <v-row>
+                                <v-col cols="12" md="6">
+                                    <v-text-field v-model.number="opcuaDialog.config.port" label="监听端口" type="number" variant="outlined" density="compact"></v-text-field>
+                                </v-col>
+                                <v-col cols="12" md="6">
+                                    <v-text-field v-model="opcuaDialog.config.endpoint" label="Endpoint" hint="/ipp/opcua/server" persistent-hint variant="outlined" density="compact"></v-text-field>
+                                </v-col>
+                            </v-row>
+                            
+                            <v-divider class="my-4"></v-divider>
+                            <div class="text-subtitle-1 mb-2 font-weight-bold">设备映射设置</div>
+                            <v-table density="compact" class="border rounded">
+                                <thead>
+                                    <tr>
+                                        <th>设备名称</th>
+                                        <th style="width: 100px;">启用映射</th>
+                                        <th>通道</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="dev in allDevices" :key="dev.id">
+                                        <td>{{ dev.name }} ({{ dev.id }})</td>
+                                        <td>
+                                            <v-checkbox-btn 
+                                                v-model="opcuaDialog.config.devices[dev.id]" 
+                                                color="primary"
+                                            ></v-checkbox-btn>
+                                        </td>
+                                        <td>{{ dev.channelName }}</td>
+                                    </tr>
+                                </tbody>
+                            </v-table>
+                        </v-form>
+                    </v-card-text>
+                    <v-card-actions class="pa-4">
+                        <v-spacer></v-spacer>
+                        <v-btn variant="text" @click="opcuaDialog.visible = false">取消</v-btn>
+                        <v-btn color="primary" variant="elevated" @click="saveOpcuaSettings" :loading="opcuaDialog.loading">保存配置</v-btn>
+                    </v-card-actions>
+                </v-card>
+            </v-dialog>
+        </div>
+    </script>
+
+    <!-- Northbound Template -->
+    <script type="text/x-template" id="northbound-template">
+        <div>
+            <div v-if="loading" class="d-flex justify-center mt-12">
+                <v-progress-circular indeterminate color="white" size="64"></v-progress-circular>
+            </div>
+
+            <v-row v-else>
+                <!-- MQTT Card -->
+                <v-col cols="12" md="6">
+                    <v-card class="glass-card h-100">
+                        <v-card-title class="d-flex align-center border-b py-4">
+                            <v-icon icon="mdi-access-point-network" color="primary" class="mr-3"></v-icon>
+                            MQTT 客户端
+                            <v-spacer></v-spacer>
+                            <v-btn icon="mdi-cog" variant="text" size="small" color="primary" @click="openMqttSettings"></v-btn>
+                            
+                            <template v-if="!config.mqtt.enable">
+                                <v-chip color="grey" size="small" class="ml-2">未启用</v-chip>
+                            </template>
+                            <template v-else>
+                                <v-chip v-if="config.status?.mqtt === 1" color="success" size="small" class="ml-2">已连接</v-chip>
+                                <v-chip v-else-if="config.status?.mqtt === 2" color="warning" size="small" class="ml-2 blink">重连中</v-chip>
+                                <v-chip v-else color="error" size="small" class="ml-2">连接断开</v-chip>
+                            </template>
+                        </v-card-title>
+                        <v-card-text class="pt-4">
+                            <v-list density="compact" bg-color="transparent">
+                                <v-list-item title="Broker地址" :subtitle="config.mqtt.broker">
+                                    <template v-slot:prepend><v-icon icon="mdi-server" color="grey"></v-icon></template>
+                                </v-list-item>
+                                <v-list-item title="Client ID" :subtitle="config.mqtt.client_id">
+                                    <template v-slot:prepend><v-icon icon="mdi-identifier" color="grey"></v-icon></template>
+                                </v-list-item>
+                                <v-list-item title="发布主题" :subtitle="config.mqtt.topic">
+                                    <template v-slot:prepend><v-icon icon="mdi-post" color="grey"></v-icon></template>
+                                </v-list-item>
+                            </v-list>
+                        </v-card-text>
+                    </v-card>
+                </v-col>
+
+                <!-- OPC UA Server Card -->
+                <v-col cols="12" md="6">
+                    <v-card class="glass-card h-100">
+                        <v-card-title class="d-flex align-center border-b py-4">
+                            <v-icon icon="mdi-server" color="primary" class="mr-3"></v-icon>
+                            OPC UA 服务端
+                            <v-spacer></v-spacer>
+                            <v-btn icon="mdi-cog" variant="text" size="small" color="primary" @click="openOpcuaSettings"></v-btn>
+                            <v-chip :color="config.opcua.enable ? 'success' : 'grey'" size="small" class="ml-2">
+                                {{ config.opcua.enable ? '启用' : '禁用' }}
+                            </v-chip>
+                        </v-card-title>
+                        <v-card-text class="pt-4">
+                            <v-list density="compact" bg-color="transparent">
+                                <v-list-item title="监听端口" :subtitle="config.opcua.port">
+                                    <template v-slot:prepend><v-icon icon="mdi-lan-pending" color="grey"></v-icon></template>
+                                </v-list-item>
+                                <v-list-item title="Endpoint" :subtitle="config.opcua.endpoint">
+                                    <template v-slot:prepend><v-icon icon="mdi-link" color="grey"></v-icon></template>
+                                </v-list-item>
+                                <v-list-item title="完整地址" :subtitle="'opc.tcp://localhost:' + config.opcua.port + config.opcua.endpoint">
+                                    <template v-slot:prepend><v-icon icon="mdi-web" color="grey"></v-icon></template>
+                                </v-list-item>
+                            </v-list>
+                        </v-card-text>
+                    </v-card>
+                </v-col>
+            </v-row>
+
+            <!-- MQTT Settings Dialog -->
+            <v-dialog v-model="mqttDialog.visible" max-width="800px">
+                <v-card>
+                    <v-card-title class="text-h5 pa-4">MQTT 配置</v-card-title>
+                    <v-card-text>
+                        <v-form>
+                            <v-switch v-model="mqttDialog.config.enable" label="启用 MQTT 上报" color="primary" inset></v-switch>
+                            <v-row>
+                                <v-col cols="12" md="6">
+                                    <v-text-field v-model="mqttDialog.config.broker" label="Broker 地址" hint="tcp://127.0.0.1:1883" persistent-hint variant="outlined" density="compact"></v-text-field>
+                                </v-col>
+                                <v-col cols="12" md="6">
+                                    <v-text-field v-model="mqttDialog.config.client_id" label="Client ID" variant="outlined" density="compact"></v-text-field>
+                                </v-col>
+                                <v-col cols="12" md="6">
+                                    <v-text-field v-model="mqttDialog.config.topic" label="发布主题" variant="outlined" density="compact"></v-text-field>
+                                </v-col>
+                            </v-row>
+                            
+                            <v-divider class="my-4"></v-divider>
+                            <div class="text-subtitle-1 mb-2 font-weight-bold">设备上报策略</div>
+                            <v-table density="compact" class="border rounded">
+                                <thead>
+                                    <tr>
+                                        <th>设备名称</th>
+                                        <th style="width: 80px;">启用</th>
+                                        <th style="width: 180px;">策略</th>
+                                        <th style="width: 150px;">上报周期</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="dev in allDevices" :key="dev.id">
+                                        <td>{{ dev.name }} ({{ dev.id }})</td>
+                                        <td>
+                                            <v-checkbox-btn 
+                                                v-model="getDeviceConfig(dev.id).enable" 
+                                                color="primary"
+                                            ></v-checkbox-btn>
+                                        </td>
+                                        <td>
+                                            <v-select
+                                                v-model="getDeviceConfig(dev.id).strategy"
+                                                :items="[{title:'采集周期上报', value:'periodic'}, {title:'变化上报(COV)', value:'cov'}]"
+                                                variant="plain"
+                                                density="compact"
+                                                hide-details
+                                                :disabled="!getDeviceConfig(dev.id).enable"
+                                            ></v-select>
+                                        </td>
+                                        <td>
+                                            <v-text-field
+                                                v-if="getDeviceConfig(dev.id).strategy === 'periodic'"
+                                                v-model="getDeviceConfig(dev.id).interval_str"
+                                                placeholder="默认(0s)"
+                                                variant="plain"
+                                                density="compact"
+                                                hide-details
+                                                suffix="s"
+                                                :disabled="!getDeviceConfig(dev.id).enable"
+                                                @change="updateInterval(dev.id)"
+                                            ></v-text-field>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </v-table>
+                        </v-form>
+                    </v-card-text>
+                    <v-card-actions class="pa-4">
+                        <v-spacer></v-spacer>
+                        <v-btn variant="text" @click="mqttDialog.visible = false">取消</v-btn>
+                        <v-btn color="primary" variant="elevated" @click="saveMqttSettings" :loading="mqttDialog.loading">保存配置</v-btn>
+                    </v-card-actions>
+                </v-card>
+            </v-dialog>
+
+            <!-- OPC UA Settings Dialog -->
+            <v-dialog v-model="opcuaDialog.visible" max-width="800px">
+                <v-card>
+                    <v-card-title class="text-h5 pa-4">OPC UA 配置</v-card-title>
+                    <v-card-text>
+                        <v-form>
+                            <v-switch v-model="opcuaDialog.config.enable" label="启用 OPC UA 服务" color="primary" inset></v-switch>
+                            <v-row>
+                                <v-col cols="12" md="6">
+                                    <v-text-field v-model.number="opcuaDialog.config.port" label="监听端口" type="number" variant="outlined" density="compact"></v-text-field>
+                                </v-col>
+                                <v-col cols="12" md="6">
+                                    <v-text-field v-model="opcuaDialog.config.endpoint" label="Endpoint" hint="/ipp/opcua/server" persistent-hint variant="outlined" density="compact"></v-text-field>
+                                </v-col>
+                            </v-row>
+                            <v-divider class="my-4"></v-divider>
+                            <div class="text-subtitle-1 mb-2 font-weight-bold">设备映射设置</div>
+                            <v-table density="compact" class="border rounded">
+                                <thead>
+                                    <tr>
+                                        <th>设备名称</th>
+                                        <th style="width: 100px;">启用映射</th>
+                                        <th>通道</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="dev in allDevices" :key="dev.id">
+                                        <td>{{ dev.name }} ({{ dev.id }})</td>
+                                        <td>
+                                            <v-checkbox-btn 
+                                                v-model="opcuaDialog.config.devices[dev.id]" 
+                                                color="primary"
+                                            ></v-checkbox-btn>
+                                        </td>
+                                        <td>{{ dev.channelName }}</td>
+                                    </tr>
+                                </tbody>
+                            </v-table>
+                        </v-form>
+                    </v-card-text>
+                    <v-card-actions class="pa-4">
+                        <v-spacer></v-spacer>
+                        <v-btn variant="text" @click="opcuaDialog.visible = false">取消</v-btn>
+                        <v-btn color="primary" variant="elevated" @click="saveOpcuaSettings" :loading="opcuaDialog.loading">保存配置</v-btn>
+                    </v-card-actions>
+                </v-card>
+            </v-dialog>
+        </div>
+    </script>
+
+    <!-- Dependencies -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@3.4.10/dist/vuetify.min.js"></script>
+
+    <!-- Application Logic -->
+    <script>
+        const { createApp, ref, reactive, onMounted, onUnmounted, inject, provide } = Vue;
+        const { createRouter, createWebHashHistory, useRoute, useRouter } = VueRouter;
+        const { createVuetify } = Vuetify;
+
+        // --- Global State ---
+        const globalState = reactive({
+            snackbar: { show: false, text: '', color: 'success' },
+            wsStatus: { connected: false },
+            navTitle: ''
+        });
+
+        const showMessage = (text, color = 'success') => {
+            globalState.snackbar.text = text;
+            globalState.snackbar.color = color;
+            globalState.snackbar.show = true;
+        };
+
+        // --- Components ---
+
+        // 1. Channel List Component
+        const ChannelList = {
+            template: '#channel-list-template',
+            setup() {
+                const router = useRouter();
+                const channels = ref([]);
+                const loading = ref(false);
+
+                const fetchChannels = async () => {
+                    loading.value = true;
+                    try {
+                        const res = await fetch('/api/channels');
+                        if (!res.ok) throw new Error(res.statusText);
+                        channels.value = await res.json();
+                    } catch (e) {
+                        showMessage('获取通道失败: ' + e.message, 'error');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const goToDevices = (channel) => {
+                    router.push(`/channels/${channel.id}/devices`);
+                };
+
+                onMounted(fetchChannels);
+
+                return { channels, loading, fetchChannels, goToDevices };
+            }
+        };
+
+        // 2. Device List Component
+        const DeviceList = {
+            template: '#device-list-template',
+            setup() {
+                const route = useRoute();
+                const router = useRouter();
+                const devices = ref([]);
+                const channelInfo = ref(null);
+                const loading = ref(false);
+                const channelId = route.params.channelId;
+
+                const fetchDevices = async () => {
+                    loading.value = true;
+                    try {
+                        // Parallel fetch for channel info and devices
+                        const [devRes, chanRes] = await Promise.all([
+                            fetch(`/api/channels/${channelId}/devices`),
+                            fetch(`/api/channels/${channelId}`)
+                        ]);
+
+                        if (!devRes.ok) throw new Error('Failed to fetch devices');
+                        devices.value = await devRes.json();
+
+                        if (chanRes.ok) {
+                            channelInfo.value = await chanRes.json();
+                            globalState.navTitle = channelInfo.value.name;
+                        }
+                    } catch (e) {
+                        showMessage('获取设备失败: ' + e.message, 'error');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const goToPoints = (device) => {
+                    router.push(`/channels/${channelId}/devices/${device.id}/points`);
+                };
+
+                onMounted(fetchDevices);
+
+                return { devices, channelInfo, loading, goToPoints };
+            }
+        };
+
+        // 3. Point List Component
+        const PointList = {
+            template: '#point-list-template',
+            setup() {
+                const route = useRoute();
+                const points = ref([]);
+                const deviceInfo = ref(null);
+                const loading = ref(false);
+                const channelId = route.params.channelId;
+                const deviceId = route.params.deviceId;
+                
+                // Write Dialog State
+                const writeDialog = reactive({
+                    visible: false,
+                    deviceID: '',
+                    pointID: '',
+                    value: '',
+                    loading: false
+                });
+
+                const fetchPoints = async () => {
+                    loading.value = true;
+                    try {
+                        const [ptsRes, devRes] = await Promise.all([
+                            fetch(`/api/channels/${channelId}/devices/${deviceId}/points`),
+                            fetch(`/api/channels/${channelId}/devices/${deviceId}`)
+                        ]);
+
+                        if (!ptsRes.ok) throw new Error('Failed to fetch points');
+                        points.value = await ptsRes.json();
+
+                        if (devRes.ok) {
+                            deviceInfo.value = await devRes.json();
+                            globalState.navTitle = deviceInfo.value.name;
+                        }
+                    } catch (e) {
+                        showMessage('获取点位失败: ' + e.message, 'error');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                // WebSocket Logic
+                let ws = null;
+                const connectWs = () => {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const host = window.location.host;
+                    ws = new WebSocket(`${protocol}//${host}/api/ws/values`);
+
+                    ws.onopen = () => {
+                        globalState.wsStatus.connected = true;
+                    };
+
+                    ws.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            if (data.channel_id === channelId && data.device_id === deviceId) {
+                                const idx = points.value.findIndex(p => p.id === data.point_id);
+                                if (idx !== -1) {
+                                    points.value[idx].value = data.value;
+                                    points.value[idx].quality = data.quality;
+                                    points.value[idx].timestamp = data.timestamp;
+                                }
+                            }
+                        } catch (e) { console.error(e); }
+                    };
+
+                    ws.onclose = () => {
+                        globalState.wsStatus.connected = false;
+                    };
+                };
+
+                onMounted(() => {
+                    fetchPoints();
+                    connectWs();
+                });
+
+                onUnmounted(() => {
+                    if (ws) ws.close();
+                });
+
+                // Helpers
+                const formatValue = (val) => {
+                    if (typeof val === 'number') return val.toFixed(2);
+                    return val;
+                };
+                const formatDate = (ts) => new Date(ts).toLocaleString();
+                const isQualityGood = (q) => q === 'Good' || q === 'good';
+
+                // Write Logic
+                const openWriteDialog = (point) => {
+                    console.log('Open write dialog for point:', point);
+                    writeDialog.deviceID = route.params.deviceId;
+                    writeDialog.pointID = point.id;
+                    writeDialog.value = '';
+                    writeDialog.visible = true;
+                };
+
+                const submitWrite = async () => {
+                    writeDialog.loading = true;
+                    try {
+                        const res = await fetch('/api/write', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                channel_id: channelId,
+                                device_id: deviceId,
+                                point_id: writeDialog.pointID,
+                                value: writeDialog.value
+                            })
+                        });
+                        const result = await res.json();
+                        if (res.ok) {
+                            showMessage('写入命令已发送', 'success');
+                            writeDialog.visible = false;
+                        } else {
+                            showMessage('写入失败: ' + result.error, 'error');
+                        }
+                    } catch (e) {
+                        showMessage('网络错误: ' + e.message, 'error');
+                    } finally {
+                        writeDialog.loading = false;
+                    }
+                };
+
+                return {
+                    points, deviceInfo, loading, writeDialog,
+                    fetchPoints, formatValue, formatDate, isQualityGood,
+                    openWriteDialog, submitWrite
+                };
+            }
+        };
+
+        // 4. Northbound Component
+        const Northbound = {
+            template: '#northbound-template',
+            setup() {
+                const config = ref({
+                    mqtt: { enable: false, broker: '', client_id: '', topic: '', devices: {} },
+                    opcua: { enable: false, port: 0, endpoint: '' },
+                    status: { mqtt: 0 }
+                });
+                const loading = ref(false);
+
+                // MQTT Dialog
+                const mqttDialog = reactive({
+                    visible: false,
+                    loading: false,
+                    config: { enable: false, broker: '', client_id: '', topic: '', devices: {} }
+                });
+
+                const opcuaDialog = reactive({
+                    visible: false,
+                    loading: false,
+                    config: { enable: false, port: 4840, endpoint: '', devices: {} }
+                });
+                
+                const allDevices = ref([]);
+
+                const fetchConfig = async (silent = false) => {
+                    if (!silent) loading.value = true;
+                    try {
+                        const res = await fetch('/api/northbound/config');
+                        if (!res.ok) throw new Error(res.statusText);
+                        config.value = await res.json();
+                        if (!config.value.mqtt.devices) config.value.mqtt.devices = {};
+                        // Ensure status object exists
+                        if (!config.value.status) config.value.status = { mqtt: 0 };
+                    } catch (e) {
+                        if (!silent) showMessage('获取北向配置失败: ' + e.message, 'error');
+                    } finally {
+                        if (!silent) loading.value = false;
+                    }
+                };
+
+                let pollTimer = null;
+                onMounted(() => {
+                    fetchConfig();
+                    pollTimer = setInterval(() => fetchConfig(true), 3000);
+                });
+
+                onUnmounted(() => {
+                    if (pollTimer) clearInterval(pollTimer);
+                });
+
+                const fetchAllDevices = async () => {
+                    if (allDevices.value.length > 0) return;
+                    try {
+                        const res = await fetch('/api/channels');
+                        if (!res.ok) throw new Error('Failed to fetch channels');
+                        const channels = await res.json();
+                        let devices = [];
+                        channels.forEach(ch => {
+                            if (ch.devices) {
+                                ch.devices.forEach(d => {
+                                    devices.push({ ...d, channelName: ch.name });
+                                });
+                            }
+                        });
+                        allDevices.value = devices;
+                    } catch(e) {
+                        console.error(e);
+                        showMessage('获取设备列表失败', 'error');
+                    }
+                };
+
+                const openMqttSettings = async () => {
+                    await fetchAllDevices();
+                    // Clone config to dialog
+                    mqttDialog.config = JSON.parse(JSON.stringify(config.value.mqtt));
+                    if (!mqttDialog.config.devices) mqttDialog.config.devices = {};
+                    
+                    // Initialize device configs for all devices if missing
+                    allDevices.value.forEach(d => {
+                        if (!mqttDialog.config.devices[d.id]) {
+                            mqttDialog.config.devices[d.id] = { enable: false, strategy: 'periodic', interval: 0 };
+                        }
+                        // Helper for UI input (convert nanoseconds to seconds string for display if needed, but backend uses int64 ns)
+                        // Actually backend sends time.Duration which marshals to number (ns) or string ("10s"). 
+                        // Let's assume we handle string input "10" -> "10s" conversion or just number seconds.
+                        // Standard Go JSON unmarshal of duration supports string "10s".
+                        // But wait, our API receives JSON.
+                        
+                        let devCfg = mqttDialog.config.devices[d.id];
+                        if (!devCfg.interval_str) {
+                             // Convert from existing interval (ns) to seconds
+                             devCfg.interval_str = devCfg.interval ? (parseInt(devCfg.interval) / 1000000000) : "";
+                        }
+                    });
+                    
+                    mqttDialog.visible = true;
+                };
+                
+                const getDeviceConfig = (deviceId) => {
+                    if (!mqttDialog.config.devices[deviceId]) {
+                        mqttDialog.config.devices[deviceId] = { enable: false, strategy: 'periodic', interval: 0 };
+                    }
+                    return mqttDialog.config.devices[deviceId];
+                };
+
+                const updateInterval = (deviceId) => {
+                     let devCfg = mqttDialog.config.devices[deviceId];
+                     // Convert seconds string to int (ns) or duration string
+                     if (devCfg.interval_str) {
+                         // Simple validation: ensure it's a number
+                         let s = parseFloat(devCfg.interval_str);
+                         if (!isNaN(s)) {
+                             devCfg.interval = s * 1000000000; // to ns
+                         } else {
+                             devCfg.interval = 0;
+                         }
+                     } else {
+                         devCfg.interval = 0;
+                     }
+                };
+
+                const saveMqttSettings = async () => {
+                    mqttDialog.loading = true;
+                    try {
+                        const res = await fetch('/api/northbound/mqtt', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(mqttDialog.config)
+                        });
+                        if (!res.ok) {
+                            const err = await res.json();
+                            throw new Error(err.error || res.statusText);
+                        }
+                        showMessage('MQTT 配置已保存', 'success');
+                        mqttDialog.visible = false;
+                        fetchConfig(); // Refresh main config
+                    } catch (e) {
+                        showMessage('保存配置失败: ' + e.message, 'error');
+                    } finally {
+                        mqttDialog.loading = false;
+                    }
+                };
+
+                const openOpcuaSettings = async () => {
+                    await fetchAllDevices();
+                    // Clone config to dialog
+                    opcuaDialog.config = JSON.parse(JSON.stringify(config.value.opcua));
+                    if (!opcuaDialog.config.devices) opcuaDialog.config.devices = {};
+                    
+                    // Ensure all devices have entries (default disabled if not present)
+                    // But actually for map[string]bool, undefined is falsy, so we just need to ensure the map exists.
+                    // However, to make v-model work smoothly, maybe we should populate false for missing ones?
+                    // Vuetify checkbox with v-model on an object property that doesn't exist might be tricky.
+                    // Let's populate it.
+                    allDevices.value.forEach(d => {
+                        if (opcuaDialog.config.devices[d.id] === undefined) {
+                            opcuaDialog.config.devices[d.id] = false;
+                        }
+                    });
+
+                    opcuaDialog.visible = true;
+                };
+
+                const saveOpcuaSettings = async () => {
+                    opcuaDialog.loading = true;
+                    try {
+                        const res = await fetch('/api/northbound/opcua', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(opcuaDialog.config)
+                        });
+                        if (!res.ok) {
+                            const err = await res.json();
+                            throw new Error(err.error || res.statusText);
+                        }
+                        showMessage('OPC UA 配置已保存', 'success');
+                        opcuaDialog.visible = false;
+                        fetchConfig(); // Refresh main config
+                    } catch (e) {
+                        showMessage('保存配置失败: ' + e.message, 'error');
+                    } finally {
+                        opcuaDialog.loading = false;
+                    }
+                };
+
+                return { 
+                    config, loading, 
+                    mqttDialog, opcuaDialog, allDevices, 
+                    openMqttSettings, getDeviceConfig, updateInterval, saveMqttSettings,
+                    openOpcuaSettings, saveOpcuaSettings
+                };
+            }
+        };
+
+        // --- Router Configuration ---
+        const routes = [
+            { 
+                path: '/', 
+                component: ChannelList,
+                meta: { title: '采集通道' }
+            },
+            { 
+                path: '/channels/:channelId/devices', 
+                component: DeviceList,
+                meta: { title: '设备列表' } 
+            },
+            { 
+                path: '/channels/:channelId/devices/:deviceId/points', 
+                component: PointList,
+                meta: { title: '点位数据' }
+            },
+            { 
+                path: '/northbound', 
+                component: Northbound,
+                meta: { title: '北向数据上报' }
+            }
+        ];
+
+        const router = createRouter({
+            history: createWebHashHistory(),
+            routes
+        });
+
+        router.beforeEach((to, from, next) => {
+            // Clear custom nav title on route change
+            globalState.navTitle = '';
+            next();
+        });
+
+        // --- App Initialization ---
+        const vuetify = createVuetify({
+            theme: {
+                defaultTheme: 'light',
+                themes: {
+                    light: {
+                        colors: {
+                            primary: '#6200EA',
+                            secondary: '#03DAC6',
+                            background: '#FFFFFF',
+                        }
+                    }
+                }
+            }
+        });
+
+        const app = createApp({
+            setup() {
+                const drawerRail = ref(false);
+                return { 
+                    snackbar: globalState.snackbar, 
+                    wsStatus: globalState.wsStatus,
+                    globalState,
+                    drawerRail 
+                };
+            }
+        });
+
+        app.use(router);
+        app.use(vuetify);
+        app.mount('#app');
+    </script>
+</body>
+</html>
