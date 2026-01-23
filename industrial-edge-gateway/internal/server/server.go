@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"industrial-edge-gateway/internal/core"
 	"industrial-edge-gateway/internal/model"
 	"industrial-edge-gateway/internal/storage"
@@ -63,12 +64,19 @@ func (s *Server) setupRoutes() {
 
 	// 第二级：获取通道下的设备列表
 	api.Get("/channels/:channelId/devices", s.getChannelDevices)
+	api.Post("/channels/:channelId/devices", s.addDevice)       // 新增设备 (支持单个或批量)
+	api.Delete("/channels/:channelId/devices", s.removeDevices) // 批量删除设备
 
 	// 第三级：获取设备详情
 	api.Get("/channels/:channelId/devices/:deviceId", s.getDevice)
+	api.Put("/channels/:channelId/devices/:deviceId", s.updateDevice)    // 更新设备
+	api.Delete("/channels/:channelId/devices/:deviceId", s.removeDevice) // 删除设备
 
 	// 第三级：获取设备的点位数据
 	api.Get("/channels/:channelId/devices/:deviceId/points", s.getDevicePoints)
+	api.Post("/channels/:channelId/devices/:deviceId/points", s.addPoint)
+	api.Put("/channels/:channelId/devices/:deviceId/points/:pointId", s.updatePoint)
+	api.Delete("/channels/:channelId/devices/:deviceId/points/:pointId", s.removePoint)
 
 	// 兼容：实时值快照（用于前端简化展示）
 	api.Get("/values/realtime", s.getRealtimeValues)
@@ -240,6 +248,96 @@ func (s *Server) getChannelDevices(c *fiber.Ctx) error {
 	return c.JSON(devices)
 }
 
+func (s *Server) addDevice(c *fiber.Ctx) error {
+	channelId := c.Params("channelId")
+
+	// 解析 Body，判断是单个对象还是数组
+	var body interface{}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid JSON"})
+	}
+
+	switch body.(type) {
+	case []interface{}:
+		// 批量添加
+		var devices []model.Device
+		if err := json.Unmarshal(c.Body(), &devices); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid device list"})
+		}
+
+		for _, dev := range devices {
+			if dev.ID == "" {
+				dev.ID = dev.Name
+			}
+			if err := s.cm.AddDevice(channelId, &dev); err != nil {
+				return c.Status(500).JSON(fiber.Map{"error": fmt.Sprintf("Failed to add device %s: %v", dev.Name, err)})
+			}
+		}
+		return c.JSON(devices)
+
+	case map[string]interface{}:
+		// 单个添加
+		var dev model.Device
+		if err := json.Unmarshal(c.Body(), &dev); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid device"})
+		}
+		if dev.ID == "" {
+			dev.ID = dev.Name
+		}
+		if err := s.cm.AddDevice(channelId, &dev); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(dev)
+
+	default:
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid body format"})
+	}
+}
+
+func (s *Server) updateDevice(c *fiber.Ctx) error {
+	channelId := c.Params("channelId")
+	deviceId := c.Params("deviceId")
+
+	var dev model.Device
+	if err := c.BodyParser(&dev); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// 确保 ID 一致
+	if dev.ID != "" && dev.ID != deviceId {
+		return c.Status(400).JSON(fiber.Map{"error": "Device ID mismatch"})
+	}
+	dev.ID = deviceId
+
+	if err := s.cm.UpdateDevice(channelId, &dev); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(dev)
+}
+
+func (s *Server) removeDevice(c *fiber.Ctx) error {
+	channelId := c.Params("channelId")
+	deviceId := c.Params("deviceId")
+
+	if err := s.cm.RemoveDevice(channelId, deviceId); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.SendStatus(200)
+}
+
+func (s *Server) removeDevices(c *fiber.Ctx) error {
+	channelId := c.Params("channelId")
+	var ids []string
+	if err := c.BodyParser(&ids); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid ID list"})
+	}
+
+	if err := s.cm.RemoveDevices(channelId, ids); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.SendStatus(200)
+}
+
 // getDevice 获取指定设备详情
 func (s *Server) getDevice(c *fiber.Ctx) error {
 	channelId := c.Params("channelId")
@@ -262,6 +360,60 @@ func (s *Server) getDevicePoints(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(points)
+}
+
+// addPoint 添加点位
+func (s *Server) addPoint(c *fiber.Ctx) error {
+	channelId := c.Params("channelId")
+	deviceId := c.Params("deviceId")
+
+	var point model.Point
+	if err := c.BodyParser(&point); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	if point.ID == "" {
+		point.ID = point.Name // Fallback
+	}
+
+	if err := s.cm.AddPoint(channelId, deviceId, &point); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(point)
+}
+
+// updatePoint 更新点位
+func (s *Server) updatePoint(c *fiber.Ctx) error {
+	channelId := c.Params("channelId")
+	deviceId := c.Params("deviceId")
+	pointId := c.Params("pointId")
+
+	var point model.Point
+	if err := c.BodyParser(&point); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	if point.ID != "" && point.ID != pointId {
+		return c.Status(400).JSON(fiber.Map{"error": "Point ID mismatch"})
+	}
+	point.ID = pointId
+
+	if err := s.cm.UpdatePoint(channelId, deviceId, &point); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(point)
+}
+
+// removePoint 删除点位
+func (s *Server) removePoint(c *fiber.Ctx) error {
+	channelId := c.Params("channelId")
+	deviceId := c.Params("deviceId")
+	pointId := c.Params("pointId")
+
+	if err := s.cm.RemovePoint(channelId, deviceId, pointId); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.SendStatus(200)
 }
 
 // getRealtimeValues 返回当前存储中的最新值快照

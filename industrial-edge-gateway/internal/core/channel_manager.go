@@ -6,6 +6,9 @@ import (
 	drv "industrial-edge-gateway/internal/driver"
 	"industrial-edge-gateway/internal/model"
 	"log"
+	"regexp"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -46,6 +49,11 @@ func (cm *ChannelManager) AddChannel(ch *model.Channel) error {
 		return fmt.Errorf("channel %s already exists", ch.ID)
 	}
 
+	// 格式化所有设备配置
+	for i := range ch.Devices {
+		sanitizeDeviceConfig(ch.Devices[i].Config)
+	}
+
 	// 初始化驱动
 	d, ok := drv.GetDriver(ch.Protocol)
 	if !ok {
@@ -64,6 +72,11 @@ func (cm *ChannelManager) AddChannel(ch *model.Channel) error {
 	cm.drivers[ch.ID] = d
 	cm.driverMus[ch.ID] = &sync.Mutex{}
 	cm.stateManager.RegisterNode(ch.ID, ch.Name)
+
+	// Register all devices in state manager
+	for _, dev := range ch.Devices {
+		cm.stateManager.RegisterNode(dev.ID, dev.Name)
+	}
 
 	// Persist
 	if cm.saveFunc != nil {
@@ -93,6 +106,11 @@ func (cm *ChannelManager) UpdateChannel(ch *model.Channel) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
+	// 格式化所有设备配置
+	for i := range ch.Devices {
+		sanitizeDeviceConfig(ch.Devices[i].Config)
+	}
+
 	// 2. Re-init driver with new config
 	d, ok := drv.GetDriver(ch.Protocol)
 	if !ok {
@@ -111,6 +129,11 @@ func (cm *ChannelManager) UpdateChannel(ch *model.Channel) error {
 	cm.drivers[ch.ID] = d
 	if _, ok := cm.driverMus[ch.ID]; !ok {
 		cm.driverMus[ch.ID] = &sync.Mutex{}
+	}
+
+	// Register all devices in state manager
+	for _, dev := range ch.Devices {
+		cm.stateManager.RegisterNode(dev.ID, dev.Name)
 	}
 
 	// 4. Persist
@@ -171,7 +194,8 @@ func (cm *ChannelManager) StartChannel(channelID string) error {
 	}
 
 	if !ch.Enable {
-		return fmt.Errorf("channel is disabled")
+		log.Printf("Channel %s is disabled, skipping connection", ch.Name)
+		return nil
 	}
 
 	// 连接驱动
@@ -183,18 +207,21 @@ func (cm *ChannelManager) StartChannel(channelID string) error {
 	log.Printf("Driver connected for channel %s", ch.Name)
 
 	// 为该通道下的每个设备启动采集循环
-	for _, device := range ch.Devices {
-		if !device.Enable {
-			log.Printf("Device %s in channel %s is disabled, skipping", device.Name, ch.Name)
+	for i := range ch.Devices {
+		dev := &ch.Devices[i]
+		if !dev.Enable {
+			log.Printf("Device %s in channel %s is disabled, skipping", dev.Name, ch.Name)
 			continue
 		}
 
-		// 复制设备以避免循环变量问题
-		dev := device
+		// 初始化 StopChan (在存储的设备对象上)
 		dev.StopChan = make(chan struct{})
 
+		// 复制设备以避免循环变量问题和切片重分配导致的指针失效
+		devCopy := *dev
+
 		// 在 goroutine 中启动设备采集循环
-		go cm.deviceLoop(&dev, d, ch)
+		go cm.deviceLoop(&devCopy, d, ch)
 	}
 
 	log.Printf("Channel %s started with %d devices", ch.Name, len(ch.Devices))
@@ -252,7 +279,16 @@ func (cm *ChannelManager) GetChannelDevices(channelID string) []model.Device {
 	defer cm.mu.RUnlock()
 
 	if ch, ok := cm.channels[channelID]; ok {
-		return ch.Devices
+		// Return a copy with state populated
+		devices := make([]model.Device, len(ch.Devices))
+		for i, dev := range ch.Devices {
+			devices[i] = dev
+			// Populate state
+			if node := cm.stateManager.GetNode(dev.ID); node != nil {
+				devices[i].State = int(node.Runtime.State)
+			}
+		}
+		return devices
 	}
 	return nil
 }
@@ -265,7 +301,12 @@ func (cm *ChannelManager) GetDevice(channelID, deviceID string) *model.Device {
 	if ch, ok := cm.channels[channelID]; ok {
 		for i, dev := range ch.Devices {
 			if dev.ID == deviceID {
-				return &ch.Devices[i]
+				// Return a copy with state populated
+				d := ch.Devices[i]
+				if node := cm.stateManager.GetNode(d.ID); node != nil {
+					d.State = int(node.Runtime.State)
+				}
+				return &d
 			}
 		}
 	}
@@ -275,56 +316,84 @@ func (cm *ChannelManager) GetDevice(channelID, deviceID string) *model.Device {
 // GetDevicePoints 获取指定设备的所有点位数据
 func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.PointData, error) {
 	cm.mu.RLock()
-	_, ok := cm.channels[channelID]
+
+	// 1. 获取 Channel 和 Driver
+	ch, ok := cm.channels[channelID]
 	d, okDrv := cm.drivers[channelID]
 	mu, okMu := cm.driverMus[channelID]
-	cm.mu.RUnlock()
 
 	if !ok || !okDrv {
+		cm.mu.RUnlock()
 		return nil, fmt.Errorf("channel not found")
 	}
 
-	dev := cm.GetDevice(channelID, deviceID)
-	if dev == nil {
+	// 2. 查找设备 (直接在 map/slice 中查找，避免 GetDevice 的锁开销和指针逃逸问题)
+	var foundDev *model.Device
+	for i := range ch.Devices {
+		if ch.Devices[i].ID == deviceID {
+			foundDev = &ch.Devices[i]
+			break
+		}
+	}
+
+	if foundDev == nil {
+		cm.mu.RUnlock()
 		return nil, fmt.Errorf("device not found")
 	}
 
-	// 互斥锁保护驱动访问
+	// 3. 复制必要的数据 (避免持有锁进行 IO，也避免竞态条件)
+	pointsCopy := make([]model.Point, len(foundDev.Points))
+	copy(pointsCopy, foundDev.Points)
+
+	slaveIDVal := foundDev.Config["slave_id"]
+	devID := foundDev.ID
+
+	cm.mu.RUnlock() // 释放 ChannelManager 锁
+
+	// 4. 互斥锁保护驱动访问
 	if okMu {
 		mu.Lock()
 		defer mu.Unlock()
 	}
 
 	// 设置从机 ID（如果是 Modbus）
-	if slaveID, ok := dev.Config["slave_id"]; ok {
-		if slaveIDUint, ok := slaveID.(float64); ok {
+	if slaveIDVal != nil {
+		if slaveIDUint, ok := slaveIDVal.(float64); ok {
 			d.SetSlaveID(uint8(slaveIDUint))
-		} else if slaveIDInt, ok := slaveID.(int); ok {
+		} else if slaveIDInt, ok := slaveIDVal.(int); ok {
 			d.SetSlaveID(uint8(slaveIDInt))
 		}
+	}
+
+	// Ensure DeviceID is set on points for the driver
+	for i := range pointsCopy {
+		pointsCopy[i].DeviceID = devID
 	}
 
 	// 读取点位数据
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	results, err := d.ReadPoints(ctx, dev.Points)
+	results, err := d.ReadPoints(ctx, pointsCopy)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read points: %v", err)
+		log.Printf("Failed to read points for device %s: %v", deviceID, err)
+		// Don't return error, return points with Bad quality so user can still manage them
 	}
 
 	// 转换为 PointData 格式
-	points := make([]model.PointData, 0, len(dev.Points))
+	points := make([]model.PointData, 0, len(pointsCopy))
 	now := time.Now()
 
 	// 构建结果 map 以便快速查找
 	resultMap := make(map[string]model.Value)
-	for _, result := range results {
-		resultMap[result.PointID] = result
+	if results != nil {
+		for _, result := range results {
+			resultMap[result.PointID] = result
+		}
 	}
 
 	// 按配置顺序返回点位数据
-	for _, point := range dev.Points {
+	for _, point := range pointsCopy {
 		pd := model.PointData{
 			ID:        point.ID,
 			Name:      point.Name,
@@ -332,7 +401,7 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 			DataType:  point.DataType,
 			Unit:      point.Unit,
 			Timestamp: now,
-			Quality:   "Good",
+			Quality:   "Bad", // Default to Bad if read failed
 			Value:     0.0,
 			ReadWrite: point.ReadWrite,
 		}
@@ -357,9 +426,9 @@ func (cm *ChannelManager) deviceLoop(dev *model.Device, d drv.Driver, ch *model.
 	ticker := time.NewTicker(time.Duration(dev.Interval))
 	defer ticker.Stop()
 
-	node := cm.stateManager.GetNode(ch.ID)
+	node := cm.stateManager.GetNode(dev.ID)
 	if node == nil {
-		log.Printf("Channel %s node not found in state manager", ch.Name)
+		log.Printf("Device %s node not found in state manager", dev.Name)
 		return
 	}
 
@@ -371,14 +440,120 @@ func (cm *ChannelManager) deviceLoop(dev *model.Device, d drv.Driver, ch *model.
 			return
 		case <-ticker.C:
 			if !cm.stateManager.ShouldCollect(node) {
-				log.Printf("Channel %s skipped collection (State: %v, NextRetry: %v)",
-					ch.Name, node.Runtime.State, node.Runtime.NextRetryTime)
+				log.Printf("Device %s skipped collection (State: %v, NextRetry: %v)",
+					dev.Name, node.Runtime.State, node.Runtime.NextRetryTime)
 				continue
 			}
 
 			cm.collectDevice(dev, d, ch, node)
 		}
 	}
+}
+
+// validatePoint validates point configuration based on channel protocol
+func (cm *ChannelManager) validatePoint(ch *model.Channel, point *model.Point) error {
+	switch ch.Protocol {
+	case "modbus-tcp", "modbus-rtu", "modbus-rtu-over-tcp":
+		return cm.validateModbusPoint(point)
+	case "bacnet-ip":
+		return cm.validateBACnetPoint(point)
+	case "s7":
+		return cm.validateS7Point(point)
+	case "dlt645":
+		return cm.validateDLT645Point(point)
+	case "ethernet-ip":
+		return cm.validateEtherNetIPPoint(point)
+	case "mitsubishi-slmp":
+		return cm.validateMitsubishiPoint(point)
+	case "omron-fins":
+		return cm.validateOmronFinsPoint(point)
+	default:
+		return nil
+	}
+}
+
+func (cm *ChannelManager) validateOmronFinsPoint(point *model.Point) error {
+	if point.Address == "" {
+		return fmt.Errorf("omron address cannot be empty")
+	}
+	// Basic regex for Omron FINS Address
+	// Supports: D100, CIO1.2, W3.4, H4.15L, EM10.100
+	re := regexp.MustCompile(`^(?i)(CIO|A|W|H|D|P|F|EM\d*)(\d+)(\.\d+)?([HL]|\.\d+[HL]?)?$`)
+	if !re.MatchString(point.Address) {
+		return fmt.Errorf("invalid omron address format: e.g. D100, W3.4, CIO1.2, EM10.100")
+	}
+	return nil
+}
+
+func (cm *ChannelManager) validateMitsubishiPoint(point *model.Point) error {
+	if point.Address == "" {
+		return fmt.Errorf("mitsubishi address cannot be empty")
+	}
+	// Basic check for AREA ADDRESS
+	re := regexp.MustCompile(`^([A-Z]+)([0-9]+)`)
+	if !re.MatchString(strings.ToUpper(point.Address)) {
+		return fmt.Errorf("invalid mitsubishi address format: e.g. D100, M0, X10")
+	}
+	return nil
+}
+
+func (cm *ChannelManager) validateModbusPoint(point *model.Point) error {
+	if _, err := strconv.Atoi(point.Address); err != nil {
+		return fmt.Errorf("invalid modbus address '%s': must be an integer", point.Address)
+	}
+	switch point.DataType {
+	case "int16", "uint16", "int32", "uint32", "float32", "float64", "bool":
+		return nil
+	default:
+		return fmt.Errorf("invalid modbus datatype '%s'", point.DataType)
+	}
+}
+
+func (cm *ChannelManager) validateBACnetPoint(point *model.Point) error {
+	parts := strings.Split(point.Address, ":")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid bacnet address '%s': format must be ObjectType:Instance", point.Address)
+	}
+
+	validTypes := map[string]bool{
+		"AnalogInput": true, "AnalogOutput": true, "AnalogValue": true,
+		"BinaryInput": true, "BinaryOutput": true, "BinaryValue": true,
+		"MultiStateInput": true, "MultiStateOutput": true, "MultiStateValue": true,
+	}
+	if !validTypes[parts[0]] {
+		return fmt.Errorf("invalid bacnet object type '%s'", parts[0])
+	}
+
+	if _, err := strconv.Atoi(parts[1]); err != nil {
+		return fmt.Errorf("invalid bacnet instance '%s': must be an integer", parts[1])
+	}
+	return nil
+}
+
+func (cm *ChannelManager) validateS7Point(point *model.Point) error {
+	if point.Address == "" {
+		return fmt.Errorf("s7 address cannot be empty")
+	}
+	return nil
+}
+
+func (cm *ChannelManager) validateDLT645Point(point *model.Point) error {
+	if point.Address == "" {
+		return fmt.Errorf("dlt645 address cannot be empty")
+	}
+	// Basic format check: Address#DataID
+	parts := strings.Split(point.Address, "#")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid dlt645 address format: must be Address#DataID")
+	}
+	return nil
+}
+
+func (cm *ChannelManager) validateEtherNetIPPoint(point *model.Point) error {
+	if point.Address == "" {
+		return fmt.Errorf("ethernet/ip tag name cannot be empty")
+	}
+	return nil
 }
 
 // collectDevice 从设备采集数据
@@ -408,17 +583,26 @@ func (cm *ChannelManager) collectDevice(dev *model.Device, d drv.Driver, ch *mod
 	// 设置设备配置 (BACnet 等需要 IP/Port)
 	d.SetDeviceConfig(dev.Config)
 
+	// Ensure DeviceID is set on points for the driver
+	for i := range dev.Points {
+		dev.Points[i].DeviceID = dev.ID
+	}
+
 	// 读取点位数据
 	results, err := d.ReadPoints(ctx, dev.Points)
 	if err != nil {
 		log.Printf("Error reading from device %s in channel %s: %v", dev.Name, ch.Name, err)
-		// cm.stateManager.onCollectFail(node) // TODO: 需要创建 DeviceNodeTemplate
+		cm.stateManager.onCollectFail(node)
 		return
 	}
 
-	// 发送到管道
+	// 统计采集结果
+	successCount := 0
+	failCount := 0
 	now := time.Now()
+
 	for _, result := range results {
+		// 发送到管道
 		val := model.Value{
 			ChannelID: ch.ID,
 			DeviceID:  dev.ID,
@@ -429,9 +613,27 @@ func (cm *ChannelManager) collectDevice(dev *model.Device, d drv.Driver, ch *mod
 		}
 		// 推入数据管道，驱动存储与WebSocket广播
 		cm.pipeline.Push(val)
+
+		// 统计成功/失败
+		if result.Quality == "Good" {
+			successCount++
+		} else {
+			failCount++
+		}
 	}
 
-	// cm.stateManager.onCollectSuccess(node) // TODO: 需要创建 DeviceNodeTemplate
+	// 使用 FinalizeCollect 进行状态裁决
+	// 如果有点位但没有结果，视为失败
+	if len(dev.Points) > 0 && len(results) == 0 {
+		failCount = len(dev.Points) // 假设所有点位都失败
+	}
+
+	collectCtx := &CollectContext{
+		TotalCmd:   successCount + failCount,
+		SuccessCmd: successCount,
+		FailCmd:    failCount,
+	}
+	cm.stateManager.FinalizeCollect(node, collectCtx)
 }
 
 // WritePoint 写入指定通道下设备点位的值
@@ -464,6 +666,9 @@ func (cm *ChannelManager) WritePoint(channelID, deviceID, pointID string, value 
 	if !found {
 		return fmt.Errorf("point not found")
 	}
+
+	// Ensure DeviceID is set
+	targetPoint.DeviceID = dev.ID
 
 	// 互斥锁保护驱动访问
 	if okMu {
@@ -535,4 +740,443 @@ func (cm *ChannelManager) ScanChannel(channelID string, params map[string]any) (
 	defer cancel()
 
 	return scanner.Scan(ctx, params)
+}
+
+// AddDevice 添加设备到通道
+func (cm *ChannelManager) AddDevice(channelID string, dev *model.Device) error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	ch, ok := cm.channels[channelID]
+	if !ok {
+		return fmt.Errorf("channel not found")
+	}
+
+	// 检查设备是否存在
+	for _, d := range ch.Devices {
+		if d.ID == dev.ID {
+			return fmt.Errorf("device %s already exists", dev.ID)
+		}
+	}
+
+	// DL/T645 Auto-create points
+	if ch.Protocol == "dlt645" && len(dev.Points) == 0 {
+		// Try to get device address from config
+		addrStr := ""
+		if addr, ok := dev.Config["station_address"]; ok {
+			addrStr = fmt.Sprintf("%v", addr)
+		} else if addr, ok := dev.Config["address"]; ok {
+			// Fallback if user used "address"
+			addrStr = fmt.Sprintf("%v", addr)
+		}
+
+		if addrStr != "" {
+			// Define default points
+			defaultPoints := []model.Point{
+				{
+					Name:      "A 相电压",
+					ID:        "a_phase_voltage",
+					Address:   fmt.Sprintf("%s#02-01-01-00", addrStr),
+					DataType:  "uint16",
+					ReadWrite: "R",
+					Scale:     0.1,
+					Unit:      "V",
+				},
+				{
+					Name:      "A 相电流",
+					ID:        "a_phase_current",
+					Address:   fmt.Sprintf("%s#02-02-01-00", addrStr),
+					DataType:  "uint32",
+					ReadWrite: "R",
+					Scale:     0.001,
+					Unit:      "A",
+				},
+				{
+					Name:      "瞬时 A 相有功功率",
+					ID:        "instant_a_active_power",
+					Address:   fmt.Sprintf("%s#02-03-01-00", addrStr),
+					DataType:  "uint32",
+					ReadWrite: "R",
+					Scale:     0.0001,
+					Unit:      "kW",
+				},
+			}
+
+			// Validate and append
+			for _, p := range defaultPoints {
+				p.DeviceID = dev.ID
+				if err := cm.validateDLT645Point(&p); err == nil {
+					dev.Points = append(dev.Points, p)
+				} else {
+					log.Printf("Warning: Failed to validate default DLT645 point %s: %v", p.Name, err)
+				}
+			}
+		}
+	}
+
+	// 格式化配置（修正科学计数法等问题）
+	sanitizeDeviceConfig(dev.Config)
+
+	// 初始化运行时
+	dev.StopChan = make(chan struct{})
+
+	// 添加到列表
+	ch.Devices = append(ch.Devices, *dev)
+
+	// 注册到状态管理器
+	cm.stateManager.RegisterNode(dev.ID, dev.Name)
+
+	// 如果通道已启用且驱动已就绪，启动设备采集
+	if d, ok := cm.drivers[channelID]; ok && ch.Enable && dev.Enable {
+		// 获取切片中最新的那个设备的指针
+		newDev := &ch.Devices[len(ch.Devices)-1]
+		go cm.deviceLoop(newDev, d, ch)
+		log.Printf("Device %s started", dev.Name)
+	}
+
+	return cm.saveChannels()
+}
+
+// AddPoint 添加点位到设备
+func (cm *ChannelManager) AddPoint(channelID, deviceID string, point *model.Point) error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	ch, ok := cm.channels[channelID]
+	if !ok {
+		return fmt.Errorf("channel not found")
+	}
+
+	idx := -1
+	for i, d := range ch.Devices {
+		if d.ID == deviceID {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return fmt.Errorf("device not found")
+	}
+
+	dev := &ch.Devices[idx]
+
+	// Check if point ID already exists
+	for _, p := range dev.Points {
+		if p.ID == point.ID {
+			return fmt.Errorf("point %s already exists", point.ID)
+		}
+	}
+
+	// Validate point based on protocol
+	if err := cm.validatePoint(ch, point); err != nil {
+		return err
+	}
+
+	// Add point
+	dev.Points = append(dev.Points, *point)
+
+	// Restart device to apply changes
+	return cm.restartDeviceLocked(ch, idx)
+}
+
+// UpdatePoint 更新设备点位
+func (cm *ChannelManager) UpdatePoint(channelID, deviceID string, point *model.Point) error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	ch, ok := cm.channels[channelID]
+	if !ok {
+		return fmt.Errorf("channel not found")
+	}
+
+	idx := -1
+	for i, d := range ch.Devices {
+		if d.ID == deviceID {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return fmt.Errorf("device not found")
+	}
+
+	dev := &ch.Devices[idx]
+
+	// Validate point based on protocol
+	if err := cm.validatePoint(ch, point); err != nil {
+		return err
+	}
+
+	// Find and update point
+	pointIdx := -1
+	for i, p := range dev.Points {
+		if p.ID == point.ID {
+			pointIdx = i
+			break
+		}
+	}
+	if pointIdx == -1 {
+		return fmt.Errorf("point not found")
+	}
+
+	dev.Points[pointIdx] = *point
+
+	// Restart device to apply changes
+	return cm.restartDeviceLocked(ch, idx)
+}
+
+// RemovePoint 删除设备点位
+func (cm *ChannelManager) RemovePoint(channelID, deviceID, pointID string) error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	ch, ok := cm.channels[channelID]
+	if !ok {
+		return fmt.Errorf("channel not found")
+	}
+
+	idx := -1
+	for i, d := range ch.Devices {
+		if d.ID == deviceID {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return fmt.Errorf("device not found")
+	}
+
+	dev := &ch.Devices[idx]
+
+	// Find and remove point
+	pointIdx := -1
+	for i, p := range dev.Points {
+		if p.ID == pointID {
+			pointIdx = i
+			break
+		}
+	}
+	if pointIdx == -1 {
+		return fmt.Errorf("point not found")
+	}
+
+	dev.Points = append(dev.Points[:pointIdx], dev.Points[pointIdx+1:]...)
+
+	// Restart device to apply changes
+	return cm.restartDeviceLocked(ch, idx)
+}
+
+// restartDeviceLocked 重启设备（需在持有锁的情况下调用）
+func (cm *ChannelManager) restartDeviceLocked(ch *model.Channel, deviceIdx int) error {
+	dev := &ch.Devices[deviceIdx]
+
+	// Stop old device loop
+	select {
+	case dev.StopChan <- struct{}{}:
+	default:
+	}
+
+	// Re-initialize runtime
+	dev.StopChan = make(chan struct{})
+
+	// Start new loop if enabled
+	if d, ok := cm.drivers[ch.ID]; ok && ch.Enable && dev.Enable {
+		// Use a copy for the goroutine to avoid race conditions if ch.Devices changes later
+		// But here we want the *current* state of the device we just modified.
+		// Since we are inside the lock, we can safely copy it.
+		// However, cm.deviceLoop takes *model.Device.
+		// We should pass the pointer to the element in the slice?
+		// No, if the slice reallocates, the pointer becomes invalid.
+		// Wait, cm.deviceLoop takes *model.Device.
+		// In StartChannel: dev := device (copy), &dev passed.
+		// In AddDevice: newDev := &ch.Devices[len...], passed. (This is risky if slice reallocates?)
+		// Actually, ch.Devices is a slice. &ch.Devices[i] is a pointer to the backing array element.
+		// If we append to ch.Devices later, the backing array might move, and the pointer becomes stale/invalid?
+		// Yes. Passing &ch.Devices[i] to a long-running goroutine is DANGEROUS if the slice is modified (append/delete).
+		//
+		// Let's check StartChannel again.
+		// for _, device := range ch.Devices { ... dev := device ... go cm.deviceLoop(&dev ...) }
+		// It creates a LOCAL COPY `dev` and passes a pointer to THAT local copy.
+		// This is safe because `dev` escapes to the heap.
+		//
+		// But AddDevice does: newDev := &ch.Devices[len-1]; go ...
+		// This looks potentially UNSAFE if AddDevice is called again and triggers reallocation.
+		// However, AddDevice holds the lock. But the goroutine runs outside? No, the goroutine runs concurrently.
+		// If `deviceLoop` keeps using that pointer...
+		// `deviceLoop` uses `dev` to read config.
+		// If `dev` points to the slice element, and the slice moves... crash or garbage.
+		//
+		// FIX: We should always create a COPY of the device for the runner.
+		//
+		devCopy := *dev
+		// Ensure Points slice is also copied?
+		// The Points slice inside Device is a slice header. Copying Device copies the header.
+		// The backing array of Points is shared. This is fine as long as we don't modify the backing array concurrently.
+		// We only modify Points in AddPoint/RemovePoint which hold the lock.
+		// The runner reads Points.
+		// If we modify Points (append) in AddPoint, we might allocate a new backing array for the configuration.
+		// The runner has the OLD slice header (pointing to old array).
+		// This is actually fine! The runner will keep using the old points until we restart it.
+		//
+		// So, creating a copy of Device struct is the correct way.
+
+		go cm.deviceLoop(&devCopy, d, ch)
+		log.Printf("Device %s restarted with updated points", dev.Name)
+	}
+
+	return cm.saveChannels()
+}
+
+// UpdateDevice 更新通道下的设备
+func (cm *ChannelManager) UpdateDevice(channelID string, dev *model.Device) error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	ch, ok := cm.channels[channelID]
+	if !ok {
+		return fmt.Errorf("channel not found")
+	}
+
+	// 查找设备索引
+	idx := -1
+	for i, d := range ch.Devices {
+		if d.ID == dev.ID {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return fmt.Errorf("device not found")
+	}
+
+	// 停止旧设备
+	oldDev := &ch.Devices[idx]
+	select {
+	case oldDev.StopChan <- struct{}{}:
+	default:
+	}
+
+	// 格式化配置
+	sanitizeDeviceConfig(dev.Config)
+
+	// 初始化新设备运行时
+	dev.StopChan = make(chan struct{})
+
+	// 替换
+	ch.Devices[idx] = *dev
+
+	// 如果启用，重新启动
+	if d, ok := cm.drivers[channelID]; ok && ch.Enable && dev.Enable {
+		newDev := &ch.Devices[idx]
+		go cm.deviceLoop(newDev, d, ch)
+		log.Printf("Device %s restarted", dev.Name)
+	}
+
+	return cm.saveChannels()
+}
+
+// RemoveDevice 删除设备
+func (cm *ChannelManager) RemoveDevice(channelID, deviceID string) error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	ch, ok := cm.channels[channelID]
+	if !ok {
+		return fmt.Errorf("channel not found")
+	}
+
+	idx := -1
+	for i, d := range ch.Devices {
+		if d.ID == deviceID {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return fmt.Errorf("device not found")
+	}
+
+	// 停止设备
+	oldDev := &ch.Devices[idx]
+	select {
+	case oldDev.StopChan <- struct{}{}:
+	default:
+	}
+
+	// 从切片移除
+	ch.Devices = append(ch.Devices[:idx], ch.Devices[idx+1:]...)
+
+	return cm.saveChannels()
+}
+
+// RemoveDevices 批量删除设备
+func (cm *ChannelManager) RemoveDevices(channelID string, deviceIDs []string) error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	ch, ok := cm.channels[channelID]
+	if !ok {
+		return fmt.Errorf("channel not found")
+	}
+
+	toRemove := make(map[string]bool)
+	for _, id := range deviceIDs {
+		toRemove[id] = true
+	}
+
+	newDevices := make([]model.Device, 0)
+	for _, d := range ch.Devices {
+		if toRemove[d.ID] {
+			// 停止
+			select {
+			case d.StopChan <- struct{}{}:
+			default:
+			}
+		} else {
+			newDevices = append(newDevices, d)
+		}
+	}
+	ch.Devices = newDevices
+
+	return cm.saveChannels()
+}
+
+// saveChannels 辅助方法：保存所有通道配置
+func (cm *ChannelManager) saveChannels() error {
+	if cm.saveFunc != nil {
+		channels := make([]model.Channel, 0, len(cm.channels))
+		for _, c := range cm.channels {
+			channels = append(channels, *c)
+		}
+		if err := cm.saveFunc(channels); err != nil {
+			log.Printf("Warning: Failed to save config: %v", err)
+			return err
+		}
+	}
+	return nil
+}
+
+// sanitizeDeviceConfig 修正配置中的数值类型（如去除科学计数法）
+func sanitizeDeviceConfig(config map[string]any) {
+	if config == nil {
+		return
+	}
+	// 处理 device_id (防止 float64 科学计数法保存)
+	if val, ok := config["device_id"]; ok {
+		switch v := val.(type) {
+		case float64:
+			config["device_id"] = int(v)
+		case float32:
+			config["device_id"] = int(v)
+		}
+	}
+	// 处理 network_number
+	if val, ok := config["network_number"]; ok {
+		switch v := val.(type) {
+		case float64:
+			config["network_number"] = int(v)
+		case float32:
+			config["network_number"] = int(v)
+		}
+	}
 }

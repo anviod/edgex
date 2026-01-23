@@ -3,6 +3,7 @@ package bacnet
 import (
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"industrial-edge-gateway/internal/driver"
 	"industrial-edge-gateway/internal/model"
@@ -22,25 +23,235 @@ func init() {
 }
 
 type BACnetDriver struct {
-	config     model.DriverConfig
-	conn       *net.UDPConn
-	invokeID   uint8
-	mu         sync.Mutex
-	targetIP   string
-	targetPort int
+	config         model.DriverConfig
+	conn           *net.UDPConn
+	invokeID       uint8
+	mu             sync.Mutex
+	targetIP       string
+	targetPort     int
+	targetDNET     uint16
+	targetDADR     []byte
+	targetDeviceID int
+
+	// Route Cache
+	routeCache map[int]RouteInfo
+	cacheMu    sync.RWMutex
+}
+
+type RouteInfo struct {
+	IP   string
+	Port int
+	DNET uint16
+	DADR []byte
 }
 
 func NewBACnetDriver() driver.Driver {
 	return &BACnetDriver{
 		targetIP:   "127.0.0.1",
 		targetPort: 47808,
+		routeCache: make(map[int]RouteInfo),
 	}
+}
+
+func (d *BACnetDriver) resolveDevice(ctx context.Context, deviceID int) (*RouteInfo, error) {
+	if d.conn == nil {
+		return nil, fmt.Errorf("driver not connected")
+	}
+
+	// Send Who-Is
+	if err := d.sendWhoIs(deviceID, deviceID); err != nil {
+		return nil, err
+	}
+
+	// Wait for I-Am
+	deadline := time.Now().Add(2 * time.Second)
+	d.conn.SetReadDeadline(deadline)
+	buffer := make([]byte, 1500)
+
+	for {
+		// Check context cancellation
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		n, srcAddr, err := d.conn.ReadFromUDP(buffer)
+		if err != nil {
+			return nil, err
+		}
+
+		// Parse I-Am
+		// BVLC (4) + NPDU (2+) + APDU (I-Am)
+		if n < 10 || buffer[0] != 0x81 {
+			continue
+		}
+
+		offset := 4
+		npduCtrl := buffer[offset+1]
+		offset += 2
+
+		var snet uint16
+		var sadr []byte
+
+		if (npduCtrl & 0x08) != 0 { // SNET/SADR present
+			snet = binary.BigEndian.Uint16(buffer[offset : offset+2])
+			slen := int(buffer[offset+2])
+			offset += 3
+			if offset+slen > n {
+				continue
+			}
+			sadr = make([]byte, slen)
+			copy(sadr, buffer[offset:offset+slen])
+			offset += slen
+		}
+
+		// APDU
+		if offset >= n {
+			continue
+		}
+		apduType := buffer[offset]
+		// Unconfirmed Request (0x10)
+		if (apduType & 0xF0) != 0x10 {
+			continue
+		}
+
+		service := buffer[offset+1]
+		if service != 0x08 { // I-Am
+			continue
+		}
+
+		// Payload: DeviceID (App Tag 12)
+		p := offset + 2
+		val, _, err := d.parseApplicationTag(buffer[p:])
+		if err != nil {
+			continue
+		}
+
+		// Check if it matches our deviceID
+		objID, ok := val.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		inst := objID["instance"].(uint32)
+		if int(inst) == deviceID {
+			// Found it!
+			srcIP := srcAddr.IP.String()
+			srcPort := srcAddr.Port
+
+			route := RouteInfo{
+				IP:   srcIP,
+				Port: srcPort,
+				DNET: snet,
+				DADR: sadr,
+			}
+
+			d.cacheMu.Lock()
+			d.routeCache[deviceID] = route
+			d.cacheMu.Unlock()
+
+			log.Printf("BACnet: Resolved Device %d -> %s:%d (DNET:%d DADR:%x)", deviceID, srcIP, srcPort, snet, sadr)
+			return &route, nil
+		}
+	}
+}
+
+func (d *BACnetDriver) sendWhoIs(low, high int) error {
+	// BVLC Broadcast
+	packet := []byte{0x81, 0x0B, 0, 0}
+
+	// NPDU
+	// Ver 1, Control 0x20 (Dest Present), DNET 0xFFFF (Global Broadcast), DLEN 0, Hop 0xFF
+	packet = append(packet, 0x01, 0x20, 0xFF, 0xFF, 0x00, 0xFF)
+
+	// APDU: Unconfirmed Request (0x10), Service Who-Is (0x08)
+	packet = append(packet, 0x10, 0x08)
+
+	// Device Range Low (Context 0)
+	packet = appendContextTagUnsigned(packet, 0, uint32(low))
+	// Device Range High (Context 1)
+	packet = appendContextTagUnsigned(packet, 1, uint32(high))
+
+	// Update BVLC Length
+	binary.BigEndian.PutUint16(packet[2:4], uint16(len(packet)))
+
+	// Send to Broadcast
+	bcast, err := net.ResolveUDPAddr("udp", "255.255.255.255:47808")
+	if err == nil {
+		d.conn.WriteToUDP(packet, bcast)
+	}
+
+	// Also send to target IP if unicast (DIRECTED_WHO_IS logic)
+	d.mu.Lock()
+	targetIP := d.targetIP
+	targetPort := d.targetPort
+	d.mu.Unlock()
+
+	if targetIP != "127.0.0.1" && targetIP != "0.0.0.0" {
+		addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", targetIP, targetPort))
+		if err == nil {
+			d.conn.WriteToUDP(packet, addr)
+		}
+	}
+
+	return nil
+}
+
+func appendContextTagUnsigned(buf []byte, tagNum uint8, val uint32) []byte {
+	var b []byte
+	if val <= 0xFF {
+		b = []byte{byte(val)}
+	} else if val <= 0xFFFF {
+		b = make([]byte, 2)
+		binary.BigEndian.PutUint16(b, uint16(val))
+	} else if val <= 0xFFFFFF {
+		b = make([]byte, 3)
+		b[0] = byte(val >> 16)
+		b[1] = byte(val >> 8)
+		b[2] = byte(val)
+	} else {
+		b = make([]byte, 4)
+		binary.BigEndian.PutUint32(b, val)
+	}
+
+	l := len(b)
+	tag := (tagNum << 4) | 0x08
+	if l < 5 {
+		tag |= byte(l)
+		buf = append(buf, tag)
+	} else {
+		tag |= 0x05
+		buf = append(buf, tag, byte(l))
+	}
+	buf = append(buf, b...)
+	return buf
 }
 
 func (d *BACnetDriver) SetDeviceConfig(config map[string]any) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	// 1. Reset to defaults
+	d.targetIP = "127.0.0.1"
+	d.targetPort = 47808
+	d.targetDNET = 0
+	d.targetDADR = nil
+	d.targetDeviceID = 0
+
+	// 2. Apply Channel Config defaults
+	if d.config.Config != nil {
+		if ip, ok := d.config.Config["ip"].(string); ok && ip != "" {
+			d.targetIP = ip
+		}
+		if port, ok := d.config.Config["port"].(float64); ok {
+			d.targetPort = int(port)
+		} else if port, ok := d.config.Config["port"].(int); ok {
+			d.targetPort = port
+		}
+	}
+
+	// 3. Apply Device Config overrides
 	if ip, ok := config["ip"].(string); ok && ip != "" {
 		d.targetIP = ip
 	}
@@ -49,6 +260,27 @@ func (d *BACnetDriver) SetDeviceConfig(config map[string]any) error {
 	} else if port, ok := config["port"].(int); ok {
 		d.targetPort = port
 	}
+
+	if dnet, ok := config["network_number"].(float64); ok {
+		d.targetDNET = uint16(dnet)
+	} else if dnet, ok := config["network_number"].(int); ok {
+		d.targetDNET = uint16(dnet)
+	}
+
+	if dadrStr, ok := config["mac_address"].(string); ok && dadrStr != "" {
+		// Expect hex string e.g. "01" or "01:02"
+		dadrStr = strings.ReplaceAll(dadrStr, ":", "")
+		if b, err := hex.DecodeString(dadrStr); err == nil {
+			d.targetDADR = b
+		}
+	}
+
+	if devID, ok := config["device_id"].(float64); ok {
+		d.targetDeviceID = int(devID)
+	} else if devID, ok := config["device_id"].(int); ok {
+		d.targetDeviceID = devID
+	}
+
 	return nil
 }
 
@@ -104,7 +336,37 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 	d.mu.Lock()
 	ip := d.targetIP
 	port := d.targetPort
+	dnet := d.targetDNET
+	dadr := d.targetDADR
+	devID := d.targetDeviceID
 	d.mu.Unlock()
+
+	// 自动路由发现：如果配置了 DeviceID 但没有路由信息，尝试解析
+	if devID > 0 && dnet == 0 && len(dadr) == 0 {
+		d.cacheMu.RLock()
+		route, ok := d.routeCache[devID]
+		d.cacheMu.RUnlock()
+
+		if ok {
+			ip = route.IP
+			port = route.Port
+			dnet = route.DNET
+			dadr = route.DADR
+		} else {
+			// 缓存未命中，尝试发现
+			log.Printf("BACnet: Resolving address for Device %d...", devID)
+			if r, err := d.resolveDevice(ctx, devID); err == nil {
+				ip = r.IP
+				port = r.Port
+				dnet = r.DNET
+				dadr = r.DADR
+			} else {
+				log.Printf("BACnet: Failed to resolve device %d: %v", devID, err)
+			}
+		}
+	}
+
+	log.Printf("BACnet ReadPoints: Device %d Target %s:%d (DNET:%d DADR:%x) Points: %d", devID, ip, port, dnet, dadr, len(points))
 
 	for _, p := range points {
 		parts := strings.Split(p.Address, ":")
@@ -146,7 +408,7 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 		}
 
 		// Read Present_Value (85)
-		val, err := d.readProperty(ctx, ip, port, objType, uint32(instance), 85)
+		val, err := d.readProperty(ctx, ip, port, dnet, dadr, objType, uint32(instance), 85)
 		quality := "Good"
 		if err != nil {
 			quality = "Bad"
@@ -173,43 +435,65 @@ func (d *BACnetDriver) getInvokeID() uint8 {
 	return d.invokeID
 }
 
-func (d *BACnetDriver) readProperty(ctx context.Context, ip string, port int, objType uint16, instance uint32, propID uint32) (any, error) {
+func (d *BACnetDriver) readProperty(ctx context.Context, ip string, port int, dnet uint16, dadr []byte, objType uint16, instance uint32, propID uint32) (any, error) {
 	if d.conn == nil {
 		return nil, fmt.Errorf("driver not connected")
 	}
-	return d.readPropertyWithConn(d.conn, ip, port, objType, instance, propID)
+	return d.readPropertyWithConn(d.conn, ip, port, dnet, dadr, objType, instance, propID)
 }
 
-func (d *BACnetDriver) readPropertyWithConn(conn *net.UDPConn, ip string, port int, objType uint16, instance uint32, propID uint32) (any, error) {
+func (d *BACnetDriver) readPropertyWithConn(conn *net.UDPConn, ip string, port int, dnet uint16, dadr []byte, objType uint16, instance uint32, propID uint32) (any, error) {
 	invokeID := d.getInvokeID()
 	objectID := (uint32(objType) << 22) | instance
 
 	// Construct ReadProperty APDU
-	// BVLC (4) + NPDU (2) + APDU (4) + Tag0 (5) + Tag1 (2) = 17 bytes
-	packet := make([]byte, 17)
+	// We need to build NPDU dynamically based on DNET
 
-	// BVLC: 0x81 (BACnet/IP), 0x0a (Unicast), Length 17
-	packet[0] = 0x81
-	packet[1] = 0x0a
-	binary.BigEndian.PutUint16(packet[2:4], 17)
+	packet := make([]byte, 0, 50)
 
-	// NPDU: 0x01 (Ver), 0x04 (Expecting Reply)
-	packet[4] = 0x01
-	packet[5] = 0x04
+	// BVLC: 0x81 (BACnet/IP), 0x0a (Unicast), Length TBD
+	packet = append(packet, 0x81, 0x0a, 0, 0)
+
+	// NPDU
+	packet = append(packet, 0x01) // Ver
+
+	npduCtrl := byte(0x04) // Expecting Reply
+	if dnet > 0 {
+		npduCtrl |= 0x20 // Dest Present
+	}
+	packet = append(packet, npduCtrl)
+
+	if dnet > 0 {
+		// DNET
+		b := make([]byte, 2)
+		binary.BigEndian.PutUint16(b, dnet)
+		packet = append(packet, b...)
+
+		// DLEN & DADR
+		packet = append(packet, byte(len(dadr)))
+		if len(dadr) > 0 {
+			packet = append(packet, dadr...)
+		}
+
+		// Hop Count
+		packet = append(packet, 0xFF)
+	}
 
 	// APDU: 0x00 (Confirmed Request), 0x05 (MaxSegs/Size), InvokeID, 0x0c (ReadProperty)
-	packet[6] = 0x00
-	packet[7] = 0x05
-	packet[8] = invokeID
-	packet[9] = 0x0c
+	packet = append(packet, 0x00, 0x05, invokeID, 0x0c)
 
 	// Tag 0: ObjectIdentifier (Context Tag 0, Length 4) -> 0x0C
-	packet[10] = 0x0c
-	binary.BigEndian.PutUint32(packet[11:15], objectID)
+	packet = append(packet, 0x0c)
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, objectID)
+	packet = append(packet, b...)
 
 	// Tag 1: PropertyIdentifier (Context Tag 1, Length 1) -> 0x19
-	packet[15] = 0x19
-	packet[16] = uint8(propID) // Assuming propID < 255 (85 is fine)
+	packet = append(packet, 0x19, uint8(propID))
+
+	// Update BVLC Length
+	l := len(packet)
+	binary.BigEndian.PutUint16(packet[2:4], uint16(l))
 
 	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", ip, port))
 	if err != nil {
@@ -238,6 +522,7 @@ func (d *BACnetDriver) readPropertyWithConn(conn *net.UDPConn, ip string, port i
 			// Might be response from different device if multiple requests pending
 			// But for now we do sequential requests per point in loop
 			// Check invoke ID
+			// log.Printf("Ignored packet from %s (expected %s)", srcAddr.String(), ip)
 		}
 
 		if n < 10 {
@@ -261,23 +546,28 @@ func (d *BACnetDriver) readPropertyWithConn(conn *net.UDPConn, ip string, port i
 		} // SNET
 
 		if offset >= n {
+			log.Printf("BACnet Read Malformed NPDU offset=%d n=%d", offset, n)
 			continue
 		}
 
 		// APDU Type: 0x30 (ComplexACK)
 		apduType := buffer[offset]
 		if (apduType & 0xF0) == 0x50 { // Reject
+			log.Printf("BACnet Reject: %x", apduType)
 			return nil, fmt.Errorf("BACnet Reject")
 		}
 		if (apduType & 0xF0) == 0x10 { // Error
+			log.Printf("BACnet Error APDU: %x", apduType)
 			return nil, fmt.Errorf("BACnet Error")
 		}
 		if (apduType & 0xF0) != 0x30 {
+			// log.Printf("BACnet Ignored APDU Type: %x", apduType)
 			continue
 		}
 
 		resInvokeID := buffer[offset+1]
 		if resInvokeID != invokeID {
+			// log.Printf("BACnet InvokeID mismatch: got %d expected %d", resInvokeID, invokeID)
 			continue
 		}
 
@@ -437,9 +727,37 @@ func (d *BACnetDriver) WritePoint(ctx context.Context, point model.Point, value 
 	d.mu.Lock()
 	ip := d.targetIP
 	port := d.targetPort
+	dnet := d.targetDNET
+	dadr := d.targetDADR
+	devID := d.targetDeviceID
 	d.mu.Unlock()
 
-	log.Printf("BACnet WritePoint: %s -> %v (Target: %s:%d)", point.Address, value, ip, port)
+	// 自动路由发现
+	if devID > 0 && dnet == 0 && len(dadr) == 0 {
+		d.cacheMu.RLock()
+		route, ok := d.routeCache[devID]
+		d.cacheMu.RUnlock()
+
+		if ok {
+			ip = route.IP
+			port = route.Port
+			dnet = route.DNET
+			dadr = route.DADR
+		} else {
+			// 缓存未命中，尝试发现
+			log.Printf("BACnet: Resolving address for Device %d...", devID)
+			if r, err := d.resolveDevice(ctx, devID); err == nil {
+				ip = r.IP
+				port = r.Port
+				dnet = r.DNET
+				dadr = r.DADR
+			} else {
+				log.Printf("BACnet: Failed to resolve device %d: %v", devID, err)
+			}
+		}
+	}
+
+	log.Printf("BACnet WritePoint: %s -> %v (Target: %s:%d DNET:%d Device:%d)", point.Address, value, ip, port, dnet, devID)
 
 	parts := strings.Split(point.Address, ":")
 	if len(parts) != 2 {
@@ -478,7 +796,7 @@ func (d *BACnetDriver) WritePoint(ctx context.Context, point model.Point, value 
 	}
 
 	// Priority 16
-	err = d.writeProperty(ctx, ip, port, objType, uint32(instance), 85, value, 16)
+	err = d.writeProperty(ctx, ip, port, dnet, dadr, objType, uint32(instance), 85, value, 16)
 	if err != nil {
 		log.Printf("BACnet Write Failed: %v", err)
 		return err
@@ -487,7 +805,7 @@ func (d *BACnetDriver) WritePoint(ctx context.Context, point model.Point, value 
 	return nil
 }
 
-func (d *BACnetDriver) writeProperty(ctx context.Context, ip string, port int, objType uint16, instance uint32, propID uint32, value any, priority uint8) error {
+func (d *BACnetDriver) writeProperty(ctx context.Context, ip string, port int, dnet uint16, dadr []byte, objType uint16, instance uint32, propID uint32, value any, priority uint8) error {
 	invokeID := d.getInvokeID()
 	objectID := (uint32(objType) << 22) | instance
 
@@ -553,8 +871,33 @@ func (d *BACnetDriver) writeProperty(ctx context.Context, ip string, port int, o
 	// Base header: BVLC(4) + NPDU(2) + APDU(4) + Tag0(5) + Tag1(2) = 17
 
 	packet := make([]byte, 0, 50)
-	packet = append(packet, 0x81, 0x0a, 0, 0)           // BVLC
-	packet = append(packet, 0x01, 0x04)                 // NPDU
+	packet = append(packet, 0x81, 0x0a, 0, 0) // BVLC
+
+	// NPDU
+	packet = append(packet, 0x01) // Ver
+
+	npduCtrl := byte(0x04) // Expecting Reply
+	if dnet > 0 {
+		npduCtrl |= 0x20 // Dest Present
+	}
+	packet = append(packet, npduCtrl)
+
+	if dnet > 0 {
+		// DNET
+		b := make([]byte, 2)
+		binary.BigEndian.PutUint16(b, dnet)
+		packet = append(packet, b...)
+
+		// DLEN & DADR
+		packet = append(packet, byte(len(dadr)))
+		if len(dadr) > 0 {
+			packet = append(packet, dadr...)
+		}
+
+		// Hop Count
+		packet = append(packet, 0xFF)
+	}
+
 	packet = append(packet, 0x00, 0x05, invokeID, 0x0f) // APDU (WriteProperty)
 
 	// Tag 0: ObjID
@@ -575,16 +918,7 @@ func (d *BACnetDriver) writeProperty(ctx context.Context, ip string, port int, o
 	// Tag 4: Priority (Optional but good)
 	// Context Tag 4, Unsigned. 0x4? -> Tag Number 4.
 	// Tag byte: 4<<4 | 1 = 0x41 (Len 1)
-	packet = append(packet, 0x49, priority) // 0x49 -> Tag 4, Val=Priority? No.
-	// Tag 4 (Context), Length 1 -> 0x49? No.
-	// Tag Num 4 -> 0100.
-	// L=1 -> 001.
-	// 0100 1 001 = 0x49? No.
-	// Class=1 (Context) -> 0x8.
-	// Tag=4 -> 0x?
-	// Byte: (TagNum << 4) | (Class << 3) | Len
-	// Class 1 (Context).
-	// (4 << 4) | (1 << 3) | 1 = 0x40 | 0x08 | 0x01 = 0x49. Correct.
+	packet = append(packet, 0x49, priority)
 
 	// Update Length
 	l := len(packet)
@@ -608,15 +942,25 @@ func (d *BACnetDriver) writeProperty(ctx context.Context, ip string, port int, o
 	}
 
 	// Check APDU Type = 0x20 (SimpleACK)
-	// Offset: BVLC(4) + NPDU(2) + APDU(1)
-	if n > 6 && (buffer[6]&0xF0) == 0x20 {
+	// Offset: BVLC(4) + NPDU(...) + APDU(1)
+	offset := 4
+	npduCtrl = buffer[offset+1]
+	offset += 2
+	if (npduCtrl & 0x20) != 0 {
+		offset += 3 + int(buffer[offset+2])
+	} // DNET
+	if (npduCtrl & 0x08) != 0 {
+		offset += 3 + int(buffer[offset+2])
+	} // SNET
+
+	if n > offset && (buffer[offset]&0xF0) == 0x20 {
 		return nil
 	}
 
 	return fmt.Errorf("write failed or rejected")
 }
 
-func (d *BACnetDriver) scanByDeviceID(ctx context.Context, ip string, port int, deviceInstance uint32) ([]map[string]any, error) {
+func (d *BACnetDriver) scanByDeviceID(ctx context.Context, ip string, port int, dnet uint16, dadr []byte, deviceInstance uint32) ([]map[string]any, error) {
 	// Use ListenUDP to create an unconnected socket, allowing WriteToUDP to work
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
 	if err != nil {
@@ -624,7 +968,7 @@ func (d *BACnetDriver) scanByDeviceID(ctx context.Context, ip string, port int, 
 	}
 	defer conn.Close()
 
-	name, objects := d.scanDeviceObjects(ctx, conn, ip, port, deviceInstance)
+	name, objects := d.scanDeviceObjects(ctx, conn, ip, port, dnet, dadr, deviceInstance)
 
 	res := map[string]any{
 		"device_id": deviceInstance,
@@ -633,6 +977,13 @@ func (d *BACnetDriver) scanByDeviceID(ctx context.Context, ip string, port int, 
 		"port":      port,
 		"objects":   objects,
 	}
+	if dnet > 0 {
+		res["network_number"] = dnet
+	}
+	if len(dadr) > 0 {
+		res["mac_address"] = hex.EncodeToString(dadr)
+	}
+
 	if res["name"] == "" {
 		res["name"] = fmt.Sprintf("Device %d", deviceInstance)
 	}
@@ -690,8 +1041,26 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 				}
 			}
 
-			log.Printf("BACnet Targeted Scan: ID=%d, IP=%s:%d", deviceID, ip, port)
-			return d.scanByDeviceID(ctx, ip, port, deviceID)
+			dnet := uint16(0)
+			dadr := []byte(nil)
+			if dnetVal, ok := params["network_number"]; ok {
+				if v, ok := dnetVal.(float64); ok {
+					dnet = uint16(v)
+				} else if v, ok := dnetVal.(int); ok {
+					dnet = uint16(v)
+				}
+			}
+			if dadrVal, ok := params["mac_address"]; ok {
+				if s, ok := dadrVal.(string); ok && s != "" {
+					s = strings.ReplaceAll(s, ":", "")
+					if b, err := hex.DecodeString(s); err == nil {
+						dadr = b
+					}
+				}
+			}
+
+			log.Printf("BACnet Targeted Scan: ID=%d, IP=%s:%d DNET=%d", deviceID, ip, port, dnet)
+			return d.scanByDeviceID(ctx, ip, port, dnet, dadr, deviceID)
 		}
 	}
 
@@ -767,8 +1136,15 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 			offset += 3 + dlen
 		}
 
+		var snet uint16
+		var sadr []byte
 		if (npduControl & 0x08) != 0 { // Source present
+			snet = binary.BigEndian.Uint16(buffer[offset : offset+2])
 			slen := int(buffer[offset+2])
+			if offset+3+slen <= n {
+				sadr = make([]byte, slen)
+				copy(sadr, buffer[offset+3:offset+3+slen])
+			}
 			offset += 3 + slen
 		}
 
@@ -811,44 +1187,43 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 		if !seen[key] {
 			seen[key] = true
 
-			// Try to determine port from address if possible, but addr.Port is the source port which might be 47808 or random
-			// Standard BACnet port is 47808
-
-			log.Printf("Discovered BACnet Device: %d at %s", instance, addr.String())
+			log.Printf("Discovered BACnet Device: %d at %s (SNET:%d SADR:%x)", instance, addr.String(), snet, sadr)
 
 			// Deep scan for objects
-			name, objects := d.scanDeviceObjects(ctx, conn, addr.IP.String(), addr.Port, instance)
+			name, objects := d.scanDeviceObjects(ctx, conn, addr.IP.String(), addr.Port, snet, sadr, instance)
 			if name == "" {
 				name = fmt.Sprintf("Device %d", instance)
 			}
 
-			devices = append(devices, map[string]any{
+			devMap := map[string]any{
 				"device_id": instance,
 				"ip":        addr.IP.String(),
 				"port":      addr.Port,
 				"name":      name,
 				"objects":   objects,
-			})
+			}
+			if snet > 0 {
+				devMap["network_number"] = snet
+			}
+			if len(sadr) > 0 {
+				devMap["mac_address"] = hex.EncodeToString(sadr)
+			}
+			devices = append(devices, devMap)
 		}
 	}
 
 	// If nothing found via Who-Is, try direct probe
 	if len(devices) == 0 {
 		log.Printf("No devices found via Who-Is, attempting direct probe to %s:%d...", d.targetIP, d.targetPort)
-		// Probe with Device:4194303 (Wildcard) to get actual Device ID
-		// Use readPropertyWithConn but we need to handle wildcard parsing which readPropertyWithConn might not do specifically for ID discovery
-		// Actually readPropertyWithConn returns the value.
-		// If we read Object_Identifier (75) of Device:4194303, the response value IS the ObjectIdentifier (map[type:8 instance:X]).
 
 		// We need a short timeout for probe
 		probeConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
 		if err == nil {
 			defer probeConn.Close()
-			// Use the probe connection
 
 			// Device:4194303 (Wildcard)
 			// Read Object_Identifier (75)
-			val, err := d.readPropertyWithConn(probeConn, d.targetIP, d.targetPort, 8, 4194303, 75)
+			val, err := d.readPropertyWithConn(probeConn, d.targetIP, d.targetPort, d.targetDNET, d.targetDADR, 8, 4194303, 75)
 			if err == nil {
 				if oid, ok := val.(map[string]any); ok {
 					if t, ok := oid["type"].(uint32); ok && t == 8 {
@@ -857,18 +1232,25 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 
 						// Add to devices
 						// Deep scan
-						name, objects := d.scanDeviceObjects(ctx, probeConn, d.targetIP, d.targetPort, inst)
+						name, objects := d.scanDeviceObjects(ctx, probeConn, d.targetIP, d.targetPort, d.targetDNET, d.targetDADR, inst)
 						if name == "" {
 							name = fmt.Sprintf("Device %d", inst)
 						}
 
-						devices = append(devices, map[string]any{
+						devMap := map[string]any{
 							"device_id": inst,
 							"ip":        d.targetIP,
 							"port":      d.targetPort,
 							"name":      name,
 							"objects":   objects,
-						})
+						}
+						if d.targetDNET > 0 {
+							devMap["network_number"] = d.targetDNET
+						}
+						if len(d.targetDADR) > 0 {
+							devMap["mac_address"] = hex.EncodeToString(d.targetDADR)
+						}
+						devices = append(devices, devMap)
 					}
 				}
 			} else {
@@ -886,9 +1268,9 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 	return devices, nil
 }
 
-func (d *BACnetDriver) scanDeviceObjects(ctx context.Context, conn *net.UDPConn, ip string, port int, deviceInstance uint32) (string, []map[string]any) {
+func (d *BACnetDriver) scanDeviceObjects(ctx context.Context, conn *net.UDPConn, ip string, port int, dnet uint16, dadr []byte, deviceInstance uint32) (string, []map[string]any) {
 	// 1. Read Device Name (Prop 77)
-	nameVal, err := d.readPropertyWithConn(conn, ip, port, 8, deviceInstance, 77)
+	nameVal, err := d.readPropertyWithConn(conn, ip, port, dnet, dadr, 8, deviceInstance, 77)
 	deviceName := ""
 	if err == nil {
 		if s, ok := nameVal.(string); ok {
@@ -897,7 +1279,7 @@ func (d *BACnetDriver) scanDeviceObjects(ctx context.Context, conn *net.UDPConn,
 	}
 
 	// 2. Read Object List (Prop 76)
-	objListVal, err := d.readPropertyWithConn(conn, ip, port, 8, deviceInstance, 76)
+	objListVal, err := d.readPropertyWithConn(conn, ip, port, dnet, dadr, 8, deviceInstance, 76)
 	if err != nil {
 		log.Printf("Failed to read Object List for device %d: %v", deviceInstance, err)
 		return deviceName, nil
@@ -923,7 +1305,7 @@ func (d *BACnetDriver) scanDeviceObjects(ctx context.Context, conn *net.UDPConn,
 
 		// Read Object Name (Prop 77)
 		objName := fmt.Sprintf("%s-%d", typeStr, objInst)
-		nameVal, err := d.readPropertyWithConn(conn, ip, port, objType, objInst, 77)
+		nameVal, err := d.readPropertyWithConn(conn, ip, port, dnet, dadr, objType, objInst, 77)
 		if err == nil {
 			if s, ok := nameVal.(string); ok {
 				objName = s

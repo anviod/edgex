@@ -69,7 +69,7 @@
         </v-row>
 
         <!-- MQTT Settings Dialog -->
-        <v-dialog v-model="mqttDialog.visible" max-width="600px">
+        <v-dialog v-model="mqttDialog.visible" max-width="1024px">
             <v-card>
                 <v-card-title class="text-h5 pa-4">MQTT 配置</v-card-title>
                 <v-card-text>
@@ -94,7 +94,7 @@
                                 <tr>
                                     <th>设备名称</th>
                                     <th style="width: 80px;">启用</th>
-                                    <th style="width: 150px;">策略</th>
+                                    <th style="width: 250px;">策略</th>
                                     <th style="width: 150px;">上报周期</th>
                                 </tr>
                             </thead>

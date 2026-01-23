@@ -58,6 +58,7 @@ type Point struct {
 	Group      string           `json:"group" yaml:"group"`
 	ReportMode string           `json:"report_mode" yaml:"report_mode"` // cycle / cov / event
 	Threshold  *ThresholdConfig `json:"threshold" yaml:"threshold"`
+	DeviceID   string           `json:"-" yaml:"-"` // Runtime field, not persisted
 }
 
 // ThresholdConfig defines alarm thresholds for a point
@@ -97,6 +98,7 @@ type Device struct {
 	Interval Duration       `json:"interval" yaml:"interval"`
 	Config   map[string]any `json:"config" yaml:"config"` // 设备特定配置（如 slave_id）
 	Points   []Point        `json:"points" yaml:"points"` // 该设备的点位列表
+	State    int            `json:"state" yaml:"-"`       // 运行时状态：0=Online, 1=Unstable, 2=Offline, 3=Quarantine
 	StopChan chan struct{}  `json:"-" yaml:"-"`
 	// Runtime state fields
 	NodeRuntime *struct {
@@ -128,10 +130,11 @@ type Channel struct {
 	} `json:"-" yaml:"-"`
 }
 
-// DriverConfig holds configuration for initializing a driver
+// DriverConfig is the configuration passed to a driver
 type DriverConfig struct {
-	ChannelID string
-	Config    map[string]any
+	ChannelID string         `json:"channel_id"`
+	Protocol  string         `json:"protocol"` // Protocol name (e.g. modbus-tcp, modbus-rtu)
+	Config    map[string]any `json:"config"`
 }
 
 // NorthboundConfig defines configuration for northbound data reporting

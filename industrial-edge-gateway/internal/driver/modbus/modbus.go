@@ -17,6 +17,7 @@ import (
 func init() {
 	driver.RegisterDriver("modbus-tcp", NewModbusDriver)
 	driver.RegisterDriver("modbus-rtu", NewModbusDriver)
+	driver.RegisterDriver("modbus-rtu-over-tcp", NewModbusDriver)
 }
 
 // ModbusDriver implements the Driver interface using simonvetter/modbus
@@ -93,13 +94,66 @@ func (d *ModbusDriver) Connect(ctx context.Context) error {
 	// 1. Build URL based on config
 	// "tcp://127.0.0.1:502" or "rtu:///dev/ttyUSB0"
 	url, ok := d.config.Config["url"].(string)
-	if !ok {
-		// Fallback for compatibility if old config style used
-		addr, _ := d.config.Config["address"].(string)
-		if addr != "" {
-			url = "tcp://" + addr
+	if !ok || url == "" {
+		// Try to construct RTU URL from components if port is provided
+		if port, okPort := d.config.Config["port"].(string); okPort && port != "" {
+			baudRate := 9600
+			if v, ok := d.config.Config["baudRate"]; ok {
+				if f, ok := v.(float64); ok {
+					baudRate = int(f)
+				} else if i, ok := v.(int); ok {
+					baudRate = i
+				}
+			}
+
+			dataBits := 8
+			if v, ok := d.config.Config["dataBits"]; ok {
+				if f, ok := v.(float64); ok {
+					dataBits = int(f)
+				} else if i, ok := v.(int); ok {
+					dataBits = i
+				}
+			}
+
+			stopBits := 1
+			if v, ok := d.config.Config["stopBits"]; ok {
+				if f, ok := v.(float64); ok {
+					stopBits = int(f)
+				} else if i, ok := v.(int); ok {
+					stopBits = i
+				}
+			}
+
+			parity := "N"
+			if v, ok := d.config.Config["parity"].(string); ok {
+				parity = v
+			}
+
+			// Construct RTU URL: rtu:///dev/ttyS1?baudrate=9600&data_bits=8&parity=N&stop_bits=1
+			url = fmt.Sprintf("rtu://%s?baudrate=%d&data_bits=%d&parity=%s&stop_bits=%d",
+				port, baudRate, dataBits, parity, stopBits)
 		} else {
-			return fmt.Errorf("modbus url not configured")
+			// Fallback for compatibility if old config style used
+			addr, _ := d.config.Config["address"].(string)
+			if addr != "" {
+				url = "tcp://" + addr
+			} else {
+				return fmt.Errorf("modbus url or port not configured")
+			}
+		}
+	}
+
+	// Configurable timeout
+	timeout := 2 * time.Second
+	if tVal, ok := d.config.Config["timeout"]; ok {
+		if f, ok := tVal.(float64); ok {
+			timeout = time.Duration(f) * time.Millisecond
+		} else if i, ok := tVal.(int); ok {
+			timeout = time.Duration(i) * time.Millisecond
+		} else if s, ok := tVal.(string); ok {
+			if d, err := time.ParseDuration(s); err == nil {
+				timeout = d
+			}
 		}
 	}
 
@@ -107,7 +161,7 @@ func (d *ModbusDriver) Connect(ctx context.Context) error {
 	var err error
 	d.client, err = modbus.NewClient(&modbus.ClientConfiguration{
 		URL:     url,
-		Timeout: 2 * time.Second, // TODO: Configurable timeout
+		Timeout: timeout,
 	})
 	if err != nil {
 		return err

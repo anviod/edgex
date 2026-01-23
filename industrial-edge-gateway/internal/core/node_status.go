@@ -20,6 +20,10 @@ type CommunicationManageTemplate struct {
 	mu    sync.RWMutex                   // 读写锁，保护nodes访问
 }
 
+func (c *CommunicationManageTemplate) finalizeCollect(node *DeviceNodeTemplate, ctx *CollectContext) {
+	panic("unimplemented")
+}
+
 // NewCommunicationManageTemplate 创建新的通信管理器
 func NewCommunicationManageTemplate() *CommunicationManageTemplate {
 	return &CommunicationManageTemplate{
@@ -142,14 +146,19 @@ func (c *CommunicationManageTemplate) onCollectFail(node *DeviceNodeTemplate) {
 
 	// 根据失败次数调整节点状态
 	switch {
-	case node.Runtime.FailCount >= 3 && node.Runtime.FailCount < 10:
-		// 3-9次失败：进入不稳定状态
+	case node.Runtime.FailCount >= 3 && node.Runtime.FailCount < 6:
+		// 3-5次失败：进入不稳定状态
 		node.Runtime.State = NodeStateUnstable
-		// 设置5秒后重试
-		node.Runtime.NextRetryTime = time.Now().Add(5 * time.Second)
+		// 不稳定状态不退避，但标记状态
 
-	case node.Runtime.FailCount >= 10:
-		// 10次以上失败：进入隔离状态
+	case node.Runtime.FailCount >= 6 && node.Runtime.FailCount < 15:
+		// 6-14次失败：进入离线状态
+		node.Runtime.State = NodeStateOffline
+		// 离线状态，固定退避 10秒
+		node.Runtime.NextRetryTime = time.Now().Add(10 * time.Second)
+
+	case node.Runtime.FailCount >= 15:
+		// 15次以上失败：进入隔离状态
 		node.Runtime.State = NodeStateQuarantine
 		// 计算退避时间（指数退避：失败次数*1秒）
 		backoff := time.Duration(node.Runtime.FailCount) * time.Second
@@ -187,7 +196,7 @@ func (c *CommunicationManageTemplate) onCollectSuccess(node *DeviceNodeTemplate)
 	}
 }
 
-// finalizeCollect 最终裁决函数
+// FinalizeCollect 最终裁决函数
 // 根据采集上下文统计信息，决定本次采集的整体结果并更新节点状态
 //
 // 参数:
@@ -204,7 +213,7 @@ func (c *CommunicationManageTemplate) onCollectSuccess(node *DeviceNodeTemplate)
 //  1. panic具有最高优先级，直接否决
 //  2. 允许部分失败（30%成功率即可），适应工业现场不稳定性
 //  3. 无交互视为最严重失败
-func (c *CommunicationManageTemplate) finalizeCollect(node *DeviceNodeTemplate, ctx *CollectContext) {
+func (c *CommunicationManageTemplate) FinalizeCollect(node *DeviceNodeTemplate, ctx *CollectContext) {
 	// 规则1: panic一票否决
 	if ctx.PanicOccur {
 		c.onCollectFail(node)

@@ -11,6 +11,14 @@ northbound:
         username: ""
         password: ""
         devices:
+            bacnet-2228316:
+                enable: false
+                strategy: periodic
+                interval: 10s
+            bacnet-2228317:
+                enable: false
+                strategy: periodic
+                interval: 10s
             opcua-device-1:
                 enable: false
                 strategy: periodic
@@ -57,10 +65,22 @@ northbound:
             slave-1: true
             slave-2: false
 channels:
-    - id: opcua-sim-1
+    - id: s7-test-1
+      name: S7 Test Channel
+      protocol: s7
+      enable: true
+      config:
+        ip: 192.168.1.100
+        plcType: S7-1200
+        port: 102
+        rack: 0
+        slot: 2
+        startup: warm
+      devices: []
+    - id: modbus-tcp-
       name: OPC UA Simulator Channel
       protocol: opc-ua
-      enable: true
+      enable: false
       config:
         url: opc.tcp://127.0.0.1:4840
       devices:
@@ -139,11 +159,11 @@ channels:
         port: 47808
       devices:
         - id: bacnet-2228316
-          name: RoomController.Simulator
+          name: Device 2228316
           enable: true
           interval: 10s
           config:
-            device_id: 2.228316e+06
+            device_id: 2228316
             ip: 192.168.3.122
             port: 47808
           points:
@@ -249,17 +269,6 @@ channels:
             - id: MultiStateValue_0
               name: State
               address: MultiStateValue:0
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: MultiStateValue_1
-              name: State.VentilationLevel
-              address: MultiStateValue:1
               datatype: float32
               scale: 0
               offset: 0
@@ -273,7 +282,7 @@ channels:
           enable: true
           interval: 10s
           config:
-            device_id: 2.228317e+06
+            device_id: 2228317
             ip: 192.168.3.122
             port: 47808
           points:
@@ -317,7 +326,7 @@ channels:
               scale: 0
               offset: 0
               unit: ""
-              readwrite: R
+              readwrite: RW
               group: ""
               report_mode: ""
               threshold: null
@@ -328,7 +337,7 @@ channels:
               scale: 0
               offset: 0
               unit: ""
-              readwrite: R
+              readwrite: RW
               group: ""
               report_mode: ""
               threshold: null
@@ -339,7 +348,7 @@ channels:
               scale: 0
               offset: 0
               unit: ""
-              readwrite: R
+              readwrite: RW
               group: ""
               report_mode: ""
               threshold: null
@@ -350,7 +359,7 @@ channels:
               scale: 0
               offset: 0
               unit: ""
-              readwrite: R
+              readwrite: RW
               group: ""
               report_mode: ""
               threshold: null
@@ -361,7 +370,7 @@ channels:
               scale: 0
               offset: 0
               unit: ""
-              readwrite: R
+              readwrite: RW
               group: ""
               report_mode: ""
               threshold: null
@@ -372,7 +381,7 @@ channels:
               scale: 0
               offset: 0
               unit: ""
-              readwrite: R
+              readwrite: RW
               group: ""
               report_mode: ""
               threshold: null
@@ -383,7 +392,7 @@ channels:
               scale: 0
               offset: 0
               unit: ""
-              readwrite: R
+              readwrite: RW
               group: ""
               report_mode: ""
               threshold: null
@@ -394,7 +403,7 @@ channels:
               scale: 0
               offset: 0
               unit: ""
-              readwrite: R
+              readwrite: RW
               group: ""
               report_mode: ""
               threshold: null
@@ -428,7 +437,7 @@ channels:
     - id: s7-channel-1
       name: Siemens S7 Channel
       protocol: s7
-      enable: true
+      enable: false
       config:
         address: 192.168.1.200:102
       devices:
@@ -906,6 +915,17 @@ channels:
               group: ""
               report_mode: ""
               threshold: null
+            - id: "40001"
+              name: ID
+              address: "40001"
+              datatype: uint16
+              scale: 1
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
         - id: slave-2
           name: Slave Device 2
           enable: true
@@ -943,6 +963,24 @@ channels:
               offset: 0
               unit: kPa
               readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+        - id: "3"
+          name: "3"
+          enable: true
+          interval: 5s
+          config:
+            slave_id: 3
+          points:
+            - id: S3-1
+              name: ID
+              address: "40001"
+              datatype: uint16
+              scale: 1
+              offset: 0
+              unit: ""
+              readwrite: R
               group: ""
               report_mode: ""
               threshold: null

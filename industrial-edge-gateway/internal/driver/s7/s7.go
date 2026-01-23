@@ -34,7 +34,9 @@ func (d *S7Driver) Init(cfg model.DriverConfig) error {
 }
 
 func (d *S7Driver) Connect(ctx context.Context) error {
-	log.Printf("S7 Driver connecting to %v (Simulated)...", d.config.Config["address"])
+	cfg := d.config.Config
+	log.Printf("S7 Driver connecting to %v:%v (Rack=%v, Slot=%v, Type=%v, Startup=%v) (Simulated)...",
+		cfg["ip"], cfg["port"], cfg["rack"], cfg["slot"], cfg["plcType"], cfg["startup"])
 	time.Sleep(500 * time.Millisecond)
 	log.Printf("S7 Driver connected (Simulated)")
 	return nil
