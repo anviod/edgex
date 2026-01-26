@@ -38,9 +38,10 @@ type Server struct {
 	pipeline *core.DataPipeline
 	nbm      *core.NorthboundManager
 	ecm      *core.EdgeComputeManager
+	sm       *core.SystemManager
 }
 
-func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeline, nbm *core.NorthboundManager, ecm *core.EdgeComputeManager) *Server {
+func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeline, nbm *core.NorthboundManager, ecm *core.EdgeComputeManager, sm *core.SystemManager) *Server {
 	app := fiber.New()
 	app.Use(cors.New())
 
@@ -55,6 +56,7 @@ func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeli
 		pipeline: pl,
 		nbm:      nbm,
 		ecm:      ecm,
+		sm:       sm,
 	}
 
 	// Inject ChannelManager into EdgeComputeManager
@@ -79,6 +81,12 @@ func (s *Server) setupRoutes() {
 
 	// 首页 Dashboard
 	api.Get("/dashboard/summary", s.getDashboardSummary)
+
+	// 系统设置
+	api.Get("/system", s.getSystemConfig)
+	api.Put("/system", s.updateSystemConfig)
+	api.Get("/system/network/interfaces", s.getNetworkInterfaces)
+	api.Get("/system/network/routes", s.getRoutes)
 
 	// 第一级：采集通道列表
 	api.Get("/channels", s.getChannels)

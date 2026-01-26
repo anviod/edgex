@@ -49,6 +49,13 @@
                 active-class="v-list-item--active"
                 rounded="xl"
             ></v-list-item>
+            <v-list-item 
+                prepend-icon="mdi-cog" 
+                title="系统设置" 
+                to="/system"
+                active-class="v-list-item--active"
+                rounded="xl"
+            ></v-list-item>
         </v-list>
 
         <template v-slot:append>
@@ -190,7 +197,7 @@ body {
 }
 
 .glass-card:not(.no-hover):hover {
-    transform: perspective(1000px) rotateX(1deg) rotateY(1deg) scale3d(1.01, 1.01, 1.01);
+    transform: perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1.01, 1.01, 1.01);
     box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.3) !important;
 }
 

@@ -22,6 +22,7 @@ type Config struct {
 	Northbound model.NorthboundConfig `yaml:"northbound"`
 	Channels   []model.Channel        `yaml:"channels"`
 	EdgeRules  []model.EdgeRule       `yaml:"edge_rules"`
+	System     model.SystemConfig     `yaml:"system"`
 }
 
 func LoadConfig(path string) (*Config, error) {

@@ -8,12 +8,18 @@ import PointList from '../views/PointList.vue'
 import Northbound from '../views/Northbound.vue'
 import EdgeCompute from '../views/EdgeCompute.vue'
 import EdgeComputeMetrics from '../views/EdgeComputeMetrics.vue'
+import SystemSettings from '../views/SystemSettings.vue'
 
 const routes = [
     { 
         path: '/', 
         component: Dashboard,
         meta: { title: '首页监控' }
+    },
+    { 
+        path: '/system', 
+        component: SystemSettings,
+        meta: { title: '系统设置' }
     },
     { 
         path: '/channels', 

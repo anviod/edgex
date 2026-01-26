@@ -85,8 +85,11 @@ func main() {
 		return config.SaveConfig(*configPath, cfg)
 	})
 
+	// Init System Manager
+	sm := core.NewSystemManager(cfg, *configPath)
+
 	// 4. Init Web Server
-	srv := server.NewServer(cm, store, pipeline, nbm, ecm)
+	srv := server.NewServer(cm, store, pipeline, nbm, ecm, sm)
 
 	// Register pipeline handler for WebSocket broadcast
 	pipeline.AddHandler(func(v model.Value) {

@@ -92,465 +92,6 @@ northbound:
           key_password: ""
           devices: {}
 channels:
-    - id: modbus-rtu-1
-      name: Modbus RTU Channel (本地网关)
-      protocol: modbus-rtu
-      enable: false
-      config:
-        baudrate: 9600
-        port: /dev/ttyUSB0
-        timeout: 5s
-      devices:
-        - id: rtu-device-1
-          name: RTU Device 1
-          enable: true
-          interval: 2s
-          config:
-            slave_id: 1
-          points:
-            - id: rtu_temp
-              name: Temperature
-              address: "0"
-              datatype: int16
-              scale: 0.1
-              offset: 0
-              unit: °C
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-    - id: s7-channel-1
-      name: Siemens S7 Channel
-      protocol: s7
-      enable: false
-      config:
-        address: 192.168.1.200:102
-      devices:
-        - id: s7-pump-1
-          name: 冷却泵1
-          enable: true
-          interval: 1s
-          config: {}
-          points:
-            - id: pump_status
-              name: 开关状态
-              address: I:2.0
-              datatype: bool
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: pump_on_off
-              name: 启停开关
-              address: DB3:332.1
-              datatype: bool
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: pump_fault_status
-              name: 水泵故障反馈
-              address: DB3:12.4
-              datatype: bool
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: pump_man_status
-              name: 手自动状态
-              address: DB3:332.0
-              datatype: bool
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: pump_run_hours
-              name: 累计运行时长
-              address: DB3:334
-              datatype: int32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: fault_status
-              name: 变频器故障反馈
-              address: I:2.1
-              datatype: bool
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: frequency
-              name: 频率反馈
-              address: DB3:342
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: freq_spt_set_manual
-              name: 手动频率设定
-              address: DB3:338
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: spt_set
-              name: 设定值
-              address: DB14:2
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: set_feedback_value
-              name: 设定反馈值
-              address: DB14:6
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: p_value
-              name: P值
-              address: DB14:14
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: i_value
-              name: I值
-              address: DB14:18
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: d_value
-              name: D值
-              address: DB14:22
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: freq_upper_limit
-              name: 频率上限
-              address: DB14:26
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: freq_lower_limit
-              name: 频率下限
-              address: DB14:30
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-        - id: s7-water-meter
-          name: 水表
-          enable: true
-          interval: 5s
-          config: {}
-          points:
-            - id: accumulated_amount
-              name: 水表数值
-              address: DB1:7408
-              datatype: uint16
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-        - id: s7-pressure-sensor
-          name: 压力温度传感器
-          enable: true
-          interval: 1s
-          config: {}
-          points:
-            - id: P1
-              name: P1
-              address: DB3:20
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P2
-              name: P2
-              address: DB3:24
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P3
-              name: P3
-              address: DB3:28
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P4
-              name: P4
-              address: DB3:32
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P5
-              name: P5
-              address: DB3:36
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P6
-              name: P6
-              address: DB3:40
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P7
-              name: P7
-              address: DB3:44
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P8
-              name: P8
-              address: DB3:48
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P9
-              name: P9
-              address: DB3:52
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P10
-              name: P10
-              address: DB3:56
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P11
-              name: P11
-              address: DB3:60
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P12
-              name: P12
-              address: DB3:64
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P13
-              name: P13
-              address: DB3:68
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P14
-              name: P14
-              address: DB3:72
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P15
-              name: P15
-              address: DB3:76
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P16
-              name: P16
-              address: DB3:80
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P17
-              name: P17
-              address: DB3:84
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P18
-              name: P18
-              address: DB3:88
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P19
-              name: P19
-              address: DB3:92
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P20
-              name: P20
-              address: DB3:96
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: P21
-              name: P21
-              address: DB3:100
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: mpa
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
     - id: modbus-tcp-1
       name: Modbus TCP Channel 1
       protocol: modbus-tcp
@@ -1011,4 +552,704 @@ channels:
               group: ""
               report_mode: ""
               threshold: null
+    - id: modbus-rtu-1
+      name: Modbus RTU Channel (本地网关)
+      protocol: modbus-rtu
+      enable: false
+      config:
+        baudrate: 9600
+        port: /dev/ttyUSB0
+        timeout: 5s
+      devices:
+        - id: rtu-device-1
+          name: RTU Device 1
+          enable: true
+          interval: 2s
+          config:
+            slave_id: 1
+          points:
+            - id: rtu_temp
+              name: Temperature
+              address: "0"
+              datatype: int16
+              scale: 0.1
+              offset: 0
+              unit: °C
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+    - id: s7-channel-1
+      name: Siemens S7 Channel
+      protocol: s7
+      enable: false
+      config:
+        address: 192.168.1.200:102
+      devices:
+        - id: s7-pump-1
+          name: 冷却泵1
+          enable: true
+          interval: 1s
+          config: {}
+          points:
+            - id: pump_status
+              name: 开关状态
+              address: I:2.0
+              datatype: bool
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: pump_on_off
+              name: 启停开关
+              address: DB3:332.1
+              datatype: bool
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: pump_fault_status
+              name: 水泵故障反馈
+              address: DB3:12.4
+              datatype: bool
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: pump_man_status
+              name: 手自动状态
+              address: DB3:332.0
+              datatype: bool
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: pump_run_hours
+              name: 累计运行时长
+              address: DB3:334
+              datatype: int32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: fault_status
+              name: 变频器故障反馈
+              address: I:2.1
+              datatype: bool
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: frequency
+              name: 频率反馈
+              address: DB3:342
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: freq_spt_set_manual
+              name: 手动频率设定
+              address: DB3:338
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: spt_set
+              name: 设定值
+              address: DB14:2
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: set_feedback_value
+              name: 设定反馈值
+              address: DB14:6
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: p_value
+              name: P值
+              address: DB14:14
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: i_value
+              name: I值
+              address: DB14:18
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: d_value
+              name: D值
+              address: DB14:22
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: freq_upper_limit
+              name: 频率上限
+              address: DB14:26
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: freq_lower_limit
+              name: 频率下限
+              address: DB14:30
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+        - id: s7-water-meter
+          name: 水表
+          enable: true
+          interval: 5s
+          config: {}
+          points:
+            - id: accumulated_amount
+              name: 水表数值
+              address: DB1:7408
+              datatype: uint16
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+        - id: s7-pressure-sensor
+          name: 压力温度传感器
+          enable: true
+          interval: 1s
+          config: {}
+          points:
+            - id: P1
+              name: P1
+              address: DB3:20
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P2
+              name: P2
+              address: DB3:24
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P3
+              name: P3
+              address: DB3:28
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P4
+              name: P4
+              address: DB3:32
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P5
+              name: P5
+              address: DB3:36
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P6
+              name: P6
+              address: DB3:40
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P7
+              name: P7
+              address: DB3:44
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P8
+              name: P8
+              address: DB3:48
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P9
+              name: P9
+              address: DB3:52
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P10
+              name: P10
+              address: DB3:56
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P11
+              name: P11
+              address: DB3:60
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P12
+              name: P12
+              address: DB3:64
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P13
+              name: P13
+              address: DB3:68
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P14
+              name: P14
+              address: DB3:72
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P15
+              name: P15
+              address: DB3:76
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P16
+              name: P16
+              address: DB3:80
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P17
+              name: P17
+              address: DB3:84
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P18
+              name: P18
+              address: DB3:88
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P19
+              name: P19
+              address: DB3:92
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P20
+              name: P20
+              address: DB3:96
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: P21
+              name: P21
+              address: DB3:100
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: mpa
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
 edge_rules: []
+system:
+    time:
+        mode: manual
+        manual:
+            datetime: ""
+            timezone: Asia/Shanghai
+            syncrtc: false
+        ntp:
+            servers: []
+            interval: 0
+            enabled: false
+    network:
+        - name: cfw-tap
+          mac: 00:ff:5c:a7:7d:52
+          status: DOWN
+          interfacemetric: 0
+          ipconfigs:
+            - address: fe80::13da:5158:f4c8:61c0
+              prefix: 64
+              version: IPv6
+              source: Static
+              enabled: true
+            - address: 10.0.0.1
+              prefix: 24
+              version: IPv4
+              source: Static
+              enabled: true
+            - address: 169.254.57.244
+              prefix: 16
+              version: IPv4
+              source: Static
+              enabled: true
+          gateways: []
+          enabled: true
+        - name: 以太网 2
+          mac: 30:43:d7:ed:14:55
+          status: DOWN
+          interfacemetric: 100
+          ipconfigs: []
+          gateways: []
+          enabled: true
+        - name: 以太网 5
+          mac: 6c:1f:f7:25:b1:f1
+          status: DOWN
+          interfacemetric: 0
+          ipconfigs:
+            - address: fe80::2eef:ce9a:7648:3253
+              prefix: 64
+              version: IPv6
+              source: Static
+              enabled: true
+            - address: 10.168.1.120
+              prefix: 24
+              version: IPv4
+              source: Static
+              enabled: true
+            - address: 172.168.10.120
+              prefix: 16
+              version: IPv4
+              source: Static
+              enabled: true
+            - address: 192.168.1.120
+              prefix: 24
+              version: IPv4
+              source: Static
+              enabled: true
+          gateways: []
+          enabled: true
+        - name: Tailscale
+          mac: ""
+          status: UP
+          interfacemetric: 0
+          ipconfigs:
+            - address: fd7a:115c:a1e0::7801:1c61
+              prefix: 128
+              version: IPv6
+              source: Static
+              enabled: true
+            - address: fe80::d8ff:5060:f230:9168
+              prefix: 64
+              version: IPv6
+              source: Static
+              enabled: true
+            - address: 100.117.28.96
+              prefix: 32
+              version: IPv4
+              source: Static
+              enabled: true
+          gateways: []
+          enabled: true
+        - name: aTrustVNIC
+          mac: ""
+          status: DOWN
+          interfacemetric: 0
+          ipconfigs:
+            - address: fd53:414e:4746:4f52:e53e:566b:a91f:1169
+              prefix: 128
+              version: IPv6
+              source: Static
+              enabled: true
+            - address: 2.0.0.1
+              prefix: 24
+              version: IPv4
+              source: Static
+              enabled: true
+          gateways: []
+          enabled: true
+        - name: 本地连接
+          mac: 00:ff:7a:ec:8e:1c
+          status: DOWN
+          interfacemetric: 0
+          ipconfigs:
+            - address: fe80::3ddd:39f5:965b:792d
+              prefix: 64
+              version: IPv6
+              source: Static
+              enabled: true
+            - address: 169.254.121.157
+              prefix: 16
+              version: IPv4
+              source: Static
+              enabled: true
+          gateways: []
+          enabled: true
+        - name: 本地连接* 11
+          mac: c8:5e:a9:f4:88:5b
+          status: DOWN
+          interfacemetric: 0
+          ipconfigs:
+            - address: fe80::9054:37fa:dca2:989f
+              prefix: 64
+              version: IPv6
+              source: Static
+              enabled: true
+            - address: 169.254.232.22
+              prefix: 16
+              version: IPv4
+              source: Static
+              enabled: true
+          gateways: []
+          enabled: true
+        - name: 本地连接* 12
+          mac: ca:5e:a9:f4:88:5a
+          status: DOWN
+          interfacemetric: 0
+          ipconfigs:
+            - address: fe80::2a2f:980c:16d3:4b1f
+              prefix: 64
+              version: IPv6
+              source: Static
+              enabled: true
+            - address: 169.254.72.235
+              prefix: 16
+              version: IPv4
+              source: Static
+              enabled: true
+          gateways: []
+          enabled: true
+        - name: WLAN
+          mac: c8:5e:a9:f4:88:5a
+          status: UP
+          interfacemetric: 0
+          ipconfigs:
+            - address: fe80::b609:36f9:a799:9ba
+              prefix: 64
+              version: IPv6
+              source: Static
+              enabled: true
+            - address: 192.168.3.122
+              prefix: 24
+              version: IPv4
+              source: Static
+              enabled: true
+          gateways: []
+          enabled: true
+        - name: 蓝牙网络连接 2
+          mac: c8:5e:a9:f4:88:5e
+          status: DOWN
+          interfacemetric: 0
+          ipconfigs:
+            - address: fe80::8d46:5ebc:922a:9d7
+              prefix: 64
+              version: IPv6
+              source: Static
+              enabled: true
+            - address: 169.254.37.146
+              prefix: 16
+              version: IPv4
+              source: Static
+              enabled: true
+          gateways: []
+          enabled: true
+        - name: Loopback Pseudo-Interface 1
+          mac: ""
+          status: UP
+          interfacemetric: 0
+          ipconfigs:
+            - address: ::1
+              prefix: 128
+              version: IPv6
+              source: Static
+              enabled: true
+            - address: 127.0.0.1
+              prefix: 8
+              version: IPv4
+              source: Static
+              enabled: true
+          gateways: []
+          enabled: true
+        - name: vEthernet (Default Switch)
+          mac: 00:15:5d:c6:e0:9c
+          status: UP
+          interfacemetric: 0
+          ipconfigs:
+            - address: fe80::cef9:a6a:bcda:d05b
+              prefix: 64
+              version: IPv6
+              source: Static
+              enabled: true
+            - address: 172.26.160.1
+              prefix: 20
+              version: IPv4
+              source: Static
+              enabled: true
+          gateways: []
+          enabled: true
+    routes: []
+    ha:
+        role: ""
+        heartbeattype: ""
+        interval: 0
+        timeout: 0
+        retries: 0
+    hostname:
+        name: edge-gateway
+        enablemdns: false
+        enablebare: false
+        httpport: 8082
+        httpsport: 443
+        interfaces: []
+    connectivitytargets: []
