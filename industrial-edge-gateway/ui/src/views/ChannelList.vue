@@ -1,6 +1,38 @@
 <template>
     <div>
         <div class="d-flex justify-end align-center mb-6">
+            <v-btn-toggle
+                v-model="viewMode"
+                mandatory
+                density="compact"
+                class="mr-4"
+                color="primary"
+                variant="outlined"
+                divided
+            >
+                <v-btn value="card" icon="mdi-view-grid" size="small"></v-btn>
+                <v-btn value="list" icon="mdi-view-list" size="small"></v-btn>
+            </v-btn-toggle>
+
+            <v-btn 
+                v-if="selectionMode && selectedChannels.length > 0"
+                color="warning" 
+                prepend-icon="mdi-cog" 
+                variant="flat" 
+                class="mr-2"
+                @click="openBatchConfig"
+            >
+                批量配置
+            </v-btn>
+            <v-btn 
+                :color="selectionMode ? 'grey' : 'secondary'" 
+                :prepend-icon="selectionMode ? 'mdi-close' : 'mdi-checkbox-multiple-marked'" 
+                variant="text" 
+                class="mr-2"
+                @click="toggleSelectionMode"
+            >
+                {{ selectionMode ? '取消选择' : '批量操作' }}
+            </v-btn>
             <v-btn 
                 color="white" 
                 prepend-icon="mdi-refresh" 
@@ -26,22 +58,34 @@
         </div>
 
         <div v-else-if="channels.length > 0">
-            <v-row>
+            <v-row v-if="viewMode === 'card'">
                 <v-col 
                     v-for="channel in channels" 
                     :key="channel.id" 
-                    cols="12" sm="6" md="4" lg="3"
+                    cols="12" sm="6" md="6" lg="6"
                 >
-                    <v-card class="glass-card pa-4 h-100" v-ripple>
+                    <v-card class="glass-card pa-4 h-100" :class="{'selected-border': isSelected(channel.id)}" v-ripple>
+                        <!-- <div v-if="selectionMode" class="selection-overlay" @click="toggleChannelSelection(channel.id)">
+                            <v-checkbox-btn
+                                :model-value="isSelected(channel.id)"
+                                color="primary"
+                                class="ma-0"
+                            ></v-checkbox-btn>
+                        </div> -->
                         <div class="d-flex flex-column h-100 justify-space-between">
-                            <div @click="goToDevices(channel)" style="cursor: pointer">
+                            <div @click="handleCardClick(channel)" style="cursor: pointer">
                                 <div class="d-flex justify-space-between align-start">
                                     <div class="channel-icon text-primary">
                                         <v-icon icon="mdi-lan-connect" size="large"></v-icon>
                                     </div>
-                                    <v-chip size="small" :color="channel.enable ? 'success' : 'grey'">
-                                        {{ channel.enable ? '启用' : '禁用' }}
-                                    </v-chip>
+                                    <div>
+                                        <v-chip size="small" :color="channel.enable ? 'success' : 'grey'">
+                                            {{ channel.enable ? '启用' : '禁用' }}
+                                        </v-chip>
+                                        <v-chip v-if="channel.runtime" size="small" class="ml-1" :color="getRuntimeColor(channel.runtime.state)">
+                                            {{ getRuntimeText(channel.runtime.state) }}
+                                        </v-chip>
+                                    </div>
                                 </div>
                                 <div class="text-h6 font-weight-bold mt-2 text-truncate">{{ channel.name }}</div>
                                 <div class="text-caption text-grey-darken-1">ID: {{ channel.id }}</div>
@@ -61,6 +105,40 @@
                     </v-card>
                 </v-col>
             </v-row>
+
+            <v-data-table
+                v-else
+                v-model="selectedChannels"
+                :headers="listHeaders"
+                :items="channels"
+                item-value="id"
+                :show-select="selectionMode"
+                hover
+            >
+                <template v-slot:item.name="{ item }">
+                    <div class="font-weight-medium cursor-pointer text-primary" @click="goToDevices(item)">
+                        {{ item.name }}
+                    </div>
+                </template>
+                <template v-slot:item.enable="{ item }">
+                     <v-chip size="small" :color="item.enable ? 'success' : 'grey'">
+                        {{ item.enable ? '启用' : '禁用' }}
+                    </v-chip>
+                </template>
+                <template v-slot:item.runtime.state="{ item }">
+                    <v-chip v-if="item.runtime" size="small" :color="getRuntimeColor(item.runtime.state)">
+                        {{ getRuntimeText(item.runtime.state) }}
+                    </v-chip>
+                    <span v-else class="text-grey text-caption">未知</span>
+                </template>
+                <template v-slot:item.actions="{ item }">
+                    <div class="d-flex justify-end">
+                        <v-btn size="small" icon="mdi-pencil" variant="text" color="primary" @click.stop="openEditDialog(item)"></v-btn>
+                        <v-btn size="small" icon="mdi-radar" variant="text" color="info" v-if="item.protocol === 'bacnet-ip'" @click.stop="scanChannel(item)"></v-btn>
+                        <v-btn size="small" icon="mdi-delete" variant="text" color="error" @click.stop="deleteChannel(item)"></v-btn>
+                    </div>
+                </template>
+            </v-data-table>
         </div>
         <div v-else class="text-center mt-12">
             <v-icon icon="mdi-lan-disconnect" size="100" color="white" style="opacity: 0.5"></v-icon>
@@ -110,7 +188,28 @@
                                     persistent-hint
                                 ></v-text-field>
                             </v-col>
-                            <v-col cols="12" v-if="dialog.form.protocol === 'dlt645' || dialog.form.protocol === 'modbus-rtu'">
+                            <v-col cols="12" v-if="dialog.form.protocol === 'dlt645'">
+                                <v-select
+                                    v-model="dialog.form.config.connectionType"
+                                    :items="[{title:'串口 (Serial)', value:'serial'}, {title:'网络 (TCP)', value:'tcp'}]"
+                                    label="连接方式"
+                                    item-title="title"
+                                    item-value="value"
+                                ></v-select>
+                            </v-col>
+                            <v-col cols="12" v-if="dialog.form.protocol === 'dlt645' && dialog.form.config.connectionType === 'tcp'">
+                                <v-text-field v-model="dialog.form.config.ip" label="设备 IP 地址" placeholder="192.168.1.100"></v-text-field>
+                                <v-text-field v-model.number="dialog.form.config.port" label="端口" placeholder="8001" type="number"></v-text-field>
+                                <v-text-field 
+                                    v-model.number="dialog.form.config.timeout" 
+                                    label="超时时间 (ms)" 
+                                    type="number" 
+                                    placeholder="2000"
+                                    hint="默认为 2000ms"
+                                    persistent-hint
+                                ></v-text-field>
+                            </v-col>
+                            <v-col cols="12" v-if="dialog.form.protocol === 'modbus-rtu' || (dialog.form.protocol === 'dlt645' && dialog.form.config.connectionType === 'serial')">
                                 <v-text-field 
                                     v-model="dialog.form.config.port" 
                                     label="串口设备 (如 /dev/ttyS1)" 
@@ -281,91 +380,89 @@
                                     hint="默认为 9600"
                                     persistent-hint
                                 ></v-text-field>
-                                <v-text-field 
-                                    v-model.number="dialog.form.config.max_packet_size" 
-                                    label="包最大字节长度" 
-                                    type="number" 
-                                    placeholder="64"
-                                    hint="默认为 64"
-                                    persistent-hint
-                                ></v-text-field>
                             </v-col>
                         </v-row>
                     </v-container>
                 </v-card-text>
                 <v-card-actions>
                     <v-spacer></v-spacer>
-                    <v-btn color="blue-darken-1" variant="text" @click="dialog.show = false">取消</v-btn>
-                    <v-btn color="blue-darken-1" variant="text" @click="saveChannel">保存</v-btn>
+                    <v-btn color="grey" variant="text" @click="dialog.show = false">取消</v-btn>
+                    <v-btn color="primary" @click="saveChannel">保存</v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
 
-        <!-- Scan Result Dialog -->
+        <!-- Batch Config Dialog -->
+        <v-dialog v-model="batchConfigDialog.show" max-width="500px">
+            <v-card>
+                <v-card-title>批量配置 (已选 {{ selectedChannels.length }} 个)</v-card-title>
+                <v-card-text>
+                    <v-row>
+                        <v-col cols="12" class="d-flex align-center">
+                            <v-checkbox v-model="batchConfigDialog.fields.enable" hide-details class="mr-2"></v-checkbox>
+                            <v-switch v-model="batchConfigDialog.values.enable" label="启用/禁用" hide-details color="primary" :disabled="!batchConfigDialog.fields.enable"></v-switch>
+                        </v-col>
+                        <v-col cols="12" class="d-flex align-center">
+                            <v-checkbox v-model="batchConfigDialog.fields.timeout" hide-details class="mr-2"></v-checkbox>
+                            <v-text-field v-model.number="batchConfigDialog.values.timeout" label="超时时间 (ms)" type="number" hide-details :disabled="!batchConfigDialog.fields.timeout"></v-text-field>
+                        </v-col>
+                        <v-col cols="12" class="d-flex align-center">
+                            <v-checkbox v-model="batchConfigDialog.fields.baudRate" hide-details class="mr-2"></v-checkbox>
+                            <v-select 
+                                v-model.number="batchConfigDialog.values.baudRate" 
+                                :items="[1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]" 
+                                label="波特率 (仅串口)" 
+                                hide-details 
+                                :disabled="!batchConfigDialog.fields.baudRate"
+                            ></v-select>
+                        </v-col>
+                    </v-row>
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn color="grey" variant="text" @click="batchConfigDialog.show = false">取消</v-btn>
+                    <v-btn color="primary" @click="performBatchConfig">应用</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
+
+        <!-- Scan Dialog -->
         <v-dialog v-model="scanDialog.show" max-width="800px">
             <v-card>
-                <v-card-title>
-                    <span class="text-h5">扫描结果 - {{ scanDialog.channelName }}</span>
+                <v-card-title class="d-flex justify-space-between align-center">
+                    <span>BACnet 设备扫描 - {{ scanDialog.channelName }}</span>
+                    <v-btn color="primary" size="small" variant="text" @click="openManualAdd">手动添加</v-btn>
                 </v-card-title>
                 <v-card-text>
-                    <div v-if="scanDialog.loading" class="text-center pa-4">
+                    <div v-if="scanDialog.loading" class="d-flex justify-center my-4">
                         <v-progress-circular indeterminate color="primary"></v-progress-circular>
-                        <div class="mt-2">正在扫描设备...</div>
                     </div>
                     <div v-else>
-                        <v-expansion-panels>
-                            <v-expansion-panel v-for="(device, index) in scanDialog.results" :key="index">
-                                <v-expansion-panel-title>
-                                    <div class="d-flex align-center w-100">
-                                        <v-checkbox-btn
-                                            v-model="scanDialog.selected"
-                                            :value="device"
-                                            color="primary"
-                                            class="mr-2"
-                                            @click.stop
-                                        ></v-checkbox-btn>
-                                        {{ device.name }} (ID: {{ device.device_id }}) - {{ device.ip }}
-                                    </div>
-                                </v-expansion-panel-title>
-                                <v-expansion-panel-text>
-                                    <v-table density="compact">
-                                        <thead>
-                                            <tr>
-                                                <th>名称</th>
-                                                <th>类型</th>
-                                                <th>实例</th>
-                                                <th>当前值</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr v-for="(obj, i) in device.objects" :key="i">
-                                                <td>{{ obj.name }}</td>
-                                                <td>{{ obj.type }}</td>
-                                                <td>{{ obj.instance }}</td>
-                                                <td>{{ obj.value }} {{ obj.unit }}</td>
-                                            </tr>
-                                        </tbody>
-                                    </v-table>
-                                </v-expansion-panel-text>
-                            </v-expansion-panel>
-                        </v-expansion-panels>
-                        <div v-if="!scanDialog.loading && (!scanDialog.results || scanDialog.results.length === 0)" class="text-center pa-4 text-grey">
-                            <div class="mb-4">未发现设备</div>
-                            <v-btn color="primary" variant="outlined" prepend-icon="mdi-plus" @click="openManualAdd">
-                                手动添加设备
-                            </v-btn>
-                        </div>
+                        <v-data-table
+                            v-model="scanDialog.selected"
+                            :headers="[
+                                { title: '设备名称', key: 'name' },
+                                { title: '设备 ID', key: 'device_id' },
+                                { title: 'IP 地址', key: 'ip' },
+                                { title: '网络号', key: 'network_number' },
+                                { title: 'MAC', key: 'mac_address' },
+                                { title: '包含对象数', key: 'object_count', value: item => item.objects ? item.objects.length : 0 }
+                            ]"
+                            :items="scanDialog.results"
+                            show-select
+                            return-object
+                            item-value="device_id"
+                        >
+                            <template v-slot:no-data>
+                                <div class="text-center">未扫描到设备</div>
+                            </template>
+                        </v-data-table>
                     </div>
                 </v-card-text>
                 <v-card-actions>
-                    <v-btn color="primary" variant="text" @click="openManualAdd" v-if="scanDialog.results.length > 0">
-                        手动添加
-                    </v-btn>
                     <v-spacer></v-spacer>
                     <v-btn color="grey" variant="text" @click="scanDialog.show = false">取消</v-btn>
-                    <v-btn color="primary" variant="flat" @click="saveScannedDevices" :disabled="scanDialog.selected.length === 0">
-                        导入选中的设备 ({{ scanDialog.selected.length }})
-                    </v-btn>
+                    <v-btn color="primary" @click="saveScannedDevices" :disabled="scanDialog.selected.length === 0">导入所选设备</v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
@@ -426,6 +523,105 @@ import { showMessage } from '../composables/useGlobalState'
 const router = useRouter()
 const channels = ref([])
 const loading = ref(false)
+const selectionMode = ref(false)
+const selectedChannels = ref([])
+const viewMode = ref('list')
+
+const listHeaders = [
+    { title: '名称', key: 'name' },
+    { title: 'ID', key: 'id' },
+    { title: '协议', key: 'protocol' },
+    { title: '启用状态', key: 'enable' },
+    { title: '运行状态', key: 'runtime.state' },
+    { title: '设备数', key: 'devices', value: item => item.devices ? item.devices.length : 0 },
+    { title: '操作', key: 'actions', sortable: false, align: 'end' }
+]
+
+const batchConfigDialog = reactive({
+    show: false,
+    fields: {
+        enable: false,
+        timeout: false,
+        baudRate: false
+    },
+    values: {
+        enable: true,
+        timeout: 2000,
+        baudRate: 9600
+    }
+})
+
+const toggleSelectionMode = () => {
+    selectionMode.value = !selectionMode.value
+    selectedChannels.value = []
+}
+
+const isSelected = (id) => selectedChannels.value.includes(id)
+
+const toggleChannelSelection = (id) => {
+    const idx = selectedChannels.value.indexOf(id)
+    if (idx === -1) {
+        selectedChannels.value.push(id)
+    } else {
+        selectedChannels.value.splice(idx, 1)
+    }
+}
+
+const handleCardClick = (channel) => {
+    if (selectionMode.value) {
+        toggleChannelSelection(channel.id)
+    } else {
+        goToDevices(channel)
+    }
+}
+
+const openBatchConfig = () => {
+    batchConfigDialog.show = true
+}
+
+const performBatchConfig = async () => {
+    if (selectedChannels.value.length === 0) return
+    if (!confirm(`确定要批量更新 ${selectedChannels.value.length} 个通道吗？`)) return
+
+    try {
+        const promises = selectedChannels.value.map(async (id) => {
+            // Fetch current to merge
+            // Or we can just patch if API supported it.
+            // Assuming we need to PUT full object.
+            const channel = channels.value.find(c => c.id === id)
+            if (!channel) return
+            
+            const updated = JSON.parse(JSON.stringify(channel))
+            
+            if (batchConfigDialog.fields.enable) {
+                updated.enable = batchConfigDialog.values.enable
+            }
+            if (batchConfigDialog.fields.timeout) {
+                if (!updated.config) updated.config = {}
+                updated.config.timeout = batchConfigDialog.values.timeout
+            }
+            if (batchConfigDialog.fields.baudRate) {
+                if (!updated.config) updated.config = {}
+                updated.config.baudRate = batchConfigDialog.values.baudRate
+            }
+            
+            const res = await fetch(`/api/channels/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updated)
+            })
+            if (!res.ok) throw new Error(`Failed to update ${id}`)
+        })
+        
+        await Promise.all(promises)
+        showMessage('批量配置成功', 'success')
+        batchConfigDialog.show = false
+        toggleSelectionMode()
+        fetchChannels()
+    } catch (e) {
+        showMessage('批量配置部分或全部失败: ' + e.message, 'error')
+    }
+}
 
 const protocols = [
     { title: 'Modbus TCP', value: 'modbus-tcp' },
@@ -476,6 +672,26 @@ const openManualAdd = () => {
     manualAddDialog.show = true
 }
 
+const getRuntimeColor = (state) => {
+    switch (state) {
+        case 0: return 'success' // Online
+        case 1: return 'warning' // Unstable
+        case 2: return 'error'   // Offline
+        case 3: return 'grey'    // Quarantine
+        default: return 'grey'
+    }
+}
+
+const getRuntimeText = (state) => {
+    switch (state) {
+        case 0: return '在线'
+        case 1: return '不稳定'
+        case 2: return '离线'
+        case 3: return '隔离'
+        default: return '未知'
+    }
+}
+
 const performManualScan = async () => {
     if (!manualAddDialog.deviceId) {
         showMessage('请输入设备ID', 'error')
@@ -519,7 +735,8 @@ const fetchChannels = async () => {
     try {
         const res = await fetch('/api/channels')
         if (!res.ok) throw new Error(res.statusText)
-        channels.value = await res.json()
+        const data = await res.json()
+        channels.value = (data || []).sort((a, b) => a.name.localeCompare(b.name))
     } catch (e) {
         showMessage('获取通道失败: ' + e.message, 'error')
     } finally {
@@ -695,3 +912,15 @@ const saveScannedDevices = async () => {
 
 onMounted(fetchChannels)
 </script>
+
+<style scoped>
+.selection-overlay {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+}
+.selected-border {
+    border: 2px solid rgb(var(--v-theme-primary)) !important;
+}
+</style>

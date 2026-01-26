@@ -83,6 +83,15 @@
                                 >
                                     查看点位
                                 </v-btn>
+                                <v-btn 
+                                    color="secondary" 
+                                    size="small" 
+                                    variant="tonal"
+                                    icon="mdi-link-variant"
+                                    class="mr-2"
+                                    @click="showRuleUsage(device)"
+                                    title="查看关联规则"
+                                ></v-btn>
                                 <v-btn
                                     color="info"
                                     size="small"
@@ -207,11 +216,47 @@
                 </v-card-actions>
             </v-card>
         </v-dialog>
+
+        <!-- Rule Usage Dialog -->
+        <v-dialog v-model="ruleUsageDialog.show" max-width="600px">
+            <v-card>
+                <v-card-title>关联规则 - {{ ruleUsageDialog.deviceName }}</v-card-title>
+                <v-card-text>
+                    <v-list v-if="ruleUsageDialog.rules.length > 0">
+                        <v-list-item
+                            v-for="rule in ruleUsageDialog.rules"
+                            :key="rule.id"
+                            :title="rule.name"
+                            :subtitle="rule.id"
+                            prepend-icon="mdi-flash"
+                        >
+                            <template v-slot:append>
+                                <v-btn 
+                                    size="small" 
+                                    variant="text" 
+                                    color="primary" 
+                                    @click="goToRule(rule.id)"
+                                >
+                                    查看配置
+                                </v-btn>
+                            </template>
+                        </v-list-item>
+                    </v-list>
+                    <div v-else class="text-center pa-4 text-grey">
+                        该设备未被任何规则引用
+                    </div>
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn color="primary" variant="text" @click="ruleUsageDialog.show = false">关闭</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { globalState, showMessage } from '../composables/useGlobalState'
 
@@ -228,6 +273,46 @@ const dialog = ref(false)
 const deleteDialog = ref(false)
 const isEdit = ref(false)
 const itemToDelete = ref(null) // null means batch delete
+
+const ruleUsageDialog = reactive({
+    show: false,
+    deviceName: '',
+    rules: []
+})
+const allRules = ref([])
+
+const fetchRules = async () => {
+    try {
+        const res = await fetch('/api/edge/rules')
+        if (res.ok) allRules.value = await res.json()
+    } catch (e) {
+        console.error('Failed to fetch rules', e)
+    }
+}
+
+const showRuleUsage = (device) => {
+    ruleUsageDialog.deviceName = device.name
+    ruleUsageDialog.rules = allRules.value.filter(rule => {
+        // Check source
+        if (rule.source && rule.source.device_id === device.id) return true
+        if (rule.sources && rule.sources.some(s => s.device_id === device.id)) return true
+        
+        // Check actions
+        if (rule.actions) {
+            return rule.actions.some(a => {
+                if (a.config && a.config.device_id === device.id) return true
+                if (a.config && a.config.targets && a.config.targets.some(t => t.device_id === device.id)) return true
+                return false
+            })
+        }
+        return false
+    })
+    ruleUsageDialog.show = true
+}
+
+const goToRule = (ruleId) => {
+    router.push({ path: '/edge-compute', query: { rule: ruleId } })
+}
 
 const getDeviceStateColor = (state) => {
     switch (state) {
@@ -424,5 +509,8 @@ const goToPoints = (device) => {
     router.push(`/channels/${channelId}/devices/${device.id}/points`)
 }
 
-onMounted(fetchDevices)
+onMounted(() => {
+    fetchDevices()
+    fetchRules()
+})
 </script>

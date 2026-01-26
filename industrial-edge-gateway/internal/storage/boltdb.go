@@ -14,7 +14,10 @@ type Storage struct {
 }
 
 const (
-	BucketValues = "values"
+	BucketValues    = "values"
+	BucketRuleState = "RuleState"
+	BucketDataCache = "DataCache"
+	BucketWindow    = "WindowData"
 )
 
 func NewStorage(path string) (*Storage, error) {
@@ -25,8 +28,13 @@ func NewStorage(path string) (*Storage, error) {
 
 	// Init buckets
 	err = db.Update(func(tx *bbolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte(BucketValues))
-		return err
+		buckets := []string{BucketValues, BucketRuleState, BucketDataCache, BucketWindow}
+		for _, bucket := range buckets {
+			if _, err := tx.CreateBucketIfNotExists([]byte(bucket)); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -37,6 +45,58 @@ func NewStorage(path string) (*Storage, error) {
 
 func (s *Storage) Close() error {
 	return s.db.Close()
+}
+
+// SaveData generic save method
+func (s *Storage) SaveData(bucketName string, key string, data interface{}) error {
+	return s.db.Update(func(tx *bbolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists([]byte(bucketName))
+		if err != nil {
+			return err
+		}
+		bytes, err := json.Marshal(data)
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(key), bytes)
+	})
+}
+
+// GetData generic get method
+func (s *Storage) GetData(bucketName string, key string, result interface{}) error {
+	return s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(bucketName))
+		if b == nil {
+			return fmt.Errorf("bucket %s not found", bucketName)
+		}
+		data := b.Get([]byte(key))
+		if data == nil {
+			return fmt.Errorf("key %s not found in bucket %s", key, bucketName)
+		}
+		return json.Unmarshal(data, result)
+	})
+}
+
+// DeleteData generic delete method
+func (s *Storage) DeleteData(bucketName string, key string) error {
+	return s.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(bucketName))
+		if b == nil {
+			return nil // Bucket doesn't exist, nothing to delete
+		}
+		return b.Delete([]byte(key))
+	})
+}
+
+// LoadAll generic iterator
+func (s *Storage) LoadAll(bucketName string, callback func(k, v []byte) error) error {
+	return s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(bucketName))
+		if b == nil {
+			return nil
+		}
+		return b.ForEach(callback)
+	})
 }
 
 func (s *Storage) SaveValue(val model.Value) error {

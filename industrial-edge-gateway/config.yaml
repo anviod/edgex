@@ -4,13 +4,15 @@ storage:
     path: ./data/gateway.db
 northbound:
     mqtt:
-        enable: true
-        broker: tcp://127.0.0.1:1883
-        client_id: industrial_gateway_001
-        topic: gateway/uplink
-        username: ""
-        password: ""
-        devices:
+        - id: mqtt-1
+          name: Default MQTT
+          enable: true
+          broker: tcp://127.0.0.1:1883
+          client_id: industrial_gateway_001
+          topic: gateway/uplink
+          username: ""
+          password: ""
+          devices:
             bacnet-2228316:
                 enable: false
                 strategy: periodic
@@ -52,10 +54,12 @@ northbound:
                 strategy: periodic
                 interval: 30s
     opcua:
-        enable: true
-        port: 5000
-        endpoint: /test
-        devices:
+        - id: opcua-1
+          name: Default OPC UA
+          enable: true
+          port: 5000
+          endpoint: /test
+          devices:
             opcua-device-1: false
             remote-slave-1: false
             rtu-device-1: false
@@ -64,349 +68,30 @@ northbound:
             s7-water-meter: true
             slave-1: true
             slave-2: false
+    sparkplug_b:
+        - id: sparkplug-1
+          name: Default Sparkplug B
+          enable: false
+          client_id: ""
+          group_id: ""
+          node_id: ""
+          enable_alias: false
+          group_path: false
+          offline_cache: false
+          cache_mem_size: 0
+          cache_disk_size: 0
+          cache_resend_int: 0
+          broker: ""
+          port: 0
+          username: ""
+          password: ""
+          ssl: false
+          ca_cert: ""
+          client_cert: ""
+          client_key: ""
+          key_password: ""
+          devices: {}
 channels:
-    - id: s7-test-1
-      name: S7 Test Channel
-      protocol: s7
-      enable: true
-      config:
-        ip: 192.168.1.100
-        plcType: S7-1200
-        port: 102
-        rack: 0
-        slot: 2
-        startup: warm
-      devices: []
-    - id: modbus-tcp-
-      name: OPC UA Simulator Channel
-      protocol: opc-ua
-      enable: false
-      config:
-        url: opc.tcp://127.0.0.1:4840
-      devices:
-        - id: opcua-device-1
-          name: Simulated Machine A
-          enable: true
-          interval: 2s
-          config: {}
-          points:
-            - id: machine_speed
-              name: Machine Speed
-              address: ns=2;s=Machine.Speed
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: rpm
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: machine_status
-              name: Machine Status
-              address: ns=2;s=Machine.Status
-              datatype: string
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: machine_temp
-              name: Core Temperature
-              address: ns=2;s=Machine.Temp
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: °C
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-    - id: modbus-tcp-2
-      name: Modbus TCP Channel 2 (远程机房)
-      protocol: modbus-tcp
-      enable: false
-      config:
-        group_threshold: 50
-        max_packet_size: 125
-        url: tcp://192.168.1.100:502
-      devices:
-        - id: remote-slave-1
-          name: Remote Slave 1
-          enable: true
-          interval: 10s
-          config:
-            slave_id: 1
-          points:
-            - id: remote_temp
-              name: Remote Temperature
-              address: "40001"
-              datatype: int16
-              scale: 0.1
-              offset: 0
-              unit: °C
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-    - id: bac-test-1
-      name: BAC测试
-      protocol: bacnet-ip
-      enable: true
-      config:
-        ip: 192.168.3.122
-        port: 47808
-      devices:
-        - id: bacnet-2228316
-          name: Device 2228316
-          enable: true
-          interval: 10s
-          config:
-            device_id: 2228316
-            ip: 192.168.3.122
-            port: 47808
-          points:
-            - id: AnalogInput_0
-              name: Temperature.Indoor
-              address: AnalogInput:0
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: AnalogInput_1
-              name: Temperature.Water
-              address: AnalogInput:1
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: AnalogInput_2
-              name: Temperature.Outdoor
-              address: AnalogInput:2
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: AnalogValue_0
-              name: SetPoint.Value
-              address: AnalogValue:0
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: AnalogValue_1
-              name: Setpoint.1
-              address: AnalogValue:1
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: AnalogValue_2
-              name: Setpoint.2
-              address: AnalogValue:2
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: AnalogValue_3
-              name: Setpoint.3
-              address: AnalogValue:3
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: BinaryValue_0
-              name: State.Heater
-              address: BinaryValue:0
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: BinaryValue_1
-              name: State.Chiller
-              address: BinaryValue:1
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: MultiStateValue_0
-              name: State
-              address: MultiStateValue:0
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-        - id: bacnet-2228317
-          name: Device 2228317
-          enable: true
-          interval: 10s
-          config:
-            device_id: 2228317
-            ip: 192.168.3.122
-            port: 47808
-          points:
-            - id: AnalogInput_0
-              name: Temperature.Indoor
-              address: AnalogInput:0
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: AnalogInput_1
-              name: Temperature.Water
-              address: AnalogInput:1
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: AnalogInput_2
-              name: Temperature.Outdoor
-              address: AnalogInput:2
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: AnalogValue_0
-              name: SetPoint.Value
-              address: AnalogValue:0
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: AnalogValue_1
-              name: Setpoint.1
-              address: AnalogValue:1
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: AnalogValue_2
-              name: Setpoint.2
-              address: AnalogValue:2
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: AnalogValue_3
-              name: Setpoint.3
-              address: AnalogValue:3
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: BinaryValue_0
-              name: State.Heater
-              address: BinaryValue:0
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: BinaryValue_1
-              name: State.Chiller
-              address: BinaryValue:1
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: MultiStateValue_0
-              name: State
-              address: MultiStateValue:0
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: MultiStateValue_1
-              name: State.VentilationLevel
-              address: MultiStateValue:1
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
     - id: modbus-rtu-1
       name: Modbus RTU Channel (本地网关)
       protocol: modbus-rtu
@@ -984,3 +669,346 @@ channels:
               group: ""
               report_mode: ""
               threshold: null
+    - id: s7-test-1
+      name: S7 Test Channel
+      protocol: s7
+      enable: true
+      config:
+        ip: 192.168.1.100
+        plcType: S7-1200
+        port: 102
+        rack: 0
+        slot: 2
+        startup: warm
+      devices: []
+    - id: modbus-tcp-
+      name: OPC UA Simulator Channel
+      protocol: opc-ua
+      enable: false
+      config:
+        url: opc.tcp://127.0.0.1:4840
+      devices:
+        - id: opcua-device-1
+          name: Simulated Machine A
+          enable: true
+          interval: 2s
+          config: {}
+          points:
+            - id: machine_speed
+              name: Machine Speed
+              address: ns=2;s=Machine.Speed
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: rpm
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: machine_status
+              name: Machine Status
+              address: ns=2;s=Machine.Status
+              datatype: string
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: machine_temp
+              name: Core Temperature
+              address: ns=2;s=Machine.Temp
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: °C
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+    - id: modbus-tcp-2
+      name: Modbus TCP Channel 2 (远程机房)
+      protocol: modbus-tcp
+      enable: false
+      config:
+        group_threshold: 50
+        max_packet_size: 125
+        url: tcp://192.168.1.100:502
+      devices:
+        - id: remote-slave-1
+          name: Remote Slave 1
+          enable: true
+          interval: 10s
+          config:
+            slave_id: 1
+          points:
+            - id: remote_temp
+              name: Remote Temperature
+              address: "40001"
+              datatype: int16
+              scale: 0.1
+              offset: 0
+              unit: °C
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+    - id: bac-test-1
+      name: BAC测试
+      protocol: bacnet-ip
+      enable: true
+      config:
+        ip: 192.168.3.122
+        port: 47808
+      devices:
+        - id: bacnet-2228316
+          name: Device 2228316
+          enable: true
+          interval: 10s
+          config:
+            device_id: 2228316
+            ip: 192.168.3.122
+            port: 47808
+          points:
+            - id: AnalogInput_0
+              name: Temperature.Indoor
+              address: AnalogInput:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogInput_1
+              name: Temperature.Water
+              address: AnalogInput:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogInput_2
+              name: Temperature.Outdoor
+              address: AnalogInput:2
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_0
+              name: SetPoint.Value
+              address: AnalogValue:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_1
+              name: Setpoint.1
+              address: AnalogValue:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_2
+              name: Setpoint.2
+              address: AnalogValue:2
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_3
+              name: Setpoint.3
+              address: AnalogValue:3
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: BinaryValue_0
+              name: State.Heater
+              address: BinaryValue:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: BinaryValue_1
+              name: State.Chiller
+              address: BinaryValue:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: MultiStateValue_0
+              name: State
+              address: MultiStateValue:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+        - id: bacnet-2228317
+          name: Device 2228317
+          enable: true
+          interval: 10s
+          config:
+            device_id: 2228317
+            ip: 192.168.3.122
+            port: 47808
+          points:
+            - id: AnalogInput_0
+              name: Temperature.Indoor
+              address: AnalogInput:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogInput_1
+              name: Temperature.Water
+              address: AnalogInput:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogInput_2
+              name: Temperature.Outdoor
+              address: AnalogInput:2
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_0
+              name: SetPoint.Value
+              address: AnalogValue:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_1
+              name: Setpoint.1
+              address: AnalogValue:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_2
+              name: Setpoint.2
+              address: AnalogValue:2
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: AnalogValue_3
+              name: Setpoint.3
+              address: AnalogValue:3
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: BinaryValue_0
+              name: State.Heater
+              address: BinaryValue:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: BinaryValue_1
+              name: State.Chiller
+              address: BinaryValue:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: MultiStateValue_0
+              name: State
+              address: MultiStateValue:0
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: MultiStateValue_1
+              name: State.VentilationLevel
+              address: MultiStateValue:1
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+edge_rules: []

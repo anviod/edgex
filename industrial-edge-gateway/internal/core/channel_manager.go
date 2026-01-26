@@ -13,6 +13,16 @@ import (
 	"time"
 )
 
+type ChannelStatus struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Protocol     string `json:"protocol"`
+	Status       string `json:"status"`
+	DeviceCount  int    `json:"device_count"`
+	OnlineCount  int    `json:"online_count"`
+	OfflineCount int    `json:"offline_count"`
+}
+
 // ChannelManager 管理所有采集通道及其下的设备
 type ChannelManager struct {
 	channels     map[string]*model.Channel // channel.id -> channel
@@ -38,6 +48,36 @@ func NewChannelManager(pipeline *DataPipeline, saveFunc func([]model.Channel) er
 		cancel:       cancel,
 		saveFunc:     saveFunc,
 	}
+}
+
+func (cm *ChannelManager) GetChannelStats() []ChannelStatus {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+
+	var stats []ChannelStatus
+	for _, ch := range cm.channels {
+		online := 0
+		offline := 0
+		for _, dev := range ch.Devices {
+			node := cm.stateManager.GetNode(dev.ID)
+			if node != nil && node.Runtime.State == NodeStateOnline {
+				online++
+			} else {
+				offline++
+			}
+		}
+
+		stats = append(stats, ChannelStatus{
+			ID:           ch.ID,
+			Name:         ch.Name,
+			Protocol:     ch.Protocol,
+			Status:       "Running", // Simplification
+			DeviceCount:  len(ch.Devices),
+			OnlineCount:  online,
+			OfflineCount: offline,
+		})
+	}
+	return stats
 }
 
 // AddChannel 添加一个采集通道
@@ -258,19 +298,71 @@ func (cm *ChannelManager) StopChannel(channelID string) error {
 func (cm *ChannelManager) GetChannels() []model.Channel {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
-
 	channels := make([]model.Channel, 0, len(cm.channels))
 	for _, ch := range cm.channels {
-		channels = append(channels, *ch)
+		c := *ch
+		if node := cm.stateManager.GetNode(c.ID); node != nil {
+			c.NodeRuntime = &model.NodeRuntime{
+				FailCount:     node.Runtime.FailCount,
+				SuccessCount:  node.Runtime.SuccessCount,
+				LastFailTime:  node.Runtime.LastFailTime,
+				NextRetryTime: node.Runtime.NextRetryTime,
+				State:         int(node.Runtime.State),
+			}
+		}
+		// Also update Device Runtime
+		for i := range c.Devices {
+			if node := cm.stateManager.GetNode(c.Devices[i].ID); node != nil {
+				c.Devices[i].State = int(node.Runtime.State)
+			}
+		}
+
+		channels = append(channels, c)
 	}
 	return channels
+}
+
+func (cm *ChannelManager) GetAllPoints() []map[string]any {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+	var result []map[string]any
+	for _, ch := range cm.channels {
+		for _, dev := range ch.Devices {
+			for _, p := range dev.Points {
+				result = append(result, map[string]any{
+					"channel_id":   ch.ID,
+					"channel_name": ch.Name,
+					"device_id":    dev.ID,
+					"device_name":  dev.Name,
+					"point_id":     p.ID,
+					"point_name":   p.Name,
+					"data_type":    p.DataType,
+				})
+			}
+		}
+	}
+	return result
 }
 
 // GetChannel 获取指定通道
 func (cm *ChannelManager) GetChannel(channelID string) *model.Channel {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
-	return cm.channels[channelID]
+
+	if ch, ok := cm.channels[channelID]; ok {
+		c := *ch
+		if node := cm.stateManager.GetNode(c.ID); node != nil {
+			c.NodeRuntime = &model.NodeRuntime{
+				FailCount:     node.Runtime.FailCount,
+				SuccessCount:  node.Runtime.SuccessCount,
+				LastFailTime:  node.Runtime.LastFailTime,
+				NextRetryTime: node.Runtime.NextRetryTime,
+				State:         int(node.Runtime.State),
+			}
+		}
+		return &c
+	}
+	return nil
 }
 
 // GetChannelDevices 获取指定通道的所有设备
@@ -286,6 +378,13 @@ func (cm *ChannelManager) GetChannelDevices(channelID string) []model.Device {
 			// Populate state
 			if node := cm.stateManager.GetNode(dev.ID); node != nil {
 				devices[i].State = int(node.Runtime.State)
+				devices[i].NodeRuntime = &model.NodeRuntime{
+					FailCount:     node.Runtime.FailCount,
+					SuccessCount:  node.Runtime.SuccessCount,
+					LastFailTime:  node.Runtime.LastFailTime,
+					NextRetryTime: node.Runtime.NextRetryTime,
+					State:         int(node.Runtime.State),
+				}
 			}
 		}
 		return devices
@@ -305,6 +404,13 @@ func (cm *ChannelManager) GetDevice(channelID, deviceID string) *model.Device {
 				d := ch.Devices[i]
 				if node := cm.stateManager.GetNode(d.ID); node != nil {
 					d.State = int(node.Runtime.State)
+					d.NodeRuntime = &model.NodeRuntime{
+						FailCount:     node.Runtime.FailCount,
+						SuccessCount:  node.Runtime.SuccessCount,
+						LastFailTime:  node.Runtime.LastFailTime,
+						NextRetryTime: node.Runtime.NextRetryTime,
+						State:         int(node.Runtime.State),
+					}
 				}
 				return &d
 			}

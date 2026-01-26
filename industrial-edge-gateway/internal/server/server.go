@@ -6,12 +6,29 @@ import (
 	"industrial-edge-gateway/internal/core"
 	"industrial-edge-gateway/internal/model"
 	"industrial-edge-gateway/internal/storage"
+	"math/rand/v2"
+	"runtime"
 	"sync"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/websocket/v2"
+	"github.com/google/uuid"
 )
+
+type SystemStats struct {
+	CPUUsage    float64 `json:"cpu_usage"`
+	MemoryUsage float64 `json:"memory_usage"`
+	DiskUsage   float64 `json:"disk_usage"`
+	GoRoutines  int     `json:"goroutines"`
+}
+
+type DashboardSummary struct {
+	Channels   []core.ChannelStatus    `json:"channels"`
+	Northbound []core.NorthboundStatus `json:"northbound"`
+	EdgeRules  core.EdgeComputeMetrics `json:"edge_rules"`
+	System     SystemStats             `json:"system"`
+}
 
 type Server struct {
 	app      *fiber.App
@@ -20,9 +37,10 @@ type Server struct {
 	hub      *Hub
 	pipeline *core.DataPipeline
 	nbm      *core.NorthboundManager
+	ecm      *core.EdgeComputeManager
 }
 
-func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeline, nbm *core.NorthboundManager) *Server {
+func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeline, nbm *core.NorthboundManager, ecm *core.EdgeComputeManager) *Server {
 	app := fiber.New()
 	app.Use(cors.New())
 
@@ -36,6 +54,13 @@ func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeli
 		hub:      hub,
 		pipeline: pl,
 		nbm:      nbm,
+		ecm:      ecm,
+	}
+
+	// Inject ChannelManager into EdgeComputeManager
+	if ecm != nil {
+		ecm.SetChannelManager(cm)
+		ecm.SetStorage(st)
 	}
 
 	s.setupRoutes()
@@ -51,6 +76,9 @@ func (s *Server) setupRoutes() {
 	api := s.app.Group("/api")
 
 	// ===== 三级导航 API 端点 =====
+
+	// 首页 Dashboard
+	api.Get("/dashboard/summary", s.getDashboardSummary)
 
 	// 第一级：采集通道列表
 	api.Get("/channels", s.getChannels)
@@ -88,6 +116,17 @@ func (s *Server) setupRoutes() {
 	api.Get("/northbound/config", s.getNorthboundConfig)
 	api.Post("/northbound/mqtt", s.updateMQTTConfig)
 	api.Post("/northbound/opcua", s.updateOPCUAConfig)
+	api.Get("/points", s.getAllPoints)
+
+	// Edge Compute
+	api.Get("/edge/rules", s.getEdgeRules)
+	api.Post("/edge/rules", s.upsertEdgeRule)
+	api.Delete("/edge/rules/:id", s.deleteEdgeRule)
+	api.Get("/edge/states", s.getEdgeRuleStates)
+	api.Get("/edge/rules/:id/window", s.getEdgeWindowData)
+	api.Get("/edge/cache", s.getEdgeCache)
+	api.Get("/edge/metrics", s.getEdgeMetrics)
+	api.Get("/edge/shared-sources", s.getEdgeSharedSources)
 
 	// ===== WebSocket =====
 	api.Get("/ws/values", websocket.New(s.handleWebSocket))
@@ -177,11 +216,7 @@ func (s *Server) getNorthboundConfig(c *fiber.Ctx) error {
 	if s.nbm == nil {
 		return c.Status(503).JSON(fiber.Map{"error": "Northbound manager not initialized"})
 	}
-	cfg := s.nbm.GetConfig()
-	cfg.Status = map[string]int{
-		"mqtt": s.nbm.GetMQTTStatus(),
-	}
-	return c.JSON(cfg)
+	return c.JSON(s.nbm.GetConfig())
 }
 
 // updateMQTTConfig updates MQTT configuration
@@ -194,12 +229,15 @@ func (s *Server) updateMQTTConfig(c *fiber.Ctx) error {
 	if err := c.BodyParser(&cfg); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
+	if cfg.ID == "" {
+		cfg.ID = uuid.New().String()
+	}
 
-	if err := s.nbm.UpdateMQTTConfig(cfg); err != nil {
+	if err := s.nbm.UpsertMQTTConfig(cfg); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.JSON(fiber.Map{"status": "ok"})
+	return c.JSON(cfg)
 }
 
 // updateOPCUAConfig updates OPC UA configuration
@@ -212,15 +250,76 @@ func (s *Server) updateOPCUAConfig(c *fiber.Ctx) error {
 	if err := c.BodyParser(&cfg); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
+	if cfg.ID == "" {
+		cfg.ID = uuid.New().String()
+	}
 
-	if err := s.nbm.UpdateOPCUAConfig(cfg); err != nil {
+	if err := s.nbm.UpsertOPCUAConfig(cfg); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.JSON(fiber.Map{"status": "ok"})
+	return c.JSON(cfg)
+}
+
+func (s *Server) upsertSparkplugBConfig(c *fiber.Ctx) error {
+	if s.nbm == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "Northbound manager not initialized"})
+	}
+
+	var cfg model.SparkplugBConfig
+	if err := c.BodyParser(&cfg); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+	if cfg.ID == "" {
+		cfg.ID = uuid.New().String()
+	}
+
+	if err := s.nbm.UpsertSparkplugBConfig(cfg); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(cfg)
+}
+
+func (s *Server) deleteSparkplugBConfig(c *fiber.Ctx) error {
+	if s.nbm == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "Northbound manager not initialized"})
+	}
+	id := c.Params("id")
+	if err := s.nbm.DeleteSparkplugBConfig(id); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.SendStatus(200)
 }
 
 // ===== Handler 方法 =====
+
+func (s *Server) getDashboardSummary(c *fiber.Ctx) error {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	// Mock System Stats for now (except memory)
+	// In production, use shirou/gopsutil
+	sys := SystemStats{
+		CPUUsage:    rand.Float64() * 20, // Mock 0-20%
+		MemoryUsage: float64(m.Alloc) / 1024 / 1024,
+		DiskUsage:   45.5, // Mock
+		GoRoutines:  runtime.NumGoroutine(),
+	}
+
+	summary := DashboardSummary{
+		Channels:   s.cm.GetChannelStats(),
+		Northbound: s.nbm.GetNorthboundStats(),
+		System:     sys,
+	}
+
+	if s.ecm != nil {
+		summary.EdgeRules = s.ecm.GetMetrics()
+	}
+
+	return c.JSON(summary)
+}
 
 // getChannels 获取所有采集通道
 func (s *Server) getChannels(c *fiber.Ctx) error {
@@ -362,6 +461,10 @@ func (s *Server) getDevicePoints(c *fiber.Ctx) error {
 	return c.JSON(points)
 }
 
+func (s *Server) getAllPoints(c *fiber.Ctx) error {
+	return c.JSON(s.cm.GetAllPoints())
+}
+
 // addPoint 添加点位
 func (s *Server) addPoint(c *fiber.Ctx) error {
 	channelId := c.Params("channelId")
@@ -448,6 +551,13 @@ func (s *Server) writePoint(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "write success"})
+}
+
+func (s *Server) getEdgeCache(c *fiber.Ctx) error {
+	if s.ecm == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "Edge Compute Manager not initialized"})
+	}
+	return c.JSON(s.ecm.GetFailedActions())
 }
 
 // handleWebSocket 处理 WebSocket 连接
@@ -557,4 +667,70 @@ func (c *Client) writePump() {
 			}
 		}
 	}
+}
+
+// Edge Compute Handlers
+
+func (s *Server) getEdgeRules(c *fiber.Ctx) error {
+	if s.ecm == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "Edge Compute manager not initialized"})
+	}
+	return c.JSON(s.ecm.GetRules())
+}
+
+func (s *Server) upsertEdgeRule(c *fiber.Ctx) error {
+	if s.ecm == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "Edge Compute manager not initialized"})
+	}
+	var rule model.EdgeRule
+	if err := c.BodyParser(&rule); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+	if rule.ID == "" {
+		rule.ID = uuid.New().String()
+	}
+	if err := s.ecm.UpsertRule(rule); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(rule)
+}
+
+func (s *Server) deleteEdgeRule(c *fiber.Ctx) error {
+	if s.ecm == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "Edge Compute manager not initialized"})
+	}
+	id := c.Params("id")
+	if err := s.ecm.DeleteRule(id); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.SendStatus(200)
+}
+
+func (s *Server) getEdgeRuleStates(c *fiber.Ctx) error {
+	if s.ecm == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "Edge Compute manager not initialized"})
+	}
+	return c.JSON(s.ecm.GetRuleStates())
+}
+
+func (s *Server) getEdgeWindowData(c *fiber.Ctx) error {
+	if s.ecm == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "Edge Compute manager not initialized"})
+	}
+	id := c.Params("id")
+	return c.JSON(s.ecm.GetWindowData(id))
+}
+
+func (s *Server) getEdgeMetrics(c *fiber.Ctx) error {
+	if s.ecm == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "Edge Compute Manager not initialized"})
+	}
+	return c.JSON(s.ecm.GetMetrics())
+}
+
+func (s *Server) getEdgeSharedSources(c *fiber.Ctx) error {
+	if s.ecm == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "Edge Compute Manager not initialized"})
+	}
+	return c.JSON(s.ecm.GetSharedSources())
 }

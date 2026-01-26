@@ -60,6 +60,14 @@ func main() {
 
 	pipeline.Start()
 
+	// Init Edge Compute Manager
+	ecm := core.NewEdgeComputeManager(pipeline, func(rules []model.EdgeRule) error {
+		cfg.EdgeRules = rules
+		return config.SaveConfig(*configPath, cfg)
+	})
+	ecm.LoadRules(cfg.EdgeRules)
+	ecm.Start()
+
 	// 5. Init Northbound Manager
 	nbm := core.NewNorthboundManager(cfg.Northbound, pipeline, func(nbCfg model.NorthboundConfig) error {
 		cfg.Northbound = nbCfg
@@ -68,6 +76,9 @@ func main() {
 	nbm.Start()
 	defer nbm.Stop()
 
+	// Connect Edge Compute to Northbound
+	ecm.SetNorthboundManager(nbm)
+
 	// 使用新的 ChannelManager（支持三级结构）
 	cm := core.NewChannelManager(pipeline, func(channels []model.Channel) error {
 		cfg.Channels = channels
@@ -75,7 +86,7 @@ func main() {
 	})
 
 	// 4. Init Web Server
-	srv := server.NewServer(cm, store, pipeline, nbm)
+	srv := server.NewServer(cm, store, pipeline, nbm, ecm)
 
 	// Register pipeline handler for WebSocket broadcast
 	pipeline.AddHandler(func(v model.Value) {

@@ -190,6 +190,19 @@ func (c *Client) flushPeriodic(deviceID string, item *periodicItem) {
 	}()
 }
 
+// PublishRaw publishes raw data to a specific topic
+func (c *Client) PublishRaw(topic string, payload []byte) error {
+	if c.client == nil || !c.client.IsConnected() {
+		return mqtt.ErrNotConnected
+	}
+
+	token := c.client.Publish(topic, 0, false, payload)
+	if token.Wait() && token.Error() != nil {
+		return token.Error()
+	}
+	return nil
+}
+
 func (c *Client) connectLoop() {
 	c.setStatus(StatusReconnecting)
 

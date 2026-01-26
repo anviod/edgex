@@ -15,9 +15,30 @@
         
         <v-list nav class="bg-transparent">
             <v-list-item 
-                prepend-icon="mdi-lan-connect" 
-                title="南向采集" 
+                prepend-icon="mdi-view-dashboard" 
+                title="首页监控" 
                 to="/"
+                active-class="v-list-item--active"
+                rounded="xl"
+            ></v-list-item>
+            <v-list-item 
+                prepend-icon="mdi-lan-connect" 
+                title="采集通道" 
+                to="/channels"
+                active-class="v-list-item--active"
+                rounded="xl"
+            ></v-list-item>
+            <v-list-item 
+                prepend-icon="mdi-memory" 
+                title="边缘计算" 
+                to="/edge-compute"
+                active-class="v-list-item--active"
+                rounded="xl"
+            ></v-list-item>
+            <v-list-item 
+                prepend-icon="mdi-monitor-dashboard" 
+                title="边缘监控" 
+                to="/edge-compute/metrics"
                 active-class="v-list-item--active"
                 rounded="xl"
             ></v-list-item>

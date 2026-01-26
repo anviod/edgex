@@ -32,8 +32,17 @@ func (d *DLT645Driver) Init(cfg model.DriverConfig) error {
 
 func (d *DLT645Driver) Connect(ctx context.Context) error {
 	cfg := d.config.Config
-	log.Printf("DLT645 Driver connecting to %v (Baud=%v, Data=%v, Stop=%v, Parity=%v) (Simulated)...",
-		cfg["port"], cfg["baudRate"], cfg["dataBits"], cfg["stopBits"], cfg["parity"])
+	
+	// Check connection type
+	connType, _ := cfg["connectionType"].(string)
+	if connType == "tcp" {
+		log.Printf("DLT645 Driver connecting to TCP %v:%v (Simulated)...",
+			cfg["ip"], cfg["port"])
+	} else {
+		// Default to serial
+		log.Printf("DLT645 Driver connecting to Serial %v (Baud=%v, Data=%v, Stop=%v, Parity=%v) (Simulated)...",
+			cfg["port"], cfg["baudRate"], cfg["dataBits"], cfg["stopBits"], cfg["parity"])
+	}
 	return nil
 }
 
