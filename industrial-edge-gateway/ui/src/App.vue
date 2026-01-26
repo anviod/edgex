@@ -190,14 +190,15 @@ body {
     /* Shadow */
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
     
-    /* 3D Transform */
-    transform-style: preserve-3d;
+    /* 3D Transform removed to fix blurry text */
+    /* transform-style: preserve-3d; */
     transition: transform 0.3s ease, box-shadow 0.3s ease;
-    transform: perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1);
+    /* transform: perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1); */
+    transform: translateZ(0); /* Hardware acceleration without 3D side effects */
 }
 
 .glass-card:not(.no-hover):hover {
-    transform: perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1.01, 1.01, 1.01);
+    transform: scale(1.01);
     box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.3) !important;
 }
 
