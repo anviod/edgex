@@ -32,11 +32,6 @@ const routes = [
         meta: { title: '边缘计算' }
     },
     { 
-        path: '/edge-compute/metrics', 
-        component: EdgeComputeMetrics,
-        meta: { title: '边缘计算监控' }
-    },
-    { 
         path: '/channels/:channelId/devices', 
         component: DeviceList,
         meta: { title: '设备列表' } 

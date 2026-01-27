@@ -92,182 +92,6 @@ northbound:
           key_password: ""
           devices: {}
 channels:
-    - id: modbus-tcp-1
-      name: Modbus TCP Channel 1
-      protocol: modbus-tcp
-      enable: true
-      config:
-        group_threshold: 50
-        max_packet_size: 125
-        url: tcp://127.0.0.1:502
-      devices:
-        - id: slave-1
-          name: Slave Device 1
-          enable: true
-          interval: 5s
-          config:
-            slave_id: 1
-          points:
-            - id: dev1_temp
-              name: Temperature
-              address: "40001"
-              datatype: int16
-              scale: 0.1
-              offset: 0
-              unit: °C
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: dev1_humidity
-              name: Humidity
-              address: "40002"
-              datatype: int16
-              scale: 0.1
-              offset: 0
-              unit: '%'
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: dev1_pressure
-              name: Pressure
-              address: "40018"
-              datatype: int16
-              scale: 1
-              offset: 0
-              unit: kPa
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: "40001"
-              name: ID
-              address: "40001"
-              datatype: uint16
-              scale: 1
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-        - id: slave-2
-          name: Slave Device 2
-          enable: true
-          interval: 5s
-          config:
-            slave_id: 2
-          points:
-            - id: dev2_temp
-              name: Temperature
-              address: "40001"
-              datatype: int16
-              scale: 0.1
-              offset: 0
-              unit: °C
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: dev2_current
-              name: Current
-              address: "40004"
-              datatype: int16
-              scale: 1
-              offset: 0
-              unit: A
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: dev2_pressure
-              name: Pressure
-              address: "40018"
-              datatype: int16
-              scale: 1
-              offset: 0
-              unit: kPa
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-        - id: "3"
-          name: "3"
-          enable: true
-          interval: 5s
-          config:
-            slave_id: 3
-          points:
-            - id: S3-1
-              name: ID
-              address: "40001"
-              datatype: uint16
-              scale: 1
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-    - id: s7-test-1
-      name: S7 Test Channel
-      protocol: s7
-      enable: true
-      config:
-        ip: 192.168.1.100
-        plcType: S7-1200
-        port: 102
-        rack: 0
-        slot: 2
-        startup: warm
-      devices: []
-    - id: modbus-tcp-
-      name: OPC UA Simulator Channel
-      protocol: opc-ua
-      enable: false
-      config:
-        url: opc.tcp://127.0.0.1:4840
-      devices:
-        - id: opcua-device-1
-          name: Simulated Machine A
-          enable: true
-          interval: 2s
-          config: {}
-          points:
-            - id: machine_speed
-              name: Machine Speed
-              address: ns=2;s=Machine.Speed
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: rpm
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: machine_status
-              name: Machine Status
-              address: ns=2;s=Machine.Status
-              datatype: string
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: machine_temp
-              name: Core Temperature
-              address: ns=2;s=Machine.Temp
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: °C
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
     - id: modbus-tcp-2
       name: Modbus TCP Channel 2 (远程机房)
       protocol: modbus-tcp
@@ -1011,7 +835,721 @@ channels:
               group: ""
               report_mode: ""
               threshold: null
-edge_rules: []
+    - id: modbus-tcp-1
+      name: Modbus TCP Channel 1
+      protocol: modbus-tcp
+      enable: true
+      config:
+        group_threshold: 50
+        max_packet_size: 125
+        url: tcp://127.0.0.1:502
+      devices:
+        - id: slave-1
+          name: Slave Device 1
+          enable: true
+          interval: 5s
+          config:
+            slave_id: 1
+          points:
+            - id: dev1_temp
+              name: Temperature
+              address: "40001"
+              datatype: int16
+              scale: 0.1
+              offset: 0
+              unit: °C
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: dev1_humidity
+              name: Humidity
+              address: "40002"
+              datatype: int16
+              scale: 0.1
+              offset: 0
+              unit: '%'
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: dev1_pressure
+              name: Pressure
+              address: "40018"
+              datatype: int16
+              scale: 1
+              offset: 0
+              unit: kPa
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: "40001"
+              name: ID
+              address: "40001"
+              datatype: uint16
+              scale: 1
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+        - id: slave-2
+          name: Slave Device 2
+          enable: true
+          interval: 5s
+          config:
+            slave_id: 2
+          points:
+            - id: dev2_temp
+              name: Temperature
+              address: "40001"
+              datatype: int16
+              scale: 0.1
+              offset: 0
+              unit: °C
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: dev2_current
+              name: Current
+              address: "40004"
+              datatype: int16
+              scale: 1
+              offset: 0
+              unit: A
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: dev2_pressure
+              name: Pressure
+              address: "40018"
+              datatype: int16
+              scale: 1
+              offset: 0
+              unit: kPa
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+        - id: "3"
+          name: "3"
+          enable: true
+          interval: 5s
+          config:
+            slave_id: 3
+          points:
+            - id: S3-1
+              name: ID
+              address: "40001"
+              datatype: uint16
+              scale: 1
+              offset: 0
+              unit: ""
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+    - id: s7-test-1
+      name: S7 Test Channel
+      protocol: s7
+      enable: true
+      config:
+        ip: 192.168.1.100
+        plcType: S7-1200
+        port: 102
+        rack: 0
+        slot: 2
+        startup: warm
+      devices: []
+    - id: modbus-tcp-
+      name: OPC UA Simulator Channel
+      protocol: opc-ua
+      enable: false
+      config:
+        url: opc.tcp://127.0.0.1:4840
+      devices:
+        - id: opcua-device-1
+          name: Simulated Machine A
+          enable: true
+          interval: 2s
+          config: {}
+          points:
+            - id: machine_speed
+              name: Machine Speed
+              address: ns=2;s=Machine.Speed
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: rpm
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: machine_status
+              name: Machine Status
+              address: ns=2;s=Machine.Status
+              datatype: string
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: machine_temp
+              name: Core Temperature
+              address: ns=2;s=Machine.Temp
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: °C
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+edge_rules:
+    - id: 5700b238-4cf3-4f3b-b175-b29c585e860f
+      name: TMPW
+      type: state
+      enable: true
+      priority: 0
+      trigger_mode: on_change
+      source:
+        alias: ""
+        channel_id: ""
+        device_id: ""
+        point_id: ""
+      sources:
+        - alias: t1
+          channel_id: modbus-tcp-1
+          device_id: slave-1
+          point_id: dev1_temp
+        - alias: t2
+          channel_id: modbus-tcp-1
+          device_id: slave-2
+          point_id: dev2_temp
+      trigger_logic: AND
+      condition: t1 > 1 && t2>3
+      expression: t1 > 1 && t2>3
+      actions:
+        - type: log
+          config: {}
+        - type: mqtt
+          config:
+            message: TMPW
+            send_strategy: single
+            topic: gateway/warning
+        - type: device_control
+          config:
+            _deviceList:
+                - config:
+                    slave_id: 1
+                  enable: true
+                  id: slave-1
+                  interval: 5s
+                  name: Slave Device 1
+                  points:
+                    - address: "40001"
+                      datatype: int16
+                      group: ""
+                      id: dev1_temp
+                      name: Temperature
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0.1
+                      threshold: null
+                      unit: °C
+                    - address: "40002"
+                      datatype: int16
+                      group: ""
+                      id: dev1_humidity
+                      name: Humidity
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0.1
+                      threshold: null
+                      unit: '%'
+                    - address: "40018"
+                      datatype: int16
+                      group: ""
+                      id: dev1_pressure
+                      name: Pressure
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 1
+                      threshold: null
+                      unit: kPa
+                    - address: "40001"
+                      datatype: uint16
+                      group: ""
+                      id: "40001"
+                      name: ID
+                      offset: 0
+                      readwrite: R
+                      report_mode: ""
+                      scale: 1
+                      threshold: null
+                      unit: ""
+                  runtime:
+                    fail_count: 0
+                    last_fail_time: "0001-01-01T00:00:00Z"
+                    next_retry_time: "0001-01-01T00:00:00Z"
+                    state: 0
+                    success_count: 39
+                  state: 0
+                - config:
+                    slave_id: 2
+                  enable: true
+                  id: slave-2
+                  interval: 5s
+                  name: Slave Device 2
+                  points:
+                    - address: "40001"
+                      datatype: int16
+                      group: ""
+                      id: dev2_temp
+                      name: Temperature
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0.1
+                      threshold: null
+                      unit: °C
+                    - address: "40004"
+                      datatype: int16
+                      group: ""
+                      id: dev2_current
+                      name: Current
+                      offset: 0
+                      readwrite: R
+                      report_mode: ""
+                      scale: 1
+                      threshold: null
+                      unit: A
+                    - address: "40018"
+                      datatype: int16
+                      group: ""
+                      id: dev2_pressure
+                      name: Pressure
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 1
+                      threshold: null
+                      unit: kPa
+                  runtime:
+                    fail_count: 0
+                    last_fail_time: "0001-01-01T00:00:00Z"
+                    next_retry_time: "0001-01-01T00:00:00Z"
+                    state: 0
+                    success_count: 39
+                  state: 0
+                - config:
+                    slave_id: 3
+                  enable: true
+                  id: "3"
+                  interval: 5s
+                  name: "3"
+                  points:
+                    - address: "40001"
+                      datatype: uint16
+                      group: ""
+                      id: S3-1
+                      name: ID
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 1
+                      threshold: null
+                      unit: ""
+                  runtime:
+                    fail_count: 0
+                    last_fail_time: "0001-01-01T00:00:00Z"
+                    next_retry_time: "0001-01-01T00:00:00Z"
+                    state: 0
+                    success_count: 39
+                  state: 0
+            _pointList:
+                - address: "40001"
+                  datatype: int16
+                  group: ""
+                  id: dev1_temp
+                  name: Temperature
+                  offset: 0
+                  readwrite: RW
+                  report_mode: ""
+                  scale: 0.1
+                  threshold: null
+                  unit: °C
+                - address: "40002"
+                  datatype: int16
+                  group: ""
+                  id: dev1_humidity
+                  name: Humidity
+                  offset: 0
+                  readwrite: RW
+                  report_mode: ""
+                  scale: 0.1
+                  threshold: null
+                  unit: '%'
+                - address: "40018"
+                  datatype: int16
+                  group: ""
+                  id: dev1_pressure
+                  name: Pressure
+                  offset: 0
+                  readwrite: RW
+                  report_mode: ""
+                  scale: 1
+                  threshold: null
+                  unit: kPa
+            channel_id: ""
+            device_id: ""
+            point_id: ""
+            targets:
+                - _deviceList:
+                    - config:
+                        slave_id: 1
+                      enable: true
+                      id: slave-1
+                      interval: 5s
+                      name: Slave Device 1
+                      points:
+                        - address: "40001"
+                          datatype: int16
+                          group: ""
+                          id: dev1_temp
+                          name: Temperature
+                          offset: 0
+                          readwrite: RW
+                          report_mode: ""
+                          scale: 0.1
+                          threshold: null
+                          unit: °C
+                        - address: "40002"
+                          datatype: int16
+                          group: ""
+                          id: dev1_humidity
+                          name: Humidity
+                          offset: 0
+                          readwrite: RW
+                          report_mode: ""
+                          scale: 0.1
+                          threshold: null
+                          unit: '%'
+                        - address: "40018"
+                          datatype: int16
+                          group: ""
+                          id: dev1_pressure
+                          name: Pressure
+                          offset: 0
+                          readwrite: RW
+                          report_mode: ""
+                          scale: 1
+                          threshold: null
+                          unit: kPa
+                        - address: "40001"
+                          datatype: uint16
+                          group: ""
+                          id: "40001"
+                          name: ID
+                          offset: 0
+                          readwrite: R
+                          report_mode: ""
+                          scale: 1
+                          threshold: null
+                          unit: ""
+                      runtime:
+                        fail_count: 0
+                        last_fail_time: "0001-01-01T00:00:00Z"
+                        next_retry_time: "0001-01-01T00:00:00Z"
+                        state: 0
+                        success_count: 533
+                      state: 0
+                    - config:
+                        slave_id: 2
+                      enable: true
+                      id: slave-2
+                      interval: 5s
+                      name: Slave Device 2
+                      points:
+                        - address: "40001"
+                          datatype: int16
+                          group: ""
+                          id: dev2_temp
+                          name: Temperature
+                          offset: 0
+                          readwrite: RW
+                          report_mode: ""
+                          scale: 0.1
+                          threshold: null
+                          unit: °C
+                        - address: "40004"
+                          datatype: int16
+                          group: ""
+                          id: dev2_current
+                          name: Current
+                          offset: 0
+                          readwrite: R
+                          report_mode: ""
+                          scale: 1
+                          threshold: null
+                          unit: A
+                        - address: "40018"
+                          datatype: int16
+                          group: ""
+                          id: dev2_pressure
+                          name: Pressure
+                          offset: 0
+                          readwrite: RW
+                          report_mode: ""
+                          scale: 1
+                          threshold: null
+                          unit: kPa
+                      runtime:
+                        fail_count: 0
+                        last_fail_time: "0001-01-01T00:00:00Z"
+                        next_retry_time: "0001-01-01T00:00:00Z"
+                        state: 0
+                        success_count: 533
+                      state: 0
+                    - config:
+                        slave_id: 3
+                      enable: true
+                      id: "3"
+                      interval: 5s
+                      name: "3"
+                      points:
+                        - address: "40001"
+                          datatype: uint16
+                          group: ""
+                          id: S3-1
+                          name: ID
+                          offset: 0
+                          readwrite: RW
+                          report_mode: ""
+                          scale: 1
+                          threshold: null
+                          unit: ""
+                      runtime:
+                        fail_count: 0
+                        last_fail_time: "0001-01-01T00:00:00Z"
+                        next_retry_time: "0001-01-01T00:00:00Z"
+                        state: 0
+                        success_count: 533
+                      state: 0
+                  _pointList:
+                    - address: "40001"
+                      datatype: int16
+                      group: ""
+                      id: dev1_temp
+                      name: Temperature
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0.1
+                      threshold: null
+                      unit: °C
+                    - address: "40002"
+                      datatype: int16
+                      group: ""
+                      id: dev1_humidity
+                      name: Humidity
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0.1
+                      threshold: null
+                      unit: '%'
+                    - address: "40018"
+                      datatype: int16
+                      group: ""
+                      id: dev1_pressure
+                      name: Pressure
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 1
+                      threshold: null
+                      unit: kPa
+                  channel_id: modbus-tcp-1
+                  device_id: slave-1
+                  point_id: dev1_pressure
+                  value: "1011"
+                - _deviceList:
+                    - config:
+                        slave_id: 1
+                      enable: true
+                      id: slave-1
+                      interval: 5s
+                      name: Slave Device 1
+                      points:
+                        - address: "40001"
+                          datatype: int16
+                          group: ""
+                          id: dev1_temp
+                          name: Temperature
+                          offset: 0
+                          readwrite: RW
+                          report_mode: ""
+                          scale: 0.1
+                          threshold: null
+                          unit: °C
+                        - address: "40002"
+                          datatype: int16
+                          group: ""
+                          id: dev1_humidity
+                          name: Humidity
+                          offset: 0
+                          readwrite: RW
+                          report_mode: ""
+                          scale: 0.1
+                          threshold: null
+                          unit: '%'
+                        - address: "40018"
+                          datatype: int16
+                          group: ""
+                          id: dev1_pressure
+                          name: Pressure
+                          offset: 0
+                          readwrite: RW
+                          report_mode: ""
+                          scale: 1
+                          threshold: null
+                          unit: kPa
+                        - address: "40001"
+                          datatype: uint16
+                          group: ""
+                          id: "40001"
+                          name: ID
+                          offset: 0
+                          readwrite: R
+                          report_mode: ""
+                          scale: 1
+                          threshold: null
+                          unit: ""
+                      runtime:
+                        fail_count: 0
+                        last_fail_time: "0001-01-01T00:00:00Z"
+                        next_retry_time: "0001-01-01T00:00:00Z"
+                        state: 0
+                        success_count: 533
+                      state: 0
+                    - config:
+                        slave_id: 2
+                      enable: true
+                      id: slave-2
+                      interval: 5s
+                      name: Slave Device 2
+                      points:
+                        - address: "40001"
+                          datatype: int16
+                          group: ""
+                          id: dev2_temp
+                          name: Temperature
+                          offset: 0
+                          readwrite: RW
+                          report_mode: ""
+                          scale: 0.1
+                          threshold: null
+                          unit: °C
+                        - address: "40004"
+                          datatype: int16
+                          group: ""
+                          id: dev2_current
+                          name: Current
+                          offset: 0
+                          readwrite: R
+                          report_mode: ""
+                          scale: 1
+                          threshold: null
+                          unit: A
+                        - address: "40018"
+                          datatype: int16
+                          group: ""
+                          id: dev2_pressure
+                          name: Pressure
+                          offset: 0
+                          readwrite: RW
+                          report_mode: ""
+                          scale: 1
+                          threshold: null
+                          unit: kPa
+                      runtime:
+                        fail_count: 0
+                        last_fail_time: "0001-01-01T00:00:00Z"
+                        next_retry_time: "0001-01-01T00:00:00Z"
+                        state: 0
+                        success_count: 533
+                      state: 0
+                    - config:
+                        slave_id: 3
+                      enable: true
+                      id: "3"
+                      interval: 5s
+                      name: "3"
+                      points:
+                        - address: "40001"
+                          datatype: uint16
+                          group: ""
+                          id: S3-1
+                          name: ID
+                          offset: 0
+                          readwrite: RW
+                          report_mode: ""
+                          scale: 1
+                          threshold: null
+                          unit: ""
+                      runtime:
+                        fail_count: 0
+                        last_fail_time: "0001-01-01T00:00:00Z"
+                        next_retry_time: "0001-01-01T00:00:00Z"
+                        state: 0
+                        success_count: 533
+                      state: 0
+                  _pointList:
+                    - address: "40001"
+                      datatype: int16
+                      group: ""
+                      id: dev2_temp
+                      name: Temperature
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0.1
+                      threshold: null
+                      unit: °C
+                    - address: "40018"
+                      datatype: int16
+                      group: ""
+                      id: dev2_pressure
+                      name: Pressure
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 1
+                      threshold: null
+                      unit: kPa
+                  channel_id: modbus-tcp-1
+                  device_id: slave-2
+                  point_id: dev2_pressure
+                  value: "1012"
+            value: ""
+      window:
+        type: sliding
+        size: 10s
+        interval: ""
+        aggr_func: avg
+      state:
+        duration: 30s
+        count: 10
 system:
     time:
         mode: manual

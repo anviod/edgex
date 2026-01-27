@@ -36,13 +36,6 @@
                 rounded="xl"
             ></v-list-item>
             <v-list-item 
-                prepend-icon="mdi-monitor-dashboard" 
-                title="边缘监控" 
-                to="/edge-compute/metrics"
-                active-class="v-list-item--active"
-                rounded="xl"
-            ></v-list-item>
-            <v-list-item 
                 prepend-icon="mdi-cloud-upload" 
                 title="北向上报" 
                 to="/northbound"

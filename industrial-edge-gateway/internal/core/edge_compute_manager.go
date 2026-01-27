@@ -386,131 +386,55 @@ func (em *EdgeComputeManager) executeRule(rule model.EdgeRule, val model.Value) 
 	env["value"] = val.Value // Current triggering value
 
 	// Populate env with aliases from cache
-	allSourcesPresent := true
 	if len(rule.Sources) > 0 {
 		em.cacheMu.RLock()
 		for _, src := range rule.Sources {
-			if src.Alias == "" {
+			if src.Alias == "" && src.PointID == "" {
 				continue
 			}
+
+			var srcVal any
+			found := false
 
 			// Check if the triggering value belongs to this source
 			// If so, use the triggering value as it is the most up-to-date
 			if matchSource(src, val) {
-				env[src.Alias] = val.Value
-				continue
+				srcVal = val.Value
+				found = true
+			} else {
+				key := fmt.Sprintf("%s/%s/%s", src.ChannelID, src.DeviceID, src.PointID)
+				if v, ok := em.valueCache[key]; ok {
+					srcVal = v.Value
+					found = true
+				}
 			}
 
-			key := fmt.Sprintf("%s/%s/%s", src.ChannelID, src.DeviceID, src.PointID)
-			if v, ok := em.valueCache[key]; ok {
-				env[src.Alias] = v.Value
+			if found {
+				if src.Alias != "" {
+					env[src.Alias] = srcVal
+				}
+				if src.PointID != "" {
+					env[src.PointID] = srcVal
+				}
 			} else {
 				// Missing value
-				env[src.Alias] = nil
-				allSourcesPresent = false
+				if src.Alias != "" {
+					env[src.Alias] = nil
+				}
+				if src.PointID != "" {
+					env[src.PointID] = nil
+				}
 			}
 		}
 		em.cacheMu.RUnlock()
 	}
 
-	// If TriggerLogic is AND, ensure all sources have values
-	if rule.TriggerLogic == "AND" {
-		if !allSourcesPresent {
-			// Cannot evaluate AND condition if data is missing
-			return
-		}
-
-		// Enhanced AND Logic: Check if condition applies to ALL sources
-		// If the user uses "value" in the condition, it must be true for all sources.
-		if len(rule.Sources) > 1 && rule.Condition != "" {
-			for _, src := range rule.Sources {
-				// Find value for this source
-				var srcVal any
-				if matchSource(src, val) {
-					srcVal = val.Value
-				} else {
-					key := fmt.Sprintf("%s/%s/%s", src.ChannelID, src.DeviceID, src.PointID)
-					if v, ok := em.valueCache[key]; ok {
-						srcVal = v.Value
-					} else {
-						// Should not happen if allSourcesPresent is true
-						return
-					}
-				}
-
-				// Create temp env with this source's value
-				tempEnv := make(map[string]any)
-				for k, v := range env {
-					tempEnv[k] = v
-				}
-				tempEnv["value"] = srcVal
-
-				// Evaluate
-				passed, err := evaluateThreshold(rule.Condition, tempEnv)
-				if err != nil || !passed {
-					// One source failed, so AND condition is not met
-					return
-				}
-			}
-		}
-	} else if rule.TriggerLogic == "OR" {
-		// Enhanced OR Logic: Check if condition applies to ANY source
-		if len(rule.Sources) > 1 && rule.Condition != "" {
-			anyPassed := false
-			var passingVal any
-
-			// Check current triggering value first
-			passed, err := evaluateThreshold(rule.Condition, env)
-			if err == nil && passed {
-				anyPassed = true
-				passingVal = env["value"]
-			} else {
-				// Check other sources
-				em.cacheMu.RLock()
-				for _, src := range rule.Sources {
-					// Skip current triggering source (already checked)
-					if matchSource(src, val) {
-						continue
-					}
-
-					key := fmt.Sprintf("%s/%s/%s", src.ChannelID, src.DeviceID, src.PointID)
-					if v, ok := em.valueCache[key]; ok {
-						tempEnv := make(map[string]any)
-						for k, envVal := range env {
-							tempEnv[k] = envVal
-						}
-						tempEnv["value"] = v.Value
-
-						if p, e := evaluateThreshold(rule.Condition, tempEnv); e == nil && p {
-							anyPassed = true
-							passingVal = v.Value
-							break
-						}
-					}
-				}
-				em.cacheMu.RUnlock()
-			}
-
-			if !anyPassed {
-				// None met the condition
-				return
-			}
-
-			// Update env with passing value so subsequent evaluation succeeds
-			if passingVal != nil {
-				env["value"] = passingVal
-			}
-		}
-	}
+	// Logic refactored: Logic is now fully determined by the Condition expression using aliases.
+	// AND/OR branching is removed.
 
 	var triggered bool
 	var err error
 	var outputVal model.Value = val
-
-	// If env["value"] was updated (by OR logic), update outputVal to match
-	if v, ok := env["value"]; ok && v != val.Value {
-		outputVal.Value = v
-	}
 
 	switch rule.Type {
 	case "threshold":
@@ -525,9 +449,9 @@ func (em *EdgeComputeManager) executeRule(rule model.EdgeRule, val model.Value) 
 			triggered = true
 		}
 	case "window":
-		triggered, outputVal, err = em.evaluateWindow(rule, val)
+		triggered, outputVal, err = em.evaluateWindow(rule, val, env)
 	case "state":
-		triggered, err = em.evaluateState(rule, val, state)
+		triggered, err = em.evaluateState(rule, val, state, env)
 	default:
 		// Default to threshold if condition exists, otherwise ignore
 		if rule.Condition != "" {
@@ -585,7 +509,7 @@ func (em *EdgeComputeManager) executeRule(rule model.EdgeRule, val model.Value) 
 	}
 }
 
-func (em *EdgeComputeManager) evaluateWindow(rule model.EdgeRule, val model.Value) (bool, model.Value, error) {
+func (em *EdgeComputeManager) evaluateWindow(rule model.EdgeRule, val model.Value, baseEnv map[string]any) (bool, model.Value, error) {
 	if rule.Window == nil {
 		return false, val, fmt.Errorf("missing window config")
 	}
@@ -686,9 +610,12 @@ func (em *EdgeComputeManager) evaluateWindow(rule model.EdgeRule, val model.Valu
 	}
 
 	// Evaluate Condition against Result
-	env := map[string]any{
-		"value": result,
+	env := make(map[string]any)
+	for k, v := range baseEnv {
+		env[k] = v
 	}
+	env["value"] = result
+
 	triggered, err := evaluateThreshold(rule.Condition, env)
 
 	outputVal := val
@@ -697,11 +624,14 @@ func (em *EdgeComputeManager) evaluateWindow(rule model.EdgeRule, val model.Valu
 	return triggered, outputVal, err
 }
 
-func (em *EdgeComputeManager) evaluateState(rule model.EdgeRule, val model.Value, state *model.RuleRuntimeState) (bool, error) {
+func (em *EdgeComputeManager) evaluateState(rule model.EdgeRule, val model.Value, state *model.RuleRuntimeState, baseEnv map[string]any) (bool, error) {
 	// First check basic condition
-	env := map[string]any{
-		"value": val.Value,
+	env := make(map[string]any)
+	for k, v := range baseEnv {
+		env[k] = v
 	}
+	env["value"] = val.Value
+
 	conditionMet, err := evaluateThreshold(rule.Condition, env)
 	if err != nil {
 		return false, err
@@ -941,7 +871,11 @@ func (em *EdgeComputeManager) executeSingleAction(ruleID string, action model.Ru
 
 				if cid != "" && did != "" && pid != "" {
 					// Resolve value template if string
-					// TODO: Support template in valueToWrite
+					if valToWrite != nil {
+						valToWrite = em.resolveValueTemplate(valToWrite, env)
+					} else {
+						valToWrite = val.Value
+					}
 
 					if err := em.cm.WritePoint(cid, did, pid, valToWrite); err != nil {
 						errs = append(errs, fmt.Errorf("failed to write %s/%s/%s: %v", cid, did, pid, err))
@@ -967,6 +901,9 @@ func (em *EdgeComputeManager) executeSingleAction(ruleID string, action model.Ru
 		// Resolve value if it is a string template or nil
 		if valToWrite == nil {
 			valToWrite = val.Value
+		} else {
+			// Try to resolve template if valToWrite is string
+			valToWrite = em.resolveValueTemplate(valToWrite, env)
 		}
 
 		return em.cm.WritePoint(channelID, deviceID, pointID, valToWrite)
