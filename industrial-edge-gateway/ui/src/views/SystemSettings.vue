@@ -238,7 +238,7 @@
     </v-card>
 
     <!-- Interface Edit Dialog -->
-    <v-dialog v-model="interfaceDialog.visible" max-width="800">
+    <v-dialog v-model="interfaceDialog.visible" max-width="80%">
       <v-card>
         <v-toolbar density="compact" color="primary">
           <v-toolbar-title>配置接口 {{ interfaceDialog.form.name }}</v-toolbar-title>
@@ -334,7 +334,7 @@
     </v-dialog>
 
     <!-- Route Edit Dialog -->
-    <v-dialog v-model="routeDialog.visible" max-width="500">
+    <v-dialog v-model="routeDialog.visible" max-width="80%">
       <v-card>
         <v-card-title>{{ routeDialog.index === -1 ? '添加路由' : '编辑路由' }}</v-card-title>
         <v-card-text>

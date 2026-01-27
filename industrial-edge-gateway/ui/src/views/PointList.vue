@@ -106,7 +106,7 @@
         </v-card>
 
         <!-- Point Config Dialog (Add/Edit) -->
-        <v-dialog v-model="pointDialog.visible" max-width="600" persistent>
+        <v-dialog v-model="pointDialog.visible" max-width="80%" persistent>
             <v-card class="rounded-xl">
                 <v-card-title class="text-h5 pa-4 bg-primary text-white">
                     <v-icon :icon="pointDialog.isEdit ? 'mdi-file-edit' : 'mdi-plus-circle'" class="mr-2"></v-icon>

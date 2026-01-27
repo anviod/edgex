@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="visible" max-width="500px">
+  <v-dialog v-model="visible" max-width="80%">
     <v-card class="glass-card pa-4" theme="dark">
       <v-card-title class="text-h6 font-weight-bold">
         <v-icon start color="primary">mdi-lock-reset</v-icon>

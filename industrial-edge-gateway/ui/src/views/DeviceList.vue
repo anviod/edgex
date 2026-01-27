@@ -118,7 +118,7 @@
         </v-card>
 
         <!-- Add/Edit Dialog -->
-        <v-dialog v-model="dialog" max-width="600px">
+        <v-dialog v-model="dialog" max-width="80%">
             <v-card>
                 <v-card-title>
                     <span class="text-h5">{{ form.id && isEdit ? '编辑设备' : '新增设备' }}</span>
@@ -218,7 +218,7 @@
         </v-dialog>
 
         <!-- Rule Usage Dialog -->
-        <v-dialog v-model="ruleUsageDialog.show" max-width="600px">
+        <v-dialog v-model="ruleUsageDialog.show" max-width="80%">
             <v-card>
                 <v-card-title>关联规则 - {{ ruleUsageDialog.deviceName }}</v-card-title>
                 <v-card-text>

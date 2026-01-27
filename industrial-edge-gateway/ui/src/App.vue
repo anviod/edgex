@@ -71,7 +71,7 @@
 
     <!-- App Bar -->
     <v-app-bar v-if="!isLoginPage" app class="glass-app-bar" elevation="0">
-        <v-app-bar-title class="font-weight-bold text-h5 text-primary">
+        <v-app-bar-title class="font-weight-bold text-h6 text-primary">
             边缘计算网关
             <span v-if="$route.meta.title" class="text-grey-darken-1 font-weight-light">
                 / {{ $route.meta.title }}

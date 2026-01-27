@@ -134,7 +134,7 @@
         </v-dialog>
 
         <!-- Rule Dialog -->
-        <v-dialog v-model="dialog" max-width="800px">
+        <v-dialog v-model="dialog" max-width="80%">
             <v-card>
                 <v-card-title>{{ editingRule ? '编辑规则' : '添加规则' }}</v-card-title>
                 <v-card-text>
@@ -329,12 +329,37 @@
                                         </v-col>
                                         <v-col cols="12" md="8">
                                             <!-- MQTT Config -->
-                                            <div v-if="action.type === 'mqtt'" class="d-flex flex-column gap-2">
-                                                <div class="d-flex gap-2">
-                                                    <v-text-field v-model="action.config.topic" label="Topic" density="compact" hide-details class="mr-2"></v-text-field>
-                                                    <v-select v-model="action.config.send_strategy" :items="[{title:'单条发送', value:'single'}, {title:'批量发送', value:'batch'}]" label="发送策略" density="compact" hide-details style="max-width: 120px"></v-select>
-                                                </div>
-                                                <v-text-field v-model="action.config.message" label="Message (Optional)" density="compact" hide-details></v-text-field>
+                                            <div
+                                                v-if="action.type === 'mqtt'"
+                                                class="d-flex gap-2 align-center"
+                                                style="max-width: 1024px"
+                                            >
+                                                <v-text-field
+                                                    v-model="action.config.topic"
+                                                    label="Topic (主题)"
+                                                    density="compact"
+                                                    hide-details
+                                                    class="mr-2"
+                                                    style="white-space: nowrap"
+                                                ></v-text-field>
+                                                <v-select
+                                                    v-model="action.config.send_strategy"
+                                                    :items="[
+                                                        { title: '单条发送 Single', value: 'single' },
+                                                        { title: '批量发送 Batch', value: 'batch' }
+                                                    ]"
+                                                    label="发送策略 (Send Strategy)"
+                                                    density="compact"
+                                                    hide-details
+                                                    style="max-width: 150px; white-space: nowrap"
+                                                ></v-select>
+                                                <v-text-field
+                                                    v-model="action.config.message"
+                                                    label="Message 消息内容 (可选)"
+                                                    density="compact"
+                                                    hide-details
+                                                    style="white-space: nowrap"
+                                                ></v-text-field>
                                             </div>
                                             <!-- HTTP Config -->
                                             <div v-if="action.type === 'http'" class="d-flex flex-column gap-2">
@@ -352,21 +377,122 @@
                                                 </div>
                                                 
                                                 <!-- Single Mode -->
-                                                <div v-if="!action._batchMode" class="d-flex flex-wrap gap-2">
-                                                    <v-select v-model="action.config.channel_id" :items="channels" item-title="name" item-value="id" label="Channel" density="compact" hide-details class="mr-2" style="width: 150px" @update:model-value="() => onActionChannelChange(action.config)"></v-select>
-                                                    <v-select v-model="action.config.device_id" :items="action.config._deviceList || []" item-title="name" item-value="id" label="Device" density="compact" hide-details class="mr-2" style="width: 150px" :disabled="!action.config.channel_id" @update:model-value="() => onActionDeviceChange(action.config)" @click="() => loadActionDevices(action.config)"></v-select>
-                                                    <v-combobox v-model="action.config.point_id" :items="action.config._pointList || []" item-title="name" item-value="id" label="Point" density="compact" hide-details class="mr-2" style="width: 150px" :disabled="!action.config.device_id" @click="() => loadActionPoints(action.config)" :return-object="false"></v-combobox>
-                                                    <v-text-field v-model="action.config.value" label="Value (Optional)" density="compact" hide-details style="width: 120px"></v-text-field>
+                                                <div
+                                                    v-if="!action._batchMode"
+                                                    class="d-flex gap-2 align-center"
+                                                    style="max-width: 1024px"
+                                                >
+                                                    <v-select
+                                                        v-model="action.config.channel_id"
+                                                        :items="channels"
+                                                        item-title="name"
+                                                        item-value="id"
+                                                        label="Channel (通道)"
+                                                        density="compact"
+                                                        hide-details
+                                                        class="mr-2"
+                                                        style="width: 150px; white-space: nowrap"
+                                                        @update:model-value="() => onActionChannelChange(action.config)"
+                                                    ></v-select>
+                                                    <v-select
+                                                        v-model="action.config.device_id"
+                                                        :items="action.config._deviceList || []"
+                                                        item-title="name"
+                                                        item-value="id"
+                                                        label="Device (设备)"
+                                                        density="compact"
+                                                        hide-details
+                                                        class="mr-2"
+                                                        style="width: 150px; white-space: nowrap"
+                                                        :disabled="!action.config.channel_id"
+                                                        @update:model-value="() => onActionDeviceChange(action.config)"
+                                                        @click="() => loadActionDevices(action.config)"
+                                                    ></v-select>
+                                                    <v-combobox
+                                                        v-model="action.config.point_id"
+                                                        :items="action.config._pointList || []"
+                                                        item-title="name"
+                                                        item-value="id"
+                                                        label="Point (点位)"
+                                                        density="compact"
+                                                        hide-details
+                                                        class="mr-2"
+                                                        style="width: 150px; white-space: nowrap"
+                                                        :disabled="!action.config.device_id"
+                                                        @click="() => loadActionPoints(action.config)"
+                                                        :return-object="false"
+                                                    ></v-combobox>
+                                                    <v-text-field
+                                                        v-model="action.config.value"
+                                                        label="Value 值 (可选)"
+                                                        density="compact"
+                                                        hide-details
+                                                        style="width: 120px; white-space: nowrap"
+                                                    ></v-text-field>
                                                 </div>
                                                 
                                                 <!-- Batch Mode -->
                                                 <div v-else>
-                                                    <div v-for="(target, tIdx) in action.config.targets" :key="tIdx" class="d-flex flex-wrap gap-2 mb-2 align-center pa-2 border rounded">
-                                                        <v-select v-model="target.channel_id" :items="channels" item-title="name" item-value="id" label="Channel" density="compact" hide-details class="mr-2" style="width: 150px" @update:model-value="() => onActionChannelChange(target)"></v-select>
-                                                        <v-select v-model="target.device_id" :items="target._deviceList || []" item-title="name" item-value="id" label="Device" density="compact" hide-details class="mr-2" style="width: 150px" :disabled="!target.channel_id" @update:model-value="() => onActionDeviceChange(target)" @click="() => loadActionDevices(target)"></v-select>
-                                                        <v-combobox v-model="target.point_id" :items="target._pointList || []" item-title="name" item-value="id" label="Point" density="compact" hide-details class="mr-2" style="width: 150px" :disabled="!target.device_id" @click="() => loadActionPoints(target)" :return-object="false"></v-combobox>
-                                                        <v-text-field v-model="target.value" label="Value" density="compact" hide-details style="width: 120px"></v-text-field>
-                                                        <v-btn icon="mdi-delete" size="x-small" color="error" variant="text" @click="removeTarget(action, tIdx)"></v-btn>
+                                                    <div
+                                                        v-for="(target, tIdx) in action.config.targets"
+                                                        :key="tIdx"
+                                                        class="d-flex gap-2 mb-2 align-center pa-2 border rounded"
+                                                        style="max-width: 1024px"
+                                                    >
+                                                        <v-select
+                                                            v-model="target.channel_id"
+                                                            :items="channels"
+                                                            item-title="name"
+                                                            item-value="id"
+                                                            label="Channel (通道)"
+                                                            density="compact"
+                                                            hide-details
+                                                            class="mr-2"
+                                                            style="width: 150px; white-space: nowrap"
+                                                            @update:model-value="() => onActionChannelChange(target)"
+                                                        ></v-select>
+                                                        <v-select
+                                                            v-model="target.device_id"
+                                                            :items="target._deviceList || []"
+                                                            item-title="name"
+                                                            item-value="id"
+                                                            label="Device (设备)"
+                                                            density="compact"
+                                                            hide-details
+                                                            class="mr-2"
+                                                            style="width: 150px; white-space: nowrap"
+                                                            :disabled="!target.channel_id"
+                                                            @update:model-value="() => onActionDeviceChange(target)"
+                                                            @click="() => loadActionDevices(target)"
+                                                        ></v-select>
+                                                        <v-combobox
+                                                            v-model="target.point_id"
+                                                            :items="target._pointList || []"
+                                                            item-title="name"
+                                                            item-value="id"
+                                                            label="Point (点位)"
+                                                            density="compact"
+                                                            hide-details
+                                                            class="mr-2"
+                                                            style="width: 150px; white-space: nowrap"
+                                                            :disabled="!target.device_id"
+                                                            @click="() => loadActionPoints(target)"
+                                                            :return-object="false"
+                                                        ></v-combobox>
+                                                        <v-text-field
+                                                            v-model="target.value"
+                                                            label="Value 值"
+                                                            density="compact"
+                                                            hide-details
+                                                            style="width: 120px; white-space: nowrap"
+                                                        ></v-text-field>
+                                                        <v-btn
+                                                            icon="mdi-delete"
+                                                            size="x-small"
+                                                            color="error"
+                                                            variant="text"
+                                                            @click="removeTarget(action, tIdx)"
+                                                        ></v-btn>
                                                     </div>
                                                 </div>
                                             </div>

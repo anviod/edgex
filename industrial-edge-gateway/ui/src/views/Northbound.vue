@@ -3,7 +3,7 @@
         <v-row class="mb-4">
             <v-col>
                 <div class="d-flex align-center">
-                    <h2 class="text-h5">北向数据上报</h2>
+                    <h2 class="text-h6">北向数据上报</h2>
                     <v-spacer></v-spacer>
                     <v-btn color="primary" prepend-icon="mdi-plus" @click="addDialog.visible = true">添加上行通道</v-btn>
                 </div>
@@ -239,7 +239,7 @@
         </v-dialog>
 
         <!-- Sparkplug B Settings Dialog -->
-        <v-dialog v-model="sparkplugbDialog.visible" max-width="900px">
+        <v-dialog v-model="sparkplugbDialog.visible" max-width="80%">
             <v-card>
                 <v-card-title class="text-h5 pa-4">Sparkplug B 配置</v-card-title>
                 <v-tabs v-model="sparkplugbDialog.activeTab" bg-color="primary">

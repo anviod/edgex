@@ -3,7 +3,7 @@
   type: state
   enable: true
   priority: 0
-  trigger_mode: on_change
+  trigger_mode: always
   source:
     alias: ""
     channel_id: ""
@@ -257,7 +257,7 @@
                     last_fail_time: "0001-01-01T00:00:00Z"
                     next_retry_time: "0001-01-01T00:00:00Z"
                     state: 0
-                    success_count: 533
+                    success_count: 2336
                   state: 0
                 - config:
                     slave_id: 2
@@ -304,7 +304,7 @@
                     last_fail_time: "0001-01-01T00:00:00Z"
                     next_retry_time: "0001-01-01T00:00:00Z"
                     state: 0
-                    success_count: 533
+                    success_count: 2336
                   state: 0
                 - config:
                     slave_id: 3
@@ -329,7 +329,7 @@
                     last_fail_time: "0001-01-01T00:00:00Z"
                     next_retry_time: "0001-01-01T00:00:00Z"
                     state: 0
-                    success_count: 533
+                    success_count: 2336
                   state: 0
               _pointList:
                 - address: "40001"
@@ -426,7 +426,7 @@
                     last_fail_time: "0001-01-01T00:00:00Z"
                     next_retry_time: "0001-01-01T00:00:00Z"
                     state: 0
-                    success_count: 533
+                    success_count: 2336
                   state: 0
                 - config:
                     slave_id: 2
@@ -473,7 +473,7 @@
                     last_fail_time: "0001-01-01T00:00:00Z"
                     next_retry_time: "0001-01-01T00:00:00Z"
                     state: 0
-                    success_count: 533
+                    success_count: 2336
                   state: 0
                 - config:
                     slave_id: 3
@@ -498,7 +498,7 @@
                     last_fail_time: "0001-01-01T00:00:00Z"
                     next_retry_time: "0001-01-01T00:00:00Z"
                     state: 0
-                    success_count: 533
+                    success_count: 2336
                   state: 0
               _pointList:
                 - address: "40001"
@@ -527,6 +527,297 @@
               device_id: slave-2
               point_id: dev2_pressure
               value: "1012"
+            - _deviceList:
+                - config:
+                    device_id: 2.228316e+06
+                    ip: 192.168.3.122
+                    port: 47808
+                  enable: true
+                  id: bacnet-2228316
+                  interval: 10s
+                  name: Device 2228316
+                  points:
+                    - address: AnalogInput:0
+                      datatype: float32
+                      group: ""
+                      id: AnalogInput_0
+                      name: Temperature.Indoor
+                      offset: 0
+                      readwrite: R
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: AnalogInput:1
+                      datatype: float32
+                      group: ""
+                      id: AnalogInput_1
+                      name: Temperature.Water
+                      offset: 0
+                      readwrite: R
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: AnalogInput:2
+                      datatype: float32
+                      group: ""
+                      id: AnalogInput_2
+                      name: Temperature.Outdoor
+                      offset: 0
+                      readwrite: R
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: AnalogValue:0
+                      datatype: float32
+                      group: ""
+                      id: AnalogValue_0
+                      name: SetPoint.Value
+                      offset: 0
+                      readwrite: R
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: AnalogValue:1
+                      datatype: float32
+                      group: ""
+                      id: AnalogValue_1
+                      name: Setpoint.1
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: AnalogValue:2
+                      datatype: float32
+                      group: ""
+                      id: AnalogValue_2
+                      name: Setpoint.2
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: AnalogValue:3
+                      datatype: float32
+                      group: ""
+                      id: AnalogValue_3
+                      name: Setpoint.3
+                      offset: 0
+                      readwrite: R
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: BinaryValue:0
+                      datatype: float32
+                      group: ""
+                      id: BinaryValue_0
+                      name: State.Heater
+                      offset: 0
+                      readwrite: R
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: BinaryValue:1
+                      datatype: float32
+                      group: ""
+                      id: BinaryValue_1
+                      name: State.Chiller
+                      offset: 0
+                      readwrite: R
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: MultiStateValue:0
+                      datatype: float32
+                      group: ""
+                      id: MultiStateValue_0
+                      name: State
+                      offset: 0
+                      readwrite: R
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                  runtime:
+                    fail_count: 38
+                    last_fail_time: "2026-01-27T17:34:30.9429831+08:00"
+                    next_retry_time: "2026-01-27T17:35:08.9429831+08:00"
+                    state: 3
+                    success_count: 0
+                  state: 3
+                - config:
+                    device_id: 2.228317e+06
+                    ip: 192.168.3.122
+                    port: 47808
+                  enable: true
+                  id: bacnet-2228317
+                  interval: 10s
+                  name: Device 2228317
+                  points:
+                    - address: AnalogInput:0
+                      datatype: float32
+                      group: ""
+                      id: AnalogInput_0
+                      name: Temperature.Indoor
+                      offset: 0
+                      readwrite: R
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: AnalogInput:1
+                      datatype: float32
+                      group: ""
+                      id: AnalogInput_1
+                      name: Temperature.Water
+                      offset: 0
+                      readwrite: R
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: AnalogInput:2
+                      datatype: float32
+                      group: ""
+                      id: AnalogInput_2
+                      name: Temperature.Outdoor
+                      offset: 0
+                      readwrite: R
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: AnalogValue:0
+                      datatype: float32
+                      group: ""
+                      id: AnalogValue_0
+                      name: SetPoint.Value
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: AnalogValue:1
+                      datatype: float32
+                      group: ""
+                      id: AnalogValue_1
+                      name: Setpoint.1
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: AnalogValue:2
+                      datatype: float32
+                      group: ""
+                      id: AnalogValue_2
+                      name: Setpoint.2
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: AnalogValue:3
+                      datatype: float32
+                      group: ""
+                      id: AnalogValue_3
+                      name: Setpoint.3
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: BinaryValue:0
+                      datatype: float32
+                      group: ""
+                      id: BinaryValue_0
+                      name: State.Heater
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: BinaryValue:1
+                      datatype: float32
+                      group: ""
+                      id: BinaryValue_1
+                      name: State.Chiller
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: MultiStateValue:0
+                      datatype: float32
+                      group: ""
+                      id: MultiStateValue_0
+                      name: State
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                    - address: MultiStateValue:1
+                      datatype: float32
+                      group: ""
+                      id: MultiStateValue_1
+                      name: State.VentilationLevel
+                      offset: 0
+                      readwrite: RW
+                      report_mode: ""
+                      scale: 0
+                      threshold: null
+                      unit: ""
+                  runtime:
+                    fail_count: 38
+                    last_fail_time: "2026-01-27T17:34:40.9399753+08:00"
+                    next_retry_time: "2026-01-27T17:35:18.9399753+08:00"
+                    state: 3
+                    success_count: 0
+                  state: 3
+              _pointList:
+                - address: AnalogValue:1
+                  datatype: float32
+                  group: ""
+                  id: AnalogValue_1
+                  name: Setpoint.1
+                  offset: 0
+                  readwrite: RW
+                  report_mode: ""
+                  scale: 0
+                  threshold: null
+                  unit: ""
+                - address: AnalogValue:2
+                  datatype: float32
+                  group: ""
+                  id: AnalogValue_2
+                  name: Setpoint.2
+                  offset: 0
+                  readwrite: RW
+                  report_mode: ""
+                  scale: 0
+                  threshold: null
+                  unit: ""
+              channel_id: bac-test-1
+              device_id: bacnet-2228316
+              point_id: AnalogValue_1
+              value: "11316"
         value: ""
   window:
     type: sliding
