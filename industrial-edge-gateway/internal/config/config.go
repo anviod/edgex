@@ -23,17 +23,43 @@ type Config struct {
 	Channels   []model.Channel        `yaml:"channels"`
 	EdgeRules  []model.EdgeRule       `yaml:"edge_rules"`
 	System     model.SystemConfig     `yaml:"system"`
+	Users      []model.UserConfig     `yaml:"users"`
 }
 
-func LoadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
+func LoadConfig(confDir string) (*Config, error) {
+	cfg := &Config{}
+
+	loadFile := func(name string, target interface{}) error {
+		path := filepath.Join(confDir, name)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", name, err)
+		}
+		if err := yaml.Unmarshal(data, target); err != nil {
+			return fmt.Errorf("failed to parse %s: %w", name, err)
+		}
+		return nil
 	}
 
-	var cfg Config
-	err = yaml.Unmarshal(data, &cfg)
-	if err != nil {
+	if err := loadFile("server.yaml", &cfg.Server); err != nil {
+		return nil, err
+	}
+	if err := loadFile("storage.yaml", &cfg.Storage); err != nil {
+		return nil, err
+	}
+	if err := loadFile("northbound.yaml", &cfg.Northbound); err != nil {
+		return nil, err
+	}
+	if err := loadFile("channels.yaml", &cfg.Channels); err != nil {
+		return nil, err
+	}
+	if err := loadFile("edge_rules.yaml", &cfg.EdgeRules); err != nil {
+		return nil, err
+	}
+	if err := loadFile("system.yaml", &cfg.System); err != nil {
+		return nil, err
+	}
+	if err := loadFile("users.yaml", &cfg.Users); err != nil {
 		return nil, err
 	}
 
@@ -49,37 +75,61 @@ func LoadConfig(path string) (*Config, error) {
 		}
 	}
 
-	return &cfg, nil
+	return cfg, nil
 }
 
-func SaveConfig(path string, cfg *Config) error {
+func SaveConfig(confDir string, cfg *Config) error {
 	saveMu.Lock()
 	defer saveMu.Unlock()
 
-	data, err := yaml.Marshal(cfg)
-	if err != nil {
+	saveFile := func(name string, data interface{}) error {
+		path := filepath.Join(confDir, name)
+		bytes, err := yaml.Marshal(data)
+		if err != nil {
+			return err
+		}
+
+		// Atomic write
+		tmpFile, err := os.CreateTemp(confDir, name+"-*.tmp")
+		if err != nil {
+			return fmt.Errorf("failed to create temp file for %s: %v", name, err)
+		}
+		defer os.Remove(tmpFile.Name())
+
+		if _, err := tmpFile.Write(bytes); err != nil {
+			tmpFile.Close()
+			return fmt.Errorf("failed to write to temp file for %s: %v", name, err)
+		}
+		if err := tmpFile.Close(); err != nil {
+			return fmt.Errorf("failed to close temp file for %s: %v", name, err)
+		}
+
+		if err := os.Rename(tmpFile.Name(), path); err != nil {
+			return fmt.Errorf("failed to rename temp file to %s: %v", name, err)
+		}
+		return nil
+	}
+
+	if err := saveFile("server.yaml", &cfg.Server); err != nil {
 		return err
 	}
-
-	// Atomic write: write to temp file, then rename
-	dir := filepath.Dir(path)
-	tmpFile, err := os.CreateTemp(dir, "config-*.yaml.tmp")
-	if err != nil {
-		return fmt.Errorf("failed to create temp file: %v", err)
+	if err := saveFile("storage.yaml", &cfg.Storage); err != nil {
+		return err
 	}
-	defer os.Remove(tmpFile.Name()) // Clean up if rename fails
-
-	if _, err := tmpFile.Write(data); err != nil {
-		tmpFile.Close()
-		return fmt.Errorf("failed to write to temp file: %v", err)
+	if err := saveFile("northbound.yaml", &cfg.Northbound); err != nil {
+		return err
 	}
-	if err := tmpFile.Close(); err != nil {
-		return fmt.Errorf("failed to close temp file: %v", err)
+	if err := saveFile("channels.yaml", &cfg.Channels); err != nil {
+		return err
 	}
-
-	// Rename (Atomic replace)
-	if err := os.Rename(tmpFile.Name(), path); err != nil {
-		return fmt.Errorf("failed to rename temp file to config: %v", err)
+	if err := saveFile("edge_rules.yaml", &cfg.EdgeRules); err != nil {
+		return err
+	}
+	if err := saveFile("system.yaml", &cfg.System); err != nil {
+		return err
+	}
+	if err := saveFile("users.yaml", &cfg.Users); err != nil {
+		return err
 	}
 
 	return nil

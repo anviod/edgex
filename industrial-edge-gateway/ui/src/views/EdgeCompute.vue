@@ -395,8 +395,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import request from '@/utils/request'
 import EdgeComputeMetrics from './EdgeComputeMetrics.vue'
 
 const route = useRoute()
@@ -467,9 +468,9 @@ const getRuleTypeExplanation = (type) => {
 
 const fetchChannels = async () => {
     try {
-        const res = await fetch('/api/channels')
-        if (res.ok) {
-            channels.value = await res.json()
+        const data = await request.get('/api/channels')
+        if (data) {
+            channels.value = data
         }
     } catch (e) {
         console.error(e)
@@ -502,9 +503,9 @@ const onSourceChannelChange = async (src) => {
     if (!src.channel_id) return
     
     try {
-        const res = await fetch(`/api/channels/${src.channel_id}/devices`)
-        if (res.ok) {
-            src._deviceList = await res.json()
+        const data = await request.get(`/api/channels/${src.channel_id}/devices`)
+        if (data) {
+            src._deviceList = data
         }
     } catch (e) {
         console.error(e)
@@ -542,9 +543,9 @@ const loadSourcePoints = (src) => {
 
 const fetchRules = async () => {
     try {
-        const res = await fetch('/api/edge/rules')
-        if (res.ok) {
-            rules.value = await res.json()
+        const data = await request.get('/api/edge/rules')
+        if (data) {
+            rules.value = data
         }
     } catch (e) {
         console.error(e)
@@ -553,9 +554,8 @@ const fetchRules = async () => {
 
 const fetchRuleStates = async () => {
     try {
-        const res = await fetch('/api/edge/states')
-        if (res.ok) {
-            const data = await res.json()
+        const data = await request.get('/api/edge/states')
+        if (data) {
             ruleStates.value = Object.values(data)
         }
     } catch (e) {
@@ -568,9 +568,9 @@ const viewWindowData = async (ruleId, ruleName) => {
     windowData.value = []
     windowDialog.value = true
     try {
-        const res = await fetch(`/api/edge/rules/${ruleId}/window`)
-        if (res.ok) {
-            windowData.value = await res.json()
+        const data = await request.get(`/api/edge/rules/${ruleId}/window`)
+        if (data) {
+            windowData.value = data
         }
     } catch (e) {
         console.error(e)
@@ -683,7 +683,7 @@ const editRule = async (rule) => {
 const deleteRule = async (rule) => {
     if (!confirm('确定删除该规则吗？')) return
     try {
-        await fetch(`/api/edge/rules/${rule.id}`, { method: 'DELETE' })
+        await request.delete(`/api/edge/rules/${rule.id}`)
         fetchRules()
     } catch (e) {
         alert('删除失败')
@@ -692,20 +692,9 @@ const deleteRule = async (rule) => {
 
 const saveRule = async () => {
     try {
-        // Prepare payload, maybe remove unused config based on type? 
-        // Backend handles omitempty so it should be fine.
-        const res = await fetch('/api/edge/rules', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(currentRule)
-        })
-        if (res.ok) {
-            dialog.value = false
-            fetchRules()
-        } else {
-            const data = await res.json()
-            alert('保存失败: ' + (data.error || 'Unknown error'))
-        }
+        await request.post('/api/edge/rules', currentRule)
+        dialog.value = false
+        fetchRules()
     } catch (e) {
         alert('保存失败: ' + e.message)
     }
@@ -740,9 +729,9 @@ const calculateDuration = (startTs) => {
 const fetchDevices = async (channelId) => {
     if (!channelId) return []
     try {
-        const res = await fetch(`/api/channels/${channelId}/devices`)
-        if (res.ok) {
-            return await res.json()
+        const data = await request.get(`/api/channels/${channelId}/devices`)
+        if (data) {
+            return data
         }
     } catch (e) {
         console.error(e)

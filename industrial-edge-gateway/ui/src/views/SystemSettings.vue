@@ -357,6 +357,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import request from '@/utils/request'
 
 const activeTab = ref('time')
 
@@ -432,22 +433,18 @@ const API_BASE = '/api/system'
 const loadConfig = async () => {
   try {
     const [sysRes, netRes] = await Promise.all([
-      fetch(API_BASE),
-      fetch(API_BASE + '/network/interfaces')
+      request.get(API_BASE),
+      request.get(API_BASE + '/network/interfaces')
     ])
     
-    let configData = {}
-    if (sysRes.ok) {
-      configData = await sysRes.json()
-      if (configData.time) Object.assign(timeConfig, configData.time)
-      // Network handled below
-      if (configData.routes) staticRoutes.value = configData.routes
-      if (configData.ha) Object.assign(haConfig, configData.ha)
-      if (configData.hostname) Object.assign(hostnameConfig, configData.hostname)
-    }
+    const configData = sysRes || {}
+    if (configData.time) Object.assign(timeConfig, configData.time)
+    if (configData.routes) staticRoutes.value = configData.routes
+    if (configData.ha) Object.assign(haConfig, configData.ha)
+    if (configData.hostname) Object.assign(hostnameConfig, configData.hostname)
 
-    if (netRes.ok) {
-      const liveInterfaces = await netRes.json()
+    if (Array.isArray(netRes)) {
+      const liveInterfaces = netRes
       // Merge config state (e.g. enabled status) into live interfaces
       if (configData.network) {
         liveInterfaces.forEach(live => {
@@ -478,12 +475,7 @@ const saveConfig = async () => {
   }
   
   try {
-    const res = await fetch(API_BASE, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(fullConfig)
-    })
-    if (!res.ok) throw new Error('Failed to save')
+    await request.put(API_BASE, fullConfig)
     // alert('配置保存成功') 
   } catch (e) {
     console.error('Failed to save config', e)

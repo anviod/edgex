@@ -9,7 +9,7 @@ import (
 )
 
 type SystemManager struct {
-	configPath string
+	confDir    string
 	config     *config.Config
 	mu         sync.RWMutex
 	mdnsServer *network.MDNSServer
@@ -17,7 +17,7 @@ type SystemManager struct {
 	netManager *network.NetworkManager
 }
 
-func NewSystemManager(cfg *config.Config, configPath string) *SystemManager {
+func NewSystemManager(cfg *config.Config, confDir string) *SystemManager {
 	// Initialize with defaults if empty
 	if cfg.System.Time.Mode == "" {
 		cfg.System.Time.Mode = "manual"
@@ -34,7 +34,7 @@ func NewSystemManager(cfg *config.Config, configPath string) *SystemManager {
 	}
 
 	sm := &SystemManager{
-		configPath: configPath,
+		confDir:    confDir,
 		config:     cfg,
 		mdnsServer: network.NewMDNSServer(),
 		dnsProxy:   network.NewDNSProxy(),
@@ -63,7 +63,7 @@ func (sm *SystemManager) UpdateConfig(newConfig model.SystemConfig) error {
 	sm.config.System = newConfig
 
 	// Persist to file
-	if err := config.SaveConfig(sm.configPath, sm.config); err != nil {
+	if err := config.SaveConfig(sm.confDir, sm.config); err != nil {
 		return fmt.Errorf("failed to save system config: %v", err)
 	}
 
@@ -95,6 +95,44 @@ func (sm *SystemManager) applyConfig(cfg model.SystemConfig) {
 
 func (sm *SystemManager) GetNetworkInterfaces() ([]model.NetworkInterface, error) {
 	return sm.netManager.GetInterfaces()
+}
+
+func (sm *SystemManager) GetUser(username string) (*model.UserConfig, bool) {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	for _, u := range sm.config.Users {
+		if u.Username == username {
+			// Return a copy to prevent accidental modification
+			userCopy := u
+			return &userCopy, true
+		}
+	}
+	return nil, false
+}
+
+func (sm *SystemManager) UpdateUserPassword(username, newPassword string) error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	found := false
+	for i, u := range sm.config.Users {
+		if u.Username == username {
+			sm.config.Users[i].Password = newPassword
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("user not found")
+	}
+
+	// Persist to file
+	if err := config.SaveConfig(sm.confDir, sm.config); err != nil {
+		return fmt.Errorf("failed to save system config: %v", err)
+	}
+
+	return nil
 }
 
 func (sm *SystemManager) GetRoutes() ([]model.StaticRoute, error) {

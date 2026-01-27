@@ -74,7 +74,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-
+import request from '@/utils/request'
 const metrics = ref({
     worker_pool_size: 0,
     worker_pool_usage: 0,
@@ -102,9 +102,9 @@ let timer = null
 
 const fetchMetrics = async () => {
     try {
-        const res = await fetch('/api/edge/metrics')
-        if (res.ok) {
-            metrics.value = await res.json()
+        const data = await request.get('/api/edge/metrics')
+        if (data) {
+            metrics.value = data
         }
     } catch (e) {
         console.error(e)
@@ -113,9 +113,8 @@ const fetchMetrics = async () => {
 
 const fetchSharedSources = async () => {
     try {
-        const res = await fetch('/api/edge/shared-sources')
-        if (res.ok) {
-            const data = await res.json()
+        const data = await request.get('/api/edge/shared-sources')
+        if (data) {
             sharedSources.value = data || []
         }
     } catch (e) {

@@ -77,6 +77,19 @@ func (s *Server) Start(addr string) error {
 func (s *Server) setupRoutes() {
 	api := s.app.Group("/api")
 
+	// 认证相关 (无需 JWT)
+	auth := api.Group("/auth")
+	auth.Get("/system-info", s.handleGetSystemInfo)
+	auth.Get("/nonce", s.handleGetNonce)
+	auth.Post("/login", s.handleLogin)
+	auth.Post("/logout", s.handleLogout)
+
+	// 应用 JWT 中间件到后续路由
+	api.Use(JWTAuth())
+
+	// Authenticated Auth Routes
+	api.Post("/auth/change-password", s.handleChangePassword)
+
 	// ===== 三级导航 API 端点 =====
 
 	// 首页 Dashboard
@@ -85,6 +98,7 @@ func (s *Server) setupRoutes() {
 	// 系统设置
 	api.Get("/system", s.getSystemConfig)
 	api.Put("/system", s.updateSystemConfig)
+	api.Post("/system/restart", s.handleRestart)
 	api.Get("/system/network/interfaces", s.getNetworkInterfaces)
 	api.Get("/system/network/routes", s.getRoutes)
 

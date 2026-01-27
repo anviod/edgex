@@ -45,6 +45,7 @@ archives:
     name_template: '{{.ProjectName}}-{{.Tag}}-{{.Os}}-{{.Arch}}{{if .Arm}}{{.Arm}}{{end}}'
     files:
       - config.yaml
+      - conf/*
       - ui/dist/*
       - scripts/*
       - gateway.service
@@ -64,8 +65,8 @@ nfpms:
       - src: /usr/bin/gateway
         dst: /usr/local/bin/gateway/gateway
         type: "symlink"
-      - src: ./config.yaml
-        dst: /usr/local/bin/gateway/config.yaml
+      - src: ./conf
+        dst: /usr/local/bin/gateway/conf
         type: "config"
       - src: ./ui/dist
         dst: /usr/local/bin/gateway/ui/dist

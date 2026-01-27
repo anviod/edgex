@@ -92,6 +92,64 @@ northbound:
           key_password: ""
           devices: {}
 channels:
+    - id: s7-test-1
+      name: S7 Test Channel
+      protocol: s7
+      enable: true
+      config:
+        ip: 192.168.1.100
+        plcType: S7-1200
+        port: 102
+        rack: 0
+        slot: 2
+        startup: warm
+      devices: []
+    - id: modbus-tcp-
+      name: OPC UA Simulator Channel
+      protocol: opc-ua
+      enable: false
+      config:
+        url: opc.tcp://127.0.0.1:4840
+      devices:
+        - id: opcua-device-1
+          name: Simulated Machine A
+          enable: true
+          interval: 2s
+          config: {}
+          points:
+            - id: machine_speed
+              name: Machine Speed
+              address: ns=2;s=Machine.Speed
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: rpm
+              readwrite: RW
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: machine_status
+              name: Machine Status
+              address: ns=2;s=Machine.Status
+              datatype: string
+              scale: 0
+              offset: 0
+              unit: ""
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
+            - id: machine_temp
+              name: Core Temperature
+              address: ns=2;s=Machine.Temp
+              datatype: float32
+              scale: 0
+              offset: 0
+              unit: °C
+              readwrite: R
+              group: ""
+              report_mode: ""
+              threshold: null
     - id: modbus-tcp-2
       name: Modbus TCP Channel 2 (远程机房)
       protocol: modbus-tcp
@@ -953,64 +1011,6 @@ channels:
               group: ""
               report_mode: ""
               threshold: null
-    - id: s7-test-1
-      name: S7 Test Channel
-      protocol: s7
-      enable: true
-      config:
-        ip: 192.168.1.100
-        plcType: S7-1200
-        port: 102
-        rack: 0
-        slot: 2
-        startup: warm
-      devices: []
-    - id: modbus-tcp-
-      name: OPC UA Simulator Channel
-      protocol: opc-ua
-      enable: false
-      config:
-        url: opc.tcp://127.0.0.1:4840
-      devices:
-        - id: opcua-device-1
-          name: Simulated Machine A
-          enable: true
-          interval: 2s
-          config: {}
-          points:
-            - id: machine_speed
-              name: Machine Speed
-              address: ns=2;s=Machine.Speed
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: rpm
-              readwrite: RW
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: machine_status
-              name: Machine Status
-              address: ns=2;s=Machine.Status
-              datatype: string
-              scale: 0
-              offset: 0
-              unit: ""
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
-            - id: machine_temp
-              name: Core Temperature
-              address: ns=2;s=Machine.Temp
-              datatype: float32
-              scale: 0
-              offset: 0
-              unit: °C
-              readwrite: R
-              group: ""
-              report_mode: ""
-              threshold: null
 edge_rules:
     - id: 5700b238-4cf3-4f3b-b175-b29c585e860f
       name: TMPW
@@ -1791,3 +1791,7 @@ system:
         httpsport: 443
         interfaces: []
     connectivitytargets: []
+users:
+    - username: admin
+      password: passwd@123
+      role: admin

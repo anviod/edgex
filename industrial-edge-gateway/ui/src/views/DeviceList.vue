@@ -259,6 +259,7 @@
 import { ref, onMounted, computed, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { globalState, showMessage } from '../composables/useGlobalState'
+import request from '@/utils/request'
 
 const route = useRoute()
 const router = useRouter()
@@ -283,8 +284,8 @@ const allRules = ref([])
 
 const fetchRules = async () => {
     try {
-        const res = await fetch('/api/edge/rules')
-        if (res.ok) allRules.value = await res.json()
+        const data = await request.get('/api/edge/rules')
+        allRules.value = data
     } catch (e) {
         console.error('Failed to fetch rules', e)
     }
@@ -349,15 +350,12 @@ const fetchDevices = async () => {
     loading.value = true
     try {
         // 先获取通道信息，确保页面标题正确
-        const chanRes = await fetch(`/api/channels/${channelId}`)
-        if (chanRes.ok) {
-            channelInfo.value = await chanRes.json()
-            globalState.navTitle = channelInfo.value.name
-        }
+        const chanData = await request.get(`/api/channels/${channelId}`)
+        channelInfo.value = chanData
+        globalState.navTitle = channelInfo.value.name
 
-        const devRes = await fetch(`/api/channels/${channelId}/devices`)
-        if (!devRes.ok) throw new Error('Failed to fetch devices')
-        devices.value = await devRes.json()
+        const devData = await request.get(`/api/channels/${channelId}/devices`)
+        devices.value = devData
         
         // Reset selection
         selected.value = []
@@ -448,18 +446,13 @@ const saveDevice = async () => {
 
     try {
         const url = `/api/channels/${channelId}/devices` + (isEdit.value ? `/${form.value.id}` : '')
-        const method = isEdit.value ? 'PUT' : 'POST'
+        const method = isEdit.value ? 'put' : 'post'
         
-        const res = await fetch(url, {
+        await request({
+            url: url,
             method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            data: payload
         })
-
-        if (!res.ok) {
-            const err = await res.json()
-            throw new Error(err.error || 'Operation failed')
-        }
 
         showMessage(isEdit.value ? '更新成功' : '创建成功', 'success')
         closeDialog()
@@ -483,18 +476,14 @@ const executeDelete = async () => {
     try {
         if (itemToDelete.value) {
             // Single delete
-            const res = await fetch(`/api/channels/${channelId}/devices/${itemToDelete.value.id}`, {
-                method: 'DELETE'
-            })
-            if (!res.ok) throw new Error('Delete failed')
+            await request.delete(`/api/channels/${channelId}/devices/${itemToDelete.value.id}`)
         } else {
             // Batch delete
-            const res = await fetch(`/api/channels/${channelId}/devices`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(selected.value)
+            await request({
+                url: `/api/channels/${channelId}/devices`,
+                method: 'delete',
+                data: selected.value
             })
-            if (!res.ok) throw new Error('Batch delete failed')
         }
         
         showMessage('删除成功', 'success')

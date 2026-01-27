@@ -419,7 +419,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { showMessage } from '../composables/useGlobalState'
-
+import request from '@/utils/request'
 const loading = ref(false)
 const config = ref({
     mqtt: [],
@@ -467,11 +467,8 @@ const addProtocol = (type) => {
 const fetchConfig = async () => {
     loading.value = true
     try {
-        const res = await fetch('/api/northbound/config')
-        if (!res.ok) throw new Error('Failed to fetch config')
-        const data = await res.json()
+        const data = await request.get('/api/northbound/config')
         
-        // Ensure arrays
         config.value = {
             mqtt: data.mqtt || [],
             opcua: data.opcua || [],
@@ -488,12 +485,10 @@ const fetchConfig = async () => {
 // Helpers to fetch all devices for mapping
 const fetchAllDevices = async () => {
     try {
-        const res = await fetch('/api/channels')
-        const channels = await res.json()
+        const channels = await request.get('/api/channels')
         const devices = []
         for (const ch of channels) {
-            const devRes = await fetch(`/api/channels/${ch.id}/devices`)
-            const devs = await devRes.json()
+            const devs = await request.get(`/api/channels/${ch.id}/devices`)
             devs.forEach(d => {
                 d.channelName = ch.name
                 devices.push(d)
@@ -541,12 +536,7 @@ const openMqttSettings = async (item) => {
 const saveMqttSettings = async () => {
     mqttDialog.loading = true
     try {
-        const res = await fetch('/api/northbound/mqtt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(mqttDialog.config)
-        })
-        if (!res.ok) throw new Error('Failed to save config')
+        await request.post('/api/northbound/mqtt', mqttDialog.config)
         showMessage('MQTT 配置已保存', 'success')
         mqttDialog.visible = false
         fetchConfig()
@@ -561,10 +551,7 @@ const deleteProtocol = async (type, id) => {
     if (!confirm('确定要删除该配置吗？')) return
     
     try {
-        const res = await fetch(`/api/northbound/${type}/${id}`, {
-            method: 'DELETE'
-        })
-        if (!res.ok) throw new Error('Failed to delete')
+        await request.delete(`/api/northbound/${type}/${id}`)
         showMessage('删除成功', 'success')
         fetchConfig()
     } catch (e) {
@@ -605,12 +592,7 @@ const openSparkplugBSettings = async (item) => {
 
 const saveSparkplugBConfig = async () => {
     try {
-        const res = await fetch('/api/northbound/sparkplugb', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(sparkplugbDialog.config)
-        })
-        if (!res.ok) throw new Error('Failed to save config')
+        await request.post('/api/northbound/sparkplugb', sparkplugbDialog.config)
         showMessage('Sparkplug B 配置保存成功', 'success')
         sparkplugbDialog.visible = false
         fetchConfig()
@@ -650,12 +632,7 @@ const openOpcuaSettings = async (item) => {
 const saveOpcuaSettings = async () => {
     opcuaDialog.loading = true
     try {
-        const res = await fetch('/api/northbound/opcua', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(opcuaDialog.config)
-        })
-        if (!res.ok) throw new Error('Failed to save config')
+        await request.post('/api/northbound/opcua', opcuaDialog.config)
         showMessage('OPC UA 配置已保存', 'success')
         opcuaDialog.visible = false
         fetchConfig()

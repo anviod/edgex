@@ -10,7 +10,7 @@ echo "[preinstall] Starting preinstall script..."
 
 # 清理旧备份，确保每次安装都是干净的
 rm -rf "$BACKUP_DIR" 2>/dev/null || true
-mkdir -p "$BACKUP_DIR/selfpara"
+mkdir -p "$BACKUP_DIR/data"
 mkdir -p "$BACKUP_DIR/config"
 
 backup_dir() {

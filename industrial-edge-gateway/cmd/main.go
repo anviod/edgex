@@ -24,13 +24,13 @@ import (
 
 func main() {
 	// Parse command-line flags
-	configPath := flag.String("config", "config.yaml", "Path to configuration file")
+	confDir := flag.String("conf", "conf", "Path to configuration directory")
 	flag.Parse()
 
 	log.Println("Starting Industrial Edge Gateway...")
 
 	// 1. Load Config
-	cfg, err := config.LoadConfig(*configPath)
+	cfg, err := config.LoadConfig(*confDir)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
@@ -63,7 +63,7 @@ func main() {
 	// Init Edge Compute Manager
 	ecm := core.NewEdgeComputeManager(pipeline, func(rules []model.EdgeRule) error {
 		cfg.EdgeRules = rules
-		return config.SaveConfig(*configPath, cfg)
+		return config.SaveConfig(*confDir, cfg)
 	})
 	ecm.LoadRules(cfg.EdgeRules)
 	ecm.Start()
@@ -71,7 +71,7 @@ func main() {
 	// 5. Init Northbound Manager
 	nbm := core.NewNorthboundManager(cfg.Northbound, pipeline, func(nbCfg model.NorthboundConfig) error {
 		cfg.Northbound = nbCfg
-		return config.SaveConfig(*configPath, cfg)
+		return config.SaveConfig(*confDir, cfg)
 	})
 	nbm.Start()
 	defer nbm.Stop()
@@ -82,11 +82,11 @@ func main() {
 	// 使用新的 ChannelManager（支持三级结构）
 	cm := core.NewChannelManager(pipeline, func(channels []model.Channel) error {
 		cfg.Channels = channels
-		return config.SaveConfig(*configPath, cfg)
+		return config.SaveConfig(*confDir, cfg)
 	})
 
 	// Init System Manager
-	sm := core.NewSystemManager(cfg, *configPath)
+	sm := core.NewSystemManager(cfg, *confDir)
 
 	// 4. Init Web Server
 	srv := server.NewServer(cm, store, pipeline, nbm, ecm, sm)

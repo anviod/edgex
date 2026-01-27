@@ -462,6 +462,7 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { globalState, showMessage } from '../composables/useGlobalState'
+import request from '@/utils/request'
 
 const route = useRoute()
 const points = ref([])
@@ -644,20 +645,14 @@ const openEditDialog = (point) => {
 const submitPoint = async () => {
     pointDialog.loading = true
     try {
-        const method = pointDialog.isEdit ? 'PUT' : 'POST'
         const url = pointDialog.isEdit 
             ? `/api/channels/${channelId}/devices/${deviceId}/points/${pointDialog.form.id}`
             : `/api/channels/${channelId}/devices/${deviceId}/points`
 
-        const res = await fetch(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(pointDialog.form)
-        })
-
-        if (!res.ok) {
-            const err = await res.json()
-            throw new Error(err.error || 'Operation failed')
+        if (pointDialog.isEdit) {
+            await request.put(url, pointDialog.form)
+        } else {
+            await request.post(url, pointDialog.form)
         }
 
         showMessage(pointDialog.isEdit ? '点位更新成功' : '点位添加成功', 'success')
@@ -680,14 +675,7 @@ const executeDelete = async () => {
     
     deleteDialog.loading = true
     try {
-        const res = await fetch(`/api/channels/${channelId}/devices/${deviceId}/points/${deleteDialog.point.id}`, {
-            method: 'DELETE'
-        })
-
-        if (!res.ok) {
-            const err = await res.json()
-            throw new Error(err.error || 'Delete failed')
-        }
+        await request.delete(`/api/channels/${channelId}/devices/${deviceId}/points/${deleteDialog.point.id}`)
 
         showMessage('点位删除成功', 'success')
         deleteDialog.visible = false
@@ -702,17 +690,17 @@ const executeDelete = async () => {
 const fetchPoints = async () => {
     loading.value = true
     try {
-        const [ptsRes, devRes] = await Promise.all([
-            fetch(`/api/channels/${channelId}/devices/${deviceId}/points`),
-            fetch(`/api/channels/${channelId}/devices/${deviceId}`)
-        ])
+        const pts = await request.get(`/api/channels/${channelId}/devices/${deviceId}/points`)
+        points.value = pts || []
 
-        if (!ptsRes.ok) throw new Error('Failed to fetch points')
-        points.value = await ptsRes.json()
-
-        if (devRes.ok) {
-            deviceInfo.value = await devRes.json()
-            globalState.navTitle = deviceInfo.value.name
+        try {
+            const dev = await request.get(`/api/channels/${channelId}/devices/${deviceId}`)
+            if (dev) {
+                deviceInfo.value = dev
+                globalState.navTitle = deviceInfo.value.name
+            }
+        } catch (e) {
+            console.error('Failed to fetch device info', e)
         }
     } catch (e) {
         showMessage('获取点位失败: ' + e.message, 'error')
@@ -760,9 +748,8 @@ const bacnetObjectTypes = [
 
 const fetchChannel = async () => {
     try {
-        const res = await fetch(`/api/channels/${channelId}`)
-        if (res.ok) {
-            const data = await res.json()
+        const data = await request.get(`/api/channels/${channelId}`)
+        if (data && data.protocol) {
             channelProtocol.value = data.protocol
         }
     } catch (e) {
@@ -800,25 +787,16 @@ const openWriteDialog = (point) => {
 const submitWrite = async () => {
     writeDialog.loading = true
     try {
-        const res = await fetch('/api/write', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                channel_id: channelId,
-                device_id: deviceId,
-                point_id: writeDialog.pointID,
-                value: writeDialog.value
-            })
+        await request.post('/api/write', {
+            channel_id: channelId,
+            device_id: deviceId,
+            point_id: writeDialog.pointID,
+            value: writeDialog.value
         })
-        const result = await res.json()
-        if (res.ok) {
-            showMessage('写入命令已发送', 'success')
-            writeDialog.visible = false
-        } else {
-            showMessage('写入失败: ' + result.error, 'error')
-        }
+        showMessage('写入命令已发送', 'success')
+        writeDialog.visible = false
     } catch (e) {
-        showMessage('网络错误: ' + e.message, 'error')
+        showMessage('写入失败: ' + e.message, 'error')
     } finally {
         writeDialog.loading = false
     }

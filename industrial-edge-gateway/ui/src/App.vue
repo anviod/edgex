@@ -2,6 +2,7 @@
   <v-app class="app-background">
     <!-- Navigation Drawer -->
     <v-navigation-drawer 
+        v-if="!isLoginPage"
         app 
         permanent 
         class="glass-drawer" 
@@ -69,7 +70,7 @@
     </v-navigation-drawer>
 
     <!-- App Bar -->
-    <v-app-bar app class="glass-app-bar" elevation="0">
+    <v-app-bar v-if="!isLoginPage" app class="glass-app-bar" elevation="0">
         <v-app-bar-title class="font-weight-bold text-h5 text-primary">
             边缘计算网关
             <span v-if="$route.meta.title" class="text-grey-darken-1 font-weight-light">
@@ -80,23 +81,58 @@
             </span>
         </v-app-bar-title>
         <template v-slot:append>
-            <v-chip
-                :color="wsStatus.connected ? 'success' : 'error'"
-                variant="elevated"
-                class="font-weight-medium"
-            >
-                <v-icon start icon="mdi-api"></v-icon>
-                {{ wsStatus.connected ? '实时连接' : '断开连接' }}
-            </v-chip>
+            <v-menu location="bottom end">
+                <template v-slot:activator="{ props }">
+                    <v-btn
+                        variant="text"
+                        v-bind="props"
+                        class="text-capitalize"
+                    >
+                        <v-avatar color="primary" size="32" class="mr-2">
+                            <span class="text-caption font-weight-bold text-white">{{ userInitials }}</span>
+                        </v-avatar>
+                        <span class="text-subtitle-2 font-weight-medium">{{ user.username || 'Admin' }}</span>
+                        <v-icon end>mdi-chevron-down</v-icon>
+                    </v-btn>
+                </template>
+                <v-list class="glass-menu mt-2" width="200" density="compact" rounded="lg">
+                    <v-list-item @click="openChangePassword" link>
+                        <template v-slot:prepend>
+                            <v-icon icon="mdi-lock-reset" class="mr-2" size="small"></v-icon>
+                        </template>
+                        <v-list-item-title>修改密码</v-list-item-title>
+                    </v-list-item>
+                    <v-divider class="my-1"></v-divider>
+                    <v-list-item @click="handleRestart" link>
+                        <template v-slot:prepend>
+                            <v-icon icon="mdi-restart" color="warning" class="mr-2" size="small"></v-icon>
+                        </template>
+                        <v-list-item-title class="text-warning">软件重启</v-list-item-title>
+                    </v-list-item>
+                    <v-list-item @click="handleLogout" link>
+                        <template v-slot:prepend>
+                            <v-icon icon="mdi-logout" color="error" class="mr-2" size="small"></v-icon>
+                        </template>
+                        <v-list-item-title class="text-error">退出登录</v-list-item-title>
+                    </v-list-item>
+                </v-list>
+            </v-menu>
         </template>
     </v-app-bar>
 
     <!-- Main Content -->
     <v-main>
-        <v-container fluid class="pa-6">
-            <router-view :key="$route.fullPath"></router-view>
+        <v-container fluid :class="isLoginPage ? 'pa-0' : 'pa-6'">
+            <router-view v-slot="{ Component }">
+                <transition name="fade" mode="out-in">
+                    <component :is="Component" :key="$route.fullPath" />
+                </transition>
+            </router-view>
         </v-container>
     </v-main>
+
+    <!-- Dialogs -->
+    <change-password-dialog ref="changePwdRef" />
 
     <!-- Global Snackbar -->
     <v-snackbar 
@@ -114,15 +150,87 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { globalState } from './composables/useGlobalState'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { globalState, showMessage } from './composables/useGlobalState'
+import { userStore } from '@/stores/user'
+import LoginApi from '@/api/login'
+import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue'
 
+const route = useRoute()
+const router = useRouter()
 const drawerRail = ref(false)
 const snackbar = globalState.snackbar
 const wsStatus = globalState.wsStatus
+const user = userStore()
+const changePwdRef = ref(null)
+
+const isLoginPage = computed(() => {
+    return route.path === '/login'
+})
+
+const userInitials = computed(() => {
+    return (user.username || 'A').charAt(0).toUpperCase()
+})
+
+onMounted(() => {
+    // Restore user info from localStorage if not present
+    if (!user.username) {
+        try {
+            const loginInfo = localStorage.getItem('loginInfo')
+            if (loginInfo) {
+                const parsed = JSON.parse(loginInfo)
+                // parsed is the storeData from Login.vue, which has 'username' (lowercase)
+                if (parsed && parsed.username) {
+                    user.setLoginInfo({ userName: parsed.username }, parsed.permissions || [], parsed.token || '')
+                }
+            }
+        } catch (e) {
+            console.error('Failed to restore user info', e)
+        }
+    }
+})
+
+const openChangePassword = () => {
+    changePwdRef.value?.open()
+}
+
+const handleLogout = async () => {
+    try {
+        await LoginApi.logout()
+    } catch (e) {
+        console.error(e)
+    }
+    localStorage.removeItem('loginInfo')
+    // Keep 'rememberedAccount'
+    user.setLoginInfo({}, [], '')
+    router.push('/login')
+    showMessage('已退出登录')
+}
+
+const handleRestart = () => {
+    if (confirm('确定要重启系统吗？服务将暂时不可用。')) {
+        LoginApi.restartSystem().then(() => {
+            showMessage('系统正在重启...', 'warning')
+            // Wait a bit then reload to show login page or error (since server is down)
+            setTimeout(() => {
+                window.location.reload()
+            }, 5000)
+        }).catch(e => {
+            showMessage('重启指令发送失败: ' + e.message, 'error')
+        })
+    }
+}
 </script>
 
 <style>
+.glass-menu {
+    background: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+}
+
 :root {
     /* Fonts */
     --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
@@ -188,6 +296,17 @@ body {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     /* transform: perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1); */
     transform: translateZ(0); /* Hardware acceleration without 3D side effects */
+}
+
+/* Page Transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 .glass-card:not(.no-hover):hover {

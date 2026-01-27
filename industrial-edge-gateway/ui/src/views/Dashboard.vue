@@ -129,6 +129,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import request from '@/utils/request'
 
 const system = ref({
     cpu_usage: 0,
@@ -144,14 +145,11 @@ let timer = null
 
 const fetchData = async () => {
     try {
-        const res = await fetch('/api/dashboard/summary')
-        if (res.ok) {
-            const data = await res.json()
-            system.value = data.system
-            channels.value = (data.channels || []).sort((a, b) => a.name.localeCompare(b.name))
-            northbound.value = data.northbound || []
-            edgeRules.value = data.edge_rules || {}
-        }
+        const data = await request.get('/api/dashboard/summary')
+        system.value = data.system
+        channels.value = (data.channels || []).sort((a, b) => a.name.localeCompare(b.name))
+        northbound.value = data.northbound || []
+        edgeRules.value = data.edge_rules || {}
     } catch (e) {
         console.error(e)
     }

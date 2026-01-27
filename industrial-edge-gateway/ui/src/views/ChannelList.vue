@@ -519,6 +519,7 @@
 import { ref, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { showMessage } from '../composables/useGlobalState'
+import request from '@/utils/request'
 
 const router = useRouter()
 const channels = ref([])
@@ -605,12 +606,11 @@ const performBatchConfig = async () => {
                 updated.config.baudRate = batchConfigDialog.values.baudRate
             }
             
-            const res = await fetch(`/api/channels/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updated)
+            const res = await request({
+                url: `/api/channels/${id}`,
+                method: 'put',
+                data: updated
             })
-            if (!res.ok) throw new Error(`Failed to update ${id}`)
         })
         
         await Promise.all(promises)
@@ -710,17 +710,11 @@ const performManualScan = async () => {
             port: manualAddDialog.port ? parseInt(manualAddDialog.port) : undefined
         }
         
-        const res = await fetch(`/api/channels/${scanDialog.channelId}/scan`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+        const data = await request({
+            url: `/api/channels/${scanDialog.channelId}/scan`,
+            method: 'post',
+            data: payload
         })
-        
-        if (!res.ok) {
-            const errData = await res.json().catch(() => ({}))
-            throw new Error(errData.error || res.statusText)
-        }
-        const data = await res.json()
         scanDialog.results = data
         
     } catch (e) {
@@ -733,12 +727,13 @@ const performManualScan = async () => {
 const fetchChannels = async () => {
     loading.value = true
     try {
-        const res = await fetch('/api/channels')
-        if (!res.ok) throw new Error(res.statusText)
-        const data = await res.json()
+        const data = await request.get('/api/channels')
         channels.value = (data || []).sort((a, b) => a.name.localeCompare(b.name))
     } catch (e) {
-        showMessage('获取通道失败: ' + e.message, 'error')
+        if (e && e.response && e.response.status === 401) {
+            return
+        }
+        showMessage('获取通道失败: ' + (e && e.message ? e.message : ''), 'error')
     } finally {
         loading.value = false
     }
@@ -783,19 +778,14 @@ const openEditDialog = (channel) => {
 
 const saveChannel = async () => {
     try {
-        const method = dialog.isEdit ? 'PUT' : 'POST'
+        const method = dialog.isEdit ? 'put' : 'post'
         const url = dialog.isEdit ? `/api/channels/${dialog.form.id}` : '/api/channels'
         
-        const res = await fetch(url, {
+        await request({
+            url: url,
             method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dialog.form)
+            data: dialog.form
         })
-
-        if (!res.ok) {
-            const errData = await res.json()
-            throw new Error(errData.error || res.statusText)
-        }
 
         showMessage(dialog.isEdit ? '通道更新成功' : '通道添加成功', 'success')
         dialog.show = false
@@ -809,8 +799,7 @@ const deleteChannel = async (channel) => {
     if (!confirm(`确定要删除通道 "${channel.name}" 吗？`)) return
 
     try {
-        const res = await fetch(`/api/channels/${channel.id}`, { method: 'DELETE' })
-        if (!res.ok) throw new Error(res.statusText)
+        await request.delete(`/api/channels/${channel.id}`)
         
         showMessage('通道删除成功', 'success')
         fetchChannels()
@@ -828,10 +817,8 @@ const scanChannel = async (channel) => {
     scanDialog.selected = []
 
     try {
-        const res = await fetch(`/api/channels/${channel.id}/scan`, { method: 'POST' })
-        if (!res.ok) throw new Error(res.statusText)
+        const data = await request.post(`/api/channels/${channel.id}/scan`)
         
-        const data = await res.json()
         scanDialog.results = data
     } catch (e) {
         showMessage('扫描失败: ' + e.message, 'error')
@@ -845,9 +832,7 @@ const saveScannedDevices = async () => {
 
     try {
         // 1. Fetch current channel config to get latest device list
-        const chRes = await fetch(`/api/channels/${scanDialog.channelId}`)
-        if (!chRes.ok) throw new Error('无法获取通道信息')
-        const currentChannel = await chRes.json()
+        const currentChannel = await request.get(`/api/channels/${scanDialog.channelId}`)
 
         // 2. Map selected scanned devices to Device model
         const newDevices = scanDialog.selected.map(scanDev => {
@@ -892,13 +877,11 @@ const saveScannedDevices = async () => {
         currentChannel.devices = [...devicesToKeep, ...newDevices]
 
         // 4. Update channel
-        const updateRes = await fetch(`/api/channels/${scanDialog.channelId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(currentChannel)
+        await request({
+            url: `/api/channels/${scanDialog.channelId}`,
+            method: 'put',
+            data: currentChannel
         })
-
-        if (!updateRes.ok) throw new Error(updateRes.statusText)
 
         showMessage(`成功导入 ${newDevices.length} 个设备`, 'success')
         scanDialog.show = false

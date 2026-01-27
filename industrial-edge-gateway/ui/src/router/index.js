@@ -9,8 +9,14 @@ import Northbound from '../views/Northbound.vue'
 import EdgeCompute from '../views/EdgeCompute.vue'
 import EdgeComputeMetrics from '../views/EdgeComputeMetrics.vue'
 import SystemSettings from '../views/SystemSettings.vue'
+import Login from '../views/Login.vue'
 
 const routes = [
+    {
+        path: '/login',
+        component: Login,
+        meta: { title: '登录' }
+    },
     { 
         path: '/', 
         component: Dashboard,
@@ -56,6 +62,29 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
     // Clear custom nav title on route change
     globalState.navTitle = '';
+
+    const publicPages = ['/login'];
+    const authRequired = !publicPages.includes(to.path);
+
+    let hasValidToken = false
+    const stored = localStorage.getItem('loginInfo')
+    if (stored) {
+        try {
+            const parsed = JSON.parse(stored)
+            if (parsed && parsed.token) {
+                hasValidToken = true
+            } else {
+                localStorage.removeItem('loginInfo')
+            }
+        } catch (e) {
+            localStorage.removeItem('loginInfo')
+        }
+    }
+
+    if (authRequired && !hasValidToken) {
+        return next('/login');
+    }
+
     next();
 })
 

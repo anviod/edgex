@@ -2,6 +2,7 @@
 # 安装后处理脚本（安全版）
 set -e
 
+DATA_DIR="/usr/local/bin/gateway/data"
 CONFIG_DIR="/usr/local/bin/gateway/config"
 BACKUP_DIR="/tmp/gateway_backup"
 
@@ -21,7 +22,8 @@ restore_dir() {
     fi
 }
 
-# 恢复 selfpara 和 config
+# 恢复 data 和 config
+restore_dir "$BACKUP_DIR/data" "$DATA_DIR"
 restore_dir "$BACKUP_DIR/config" "$CONFIG_DIR"
 
 # 仅在 systemctl 存在时执行 systemd 操作

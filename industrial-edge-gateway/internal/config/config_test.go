@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"industrial-edge-gateway/internal/model"
 	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 )
@@ -17,7 +16,7 @@ func TestSaveConfigConcurrency(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	configPath := filepath.Join(tmpDir, "config.yaml")
+	configDir := tmpDir
 
 	// Initial config
 	initialCfg := &Config{
@@ -27,7 +26,7 @@ func TestSaveConfigConcurrency(t *testing.T) {
 		Channels: []model.Channel{},
 	}
 
-	if err := SaveConfig(configPath, initialCfg); err != nil {
+	if err := SaveConfig(configDir, initialCfg); err != nil {
 		t.Fatalf("Failed to save initial config: %v", err)
 	}
 
@@ -51,7 +50,7 @@ func TestSaveConfigConcurrency(t *testing.T) {
 						{ID: fmt.Sprintf("ch-%d-%d", workerID, j), Name: "Test Channel"},
 					},
 				}
-				if err := SaveConfig(configPath, cfg); err != nil {
+				if err := SaveConfig(configDir, cfg); err != nil {
 					errCh <- fmt.Errorf("worker %d iter %d failed: %v", workerID, j, err)
 				}
 			}
@@ -66,7 +65,7 @@ func TestSaveConfigConcurrency(t *testing.T) {
 	}
 
 	// Verify final file is valid YAML and not corrupted
-	finalCfg, err := LoadConfig(configPath)
+	finalCfg, err := LoadConfig(configDir)
 	if err != nil {
 		t.Fatalf("Failed to load final config: %v", err)
 	}
