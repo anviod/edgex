@@ -8,12 +8,16 @@ mqtt:
       username: ""
       password: ""
       devices:
-        bacnet-2228316:
+        "3":
             enable: false
             strategy: periodic
             interval: 10s
+        bacnet-2228316:
+            enable: true
+            strategy: periodic
+            interval: 10s
         bacnet-2228317:
-            enable: false
+            enable: true
             strategy: periodic
             interval: 10s
         opcua-device-1:
@@ -29,16 +33,16 @@ mqtt:
             strategy: periodic
             interval: 0s
         s7-pressure-sensor:
-            enable: false
-            strategy: periodic
+            enable: true
+            strategy: change
             interval: 0s
         s7-pump-1:
-            enable: false
-            strategy: periodic
+            enable: true
+            strategy: change
             interval: 0s
         s7-water-meter:
-            enable: false
-            strategy: periodic
+            enable: true
+            strategy: change
             interval: 0s
         slave-1:
             enable: true

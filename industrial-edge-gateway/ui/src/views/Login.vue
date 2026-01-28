@@ -18,15 +18,18 @@
       theme="dark"
     >
       <div class="text-center mb-6 position-relative">
-         <div class="countdown-timer" :class="{'countdown-warn': ctxData.countdown <= 30}">
-          {{ formatCountdown(ctxData.countdown) }}
-        </div>
-        
         <div class="logo-icon mx-auto mb-4">
            <span>EDGE</span>
         </div>
         <h1 class="text-h5 font-weight-bold text-white">{{ ctxData.configInfo.name || '系统登录' }}</h1>
-        <div class="subtitle-divider mx-auto mt-4"></div>
+        <v-progress-linear
+          :model-value="(ctxData.countdown / 60) * 100"
+          :color="ctxData.countdown <= 10 ? 'error' : 'primary'"
+          height="1"
+          rounded
+          class="mx-auto mt-4"
+          style="width: 96%"
+        ></v-progress-linear>
       </div>
 
       <v-form ref="loginFormRef" @submit.prevent="handleLogin">
@@ -518,25 +521,6 @@ const handleForgotPassword = () => {
   z-index: 10;
   /* Glassmorphism handled by .glass-card in global css or here */
   /* Vuetify handles basics, we add specific overrides if needed */
-}
-
-/* Countdown */
-.countdown-timer {
-  position: absolute;
-  top: -10px;
-  right: -10px;
-  background: rgba(15, 23, 42, 0.6);
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  color: #94a3b8;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  z-index: 20;
-}
-
-.countdown-warn {
-  color: #f43f5e;
-  border-color: rgba(244, 63, 94, 0.2);
 }
 
 .logo-icon {
