@@ -23,6 +23,16 @@
                 >
                     新增点位
                 </v-btn>
+                <v-btn
+                    v-if="channelProtocol === 'bacnet-ip'"
+                    color="info"
+                    variant="tonal"
+                    prepend-icon="mdi-radar"
+                    class="mr-2"
+                    @click="openDiscoverDialog"
+                >
+                    扫描点位
+                </v-btn>
                 <v-btn 
                     color="primary" 
                     variant="tonal" 
@@ -395,6 +405,92 @@
             </v-card>
         </v-dialog>
 
+        <!-- Scan Dialog -->
+        <v-dialog v-model="scanDialog.visible" max-width="900px" persistent>
+            <v-card>
+                <v-card-title class="d-flex align-center bg-info text-white">
+                    <v-icon icon="mdi-radar" class="mr-2"></v-icon>
+                    扫描点位 (对象发现)
+                    <v-spacer></v-spacer>
+                    <v-btn icon="mdi-close" variant="text" @click="scanDialog.visible = false"></v-btn>
+                </v-card-title>
+                <v-card-text class="pa-4">
+                    <v-row class="mb-2" align="center">
+                        <v-col cols="12" sm="8">
+                            <div class="text-caption text-grey-darken-1">
+                                正在扫描设备 (ID: {{ deviceInfo?.config?.device_id }}) 的对象列表...
+                            </div>
+                        </v-col>
+                        <v-col cols="12" sm="4" class="text-right">
+                            <v-btn color="primary" :loading="scanDialog.loading" prepend-icon="mdi-radar" @click="scanPoints">
+                                开始扫描
+                            </v-btn>
+                        </v-col>
+                    </v-row>
+                    
+                    <v-divider class="mb-4"></v-divider>
+                    
+                    <v-table hover density="compact">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px">
+                                    <v-checkbox-btn
+                                        v-model="scanDialog.selectAll"
+                                        @update:model-value="toggleSelectAllScan"
+                                        density="compact"
+                                        hide-details
+                                    ></v-checkbox-btn>
+                                </th>
+                                <th class="text-left">对象名称</th>
+                                <th class="text-left">类型</th>
+                                <th class="text-left">实例</th>
+                                <th class="text-left">当前值</th>
+                                <th class="text-left">单位</th>
+                                <th class="text-left">描述</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-if="scanDialog.results.length === 0 && !scanDialog.loading">
+                                <td colspan="7" class="text-center text-grey py-8">
+                                    <v-icon icon="mdi-magnify" size="large" class="mb-2"></v-icon>
+                                    <div>点击"开始扫描"获取设备对象列表</div>
+                                </td>
+                            </tr>
+                            <tr v-for="obj in scanDialog.results" :key="obj.type + ':' + obj.instance">
+                                <td>
+                                    <v-checkbox-btn
+                                        v-model="scanDialog.selected"
+                                        :value="obj"
+                                        density="compact"
+                                        hide-details
+                                    ></v-checkbox-btn>
+                                </td>
+                                <td>{{ obj.name || '-' }}</td>
+                                <td>{{ obj.type }}</td>
+                                <td>{{ obj.instance }}</td>
+                                <td>{{ obj.present_value }}</td>
+                                <td>{{ obj.units || '-' }}</td>
+                                <td>{{ obj.description || '-' }}</td>
+                            </tr>
+                        </tbody>
+                    </v-table>
+                </v-card-text>
+                <v-card-actions class="pa-4 border-t">
+                    <v-spacer></v-spacer>
+                    <v-btn variant="text" @click="scanDialog.visible = false">取消</v-btn>
+                    <v-btn 
+                        color="primary" 
+                        variant="elevated"
+                        @click="addSelectedPoints" 
+                        :disabled="scanDialog.selected.length === 0 || scanDialog.loading"
+                        :loading="scanDialog.loading"
+                    >
+                        添加选定点位 ({{ scanDialog.selected.length }})
+                    </v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
+
         <!-- Delete Confirmation Dialog -->
         <v-dialog v-model="deleteDialog.visible" max-width="400">
             <v-card>
@@ -437,15 +533,39 @@
                             prepend-inner-icon="mdi-tag"
                             class="mb-2"
                         ></v-text-field>
-                        <v-text-field
-                            v-model="writeDialog.value"
-                            label="新数值"
-                            variant="outlined"
-                            density="comfortable"
-                            prepend-inner-icon="mdi-cog"
-                            placeholder="请输入要写入的值"
-                            autofocus
-                        ></v-text-field>
+                        <template v-if="isBoolType(writeDialog.dataType)">
+                            <v-switch
+                                v-model="writeDialog.valueBool"
+                                inset
+                                color="primary"
+                                class="mt-2"
+                                :label="writeDialog.valueBool ? 'TRUE' : 'FALSE'"
+                            ></v-switch>
+                        </template>
+                        <template v-else-if="isStringType(writeDialog.dataType)">
+                            <v-text-field
+                                v-model="writeDialog.valueStr"
+                                label="新数值"
+                                variant="outlined"
+                                density="comfortable"
+                                prepend-inner-icon="mdi-cog"
+                                placeholder="请输入要写入的字符串"
+                                autofocus
+                            ></v-text-field>
+                        </template>
+                        <template v-else>
+                            <v-text-field
+                                v-model.number="writeDialog.valueNum"
+                                type="number"
+                                step="0.01"
+                                label="新数值"
+                                variant="outlined"
+                                density="comfortable"
+                                prepend-inner-icon="mdi-cog"
+                                placeholder="请输入要写入的数值"
+                                autofocus
+                            ></v-text-field>
+                        </template>
                     </v-form>
                 </v-card-text>
                 <v-card-actions class="pa-4 pt-0">
@@ -476,7 +596,10 @@ const writeDialog = reactive({
     visible: false,
     deviceID: '',
     pointID: '',
-    value: '',
+    dataType: '',
+    valueNum: 0,
+    valueStr: '',
+    valueBool: false,
     loading: false
 })
 
@@ -690,23 +813,141 @@ const executeDelete = async () => {
 const fetchPoints = async () => {
     loading.value = true
     try {
+        // Fetch device info first
+        if (!deviceInfo.value) {
+            try {
+                const dev = await request.get(`/api/channels/${channelId}/devices/${deviceId}`)
+                if (dev) {
+                    deviceInfo.value = dev
+                    globalState.navTitle = deviceInfo.value.name
+                }
+            } catch (e) {
+                console.error('Failed to fetch device info', e)
+            }
+        }
+
         const pts = await request.get(`/api/channels/${channelId}/devices/${deviceId}/points`)
         points.value = pts || []
-
-        try {
-            const dev = await request.get(`/api/channels/${channelId}/devices/${deviceId}`)
-            if (dev) {
-                deviceInfo.value = dev
-                globalState.navTitle = deviceInfo.value.name
-            }
-        } catch (e) {
-            console.error('Failed to fetch device info', e)
-        }
     } catch (e) {
         showMessage('获取点位失败: ' + e.message, 'error')
     } finally {
         loading.value = false
     }
+}
+
+const scanDialog = reactive({
+    visible: false,
+    loading: false,
+    results: [],
+    selected: [],
+    selectAll: false
+})
+
+const openDiscoverDialog = () => {
+    scanDialog.visible = true
+    scanDialog.results = []
+    scanDialog.selected = []
+    scanDialog.selectAll = false
+    // 自动开始扫描，减少多余操作
+    scanPoints()
+}
+
+const scanPoints = async () => {
+    scanDialog.loading = true
+    scanDialog.results = []
+    try {
+        // Ensure device info is loaded
+        if (!deviceInfo.value) {
+             try {
+                 const dev = await request.get(`/api/channels/${channelId}/devices/${deviceId}`)
+                 if (dev) {
+                     deviceInfo.value = dev
+                 }
+             } catch (e) {
+                 console.error('Failed to re-fetch device info', e)
+             }
+        }
+
+        console.log('Scanning points for device:', deviceInfo.value)
+        if (!deviceInfo.value || !deviceInfo.value.config) {
+             showMessage('无法获取设备配置 (请检查设备连接或配置)', 'error')
+             return
+        }
+        
+        // Handle device_id being 0 or string "0"
+        const deviceId = deviceInfo.value.config.device_id
+        if (deviceId === undefined || deviceId === null || deviceId === '') {
+            showMessage('无法获取设备ID (config.device_id)', 'error')
+            return
+        }
+
+        const bacnetDevId = Number(deviceId)
+        
+        const res = await request.post(`/api/channels/${channelId}/scan`, {
+            device_id: bacnetDevId
+        }, { timeout: 30000 }) // Increase timeout for slow BACnet scans
+        
+        if (Array.isArray(res)) {
+            scanDialog.results = res
+        } else {
+            showMessage('扫描结果格式错误', 'error')
+        }
+    } catch (e) {
+        showMessage('扫描失败: ' + e.message, 'error')
+    } finally {
+        scanDialog.loading = false
+    }
+}
+
+const toggleSelectAllScan = (val) => {
+    if (val) {
+        scanDialog.selected = [...scanDialog.results]
+    } else {
+        scanDialog.selected = []
+    }
+}
+
+const addSelectedPoints = async () => {
+    if (scanDialog.selected.length === 0) return
+    
+    scanDialog.loading = true
+    let successCount = 0
+    let failCount = 0
+    
+    for (const obj of scanDialog.selected) {
+        // Determine Datatype
+        let datatype = 'float32'
+        if (obj.type.includes('Binary') || obj.type.includes('Bit')) datatype = 'bool'
+        if (obj.type.includes('MultiState')) datatype = 'uint16'
+        
+        // Determine RW
+        let rw = 'R'
+        if (obj.type.includes('Output') || obj.type.includes('Value')) rw = 'RW'
+        
+        const pointPayload = {
+            id: obj.name || `${obj.type}_${obj.instance}`.replace(/[\s:]+/g, '_'),
+            name: obj.description || `${obj.type} ${obj.instance}`,
+            address: `${obj.type}:${obj.instance}`,
+            datatype: datatype,
+            readwrite: rw,
+            unit: obj.units || '',
+            scale: 1.0,
+            offset: 0.0
+        }
+        
+        try {
+            await request.post(`/api/channels/${channelId}/devices/${deviceId}/points`, pointPayload)
+            successCount++
+        } catch (e) {
+            console.error(e)
+            failCount++
+        }
+    }
+    
+    scanDialog.loading = false
+    showMessage(`已添加 ${successCount} 个点位${failCount > 0 ? `，${failCount} 个失败` : ''}`, failCount > 0 ? 'warning' : 'success')
+    scanDialog.visible = false
+    fetchPoints()
 }
 
 // WebSocket Logic
@@ -760,8 +1001,7 @@ const fetchChannel = async () => {
 onMounted(() => {
     fetchPoints()
     fetchChannel()
-    // connectWs() // It seems connectWs might not be defined or I broke the call. 
-    // Let me check if connectWs is defined in the file.
+    connectWs()
 })
 
 onUnmounted(() => {
@@ -780,18 +1020,27 @@ const isQualityGood = (q) => q === 'Good' || q === 'good'
 const openWriteDialog = (point) => {
     writeDialog.deviceID = deviceId
     writeDialog.pointID = point.id
-    writeDialog.value = ''
+    writeDialog.dataType = (point.datatype || '').toLowerCase()
+    // 初始化不同类型的输入
+    if (isBoolType(writeDialog.dataType)) {
+        writeDialog.valueBool = false
+    } else if (isStringType(writeDialog.dataType)) {
+        writeDialog.valueStr = ''
+    } else {
+        writeDialog.valueNum = 0
+    }
     writeDialog.visible = true
 }
 
 const submitWrite = async () => {
     writeDialog.loading = true
     try {
+        const payloadValue = normalizeWriteValue()
         await request.post('/api/write', {
             channel_id: channelId,
             device_id: deviceId,
             point_id: writeDialog.pointID,
-            value: writeDialog.value
+            value: payloadValue
         })
         showMessage('写入命令已发送', 'success')
         writeDialog.visible = false
@@ -800,5 +1049,31 @@ const submitWrite = async () => {
     } finally {
         writeDialog.loading = false
     }
+}
+
+// 类型判断与转换
+const isBoolType = (dt) => ['bool', 'boolean', 'bit'].includes((dt || '').toLowerCase())
+const isStringType = (dt) => ['string'].includes((dt || '').toLowerCase())
+const isFloatType = (dt) => ['float', 'float32', 'float64', 'double'].includes((dt || '').toLowerCase())
+const isIntType = (dt) => ['int8','int16','int32','int64','uint8','uint16','uint32','uint64','word','dword','lword','int','uint'].includes((dt || '').toLowerCase())
+
+const normalizeWriteValue = () => {
+    const dt = (writeDialog.dataType || '').toLowerCase()
+    if (isBoolType(dt)) {
+        return writeDialog.valueBool
+    }
+    if (isStringType(dt)) {
+        return writeDialog.valueStr
+    }
+    if (isFloatType(dt)) {
+        const n = Number(writeDialog.valueNum)
+        return isNaN(n) ? 0 : n
+    }
+    if (isIntType(dt)) {
+        const n = parseInt(writeDialog.valueNum)
+        return isNaN(n) ? 0 : n
+    }
+    // Fallback: 原样字符串
+    return writeDialog.valueStr || writeDialog.valueNum
 }
 </script>

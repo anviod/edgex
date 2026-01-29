@@ -23,6 +23,15 @@
                     批量删除 ({{ selected.length }})
                 </v-btn>
                 <v-btn
+                    v-if="channelProtocol === 'bacnet-ip'"
+                    color="info"
+                    prepend-icon="mdi-radar"
+                    class="mr-2"
+                    @click="openScanDialog()"
+                >
+                    扫描设备
+                </v-btn>
+                <v-btn
                     color="primary"
                     prepend-icon="mdi-plus"
                     @click="openDialog()"
@@ -45,6 +54,12 @@
                             </th>
                             <th class="text-left">设备ID</th>
                             <th class="text-left">设备名称</th>
+                            <th class="text-left" v-if="channelProtocol && (channelProtocol.includes('modbus') || channelProtocol === 'dlt645')">
+                                {{ channelProtocol === 'dlt645' ? '设备地址' : '从机ID' }}
+                            </th>
+                            <th class="text-left" v-if="channelProtocol === 'bacnet-ip'">Instance ID</th>
+                            <th class="text-left" v-if="channelProtocol === 'bacnet-ip'">IP地址</th>
+                            <th class="text-left" v-if="channelProtocol === 'bacnet-ip'">厂商/型号</th>
                             <th class="text-left">启用状态</th>
                             <th class="text-left">通信状态</th>
                             <th class="text-left">采集间隔</th>
@@ -61,6 +76,24 @@
                             </td>
                             <td class="font-weight-medium">{{ device.id }}</td>
                             <td>{{ device.name }}</td>
+                            <td v-if="channelProtocol && (channelProtocol.includes('modbus') || channelProtocol === 'dlt645')">
+                                <v-chip size="small" variant="outlined" class="font-weight-medium">
+                                    {{ channelProtocol === 'dlt645' ? (device.config?.station_address || device.config?.address || '-') : (device.config?.slave_id || '-') }}
+                                </v-chip>
+                            </td>
+                            <td v-if="channelProtocol === 'bacnet-ip'">
+                                <v-chip size="small" variant="outlined" class="font-weight-medium">
+                                    {{ device.config?.device_id || '-' }}
+                                </v-chip>
+                            </td>
+                            <td v-if="channelProtocol === 'bacnet-ip'">
+                                {{ device.config?.ip || '-' }}
+                            </td>
+                            <td v-if="channelProtocol === 'bacnet-ip'">
+                                <span class="text-caption">
+                                    {{ device.config?.vendor_name || '-' }} / {{ device.config?.model_name || '-' }}
+                                </span>
+                            </td>
                             <td>
                                 <v-chip size="small" :color="device.enable ? 'success' : 'grey'" variant="flat">
                                     {{ device.enable ? '启用' : '禁用' }}
@@ -167,7 +200,7 @@
                                     required
                                 ></v-text-field>
                             </v-col>
-                            <v-col cols="12" v-else-if="channelProtocol === 'modbus-tcp' || channelProtocol === 'modbus-rtu'">
+                            <v-col cols="12" v-else-if="channelProtocol && channelProtocol.includes('modbus')">
                                 <v-text-field
                                     v-model.number="form.modbusSlaveId"
                                     label="从机 ID (Slave ID)"
@@ -175,6 +208,35 @@
                                     placeholder="1"
                                     required
                                 ></v-text-field>
+                            </v-col>
+                            <v-col cols="12" v-else-if="channelProtocol === 'bacnet-ip'">
+                                <v-row>
+                                    <v-col cols="12" sm="4">
+                                        <v-text-field
+                                            v-model.number="form.bacnetDeviceInstance"
+                                            label="设备实例 ID (Instance ID)"
+                                            type="number"
+                                            placeholder="1001"
+                                            required
+                                        ></v-text-field>
+                                    </v-col>
+                                    <v-col cols="12" sm="5">
+                                        <v-text-field
+                                            v-model="form.bacnetIp"
+                                            label="IP 地址"
+                                            placeholder="192.168.1.100"
+                                        ></v-text-field>
+                                    </v-col>
+                                    <v-col cols="12" sm="3">
+                                        <v-text-field
+                                            v-model.number="form.bacnetPort"
+                                            label="端口"
+                                            type="number"
+                                            placeholder="47808"
+                                            default="47808"
+                                        ></v-text-field>
+                                    </v-col>
+                                </v-row>
                             </v-col>
                             
                             <!-- General Config JSON (Fallback or Advanced) -->
@@ -252,6 +314,87 @@
                 </v-card-actions>
             </v-card>
         </v-dialog>
+
+        <!-- Scan Dialog -->
+        <v-dialog v-model="scanDialog" max-width="900px" persistent>
+            <v-card>
+                <v-card-title class="d-flex align-center">
+                    扫描设备
+                    <v-spacer></v-spacer>
+                    <v-btn icon="mdi-close" variant="text" @click="scanDialog = false"></v-btn>
+                </v-card-title>
+                <v-card-text>
+                    <v-row class="mb-2" align="center">
+                        <v-col cols="12" sm="8">
+                            <div class="text-caption text-grey">
+                                点击“开始扫描”以发现网络中的设备。扫描可能需要几秒钟。
+                            </div>
+                        </v-col>
+                        <v-col cols="12" sm="4" class="text-right">
+                            <v-btn color="primary" :loading="isScanning" prepend-icon="mdi-radar" @click="scanDevices">
+                                开始扫描
+                            </v-btn>
+                        </v-col>
+                    </v-row>
+                    
+                    <v-divider class="mb-4"></v-divider>
+                    
+                    <v-table hover>
+                        <thead>
+                            <tr>
+                                <th style="width: 50px">
+                                    <v-checkbox-btn
+                                        v-model="selectAllScan"
+                                        @update:model-value="toggleSelectAllScan"
+                                    ></v-checkbox-btn>
+                                </th>
+                                <th class="text-left">Device ID</th>
+                                <th class="text-left">IP 地址</th>
+                                <th class="text-left">端口</th>
+                                <th class="text-left">厂商</th>
+                                <th class="text-left">型号</th>
+                                <th class="text-left">状态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-if="scanResults.length === 0 && !isScanning">
+                                <td colspan="7" class="text-center text-grey py-4">暂无扫描结果</td>
+                            </tr>
+                            <tr v-for="dev in scanResults" :key="dev.device_id">
+                                <td>
+                                    <v-checkbox-btn
+                                        v-model="selectedScanDevices"
+                                        :value="dev"
+                                    ></v-checkbox-btn>
+                                </td>
+                                <td>{{ dev.device_id }}</td>
+                                <td>{{ dev.ip }}</td>
+                                <td>{{ dev.port }}</td>
+                                <td>{{ dev.vendor_name }}</td>
+                                <td>{{ dev.model_name }}</td>
+                                <td>
+                                    <v-chip size="small" color="success" variant="flat">
+                                        {{ dev.status }}
+                                    </v-chip>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </v-table>
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn variant="text" @click="scanDialog = false">取消</v-btn>
+                    <v-btn 
+                        color="primary" 
+                        @click="addSelectedDevices" 
+                        :disabled="selectedScanDevices.length === 0 || isAddingDevices"
+                        :loading="isAddingDevices"
+                    >
+                        添加选定设备 ({{ selectedScanDevices.length }})
+                    </v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
     </div>
 </template>
 
@@ -267,6 +410,7 @@ const devices = ref([])
 const channelInfo = ref(null)
 const loading = ref(false)
 const channelId = route.params.channelId
+const channelProtocol = computed(() => channelInfo.value?.protocol || '')
 
 const selected = ref([])
 const selectAll = ref(false)
@@ -342,7 +486,10 @@ const defaultForm = {
     enable: true,
     configStr: '{}',
     dlt645Address: '',
-    modbusSlaveId: 1
+    modbusSlaveId: 1,
+    bacnetDeviceInstance: 0,
+    bacnetIp: '',
+    bacnetPort: 47808
 }
 const form = ref({ ...defaultForm })
 
@@ -383,7 +530,10 @@ const openDialog = (item = null) => {
             ...item,
             configStr: JSON.stringify(config, null, 2),
             dlt645Address: config.station_address || config.address || '',
-            modbusSlaveId: config.slave_id || 1
+            modbusSlaveId: config.slave_id || 1,
+            bacnetDeviceInstance: config.device_id || 0,
+            bacnetIp: config.ip || '',
+            bacnetPort: config.port || 47808
         }
     } else {
         isEdit.value = false
@@ -411,8 +561,12 @@ const saveDevice = async () => {
         config.station_address = form.value.dlt645Address
         // Also set 'address' as alias if needed, but station_address is preferred
         config.address = form.value.dlt645Address 
-    } else if (channelProtocol.value === 'modbus-tcp' || channelProtocol.value === 'modbus-rtu' || channelProtocol.value === 'modbus-rtu-over-tcp') {
+    } else if (channelProtocol.value && channelProtocol.value.includes('modbus')) {
         config.slave_id = form.value.modbusSlaveId
+    } else if (channelProtocol.value === 'bacnet-ip') {
+        config.device_id = form.value.bacnetDeviceInstance
+        if (form.value.bacnetIp) config.ip = form.value.bacnetIp
+        if (form.value.bacnetPort) config.port = form.value.bacnetPort
     }
 
     const payload = {
@@ -496,6 +650,113 @@ const executeDelete = async () => {
 
 const goToPoints = (device) => {
     router.push(`/channels/${channelId}/devices/${device.id}/points`)
+}
+
+// Scan Logic
+const scanDialog = ref(false)
+const isScanning = ref(false)
+const scanResults = ref([])
+const selectedScanDevices = ref([])
+const selectAllScan = ref(false)
+const isAddingDevices = ref(false)
+const interfaces = ref([])
+const scanInterface = ref(null)
+
+const fetchInterfaces = async () => {
+    try {
+        const res = await request.get('/api/system/network/interfaces')
+        interfaces.value = res || []
+    } catch (e) {
+        console.error('Failed to fetch interfaces', e)
+    }
+}
+
+const openScanDialog = () => {
+    scanDialog.value = true
+    scanResults.value = []
+    selectedScanDevices.value = []
+    selectAllScan.value = false
+    
+    // Default to channel configured IP if available
+    const configuredIP = channelInfo.value?.config?.ip
+    if (configuredIP && configuredIP !== '0.0.0.0') {
+        scanInterface.value = configuredIP
+    } else {
+        scanInterface.value = null
+    }
+    
+    fetchInterfaces()
+}
+
+const scanDevices = async () => {
+    isScanning.value = true
+    scanResults.value = []
+    selectedScanDevices.value = []
+    try {
+        const payload = {}
+        if (scanInterface.value) {
+            payload.interface_ip = scanInterface.value
+        }
+        
+        const res = await request.post(`/api/channels/${channelId}/scan`, payload, { timeout: 30000 })
+        if (Array.isArray(res)) {
+            scanResults.value = res
+        } else {
+            scanResults.value = []
+            showMessage('扫描结果格式错误', 'error')
+        }
+    } catch (e) {
+        showMessage('扫描失败: ' + e.message, 'error')
+    } finally {
+        isScanning.value = false
+    }
+}
+
+const toggleSelectAllScan = (val) => {
+    if (val) {
+        selectedScanDevices.value = [...scanResults.value]
+    } else {
+        selectedScanDevices.value = []
+    }
+}
+
+const addSelectedDevices = async () => {
+    if (selectedScanDevices.value.length === 0) return
+    
+    isAddingDevices.value = true
+    let successCount = 0
+    let failCount = 0
+    
+    for (const dev of selectedScanDevices.value) {
+        const payload = {
+            name: (dev.model_name || 'Device') + '_' + dev.device_id,
+            enable: true,
+            interval: '5s',
+            config: {
+                device_id: dev.device_id,
+                ip: dev.ip,
+                port: dev.port,
+                vendor_name: dev.vendor_name,
+                model_name: dev.model_name,
+                network_number: dev.network_number,
+                vendor_id: dev.vendor_id
+            },
+            points: []
+        }
+        
+        try {
+            await request.post(`/api/channels/${channelId}/devices`, payload)
+            successCount++
+        } catch (e) {
+            console.error(e)
+            failCount++
+        }
+    }
+    
+    isAddingDevices.value = false
+    showMessage(`已添加 ${successCount} 个设备${failCount > 0 ? `，${failCount} 个失败` : ''}`, failCount > 0 ? 'warning' : 'success')
+    scanDialog.value = false
+    fetchDevices()
 }
 
 onMounted(() => {

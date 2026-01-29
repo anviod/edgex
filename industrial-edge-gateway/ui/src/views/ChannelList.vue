@@ -187,6 +187,56 @@
                                     hint="默认为 2000ms"
                                     persistent-hint
                                 ></v-text-field>
+
+                                <v-divider class="my-4"></v-divider>
+                                <div class="text-subtitle-2 mb-2 text-grey-darken-1">高级配置</div>
+                                <v-row dense>
+                                    <v-col cols="6">
+                                        <v-text-field
+                                            v-model.number="dialog.form.config.max_retries"
+                                            label="最大重试次数"
+                                            type="number"
+                                            placeholder="3"
+                                            hint="默认 3 次"
+                                        ></v-text-field>
+                                    </v-col>
+                                    <v-col cols="6">
+                                        <v-text-field
+                                            v-model.number="dialog.form.config.retry_interval"
+                                            label="重试间隔 (ms)"
+                                            type="number"
+                                            placeholder="100"
+                                            hint="默认 100ms"
+                                        ></v-text-field>
+                                    </v-col>
+                                    <v-col cols="6">
+                                        <v-text-field
+                                            v-model.number="dialog.form.config.instruction_interval"
+                                            label="指令间隔 (ms)"
+                                            type="number"
+                                            placeholder="10"
+                                            hint="默认 10ms"
+                                        ></v-text-field>
+                                    </v-col>
+                                    <v-col cols="6">
+                                         <v-select
+                                            v-model.number="dialog.form.config.start_address"
+                                            :items="[{title:'0 (40000)', value: 0}, {title:'1 (40001)', value: 1}]"
+                                            label="起始地址"
+                                            hint="默认 1 (40001)"
+                                            persistent-hint
+                                        ></v-select>
+                                    </v-col>
+                                    <v-col cols="12">
+                                        <v-select
+                                            v-model="dialog.form.config.byte_order_4"
+                                            :items="['ABCD', 'CDAB', 'BADC', 'DCBA']"
+                                            label="4字节字节序"
+                                            hint="默认 ABCD (Big Endian)"
+                                            persistent-hint
+                                        ></v-select>
+                                    </v-col>
+                                </v-row>
                             </v-col>
                             <v-col cols="12" v-if="dialog.form.protocol === 'dlt645'">
                                 <v-select
@@ -257,6 +307,58 @@
                                         ></v-text-field>
                                     </v-col>
                                 </v-row>
+
+                                <template v-if="dialog.form.protocol === 'modbus-rtu'">
+                                    <v-divider class="my-4"></v-divider>
+                                    <div class="text-subtitle-2 mb-2 text-grey-darken-1">高级配置</div>
+                                    <v-row dense>
+                                        <v-col cols="6">
+                                            <v-text-field
+                                                v-model.number="dialog.form.config.max_retries"
+                                                label="最大重试次数"
+                                                type="number"
+                                                placeholder="3"
+                                                hint="默认 3 次"
+                                            ></v-text-field>
+                                        </v-col>
+                                        <v-col cols="6">
+                                            <v-text-field
+                                                v-model.number="dialog.form.config.retry_interval"
+                                                label="重试间隔 (ms)"
+                                                type="number"
+                                                placeholder="100"
+                                                hint="默认 100ms"
+                                            ></v-text-field>
+                                        </v-col>
+                                        <v-col cols="6">
+                                            <v-text-field
+                                                v-model.number="dialog.form.config.instruction_interval"
+                                                label="指令间隔 (ms)"
+                                                type="number"
+                                                placeholder="10"
+                                                hint="默认 10ms"
+                                            ></v-text-field>
+                                        </v-col>
+                                        <v-col cols="6">
+                                            <v-select
+                                                v-model.number="dialog.form.config.start_address"
+                                                :items="[{title:'0 (40000)', value: 0}, {title:'1 (40001)', value: 1}]"
+                                                label="起始地址"
+                                                hint="默认 1 (40001)"
+                                                persistent-hint
+                                            ></v-select>
+                                        </v-col>
+                                        <v-col cols="12">
+                                            <v-select
+                                                v-model="dialog.form.config.byte_order_4"
+                                                :items="['ABCD', 'CDAB', 'BADC', 'DCBA']"
+                                                label="4字节字节序"
+                                                hint="默认 ABCD (Big Endian)"
+                                                persistent-hint
+                                            ></v-select>
+                                        </v-col>
+                                    </v-row>
+                                </template>
                             </v-col>
                              <v-col cols="12" v-if="dialog.form.protocol === 'bacnet-ip'">
                                 <v-text-field v-model="dialog.form.config.ip" label="IP地址 (默认0.0.0.0)" placeholder="0.0.0.0"></v-text-field>
@@ -755,7 +857,13 @@ const openAddDialog = () => {
             baudRate: 9600,
             dataBits: 8,
             stopBits: 1,
-            parity: 'E'
+            parity: 'E',
+            // Modbus defaults
+            max_retries: 3,
+            retry_interval: 100,
+            instruction_interval: 10,
+            byte_order_4: 'ABCD',
+            start_address: 1
         },
         devices: []
     }
@@ -771,6 +879,15 @@ const openEditDialog = (channel) => {
     // Set default connectionType if missing for dlt645
     if (channel.protocol === 'dlt645' && !dialog.form.config.connectionType) {
         dialog.form.config.connectionType = 'serial'
+    }
+
+    // Set defaults for Modbus protocols if missing
+    if (['modbus-tcp', 'modbus-rtu', 'modbus-rtu-over-tcp'].includes(channel.protocol)) {
+        if (dialog.form.config.max_retries === undefined) dialog.form.config.max_retries = 3
+        if (dialog.form.config.retry_interval === undefined) dialog.form.config.retry_interval = 100
+        if (dialog.form.config.instruction_interval === undefined) dialog.form.config.instruction_interval = 10
+        if (dialog.form.config.byte_order_4 === undefined) dialog.form.config.byte_order_4 = 'ABCD'
+        if (dialog.form.config.start_address === undefined) dialog.form.config.start_address = 1
     }
     
     dialog.show = true

@@ -21,7 +21,7 @@ type CommunicationManageTemplate struct {
 }
 
 func (c *CommunicationManageTemplate) finalizeCollect(node *DeviceNodeTemplate, ctx *CollectContext) {
-	panic("unimplemented")
+	c.FinalizeCollect(node, ctx)
 }
 
 // NewCommunicationManageTemplate 创建新的通信管理器
@@ -146,27 +146,15 @@ func (c *CommunicationManageTemplate) onCollectFail(node *DeviceNodeTemplate) {
 
 	// 根据失败次数调整节点状态
 	switch {
-	case node.Runtime.FailCount >= 3 && node.Runtime.FailCount < 6:
-		// 3-5次失败：进入不稳定状态
+	case node.Runtime.FailCount >= 3 && node.Runtime.FailCount < 10:
 		node.Runtime.State = NodeStateUnstable
-		// 不稳定状态不退避，但标记状态
 
-	case node.Runtime.FailCount >= 6 && node.Runtime.FailCount < 15:
-		// 6-14次失败：进入离线状态
-		node.Runtime.State = NodeStateOffline
-		// 离线状态，固定退避 10秒
-		node.Runtime.NextRetryTime = time.Now().Add(10 * time.Second)
-
-	case node.Runtime.FailCount >= 15:
-		// 15次以上失败：进入隔离状态
+	case node.Runtime.FailCount >= 10:
 		node.Runtime.State = NodeStateQuarantine
-		// 计算退避时间（指数退避：失败次数*1秒）
 		backoff := time.Duration(node.Runtime.FailCount) * time.Second
-		// 限制最大退避时间为5分钟
 		if backoff > 5*time.Minute {
 			backoff = 5 * time.Minute
 		}
-		// 设置退避结束时间
 		node.Runtime.NextRetryTime = time.Now().Add(backoff)
 	}
 }

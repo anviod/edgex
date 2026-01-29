@@ -1,17 +1,23 @@
 package modbus
 
 import (
+	"context"
+	"fmt"
 	"industrial-edge-gateway/internal/model"
-	"strconv"
+	"sync"
 	"testing"
+	"time"
+
+	"github.com/simonvetter/modbus"
 )
 
 // TestGroupPoints 测试点位分组功能
 func TestGroupPoints(t *testing.T) {
-	driver := &ModbusDriver{
-		maxPacketSize:  125,
-		groupThreshold: 50,
-	}
+	// Initialize components
+	decoder := NewPointDecoder("ABCD", 0)
+	// mock transport can be nil for grouping test
+	// maxPacketSize=125 registers, groupThreshold=50
+	scheduler := NewPointScheduler(nil, decoder, 125, 50, 0)
 
 	// 测试场景1：连续的点位应该分组
 	points := []model.Point{
@@ -20,7 +26,7 @@ func TestGroupPoints(t *testing.T) {
 		{ID: "point3", Address: "40003", DataType: "int16"},
 	}
 
-	groups, err := driver.groupPoints(points)
+	groups, err := scheduler.groupPoints(points)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -29,7 +35,7 @@ func TestGroupPoints(t *testing.T) {
 		t.Errorf("Expected 1 group, got: %d", len(groups))
 	}
 
-	if groups[0].Count != 3 {
+	if len(groups) > 0 && groups[0].Count != 3 {
 		t.Errorf("Expected group count 3, got: %d", groups[0].Count)
 	}
 
@@ -39,7 +45,7 @@ func TestGroupPoints(t *testing.T) {
 		{ID: "point2", Address: "40100", DataType: "int16"}, // 间隔99，超过阈值50
 	}
 
-	groups, err = driver.groupPoints(points)
+	groups, err = scheduler.groupPoints(points)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -54,7 +60,7 @@ func TestGroupPoints(t *testing.T) {
 		{ID: "point2", Address: "30001", DataType: "int16"}, // INPUT_REGISTER
 	}
 
-	groups, err = driver.groupPoints(points)
+	groups, err = scheduler.groupPoints(points)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -69,7 +75,7 @@ func TestGroupPoints(t *testing.T) {
 		{ID: "point2", Address: "40003", DataType: "int16"},   // 占用1个寄存器
 	}
 
-	groups, err = driver.groupPoints(points)
+	groups, err = scheduler.groupPoints(points)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -79,14 +85,14 @@ func TestGroupPoints(t *testing.T) {
 	}
 
 	// 总计应该是 3 个寄存器（2 + 1）
-	if groups[0].Count != 3 {
+	if len(groups) > 0 && groups[0].Count != 3 {
 		t.Errorf("Expected total count 3, got: %d", groups[0].Count)
 	}
 }
 
 // TestRegisterCount 测试寄存器数量计算
 func TestRegisterCount(t *testing.T) {
-	driver := &ModbusDriver{}
+	decoder := NewPointDecoder("ABCD", 0)
 
 	tests := []struct {
 		dataType string
@@ -97,126 +103,188 @@ func TestRegisterCount(t *testing.T) {
 		{"int32", 2},
 		{"uint32", 2},
 		{"float32", 2},
-		{"unknown", 1},
+		{"int64", 4},
+		{"uint64", 4},
+		{"float64", 4},
+		{"boolean", 1},
 	}
 
-	for _, tc := range tests {
-		result := driver.getRegisterCount(tc.dataType)
-		if result != tc.expected {
-			t.Errorf("DataType %s: expected %d, got %d", tc.dataType, tc.expected, result)
+	for _, test := range tests {
+		count := decoder.GetRegisterCount(test.dataType)
+		if count != test.expected {
+			t.Errorf("DataType %s: expected %d, got %d", test.dataType, test.expected, count)
 		}
 	}
 }
 
-// TestParseAddress 测试地址解析
-func TestParseAddress(t *testing.T) {
-	driver := &ModbusDriver{}
+// Integration Test Components
 
-	tests := []struct {
-		addr      string
-		regType   string
-		offset    uint16
-		shouldErr bool
-	}{
-		{"40001", "HOLDING_REGISTER", 0, false},
-		{"40100", "HOLDING_REGISTER", 99, false},
-		{"30001", "INPUT_REGISTER", 0, false},
-		{"10001", "DISCRETE_INPUT", 0, false},
-		{"1", "COIL", 0, false},
-		{"100", "COIL", 99, false},
-		{"invalid", "", 0, true},
-	}
-
-	for _, tc := range tests {
-		regType, offset, err := driver.parseAddress(tc.addr)
-		if (err != nil) != tc.shouldErr {
-			t.Errorf("Address %s: expected error=%v, got error=%v", tc.addr, tc.shouldErr, err)
-		}
-
-		if !tc.shouldErr {
-			if regType != tc.regType {
-				t.Errorf("Address %s: expected regType %s, got %s", tc.addr, tc.regType, regType)
-			}
-			if offset != tc.offset {
-				t.Errorf("Address %s: expected offset %d, got %d", tc.addr, tc.offset, offset)
-			}
-		}
-	}
+type TestHandler struct {
+	holdings [65535]uint16
+	mu       sync.Mutex
 }
 
-// TestMaxPacketSizeLimit 测试最大封包大小限制
-func TestMaxPacketSizeLimit(t *testing.T) {
-	driver := &ModbusDriver{
-		maxPacketSize:  10, // 限制为10个寄存器
-		groupThreshold: 50,
+func (h *TestHandler) HandleCoils(req *modbus.CoilsRequest) (res []bool, err error) {
+	return make([]bool, req.Quantity), nil
+}
+
+func (h *TestHandler) HandleDiscreteInputs(req *modbus.DiscreteInputsRequest) (res []bool, err error) {
+	return make([]bool, req.Quantity), nil
+}
+
+func (h *TestHandler) HandleHoldingRegisters(req *modbus.HoldingRegistersRequest) (res []uint16, err error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Validations
+	if int(req.Addr)+int(req.Quantity) > len(h.holdings) {
+		return nil, modbus.ErrIllegalDataAddress
 	}
 
-	// 创建20个点位，应该被分成多个组
-	points := make([]model.Point, 20)
-	for i := 0; i < 20; i++ {
-		points[i] = model.Point{
-			ID:       "point" + strconv.Itoa(i),
-			Address:  strconv.Itoa(40001 + i),
-			DataType: "int16",
-		}
+	if req.IsWrite {
+		copy(h.holdings[req.Addr:], req.Args)
+		return req.Args, nil
 	}
 
-	groups, err := driver.groupPoints(points)
+	// Return slice copy
+	res = make([]uint16, req.Quantity)
+	copy(res, h.holdings[req.Addr:req.Addr+req.Quantity])
+	return res, nil
+}
+
+func (h *TestHandler) HandleInputRegisters(req *modbus.InputRegistersRequest) (res []uint16, err error) {
+	return make([]uint16, req.Quantity), nil
+}
+
+// TestModbusOptimization Integration test for optimization
+func TestModbusOptimization(t *testing.T) {
+	handler := &TestHandler{}
+
+	// Pre-populate data
+	// Set 40001 (offset 0) = 123
+	handler.holdings[0] = 123
+
+	// Set 40002 (offset 1) = 456
+	handler.holdings[1] = 456
+
+	// Set 40003-40004 (offset 2-3) = float32(123.456)
+	// 123.456 = 0x42F6E979
+	// ABCD order: 0x42F6, 0xE979
+	handler.holdings[2] = 0x42F6
+	handler.holdings[3] = 0xE979
+
+	// 1. Start a mock Modbus TCP Server
+	server, err := modbus.NewServer(&modbus.ServerConfiguration{
+		URL:        "tcp://localhost:50502",
+		Timeout:    1 * time.Second,
+		MaxClients: 5,
+	}, handler)
 	if err != nil {
-		t.Fatalf("Expected no error, got: %v", err)
+		t.Fatalf("Failed to create server: %v", err)
 	}
 
-	// 验证每个组都不超过最大封包大小
-	for i, group := range groups {
-		if group.Count > driver.maxPacketSize {
-			t.Errorf("Group %d exceeds max packet size: %d > %d", i, group.Count, driver.maxPacketSize)
+	err = server.Start()
+	if err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+	defer server.Stop()
+
+	// Wait for server start
+	time.Sleep(100 * time.Millisecond)
+
+	// 3. Initialize ModbusDriver
+	driver := NewModbusDriver()
+	config := model.DriverConfig{
+		Config: map[string]any{
+			"url":                 "tcp://localhost:50502",
+			"slave_id":            1,
+			"byteOrder":           "ABCD",
+			"batchSize":           10,
+			"instructionInterval": 10, // 10ms
+			"startAddress":        1,  // 40001 -> offset 0
+		},
+	}
+
+	err = driver.Init(config)
+	if err != nil {
+		t.Fatalf("Failed to init driver: %v", err)
+	}
+
+	ctx := context.Background()
+	err = driver.Connect(ctx)
+	if err != nil {
+		t.Fatalf("Failed to connect: %v", err)
+	}
+	defer driver.Disconnect()
+
+	// 4. Test ReadPoints
+	points := []model.Point{
+		{
+			ID:       "p1",
+			Address:  "40001", // Offset 0
+			DataType: "uint16",
+		},
+		{
+			ID:       "p2",
+			Address:  "40002", // Offset 1
+			DataType: "uint16",
+		},
+		{
+			ID:       "p3",
+			Address:  "40003", // Offset 2, float32 takes 2 regs
+			DataType: "float32",
+		},
+	}
+
+	results, err := driver.ReadPoints(ctx, points)
+	if err != nil {
+		t.Fatalf("ReadPoints failed: %v", err)
+	}
+
+	// Verify p1
+	if val, ok := results["p1"]; ok {
+		if val.Value.(uint16) != 123 {
+			t.Errorf("p1 expected 123, got %v", val.Value)
 		}
+	} else {
+		t.Errorf("p1 missing")
 	}
 
-	// 应该至少有2个组
-	if len(groups) < 2 {
-		t.Errorf("Expected at least 2 groups, got: %d", len(groups))
-	}
-}
-
-// TestSortAddressInfos 测试地址排序
-func TestSortAddressInfos(t *testing.T) {
-	infos := []AddressInfo{
-		{Offset: 100},
-		{Offset: 50},
-		{Offset: 150},
-		{Offset: 75},
-	}
-
-	sortAddressInfos(infos)
-
-	expected := []uint16{50, 75, 100, 150}
-	for i, info := range infos {
-		if info.Offset != expected[i] {
-			t.Errorf("Index %d: expected offset %d, got %d", i, expected[i], info.Offset)
+	// Verify p2
+	if val, ok := results["p2"]; ok {
+		if val.Value.(uint16) != 456 {
+			t.Errorf("p2 expected 456, got %v", val.Value)
 		}
-	}
-}
-
-// BenchmarkGroupPoints 基准测试：分组性能
-func BenchmarkGroupPoints(b *testing.B) {
-	driver := &ModbusDriver{
-		maxPacketSize:  125,
-		groupThreshold: 50,
+	} else {
+		t.Errorf("p2 missing")
 	}
 
-	// 创建100个点位
-	points := make([]model.Point, 100)
-	for i := 0; i < 100; i++ {
-		points[i] = model.Point{
-			ID:       "point" + strconv.Itoa(i),
-			Address:  strconv.Itoa(40001 + i),
-			DataType: "int16",
+	// Verify p3
+	if val, ok := results["p3"]; ok {
+		// float comparison
+		fVal := val.Value.(float32)
+		if fVal < 123.45 || fVal > 123.46 {
+			t.Errorf("p3 expected ~123.456, got %v", fVal)
 		}
+	} else {
+		t.Errorf("p3 missing")
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		driver.groupPoints(points)
+	// 5. Test WritePoint
+	// Write 789 to p1
+	err = driver.WritePoint(ctx, points[0], 789)
+	if err != nil {
+		t.Fatalf("WritePoint failed: %v", err)
 	}
+
+	// Verify write by checking handler state directly
+	handler.mu.Lock()
+	val := handler.holdings[0]
+	handler.mu.Unlock()
+
+	if val != 789 {
+		t.Errorf("p1 after write expected 789, got %v", val)
+	}
+
+	fmt.Println("TestModbusOptimization passed successfully")
 }

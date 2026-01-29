@@ -15,7 +15,7 @@
       :class="{'shake-animation': isShaking, 'login-card-exit': isLoginSuccess}"
       elevation="10" 
       width="420" 
-      theme="dark"
+      theme="light"
     >
       <div class="text-center mb-6 position-relative">
         <div class="logo-icon mx-auto mb-4">
@@ -27,39 +27,44 @@
           :color="ctxData.countdown <= 10 ? 'error' : 'primary'"
           height="1"
           rounded
+          reverse
           class="mx-auto mt-4"
           style="width: 96%"
         ></v-progress-linear>
       </div>
 
       <v-form ref="loginFormRef" @submit.prevent="handleLogin">
-        <v-text-field
-            v-model.trim="ctxData.loginForm.userName"
-            label="用户名"
-            placeholder="请输入用户名"
-            prepend-inner-icon="mdi-account"
-            variant="outlined"
-            bg-color="rgba(15, 23, 42, 0.5)"
-            color="primary"
-            class="mb-2 input-field"
-            required
-        ></v-text-field>
+        <!-- HTML5 Username Input -->
+        <div class="custom-input-group mb-4">
+            <div class="input-icon">
+                <v-icon icon="mdi-account" size="small" color="primary"></v-icon>
+            </div>
+            <input 
+                type="text" 
+                v-model.trim="ctxData.loginForm.userName"
+                placeholder="请输入用户名"
+                class="html5-input"
+                required
+            />
+        </div>
 
-        <v-text-field
-            v-model.trim="ctxData.loginForm.password"
-            label="密码"
-            placeholder="请输入密码"
-            prepend-inner-icon="mdi-lock"
-            :type="showPassword ? 'text' : 'password'"
-            :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
-            @click:append-inner="showPassword = !showPassword"
-            variant="outlined"
-            bg-color="rgba(15, 23, 42, 0.5)"
-            color="primary"
-            class="mb-2 input-field"
-            required
-            @keyup.enter="handleLogin"
-        ></v-text-field>
+        <!-- HTML5 Password Input -->
+        <div class="custom-input-group mb-4">
+            <div class="input-icon">
+                <v-icon icon="mdi-lock" size="small" color="primary"></v-icon>
+            </div>
+            <input 
+                :type="showPassword ? 'text' : 'password'"
+                v-model.trim="ctxData.loginForm.password"
+                placeholder="请输入密码"
+                class="html5-input"
+                required
+                @keyup.enter="handleLogin"
+            />
+            <div class="password-toggle" @click="showPassword = !showPassword">
+                <v-icon :icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'" size="small" color="grey"></v-icon>
+            </div>
+        </div>
 
         <div class="d-flex justify-space-between align-center mb-6">
             <v-checkbox
@@ -163,8 +168,12 @@ const startCountdown = () => {
   }
 
   ctxData.countdown = 60
+  // 使用高频更新（20ms）实现平滑线性效果
+  const interval = 20
+  const step = 60 / (60 * 1000 / interval) // 每次减少的时间量
+
   ctxData.countdownTimer = setInterval(() => {
-    ctxData.countdown--
+    ctxData.countdown -= step
 
     if (ctxData.countdown <= 0) {
       clearInterval(ctxData.countdownTimer)
@@ -175,7 +184,7 @@ const startCountdown = () => {
         window.location.reload()
       }, 3000)
     }
-  }, 1000)
+  }, interval)
 }
 
 onBeforeUnmount(() => {
@@ -437,7 +446,7 @@ const handleForgotPassword = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0f172a; /* 深色背景 */
+  background: #ffffff;
   position: relative;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
@@ -452,15 +461,15 @@ const handleForgotPassword = () => {
   left: 0;
   z-index: 1;
   background: 
-    radial-gradient(circle at 15% 50%, rgba(56, 189, 248, 0.08), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(99, 102, 241, 0.08), transparent 25%);
+    radial-gradient(circle at 15% 50%, rgba(56, 189, 248, 0.04), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(99, 102, 241, 0.04), transparent 25%);
 }
 
 .blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.4;
+  filter: blur(60px);
+  opacity: 0.15;
   animation: float 20s infinite ease-in-out;
 }
 
@@ -579,21 +588,78 @@ const handleForgotPassword = () => {
   align-items: center;
 }
 
+/* HTML5 Input Styles */
+.custom-input-group {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 8px;
+    padding: 0 12px;
+    height: 48px; /* Fixed height to match password field with toggle */
+    transition: all 0.3s ease;
+}
+
+/* Linear progress transition override */
+:deep(.v-progress-linear__determinate) {
+    transition: width 0.05s linear !important;
+}
+
+.custom-input-group:focus-within {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.input-icon {
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.html5-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14px;
+    color: #0f172a;
+    width: 100%;
+}
+
+.html5-input::placeholder {
+    color: #94a3b8;
+}
+
+.password-toggle {
+    cursor: pointer;
+    margin-left: 8px;
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.password-toggle:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
 /* Vuetify Overrides for Transparent/Glass effect */
 :deep(.v-field__outline__start),
 :deep(.v-field__outline__notch),
 :deep(.v-field__outline__end) {
-    border-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: transparent !important;
 }
 
 /* Removed previous focus border color override to keep it subtle */
 
 :deep(.v-label) {
-    color: #94a3b8 !important;
+    color: #334155 !important;
 }
 
 :deep(.v-field__input) {
-    color: #f1f5f9 !important;
+    color: #0f172a !important;
 }
 
 :deep(.remember-checkbox .v-label) {
@@ -604,12 +670,13 @@ const handleForgotPassword = () => {
 /* Animations */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-  20%, 40%, 60%, 80% { transform: translateX(5px); }
+  25% { transform: translateX(-2px); }
+  50% { transform: translateX(2px); }
+  75% { transform: translateX(-1px); }
 }
 
 .shake-animation {
-  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  animation: shake 0.3s ease-out both;
 }
 
 .login-card-exit {
@@ -621,15 +688,26 @@ const handleForgotPassword = () => {
 
 /* Enhanced Focus Effect */
 :deep(.v-field--focused) {
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
     transition: box-shadow 0.3s ease;
 }
 
 :deep(.v-field--focused .v-field__outline__start),
 :deep(.v-field--focused .v-field__outline__notch),
 :deep(.v-field--focused .v-field__outline__end) {
-    border-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(59, 130, 246, 0.6) !important;
     border-width: 1px !important;
+}
+
+/* Minimal style: remove loader progress animation inside fields */
+:deep(.v-field__loader) {
+  display: none;
+}
+
+/* Minimal hover effect for the login button */
+.login-button:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 :deep(.v-field--error:not(.v-field--disabled) .v-field__outline__start),

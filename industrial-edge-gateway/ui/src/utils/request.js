@@ -3,7 +3,7 @@ import { showMessage } from '@/composables/useGlobalState'
 
 const service = axios.create({
   baseURL: '',
-  timeout: 5000
+  timeout: 30000 // Increased timeout for slow protocol operations (BACnet scan)
 })
 
 service.interceptors.request.use(

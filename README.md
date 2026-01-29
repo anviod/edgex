@@ -67,7 +67,7 @@ go mod tidy
 go run cmd/main.go
 
 # 或者指定配置目录
-go run cmd/main.go -conf ./my_conf/
+go run cmd/main.go -conf ./conf/
 ```
 
 ### 2. 编译前端

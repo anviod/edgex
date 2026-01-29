@@ -471,6 +471,9 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 		}
 	}
 
+	// 设置设备配置 (BACnet 等需要 IP/Port)
+	d.SetDeviceConfig(foundDev.Config)
+
 	// Ensure DeviceID is set on points for the driver
 	for i := range pointsCopy {
 		pointsCopy[i].DeviceID = devID
@@ -687,7 +690,9 @@ func (cm *ChannelManager) collectDevice(dev *model.Device, d drv.Driver, ch *mod
 	}
 
 	// 设置设备配置 (BACnet 等需要 IP/Port)
-	d.SetDeviceConfig(dev.Config)
+	if err := d.SetDeviceConfig(dev.Config); err != nil {
+		log.Printf("Failed to set device config for %s: %v", dev.Name, err)
+	}
 
 	// Ensure DeviceID is set on points for the driver
 	for i := range dev.Points {
