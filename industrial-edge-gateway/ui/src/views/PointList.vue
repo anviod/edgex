@@ -24,7 +24,7 @@
                     新增点位
                 </v-btn>
                 <v-btn
-                    v-if="channelProtocol === 'bacnet-ip'"
+                    v-if="channelProtocol === 'bacnet-ip' || channelProtocol === 'opc-ua'"
                     color="info"
                     variant="tonal"
                     prepend-icon="mdi-radar"
@@ -62,9 +62,17 @@
                         <tr v-for="point in points" :key="point.id">
                             <td class="font-weight-medium">{{ point.id }}</td>
                             <td>{{ point.name }}</td>
-                            <td>
-                                <span class="text-h6 font-weight-bold text-primary">{{ formatValue(point.value) }}</span>
-                                <span v-if="point.unit" class="text-caption ml-1">{{ point.unit }}</span>
+                            <td style="max-width: 200px;">
+                                <div 
+                                    class="d-flex align-center cursor-pointer"
+                                    @click="showFullValue(point.value)"
+                                    title="点击查看完整值"
+                                >
+                                    <span class="text-h6 font-weight-bold text-primary text-truncate d-block" style="max-width: 100%;">
+                                        {{ formatValue(point.value) }}
+                                    </span>
+                                    <span v-if="point.unit" class="text-caption ml-1 flex-shrink-0">{{ point.unit }}</span>
+                                </div>
                             </td>
                             <td>
                                 <v-chip 
@@ -421,10 +429,18 @@
                                 正在扫描设备 (ID: {{ deviceInfo?.config?.device_id }}) 的对象列表...
                             </div>
                         </v-col>
-                        <v-col cols="12" sm="4" class="text-right">
+                        <v-col cols="12" sm="4" class="d-flex align-center justify-end">
                             <v-btn color="primary" :loading="scanDialog.loading" prepend-icon="mdi-radar" @click="scanPoints">
                                 开始扫描
                             </v-btn>
+                            <v-switch
+                                class="ml-4"
+                                hide-details
+                                color="primary"
+                                density="compact"
+                                v-model="scanDialog.varsOnly"
+                                :label="scanDialog.varsOnly ? '仅显示变量' : '显示全部'"
+                            ></v-switch>
                         </v-col>
                     </v-row>
                     
@@ -442,12 +458,12 @@
                                     ></v-checkbox-btn>
                                 </th>
                                 <th class="text-left">状态</th>
-                                <th class="text-left">对象名称</th>
+                                <th class="text-left">对象名称/NodeID</th>
                                 <th class="text-left">类型</th>
-                                <th class="text-left">实例</th>
-                                <th class="text-left">当前值</th>
-                                <th class="text-left">单位</th>
-                                <th class="text-left">描述</th>
+                                <th class="text-left" v-if="channelProtocol !== 'opc-ua'">实例</th>
+                                <th class="text-left" v-if="channelProtocol !== 'opc-ua'">当前值</th>
+                                <th class="text-left" v-if="channelProtocol !== 'opc-ua'">单位</th>
+                                <th class="text-left">描述/DataType</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -457,11 +473,12 @@
                                     <div>点击"开始扫描"获取设备对象列表</div>
                                 </td>
                             </tr>
-                            <tr v-for="obj in scanDialog.results" :key="obj.type + ':' + obj.instance">
+                            <tr v-for="obj in scanFilteredResults" :key="obj.isOpcNode ? obj.node_id : (obj.type + ':' + obj.instance)">
                                 <td>
                                     <v-checkbox-btn
                                         v-model="scanDialog.selected"
                                         :value="obj"
+                                        :disabled="obj.diff_status === 'existing'"
                                         density="compact"
                                         hide-details
                                     ></v-checkbox-btn>
@@ -477,12 +494,17 @@
                                     </v-chip>
                                     <span v-else>-</span>
                                 </td>
-                                <td>{{ obj.name || '-' }}</td>
+                                <!-- Object Name with Indentation for OPC UA -->
+                                <td :style="obj.isOpcNode ? { paddingLeft: (obj.level * 20 + 16) + 'px' } : {}">
+                                    <v-icon v-if="obj.isOpcNode" :icon="obj.type === 'Variable' ? 'mdi-tag-outline' : 'mdi-folder-outline'" size="small" class="mr-1"></v-icon>
+                                    {{ obj.object_name || obj.name || '-' }}
+                                    <div v-if="obj.isOpcNode" class="text-caption text-grey">{{ obj.node_id }}</div>
+                                </td>
                                 <td>{{ obj.type }}</td>
-                                <td>{{ obj.instance }}</td>
-                                <td>{{ obj.present_value }}</td>
-                                <td>{{ obj.units || '-' }}</td>
-                                <td>{{ obj.description || '-' }}</td>
+                                <td v-if="channelProtocol !== 'opc-ua'">{{ obj.instance }}</td>
+                                <td v-if="channelProtocol !== 'opc-ua'">{{ obj.present_value }}</td>
+                                <td v-if="channelProtocol !== 'opc-ua'">{{ obj.units || '-' }}</td>
+                                <td>{{ obj.isOpcNode ? (obj.data_type || '-') : (obj.description || '-') }}</td>
                             </tr>
                         </tbody>
                     </v-table>
@@ -587,11 +609,54 @@
                 </v-card-actions>
             </v-card>
         </v-dialog>
+
+        <!-- Value Detail Dialog -->
+        <v-dialog v-model="valueDialog.visible" max-width="600">
+            <v-card>
+                <v-card-title class="text-h5 bg-primary text-white">
+                    完整数值
+                </v-card-title>
+                <v-card-text class="pt-4">
+                    <v-textarea
+                        label="原始值"
+                        v-model="valueDialog.value"
+                        readonly
+                        auto-grow
+                        rows="3"
+                        variant="outlined"
+                        class="mb-4"
+                    ></v-textarea>
+
+                    <div v-if="valueDialog.isBase64">
+                        <div class="text-subtitle-1 mb-2 font-weight-bold">Base64 解码</div>
+                        <v-btn-toggle v-model="valueDialog.decodeType" color="primary" mandatory class="mb-4" @update:model-value="tryDecode">
+                            <v-btn value="text">Text (UTF-8)</v-btn>
+                            <v-btn value="hex">Hex</v-btn>
+                            <v-btn value="json">JSON</v-btn>
+                        </v-btn-toggle>
+                        
+                        <v-textarea
+                            label="解码结果"
+                            v-model="valueDialog.decodedValue"
+                            readonly
+                            auto-grow
+                            rows="5"
+                            variant="outlined"
+                            style="font-family: monospace;"
+                        ></v-textarea>
+                    </div>
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn color="primary" @click="valueDialog.visible = false">关闭</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
     </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { globalState, showMessage } from '../composables/useGlobalState'
 import request from '@/utils/request'
@@ -852,7 +917,21 @@ const scanDialog = reactive({
     loading: false,
     results: [],
     selected: [],
-    selectAll: false
+    selectAll: false,
+    varsOnly: true
+})
+
+const existingAddresses = computed(() => {
+    const set = new Set()
+    for (const p of points.value || []) {
+        if (p && p.address) set.add(p.address)
+    }
+    return set
+})
+
+const scanFilteredResults = computed(() => {
+    if (!scanDialog.varsOnly) return scanDialog.results
+    return scanDialog.results.filter(r => !r.isOpcNode || r.type === 'Variable')
 })
 
 const getStatusColor = (status) => {
@@ -878,8 +957,70 @@ const openDiscoverDialog = () => {
     scanDialog.results = []
     scanDialog.selected = []
     scanDialog.selectAll = false
+    scanDialog.varsOnly = true
     // 自动开始扫描，减少多余操作
     scanPoints()
+}
+
+// Value Detail Dialog Logic
+const valueDialog = reactive({
+    visible: false,
+    value: '',
+    decodedValue: '',
+    decodeType: 'text',
+    isBase64: false
+})
+
+const isBase64 = (str) => {
+    if (typeof str !== 'string' || str.length === 0) return false;
+    try {
+        return btoa(atob(str)) === str;
+    } catch (err) {
+        return false;
+    }
+}
+
+const showFullValue = (val) => {
+    // If val is object/array, convert to string
+    if (typeof val === 'object' && val !== null) {
+        val = JSON.stringify(val)
+    }
+    valueDialog.value = String(val)
+    valueDialog.decodedValue = ''
+    valueDialog.decodeType = 'text'
+    
+    // Check Base64
+    valueDialog.isBase64 = isBase64(valueDialog.value)
+    if (valueDialog.isBase64) {
+        tryDecode('text')
+    }
+    valueDialog.visible = true
+}
+
+const tryDecode = (type) => {
+    valueDialog.decodeType = type
+    if (!valueDialog.value) return
+    
+    try {
+        const raw = atob(valueDialog.value)
+        if (type === 'text') {
+            const bytes = Uint8Array.from(raw, c => c.charCodeAt(0))
+            valueDialog.decodedValue = new TextDecoder().decode(bytes)
+        } else if (type === 'hex') {
+            let result = ''
+            for (let i = 0; i < raw.length; i++) {
+                const hex = raw.charCodeAt(i).toString(16)
+                result += (hex.length === 2 ? hex : '0' + hex) + ' '
+            }
+            valueDialog.decodedValue = result.toUpperCase().trim()
+        } else if (type === 'json') {
+            const bytes = Uint8Array.from(raw, c => c.charCodeAt(0))
+            const str = new TextDecoder().decode(bytes)
+            valueDialog.decodedValue = JSON.stringify(JSON.parse(str), null, 2)
+        }
+    } catch (e) {
+        valueDialog.decodedValue = 'Decode failed: ' + e.message
+    }
 }
 
 const scanPoints = async () => {
@@ -903,23 +1044,36 @@ const scanPoints = async () => {
              showMessage('无法获取设备配置 (请检查设备连接或配置)', 'error')
              return
         }
-        
-        // Handle device_id being 0 or string "0"
-        const configDeviceId = deviceInfo.value.config.device_id
-        if (configDeviceId === undefined || configDeviceId === null || configDeviceId === '') {
-            showMessage('无法获取设备ID (config.device_id)', 'error')
-            return
+        // OPC UA 设备前置校验：必须存在 endpoint
+        if (channelProtocol.value === 'opc-ua') {
+            const ep = deviceInfo.value.config.endpoint
+            if (!ep || typeof ep !== 'string' || ep.length === 0) {
+                showMessage('OPC UA 设备未配置 endpoint，无法扫描', 'error')
+                return
+            }
         }
-
-        const bacnetDevId = Number(configDeviceId)
+        
+        // Handle device_id being 0 or string "0" for BACnet
+        if (channelProtocol.value === 'bacnet-ip') {
+            const configDeviceId = deviceInfo.value.config.device_id
+            if (configDeviceId === undefined || configDeviceId === null || configDeviceId === '') {
+                showMessage('无法获取设备ID (config.device_id)', 'error')
+                return
+            }
+        }
         
         // Call device-specific scan endpoint
         const res = await request.post(`/api/channels/${channelId}/devices/${deviceId}/scan`, {
             // device_id is injected by backend based on device config
-        }, { timeout: 60000 }) // Increase timeout for slow BACnet scans
+        }, { timeout: 60000 }) // Increase timeout for slow BACnet/OPC UA scans
         
         if (Array.isArray(res)) {
-            scanDialog.results = res
+            if (channelProtocol.value === 'opc-ua') {
+                // Flatten OPC UA tree for display
+                scanDialog.results = flattenOpcNodes(res)
+            } else {
+                scanDialog.results = res
+            }
         } else {
             showMessage('扫描结果格式错误', 'error')
         }
@@ -930,9 +1084,38 @@ const scanPoints = async () => {
     }
 }
 
+const flattenOpcNodes = (nodes, level = 0) => {
+    let result = []
+    for (const node of nodes) {
+        // Add current node
+        const item = {
+            ...node,
+            level: level,
+            isOpcNode: true,
+            // Map to common fields for display
+            device_id: node.node_id, // Use NodeID as ID
+            object_name: node.name,
+            type: node.type, // "Variable" or "Folder"
+            description: node.node_id // Show NodeID in description/extra
+        }
+        // Mark existing/new for sync status
+        if (node.type === 'Variable' && node.node_id) {
+            item.diff_status = existingAddresses.value.has(node.node_id) ? 'existing' : 'new'
+        }
+        result.push(item)
+        
+        // Process children
+        if (node.children && node.children.length > 0) {
+            result = result.concat(flattenOpcNodes(node.children, level + 1))
+        }
+    }
+    return result
+}
+
 const toggleSelectAllScan = (val) => {
     if (val) {
-        scanDialog.selected = [...scanDialog.results]
+        // Only select non-disabled rows
+        scanDialog.selected = scanFilteredResults.value.filter(r => !(r.diff_status === 'existing'))
     } else {
         scanDialog.selected = []
     }
@@ -946,24 +1129,61 @@ const addSelectedPoints = async () => {
     let failCount = 0
     
     for (const obj of scanDialog.selected) {
-        // Determine Datatype
-        let datatype = 'float32'
-        if (obj.type.includes('Binary') || obj.type.includes('Bit')) datatype = 'bool'
-        if (obj.type.includes('MultiState')) datatype = 'uint16'
+        let pointPayload = {}
         
-        // Determine RW
-        let rw = 'R'
-        if (obj.type.includes('Output') || obj.type.includes('Value')) rw = 'RW'
-        
-        const pointPayload = {
-            id: obj.name || `${obj.type}_${obj.instance}`.replace(/[\s:]+/g, '_'),
-            name: obj.description || `${obj.type} ${obj.instance}`,
-            address: `${obj.type}:${obj.instance}`,
-            datatype: datatype,
-            readwrite: rw,
-            unit: obj.units || '',
-            scale: 1.0,
-            offset: 0.0
+        if (channelProtocol.value === 'opc-ua') {
+            // OPC UA Point Mapping
+            // Skip non-variable nodes if desired, or let user decide (variables only usually)
+            if (obj.type !== 'Variable') continue;
+            
+            let rw = 'R'
+            if (obj.access_level && obj.access_level.includes('CurrentWrite')) {
+                rw = 'RW'
+            }
+            
+            // Map OPC UA DataType to System DataType
+            let dt = (obj.data_type || 'Float').toLowerCase()
+            if (dt.includes('bool')) dt = 'bool'
+            else if (dt.includes('int16') || dt.includes('short')) dt = 'int16'
+            else if (dt.includes('uint16') || dt.includes('unsignedshort')) dt = 'uint16'
+            else if (dt.includes('int32') || dt.includes('int')) dt = 'int32'
+            else if (dt.includes('uint32') || dt.includes('unsignedint')) dt = 'uint32'
+            else if (dt.includes('float')) dt = 'float32'
+            else if (dt.includes('double')) dt = 'float64'
+            else if (dt.includes('string')) dt = 'string'
+            else dt = 'float32' // Default fallback
+
+            pointPayload = {
+                id: obj.node_id, // Use NodeID as ID
+                name: obj.display_name || obj.node_id,
+                address: obj.node_id,
+                datatype: dt,
+                readwrite: rw,
+                unit: '', // Units not always available in browse
+                scale: 1.0,
+                offset: 0.0
+            }
+        } else {
+            // BACnet Point Mapping
+            // Determine Datatype
+            let datatype = 'float32'
+            if (obj.type.includes('Binary') || obj.type.includes('Bit')) datatype = 'bool'
+            if (obj.type.includes('MultiState')) datatype = 'uint16'
+            
+            // Determine RW
+            let rw = 'R'
+            if (obj.type.includes('Output') || obj.type.includes('Value')) rw = 'RW'
+            
+            pointPayload = {
+                id: obj.name || `${obj.type}_${obj.instance}`.replace(/[\s:]+/g, '_'),
+                name: obj.description || `${obj.type} ${obj.instance}`,
+                address: `${obj.type}:${obj.instance}`,
+                datatype: datatype,
+                readwrite: rw,
+                unit: obj.units || '',
+                scale: 1.0,
+                offset: 0.0
+            }
         }
         
         try {

@@ -59,6 +59,7 @@
                             </th>
                             <th class="text-left" v-if="channelProtocol === 'bacnet-ip'">Instance ID</th>
                             <th class="text-left" v-if="channelProtocol === 'bacnet-ip'">IP地址</th>
+                            <th class="text-left" v-if="channelProtocol === 'opc-ua'">Endpoint</th>
                             <th class="text-left" v-if="channelProtocol === 'bacnet-ip'">厂商/型号</th>
                             <th class="text-left">启用状态</th>
                             <th class="text-left">通信状态</th>
@@ -88,6 +89,9 @@
                             </td>
                             <td v-if="channelProtocol === 'bacnet-ip'">
                                 {{ device.config?.ip || '-' }}
+                            </td>
+                            <td v-if="channelProtocol === 'opc-ua'">
+                                <span class="text-caption">{{ device.config?.endpoint || '-' }}</span>
                             </td>
                             <td v-if="channelProtocol === 'bacnet-ip'">
                                 <span class="text-caption">
@@ -248,6 +252,94 @@
                                 </v-row>
                             </v-col>
                             
+                            <!-- OPC UA Config -->
+                            <v-col cols="12" v-if="channelProtocol === 'opc-ua'">
+                                <v-card variant="outlined" class="pa-2">
+                                    <v-card-title class="text-subtitle-1 pb-0">OPC UA 连接配置</v-card-title>
+                                    <v-card-text>
+                                        <v-row>
+                                            <v-col cols="12">
+                                                <v-text-field
+                                                    v-model="form.config.endpoint"
+                                                    label="Endpoint URL"
+                                                    placeholder="opc.tcp://192.168.1.10:4840"
+                                                    hide-details="auto"
+                                                    density="compact"
+                                                ></v-text-field>
+                                            </v-col>
+                                            <v-col cols="12" sm="6">
+                                                <v-select
+                                                    v-model="form.config.security_policy"
+                                                    :items="['None', 'Basic128Rsa15', 'Basic256', 'Basic256Sha256']"
+                                                    label="安全策略"
+                                                    hide-details
+                                                    density="compact"
+                                                ></v-select>
+                                            </v-col>
+                                            <v-col cols="12" sm="6">
+                                                <v-select
+                                                    v-model="form.config.security_mode"
+                                                    :items="['None', 'Sign', 'SignAndEncrypt']"
+                                                    label="安全模式"
+                                                    hide-details
+                                                    density="compact"
+                                                ></v-select>
+                                            </v-col>
+                                            <v-col cols="12" sm="6">
+                                                <v-select
+                                                    v-model="form.config.auth_method"
+                                                    :items="['Anonymous', 'UserName', 'Certificate']"
+                                                    label="认证方式"
+                                                    hide-details
+                                                    density="compact"
+                                                ></v-select>
+                                            </v-col>
+                                            
+                                            <!-- UserName Auth -->
+                                            <template v-if="form.config.auth_method === 'UserName'">
+                                                <v-col cols="12" sm="6">
+                                                    <v-text-field
+                                                        v-model="form.config.username"
+                                                        label="用户名"
+                                                        hide-details="auto"
+                                                        density="compact"
+                                                    ></v-text-field>
+                                                </v-col>
+                                                <v-col cols="12" sm="6">
+                                                    <v-text-field
+                                                        v-model="form.config.password"
+                                                        label="密码"
+                                                        type="password"
+                                                        hide-details="auto"
+                                                        density="compact"
+                                                    ></v-text-field>
+                                                </v-col>
+                                            </template>
+                                            
+                                            <!-- Certificate Auth -->
+                                            <template v-if="form.config.auth_method === 'Certificate'">
+                                                <v-col cols="12">
+                                                    <v-text-field
+                                                        v-model="form.config.certificate_file"
+                                                        label="客户端证书路径"
+                                                        hide-details="auto"
+                                                        density="compact"
+                                                    ></v-text-field>
+                                                </v-col>
+                                                <v-col cols="12">
+                                                    <v-text-field
+                                                        v-model="form.config.private_key_file"
+                                                        label="私钥路径"
+                                                        hide-details="auto"
+                                                        density="compact"
+                                                    ></v-text-field>
+                                                </v-col>
+                                            </template>
+                                        </v-row>
+                                    </v-card-text>
+                                </v-card>
+                            </v-col>
+
                             <!-- Storage Config -->
                             <v-col cols="12">
                                 <v-card variant="outlined" class="pa-2">
@@ -631,6 +723,8 @@ const defaultForm = {
     bacnetDeviceInstance: 0,
     bacnetIp: '',
     bacnetPort: 47808,
+    // Config object for direct binding (OPC UA etc)
+    config: {},
     // Storage
     storageEnable: false,
     storageStrategy: 'interval',
@@ -675,6 +769,7 @@ const openDialog = (item = null) => {
         const storage = item.storage || {}
         form.value = {
             ...item,
+            config: config, // Ensure config is referenceable
             configStr: JSON.stringify(config, null, 2),
             dlt645Address: config.station_address || config.address || '',
             modbusSlaveId: config.slave_id || 1,
@@ -690,6 +785,15 @@ const openDialog = (item = null) => {
     } else {
         isEdit.value = false
         form.value = { ...defaultForm }
+        // Set defaults for OPC UA
+        if (channelProtocol.value === 'opc-ua') {
+             form.value.config = {
+                 endpoint: 'opc.tcp://127.0.0.1:4840',
+                 security_policy: 'None',
+                 security_mode: 'None',
+                 auth_method: 'Anonymous'
+             }
+        }
     }
     dialog.value = true
 }
@@ -719,6 +823,9 @@ const saveDevice = async () => {
         config.device_id = form.value.bacnetDeviceInstance
         if (form.value.bacnetIp) config.ip = form.value.bacnetIp
         if (form.value.bacnetPort) config.port = form.value.bacnetPort
+    } else if (channelProtocol.value === 'opc-ua') {
+        // Merge OPC UA specific fields from form.config
+        Object.assign(config, form.value.config)
     }
 
     const payload = {

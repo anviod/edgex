@@ -136,6 +136,10 @@ func (m *DeviceStorageManager) saveSnapshot(deviceID string, ts time.Time) {
 	key := ts.Format(time.RFC3339Nano)
 
 	// Save to DB
+	if m.storage == nil {
+		// Storage not initialized (e.g. timeout), skip saving
+		return
+	}
 	if err := m.storage.SaveData(bucket, key, record); err != nil {
 		log.Printf("[Storage] Failed to save history for device %s: %v", deviceID, err)
 		return
@@ -164,6 +168,10 @@ func (m *DeviceStorageManager) pruneHistory(bucket string, maxRecords int) {
 
 	// Let's rely on bbolt's ordered keys.
 	// We need to delete oldest. Oldest keys are lexicographically smaller (RFC3339).
+
+	if m.storage == nil {
+		return
+	}
 
 	m.storage.PruneOldest(bucket, maxRecords)
 }
@@ -194,6 +202,10 @@ func (m *DeviceStorageManager) GetHistory(deviceID string, limit int) ([]map[str
 	// We want latest first? User said "1000条历史数据查询". Usually latest first.
 	// But bbolt stores sorted by key (time).
 	// We can fetch all (up to limit from end).
+
+	if m.storage == nil {
+		return nil, fmt.Errorf("storage not initialized")
+	}
 
 	err := m.storage.LoadLatest(bucket, limit, func(k, v []byte) error {
 		var rec map[string]any

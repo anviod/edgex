@@ -9,6 +9,7 @@ require (
 	github.com/gofiber/websocket/v2 v2.2.1
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
+	github.com/gopcua/opcua v0.8.0
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/miekg/dns v1.1.72
 	github.com/simonvetter/modbus v1.6.4

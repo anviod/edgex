@@ -917,6 +917,13 @@ func (cm *ChannelManager) ScanDevice(channelID, deviceID string, params map[stri
 		if v, ok := targetDev.Config["ip"]; ok {
 			params["ip"] = v
 		}
+	} else if ch.Protocol == "opc-ua" {
+		// For OPC UA, merge device config to ensure endpoint/security options are available
+		for k, v := range targetDev.Config {
+			if _, exists := params[k]; !exists {
+				params[k] = v
+			}
+		}
 	}
 
 	if okMu {

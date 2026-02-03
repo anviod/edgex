@@ -105,7 +105,10 @@ func SaveConfig(confDir string, cfg *Config) error {
 		}
 
 		if err := os.Rename(tmpFile.Name(), path); err != nil {
-			return fmt.Errorf("failed to rename temp file to %s: %v", name, err)
+			// Fallback: directly write to target (Windows editors may lock renames)
+			if err2 := os.WriteFile(path, bytes, 0644); err2 != nil {
+				return fmt.Errorf("failed to save %s: rename error: %v, direct write error: %v", name, err, err2)
+			}
 		}
 		return nil
 	}
