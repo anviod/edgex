@@ -1,0 +1,12 @@
+[Unit]
+Description=gateway Service (edgex)
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/usr/local/bin/gateway
+ExecStart=/usr/local/bin/gateway/gateway
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

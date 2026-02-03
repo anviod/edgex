@@ -1,0 +1,55 @@
+- id: 5700b238-4cf3-4f3b-b175-b29c585e860f
+  name: TMPW
+  type: state
+  enable: true
+  priority: 0
+  trigger_mode: always
+  source:
+    alias: ""
+    channel_id: ""
+    device_id: ""
+    point_id: ""
+    point_name: ""
+  sources:
+    - alias: t1
+      channel_id: modbus-tcp-1
+      device_id: slave-1
+      point_id: dev1_temp
+      point_name: Temperature
+    - alias: t2
+      channel_id: modbus-tcp-1
+      device_id: slave-2
+      point_id: dev2_temp
+      point_name: Temperature
+  trigger_logic: ""
+  condition: t1 > 1 && t2>3
+  expression: ""
+  actions:
+    - type: mqtt
+      config:
+        message: TMPW
+        send_strategy: single
+        topic: gateway/warning
+    - type: device_control
+      config:
+        targets:
+            - channel_id: modbus-tcp-1
+              device_id: slave-1
+              expression: v+1
+              point_id: dev1_pressure
+              point_name: Pressure
+              value: "111"
+            - channel_id: modbus-tcp-1
+              device_id: slave-2
+              expression: v&64
+              point_id: dev2_pressure
+              point_name: Pressure
+              value: "222"
+  window:
+    type: sliding
+    size: 10s
+    interval: ""
+    aggr_func: avg
+  state:
+    duration: 10s
+    count: 1

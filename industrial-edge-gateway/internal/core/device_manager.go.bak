@@ -1,0 +1,283 @@
+package core
+
+import (
+	"context"
+	"fmt"
+	drv "industrial-edge-gateway/internal/driver"
+	"industrial-edge-gateway/internal/model"
+	"log"
+	"sync"
+	"time"
+)
+
+// DeviceManager manages the lifecycle of devices and their drivers
+type DeviceManager struct {
+	devices      map[string]*model.Device
+	drivers      map[string]driver.Driver
+	pipeline     *DataPipeline
+	stateManager *CommunicationManageTemplate // 状态机管理器
+	mu           sync.RWMutex
+	ctx          context.Context
+	cancel       context.CancelFunc
+}
+
+func NewDeviceManager(pipeline *DataPipeline) *DeviceManager {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &DeviceManager{
+		devices:      make(map[string]*model.Device),
+		drivers:      make(map[string]driver.Driver),
+		pipeline:     pipeline,
+		stateManager: NewCommunicationManageTemplate(),
+		ctx:          ctx,
+		cancel:       cancel,
+	}
+}
+
+// AddDevice adds a new device to the manager
+func (dm *DeviceManager) AddDevice(dev *model.Device) error {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+
+	if _, exists := dm.devices[dev.ID]; exists {
+		return fmt.Errorf("device %s already exists", dev.ID)
+	}
+
+	// Initialize driver
+	drv, ok := driver.GetDriver(dev.Protocol)
+	if !ok {
+		return fmt.Errorf("driver for protocol %s not found", dev.Protocol)
+	}
+
+	err := drv.Init(model.DriverConfig{
+		DeviceID: dev.ID,
+		Config:   dev.Config,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to init driver: %v", err)
+	}
+
+	dm.devices[dev.ID] = dev
+	dm.drivers[dev.ID] = drv
+
+	// Initialize StopChan
+	dev.StopChan = make(chan struct{})
+
+	// Register node with state manager
+	dm.stateManager.RegisterNode(dev.ID, dev.Name)
+
+	log.Printf("Device %s added (Protocol: %s)", dev.Name, dev.Protocol)
+	return nil
+}
+
+// StartDevice starts the collection loop for a device
+func (dm *DeviceManager) StartDevice(deviceID string) error {
+	dm.mu.RLock()
+	dev, ok := dm.devices[deviceID]
+	drv, okDrv := dm.drivers[deviceID]
+	dm.mu.RUnlock()
+
+	if !ok || !okDrv {
+		return fmt.Errorf("device or driver not found")
+	}
+
+	if !dev.Enable {
+		return fmt.Errorf("device is disabled")
+	}
+
+	// Connect driver
+	// In a real scenario, you might want to do this in the loop or handle reconnection
+	err := drv.Connect(dm.ctx)
+	if err != nil {
+		log.Printf("Failed to connect device %s: %v", dev.Name, err)
+		// We might still want to start the loop to retry connecting
+	}
+
+	// Start collection loop (Scheduler logic)
+	go dm.deviceLoop(dev, drv)
+
+	log.Printf("Device %s started", dev.Name)
+	return nil
+}
+
+// StopDevice stops the collection loop for a device
+func (dm *DeviceManager) StopDevice(deviceID string) error {
+	dm.mu.RLock()
+	dev, ok := dm.devices[deviceID]
+	dm.mu.RUnlock()
+
+	if !ok {
+		return fmt.Errorf("device not found")
+	}
+
+	// Signal stop
+	select {
+	case dev.StopChan <- struct{}{}:
+		log.Printf("Device %s stopping...", dev.Name)
+	default:
+		// Already stopped or channel full
+	}
+
+	// Disconnect driver
+	if drv, ok := dm.drivers[deviceID]; ok {
+		drv.Disconnect()
+	}
+
+	return nil
+}
+
+// GetDeviceState 获取设备的运行时状态
+// 返回设备的当前状态、失败次数、成功次数和下一次重试时间
+func (dm *DeviceManager) GetDeviceState(deviceID string) *NodeRuntimeState {
+	node := dm.stateManager.GetNode(deviceID)
+	if node == nil {
+		return nil
+	}
+	return node.Runtime
+}
+
+// WritePoint writes a value to a specific point on a device
+func (dm *DeviceManager) WritePoint(deviceID string, pointID string, value any) error {
+	dm.mu.RLock()
+	dev, okDev := dm.devices[deviceID]
+	drv, okDrv := dm.drivers[deviceID]
+	dm.mu.RUnlock()
+
+	if !okDev || !okDrv {
+		return fmt.Errorf("device or driver not found")
+	}
+
+	// Find the point
+	var targetPoint *model.Point
+	for _, p := range dev.Points {
+		if p.ID == pointID {
+			targetPoint = &p
+			break
+		}
+	}
+
+	if targetPoint == nil {
+		return fmt.Errorf("point %s not found on device %s", pointID, deviceID)
+	}
+
+	if targetPoint.ReadWrite != "W" && targetPoint.ReadWrite != "RW" {
+		return fmt.Errorf("point %s is not writable", pointID)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return drv.WritePoint(ctx, *targetPoint, value)
+}
+
+// deviceLoop is the main loop for a single device (Scheduler pattern)
+// 集成了采集状态机管理，根据设备状态决定是否执行采集
+func (dm *DeviceManager) deviceLoop(dev *model.Device, drv driver.Driver) {
+	ticker := time.NewTicker(dev.Interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-dm.ctx.Done():
+			return
+		case <-dev.StopChan:
+			return
+		case <-ticker.C:
+			// 获取设备的状态节点
+			node := dm.stateManager.GetNode(dev.ID)
+			if node == nil {
+				log.Printf("Device %s node not found in state manager", dev.Name)
+				continue
+			}
+
+			// 根据状态机决定是否执行采集
+			if !dm.stateManager.ShouldCollect(node) {
+				log.Printf("Device %s skipped collection (State: %v, NextRetry: %v)",
+					dev.Name, node.Runtime.State, node.Runtime.NextRetryTime)
+				continue
+			}
+
+			dm.collect(dev, drv, node)
+		}
+	}
+}
+
+func (dm *DeviceManager) collect(dev *model.Device, drv driver.Driver, node *DeviceNodeTemplate) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var (
+		results    map[string]model.Value
+		err        error
+		collectCtx *CollectContext
+	)
+
+	// 检查是否配置了多个从属设备
+	if len(dev.Slaves) > 0 {
+		// 多从属设备模式：使用轮询读取
+		log.Printf("Device %s using multi-slave mode (%d slaves)", dev.Name, len(dev.Slaves))
+
+		// 计算总的点位数
+		totalPoints := 0
+		for _, slave := range dev.Slaves {
+			if slave.Enable {
+				totalPoints += len(slave.Points)
+			}
+		}
+		collectCtx = &CollectContext{
+			TotalCmd: totalPoints,
+		}
+
+		results = make(map[string]model.Value)
+		now := time.Now()
+
+		// 轮询读取每个 slave
+		for _, slave := range dev.Slaves {
+			if !slave.Enable {
+				log.Printf("Slave %d is disabled, skipping", slave.SlaveID)
+				continue
+			}
+
+			// 注意：这里我们假设驱动支持多 slave。
+			// 实际实现需要驱动支持切换 slave_id
+			// 对于 Modbus，我们通过设置不同的 Unit ID 来实现
+			slaveResults, err := dm.readPointsForSlave(drv, slave.SlaveID, slave.Points, ctx)
+	}
+
+	if err != nil && len(dev.Slaves) == 0 {
+		// 仅在单设备模式下报告错误
+		log.Printf("Error collecting from %s: %v", dev.Name, err)
+		collectCtx.FailCmd = collectCtx.TotalCmd
+		dm.stateManager.finalizeCollect(node, collectCtx)
+		return
+	}
+
+	// 统计成功的命令数
+	collectCtx.SuccessCmd = len(results)
+	if collectCtx.SuccessCmd > 0 {
+		// 部分成功
+		collectCtx.FailCmd = collectCtx.TotalCmd - collectCtx.SuccessCmd
+	}
+
+	// 3. Send to pipeline
+	for _, val := range results {
+		if val.DeviceID == "" {
+			val.DeviceID = dev.ID // 确保设置了 DeviceID
+		}
+		dm.pipeline.Push(val)
+	}
+
+	// 4. 调用状态机的最终裁决，更新节点状态
+	dm.stateManager.finalizeCollect(node, collectCtx)
+}
+
+// readPointsForSlave reads points for a specific slave ID (used for multi-slave polling)
+func (dm *DeviceManager) readPointsForSlave(drv driver.Driver, slaveID uint8, points []model.Point, ctx context.Context) (map[string]model.Value, error) {
+	// Set the slave ID
+	err := drv.SetSlaveID(slaveID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set slave_id %d: %v", slaveID, err)
+	}
+
+	// Read the points
+	return drv.ReadPoints(ctx, points)
+}

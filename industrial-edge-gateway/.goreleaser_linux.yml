@@ -1,0 +1,82 @@
+version: 2         # 指定版本为 2  使用指令 goreleaser release --snapshot --clean  --config .goreleaser_linux.yml
+project_name: gateway
+dist: ./dist/linux_install  # 指定输出目录
+before:
+  hooks:
+    - go mod tidy
+    #- npm run build --prefix ./ui         # 构建 Vue 应用
+# 基本打包配置
+builds:
+  - id: gateway_build
+    main: ./cmd/main.go             # 主程序入口 (修正为 cmd/main.go)
+    binary: gateway    # 生成的二进制文件名称
+    flags:
+      - -trimpath
+    ldflags: >
+      -s -w
+      -X "industrial-edge-gateway/internal/model.Version={{.Tag}}"
+      -X "industrial-edge-gateway/internal/model.BuildTime={{.Date}}"
+      -X "industrial-edge-gateway/internal/model.CommitID={{.ShortCommit}}"
+    goos:
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 7
+    ignore:
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+      - goos: freebsd
+        goarch: arm64
+      - goos: freebsd
+        goarch: arm
+      - goos: android
+        goarch: amd64
+      - goos: android
+        goarch: 386
+archives:
+  - id: tar_archive                # 为此归档添加唯一 ID
+    formats: [ 'tar.gz' ]                # 压缩格式，Linux 和 Mac 通常用 tar.gz
+    name_template: '{{.ProjectName}}-{{.Tag}}-{{.Os}}-{{.Arch}}{{if .Arm}}{{.Arm}}{{end}}'
+    files:
+      - config.yaml
+      - conf/*
+      - ui/dist/*
+      - scripts/*
+      - gateway.service
+      - gateway.sh
+# DEB 和 RPM 包配置 (用于新设备安装)
+nfpms:
+  - file_name_template: '{{.ProjectName}}-{{.Tag}}-{{.Arch}}{{if .Arm}}{{.Arm}}{{end}}'
+    homepage:  "https://github.com/anviod/edgex"
+    description: 边缘网关 基于 Go语言的边缘网关软件，用于连接和管理边缘设备。
+    maintainer: "anviod <anviod@aliyun.com>"
+    license: Apache 2.0
+    vendor: HNE Inc.
+    formats:
+      - deb
+      - rpm
+    contents:
+      - src: /usr/bin/gateway
+        dst: /usr/local/bin/gateway/gateway
+        type: "symlink"
+      - src: ./conf
+        dst: /usr/local/bin/gateway/conf
+        type: "config"
+      - src: ./ui/dist
+        dst: /usr/local/bin/gateway/ui/dist
+    #   type: "config" # 目录不建议标记为 config
+      - src: ./gateway.service
+        dst: /usr/lib/systemd/system/gateway.service
+    scripts:
+      preinstall: scripts/preinstall.sh
+      postinstall: scripts/postinstall.sh
+# 校验配置
+checksum:
+  name_template: 'SHA256SUMS'
+  algorithm: sha256
