@@ -45,14 +45,14 @@ func main() {
 	}
 
 	points := []TestPoint{
-		{"ns=3;i=1002", "float64", nil},                         // Random (Read Only check)
+		{"ns=3;i=1002", "float64", nil}, // Random (Read Only check)
 		{"ns=3;i=1011", "bytestring", []byte{0x01, 0x02, 0x03}}, // Fix DataType
 		{"ns=5;s=String", "string", "TestString"},
 	}
 
 	for _, p := range points {
 		log.Printf("--- Testing %s ---", p.NodeID)
-
+		
 		// Parse NodeID
 		nid, err := ua.ParseNodeID(p.NodeID)
 		if err != nil {
