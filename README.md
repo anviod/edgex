@@ -10,7 +10,7 @@ Industrial Edge Gateway 是一个轻量级的工业边缘计算网关，旨在�
 | :--- | :--- | :--- |
 | **Modbus TCP / RTU / RTU Over TCP** | ✅ 已实现 | 完整支持，基于 `simonvetter/modbus` |
 | **BACnet IP** | ✅ 已实现 | 支持设备发现 (Who-Is/I-Am)、多网口广播 + 单播回退（尊重 I-Am 源端口）、对象扫描与点位读写、批量读失败自动回退到单读、异常端口回退至 47808、读超时与自动恢复优化 |
-| **OPC UA Client** | 🚧 模拟中 | 目前为模拟实现，尚未对接真实 PLC |
+| **OPC UA Client** | ✅ 已实现 | 基于 `gopcua/opcua` 实现，支持读写操作、订阅 (Subscription) 与监控 (Monitoring)，支持断线自动重连 |
 | **Siemens S7** | 🚧 模拟中 | 支持 S7-200Smart/1200/1500 等 (模拟) |
 | **EtherNet/IP (ODVA)** | 🚧 模拟中 | 模拟实现 |
 | **Mitsubishi MELSEC (SLMP)** | 🚧 模拟中 | 模拟实现 |
@@ -28,7 +28,6 @@ Industrial Edge Gateway 是一个轻量级的工业边缘计算网关，旨在�
 ### 🧠 边缘计算 & 管理
 *   **规则引擎**: 内置轻量级规则引擎，支持 `expr` 表达式进行逻辑判断和联动控制。
 *   **日志与导出**: 分钟级快照持久化（bbolt），支持历史日志查询与 CSV 导出（前端 Logs 标签页）。
-*   **规则引擎**: 内置轻量级规则引擎，支持 `expr` 表达式进行逻辑判断和联动控制。
 *   **可视化管理**:
     *   基于 Vue 3 + Vuetify 的现代化 UI。
     *   **登录安全**: 支持 JWT 认证、登录倒计时保护。
@@ -42,6 +41,7 @@ Industrial Edge Gateway 是一个轻量级的工业边缘计算网关，旨在�
     *   Web 框架: [Fiber](https://github.com/gofiber/fiber)
     *   MQTT: [Paho MQTT](https://github.com/eclipse/paho.mqtt.golang)
     *   Modbus: [simonvetter/modbus](https://github.com/simonvetter/modbus)
+    *   OPC UA: [gopcua/opcua](https://github.com/gopcua/opcua)
     *   表达式引擎: [expr](https://github.com/expr-lang/expr)
 *   **前端**: Vue 3
     *   构建工具: Vite
@@ -152,7 +152,7 @@ devices:
 ## 📅 TODO / Roadmap
 
 ### 核心驱动完善
-- [ ] **OPC UA Client**: 对接 `gopcua/opcua` 实现真实读写。
+- [x] **OPC UA Client**: 对接 `gopcua/opcua` 实现真实读写。
 - [ ] **Siemens S7**: 实现 S7 协议的真实 TCP 通信。
 - [ ] **EtherNet/IP**: 实现 CIP/EIP 协议栈。
 - [ ] **其他驱动**: 逐步替换 Mitsubishi, Omron, DL/T645 的模拟实现。
