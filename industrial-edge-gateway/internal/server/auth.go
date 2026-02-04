@@ -72,6 +72,11 @@ func JWTAuth() fiber.Handler {
 			}
 		}
 
+		// Check Query Param (for WebSockets)
+		if token == "" {
+			token = c.Query("token")
+		}
+
 		if token == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"code":    "1",

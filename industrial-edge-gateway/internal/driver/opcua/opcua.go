@@ -3,7 +3,6 @@ package opcua
 import (
 	"context"
 	"fmt"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/ua"
+	"go.uber.org/zap"
 )
 
 func init() {
@@ -131,12 +131,12 @@ func (d *OpcUaDriver) SetDeviceConfig(config map[string]any) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := c.Connect(ctx); err != nil {
-		log.Printf("[OPC UA] Failed to connect to %s: %v", endpoint, err)
+		zap.L().Warn("[OPC UA] Failed to connect", zap.String("endpoint", endpoint), zap.Error(err))
 		// We still register the client, but it's disconnected
 		wrapper.Connected = false
 	} else {
 		wrapper.Connected = true
-		log.Printf("[OPC UA] Connected to %s", endpoint)
+		zap.L().Info("[OPC UA] Connected", zap.String("endpoint", endpoint))
 	}
 
 	d.clients[endpoint] = wrapper
@@ -152,16 +152,16 @@ func (d *OpcUaDriver) reconnect(w *ClientWrapper) {
 	}
 	d.mu.Unlock()
 
-	log.Printf("[OPC UA] Reconnecting to %s...", w.Endpoint)
+	zap.L().Info("[OPC UA] Reconnecting", zap.String("endpoint", w.Endpoint))
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := w.Client.Connect(ctx); err == nil {
 		d.mu.Lock()
 		w.Connected = true
 		d.mu.Unlock()
-		log.Printf("[OPC UA] Reconnected to %s", w.Endpoint)
+		zap.L().Info("[OPC UA] Reconnected", zap.String("endpoint", w.Endpoint))
 	} else {
-		log.Printf("[OPC UA] Reconnection failed: %v", err)
+		zap.L().Warn("[OPC UA] Reconnection failed", zap.Error(err))
 	}
 }
 
@@ -255,7 +255,7 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 		for _, p := range points {
 			if v, ok := sub.Cache[p.ID]; ok && v.Value != nil {
 				result[p.ID] = v
-				log.Printf("[OPC UA] Read (Cache) for %s: %v (Quality: %s)", p.ID, v.Value, v.Quality)
+				zap.L().Debug("[OPC UA] Read (Cache)", zap.String("point", p.ID), zap.Any("value", v.Value), zap.String("quality", v.Quality))
 			} else {
 				missing = true
 				// Return Bad quality if missing
@@ -265,7 +265,7 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 					Value:   0,
 					TS:      time.Now(),
 				}
-				log.Printf("[OPC UA] Read (Cache Miss or Nil) for %s", p.ID)
+				zap.L().Warn("[OPC UA] Cache Miss or Nil", zap.String("point", p.ID))
 			}
 		}
 
@@ -274,9 +274,9 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 		}
 
 		// If missing, log it and fallback to direct read for ALL points to ensure consistency
-		log.Printf("[OPC UA] Cache missing or incomplete for %d points, falling back to direct read", len(points))
+		zap.L().Warn("[OPC UA] Cache missing or incomplete", zap.Int("count", len(points)))
 	} else {
-		log.Printf("[OPC UA] No subscription, using direct read")
+		zap.L().Debug("[OPC UA] No subscription, using direct read")
 	}
 
 	// Fallback to direct read (also used for initial value population)
@@ -324,7 +324,7 @@ func (d *OpcUaDriver) ensureSubscription(ctx context.Context, w *ClientWrapper, 
 	}, notifyCh)
 
 	if err != nil {
-		log.Printf("[OPC UA] Failed to create subscription for %s: %v", deviceID, err)
+		zap.L().Error("[OPC UA] Failed to create subscription", zap.String("device_id", deviceID), zap.Error(err))
 		cancel()
 		return nil
 	}
@@ -345,7 +345,7 @@ func (d *OpcUaDriver) ensureSubscription(ctx context.Context, w *ClientWrapper, 
 	for i, p := range points {
 		id, err := ua.ParseNodeID(p.Address)
 		if err != nil {
-			log.Printf("[OPC UA] Invalid node id %s: %v", p.Address, err)
+			zap.L().Error("[OPC UA] Invalid node id", zap.String("address", p.Address), zap.Error(err))
 			continue
 		}
 
@@ -363,12 +363,12 @@ func (d *OpcUaDriver) ensureSubscription(ctx context.Context, w *ClientWrapper, 
 	if len(requests) > 0 {
 		resp, err := opcuaSub.Monitor(ctx, ua.TimestampsToReturnBoth, requests...)
 		if err != nil {
-			log.Printf("[OPC UA] Monitor failed: %v", err)
+			zap.L().Error("[OPC UA] Monitor failed", zap.Error(err))
 		} else {
 			// Check results
 			for i, res := range resp.Results {
 				if res.StatusCode != ua.StatusOK {
-					log.Printf("[OPC UA] Monitor item %s failed: %v", points[i].Address, res.StatusCode)
+					zap.L().Error("[OPC UA] Monitor item failed", zap.String("address", points[i].Address), zap.Any("status", res.StatusCode))
 				}
 			}
 		}
@@ -391,7 +391,7 @@ func (d *OpcUaDriver) subscriptionLoop(sub *DeviceSubscription) {
 				return
 			}
 			if res.Error != nil {
-				log.Printf("[OPC UA] Subscription error: %v", res.Error)
+				zap.L().Error("[OPC UA] Subscription error", zap.Error(res.Error))
 				continue
 			}
 
@@ -418,7 +418,7 @@ func (d *OpcUaDriver) subscriptionLoop(sub *DeviceSubscription) {
 							}
 						} else {
 							val.Quality = "Bad"
-							log.Printf("[OPC UA] Subscription update bad status for %s: %v", pointID, item.Value.Status)
+							zap.L().Warn("[OPC UA] Subscription update bad status", zap.String("point_id", pointID), zap.Any("status", item.Value.Status))
 						}
 					}
 
@@ -468,7 +468,7 @@ func (d *OpcUaDriver) readDirect(ctx context.Context, client *ClientWrapper, poi
 
 		if res.Status != ua.StatusOK {
 			val.Quality = "Bad"
-			log.Printf("[OPC UA] Read failed for %s: %v", p.ID, res.Status)
+			zap.L().Warn("[OPC UA] Read failed", zap.String("point_id", p.ID), zap.Any("status", res.Status))
 		} else {
 			val.Quality = "Good"
 			val.Value = res.Value.Value()
@@ -526,7 +526,7 @@ func (d *OpcUaDriver) WritePoint(ctx context.Context, point model.Point, value a
 	if len(resp.Results) > 0 && resp.Results[0] != ua.StatusOK {
 		return fmt.Errorf("write failed: %s (0x%X)", resp.Results[0], uint32(resp.Results[0]))
 	}
-	log.Printf("[OPC UA] Write success for %s: %v", point.ID, valToWrite)
+	zap.L().Info("[OPC UA] Write success", zap.String("point_id", point.ID), zap.Any("value", valToWrite))
 
 	return nil
 }
@@ -549,7 +549,7 @@ func (d *OpcUaDriver) ScanObjects(ctx context.Context, config map[string]any) (a
 		id, err := ua.ParseNodeID(rootNodeIDStr)
 		if err == nil {
 			rootID = id
-			log.Printf("Starting scan from custom node: %s", rootID.String())
+			zap.L().Info("Starting scan from custom node", zap.String("node_id", rootID.String()))
 		}
 	}
 
@@ -575,7 +575,7 @@ func (d *OpcUaDriver) browseNode(ctx context.Context, c *opcua.Client, nodeID *u
 		return nil, nil
 	}
 
-	log.Printf("Browsing node: %s (Depth: %d)", nodeID.String(), depth)
+	zap.L().Debug("Browsing node", zap.String("node_id", nodeID.String()), zap.Int("depth", depth))
 
 	// Retry loop for browsing
 	var resp *ua.BrowseResponse
@@ -601,24 +601,24 @@ func (d *OpcUaDriver) browseNode(ctx context.Context, c *opcua.Client, nodeID *u
 		}
 
 		// If error, try to reconnect
-		log.Printf("Browse failed (attempt %d/3): %v. Reconnecting...", attempt+1, err)
+		zap.L().Warn("Browse failed, reconnecting", zap.Int("attempt", attempt+1), zap.Error(err))
 
 		// Try to reconnect
 		_ = c.Close(ctx) // Ignore error on close
 		time.Sleep(1 * time.Second)
 		if connErr := c.Connect(ctx); connErr != nil {
-			log.Printf("Reconnection failed: %v", connErr)
+			zap.L().Warn("Reconnection failed", zap.Error(connErr))
 		} else {
-			log.Printf("Reconnected successfully.")
+			zap.L().Info("Reconnected successfully")
 		}
 	}
 
 	if err != nil {
-		log.Printf("Browse failed after retries: %v", err)
+		zap.L().Error("Browse failed after retries", zap.Error(err))
 		return nil, err
 	}
 	if len(resp.Results) == 0 || resp.Results[0].StatusCode != ua.StatusOK {
-		log.Printf("Browse bad result: %v", resp.Results)
+		zap.L().Warn("Browse bad result", zap.Any("results", resp.Results))
 		return nil, nil
 	}
 
@@ -658,7 +658,7 @@ func (d *OpcUaDriver) browseNode(ctx context.Context, c *opcua.Client, nodeID *u
 			// Recurse with sanitized NodeID to avoid EOF errors
 			childID, err := ua.ParseNodeID(nodeIDStr)
 			if err != nil {
-				log.Printf("Failed to parse child node ID %s: %v", nodeIDStr, err)
+				zap.L().Warn("Failed to parse child node ID", zap.String("node_id", nodeIDStr), zap.Error(err))
 				continue
 			}
 
@@ -691,16 +691,16 @@ func (d *OpcUaDriver) browseNode(ctx context.Context, c *opcua.Client, nodeID *u
 				break // Success
 			}
 
-			log.Printf("Read DataTypes failed (attempt %d/3): %v", attempt+1, err)
+			zap.L().Warn("Read DataTypes failed", zap.Int("attempt", attempt+1), zap.Error(err))
 
 			if attempt < 2 {
 				// Reconnect logic
 				_ = c.Close(ctx)
 				time.Sleep(1 * time.Second)
 				if connErr := c.Connect(ctx); connErr != nil {
-					log.Printf("Reconnection failed: %v", connErr)
+					zap.L().Warn("Reconnection failed", zap.Error(connErr))
 				} else {
-					log.Printf("Reconnected successfully.")
+					zap.L().Info("Reconnected successfully")
 				}
 			}
 		}

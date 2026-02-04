@@ -9,6 +9,7 @@ import Northbound from '../views/Northbound.vue'
 import EdgeCompute from '../views/EdgeCompute.vue'
 import EdgeComputeMetrics from '../views/EdgeComputeMetrics.vue'
 import SystemSettings from '../views/SystemSettings.vue'
+import LogViewer from '../views/LogViewer.vue'
 import Login from '../views/Login.vue'
 
 const routes = [
@@ -21,6 +22,11 @@ const routes = [
         path: '/', 
         component: Dashboard,
         meta: { title: '首页监控' }
+    },
+    { 
+        path: '/logs', 
+        component: LogViewer,
+        meta: { title: '系统日志' }
     },
     { 
         path: '/system', 

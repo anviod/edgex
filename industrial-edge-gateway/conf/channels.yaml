@@ -1,3 +1,1303 @@
+- id: modbus-tcp-1
+  name: Modbus TCP Channel 1
+  protocol: modbus-tcp
+  enable: true
+  config:
+    group_threshold: 50
+    max_packet_size: 125
+    url: tcp://127.0.0.1:502
+  devices:
+    - id: slave-1
+      name: Slave Device 1
+      enable: true
+      interval: 5s
+      config:
+        slave_id: 1
+      storage:
+        enable: true
+        strategy: realtime
+        interval: 1
+        max_records: 1000
+      points:
+        - id: dev1_temp
+          name: Temperature
+          address: "40001"
+          datatype: int16
+          scale: 0.1
+          offset: 0
+          unit: °C
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: dev1_humidity
+          name: Humidity
+          address: "40002"
+          datatype: int16
+          scale: 0.1
+          offset: 0
+          unit: '%'
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: dev1_pressure
+          name: Pressure
+          address: "40018"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: kPa
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: "40001"
+          name: ID
+          address: "40001"
+          datatype: uint16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+    - id: slave-2
+      name: Slave Device 2
+      enable: true
+      interval: 5s
+      config:
+        slave_id: 2
+      storage:
+        enable: true
+        strategy: interval
+        interval: 1
+        max_records: 1000
+      points:
+        - id: dev2_temp
+          name: Temperature
+          address: "40001"
+          datatype: int16
+          scale: 0.1
+          offset: 0
+          unit: °C
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: dev2_current
+          name: Current
+          address: "40004"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: A
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: dev2_pressure
+          name: Pressure
+          address: "40018"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: kPa
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+    - id: "3"
+      name: "3"
+      enable: true
+      interval: 5s
+      config:
+        slave_id: 3
+      points:
+        - id: S3-1
+          name: ID
+          address: "40001"
+          datatype: uint16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+- id: opcua-test-1
+  name: OPC UA Local
+  protocol: opc-ua
+  enable: true
+  config:
+    auth_method: Anonymous
+    endpoint: opc.tcp://127.0.0.1:53530/OPCUA/SimulationServer
+    security_mode: None
+    security_policy: None
+  devices:
+    - id: opcua-dev-1
+      name: Simulation Server
+      enable: true
+      interval: 5s
+      config:
+        endpoint: opc.tcp://127.0.0.1:53530/OPCUA/SimulationServer
+      storage:
+        enable: false
+        strategy: interval
+        interval: 1
+        max_records: 1000
+      points:
+        - id: ns=3;i=1011
+          name: ns=3;i=1011
+          address: ns=3;i=1011
+          datatype: string
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=3;i=1001
+          name: ns=3;i=1001
+          address: ns=3;i=1001
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=3;i=1002
+          name: ns=3;i=1002
+          address: ns=3;i=1002
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=3;i=1003
+          name: ns=3;i=1003
+          address: ns=3;i=1003
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=3;i=1004
+          name: ns=3;i=1004
+          address: ns=3;i=1004
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=3;i=1005
+          name: ns=3;i=1005
+          address: ns=3;i=1005
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=3;i=1006
+          name: ns=3;i=1006
+          address: ns=3;i=1006
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=3;i=1007
+          name: ns=3;i=1007
+          address: ns=3;i=1007
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=AccessLevelCurrentRead
+          name: ns=5;s=AccessLevelCurrentRead
+          address: ns=5;s=AccessLevelCurrentRead
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=AccessLevelCurrentReadWrite
+          name: ns=5;s=AccessLevelCurrentReadWrite
+          address: ns=5;s=AccessLevelCurrentReadWrite
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=ByteAnalogItemArray
+          name: ns=5;s=ByteAnalogItemArray
+          address: ns=5;s=ByteAnalogItemArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=DoubleAnalogItemArray
+          name: ns=5;s=DoubleAnalogItemArray
+          address: ns=5;s=DoubleAnalogItemArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=FloatAnalogItemArray
+          name: ns=5;s=FloatAnalogItemArray
+          address: ns=5;s=FloatAnalogItemArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int16AnalogItemArray
+          name: ns=5;s=Int16AnalogItemArray
+          address: ns=5;s=Int16AnalogItemArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int32AnalogItemArray
+          name: ns=5;s=Int32AnalogItemArray
+          address: ns=5;s=Int32AnalogItemArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int64AnalogItemArray
+          name: ns=5;s=Int64AnalogItemArray
+          address: ns=5;s=Int64AnalogItemArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=SByteAnalogItemArray
+          name: ns=5;s=SByteAnalogItemArray
+          address: ns=5;s=SByteAnalogItemArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt16AnalogItemArray
+          name: ns=5;s=UInt16AnalogItemArray
+          address: ns=5;s=UInt16AnalogItemArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt32AnalogItemArray
+          name: ns=5;s=UInt32AnalogItemArray
+          address: ns=5;s=UInt32AnalogItemArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt64AnalogItemArray
+          name: ns=5;s=UInt64AnalogItemArray
+          address: ns=5;s=UInt64AnalogItemArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=ByteAnalogItem
+          name: ns=5;s=ByteAnalogItem
+          address: ns=5;s=ByteAnalogItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=DoubleAnalogItem
+          name: ns=5;s=DoubleAnalogItem
+          address: ns=5;s=DoubleAnalogItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=FloatAnalogItem
+          name: ns=5;s=FloatAnalogItem
+          address: ns=5;s=FloatAnalogItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int16AnalogItem
+          name: ns=5;s=Int16AnalogItem
+          address: ns=5;s=Int16AnalogItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int32AnalogItem
+          name: ns=5;s=Int32AnalogItem
+          address: ns=5;s=Int32AnalogItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int64AnalogItem
+          name: ns=5;s=Int64AnalogItem
+          address: ns=5;s=Int64AnalogItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=SByteAnalogItem
+          name: ns=5;s=SByteAnalogItem
+          address: ns=5;s=SByteAnalogItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Sample Instrument Int32AnalogItem
+          name: ns=5;s=Sample Instrument Int32AnalogItem
+          address: ns=5;s=Sample Instrument Int32AnalogItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt16AnalogItem
+          name: ns=5;s=UInt16AnalogItem
+          address: ns=5;s=UInt16AnalogItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt32AnalogItem
+          name: ns=5;s=UInt32AnalogItem
+          address: ns=5;s=UInt32AnalogItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt64AnalogItem
+          name: ns=5;s=UInt64AnalogItem
+          address: ns=5;s=UInt64AnalogItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=BooleanDataItem
+          name: ns=5;s=BooleanDataItem
+          address: ns=5;s=BooleanDataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=ByteDataItem
+          name: ns=5;s=ByteDataItem
+          address: ns=5;s=ByteDataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=ByteStringDataItem
+          name: ns=5;s=ByteStringDataItem
+          address: ns=5;s=ByteStringDataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=DateTimeDataItem
+          name: ns=5;s=DateTimeDataItem
+          address: ns=5;s=DateTimeDataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=DoubleDataItem
+          name: ns=5;s=DoubleDataItem
+          address: ns=5;s=DoubleDataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=FloatDataItem
+          name: ns=5;s=FloatDataItem
+          address: ns=5;s=FloatDataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=GUIDDataItem
+          name: ns=5;s=GUIDDataItem
+          address: ns=5;s=GUIDDataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int16DataItem
+          name: ns=5;s=Int16DataItem
+          address: ns=5;s=Int16DataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int32DataItem
+          name: ns=5;s=Int32DataItem
+          address: ns=5;s=Int32DataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int64DataItem
+          name: ns=5;s=Int64DataItem
+          address: ns=5;s=Int64DataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=SByteDataItem
+          name: ns=5;s=SByteDataItem
+          address: ns=5;s=SByteDataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=StringDataItem
+          name: ns=5;s=StringDataItem
+          address: ns=5;s=StringDataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt16DataItem
+          name: ns=5;s=UInt16DataItem
+          address: ns=5;s=UInt16DataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt32DataItem
+          name: ns=5;s=UInt32DataItem
+          address: ns=5;s=UInt32DataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt64DataItem
+          name: ns=5;s=UInt64DataItem
+          address: ns=5;s=UInt64DataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=XmlElementDataItem
+          name: ns=5;s=XmlElementDataItem
+          address: ns=5;s=XmlElementDataItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=MultiStateDiscreteItem
+          name: ns=5;s=MultiStateDiscreteItem
+          address: ns=5;s=MultiStateDiscreteItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=BooleanArray
+          name: ns=5;s=BooleanArray
+          address: ns=5;s=BooleanArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=ByteArray
+          name: ns=5;s=ByteArray
+          address: ns=5;s=ByteArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=ByteStringArray
+          name: ns=5;s=ByteStringArray
+          address: ns=5;s=ByteStringArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=DateTimeArray
+          name: ns=5;s=DateTimeArray
+          address: ns=5;s=DateTimeArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=DoubleArray
+          name: ns=5;s=DoubleArray
+          address: ns=5;s=DoubleArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=FloatArray
+          name: ns=5;s=FloatArray
+          address: ns=5;s=FloatArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=GUIDArrayArray
+          name: ns=5;s=GUIDArrayArray
+          address: ns=5;s=GUIDArrayArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int16Array
+          name: ns=5;s=Int16Array
+          address: ns=5;s=Int16Array
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int32Array
+          name: ns=5;s=Int32Array
+          address: ns=5;s=Int32Array
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int64Array
+          name: ns=5;s=Int64Array
+          address: ns=5;s=Int64Array
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=LocalizedTextArray
+          name: ns=5;s=LocalizedTextArray
+          address: ns=5;s=LocalizedTextArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=QualifiedNameArray
+          name: ns=5;s=QualifiedNameArray
+          address: ns=5;s=QualifiedNameArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=SByteArray
+          name: ns=5;s=SByteArray
+          address: ns=5;s=SByteArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=StringArray
+          name: ns=5;s=StringArray
+          address: ns=5;s=StringArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt16Array
+          name: ns=5;s=UInt16Array
+          address: ns=5;s=UInt16Array
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt32Array
+          name: ns=5;s=UInt32Array
+          address: ns=5;s=UInt32Array
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt64Array
+          name: ns=5;s=UInt64Array
+          address: ns=5;s=UInt64Array
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=VariantArray
+          name: ns=5;s=VariantArray
+          address: ns=5;s=VariantArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=XmlElementArray
+          name: ns=5;s=XmlElementArray
+          address: ns=5;s=XmlElementArray
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Boolean
+          name: ns=5;s=Boolean
+          address: ns=5;s=Boolean
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Byte
+          name: ns=5;s=Byte
+          address: ns=5;s=Byte
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=ByteString
+          name: ns=5;s=ByteString
+          address: ns=5;s=ByteString
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=DateTime
+          name: ns=5;s=DateTime
+          address: ns=5;s=DateTime
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Double
+          name: ns=5;s=Double
+          address: ns=5;s=Double
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Duration
+          name: ns=5;s=Duration
+          address: ns=5;s=Duration
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Enumeration
+          name: ns=5;s=Enumeration
+          address: ns=5;s=Enumeration
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Float
+          name: ns=5;s=Float
+          address: ns=5;s=Float
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=GUID
+          name: ns=5;s=GUID
+          address: ns=5;s=GUID
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Image
+          name: ns=5;s=Image
+          address: ns=5;s=Image
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=ImageBMP
+          name: ns=5;s=ImageBMP
+          address: ns=5;s=ImageBMP
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=ImageGIF
+          name: ns=5;s=ImageGIF
+          address: ns=5;s=ImageGIF
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=ImageJPG
+          name: ns=5;s=ImageJPG
+          address: ns=5;s=ImageJPG
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=ImagePNG
+          name: ns=5;s=ImagePNG
+          address: ns=5;s=ImagePNG
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int16
+          name: ns=5;s=Int16
+          address: ns=5;s=Int16
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int32
+          name: ns=5;s=Int32
+          address: ns=5;s=Int32
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Int64
+          name: ns=5;s=Int64
+          address: ns=5;s=Int64
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Integer
+          name: ns=5;s=Integer
+          address: ns=5;s=Integer
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=LocaleId
+          name: ns=5;s=LocaleId
+          address: ns=5;s=LocaleId
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=LocalizedText
+          name: ns=5;s=LocalizedText
+          address: ns=5;s=LocalizedText
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=NodeId
+          name: ns=5;s=NodeId
+          address: ns=5;s=NodeId
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Number
+          name: ns=5;s=Number
+          address: ns=5;s=Number
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=QualifiedName
+          name: ns=5;s=QualifiedName
+          address: ns=5;s=QualifiedName
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=SByte
+          name: ns=5;s=SByte
+          address: ns=5;s=SByte
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=String
+          name: ns=5;s=String
+          address: ns=5;s=String
+          datatype: string
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=TimeString
+          name: ns=5;s=TimeString
+          address: ns=5;s=TimeString
+          datatype: string
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt16
+          name: ns=5;s=UInt16
+          address: ns=5;s=UInt16
+          datatype: uint16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt32
+          name: ns=5;s=UInt32
+          address: ns=5;s=UInt32
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInt64
+          name: ns=5;s=UInt64
+          address: ns=5;s=UInt64
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UInteger
+          name: ns=5;s=UInteger
+          address: ns=5;s=UInteger
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=UtcTime
+          name: ns=5;s=UtcTime
+          address: ns=5;s=UtcTime
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=Variant
+          name: ns=5;s=Variant
+          address: ns=5;s=Variant
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=XmlElement
+          name: ns=5;s=XmlElement
+          address: ns=5;s=XmlElement
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: ns=5;s=TwoStateDiscreteItem
+          name: ns=5;s=TwoStateDiscreteItem
+          address: ns=5;s=TwoStateDiscreteItem
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+- id: s7-test-1
+  name: S7 Test Channel
+  protocol: s7
+  enable: true
+  config:
+    ip: 192.168.1.100
+    plcType: S7-1200
+    port: 102
+    rack: 0
+    slot: 2
+    startup: warm
+  devices: []
+- id: modbus-rtu-1
+  name: Modbus RTU Channel (本地网关)
+  protocol: modbus-rtu
+  enable: false
+  config:
+    baudrate: 9600
+    port: /dev/ttyUSB0
+    timeout: 5s
+  devices:
+    - id: rtu-device-1
+      name: RTU Device 1
+      enable: true
+      interval: 2s
+      config:
+        slave_id: 1
+      points:
+        - id: rtu_temp
+          name: Temperature
+          address: "0"
+          datatype: int16
+          scale: 0.1
+          offset: 0
+          unit: °C
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
 - id: bac-test-1
   name: BAC测试
   protocol: bacnet-ip
@@ -1386,1306 +2686,6 @@
           offset: 0
           unit: mpa
           readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-- id: modbus-tcp-1
-  name: Modbus TCP Channel 1
-  protocol: modbus-tcp
-  enable: true
-  config:
-    group_threshold: 50
-    max_packet_size: 125
-    url: tcp://127.0.0.1:502
-  devices:
-    - id: slave-1
-      name: Slave Device 1
-      enable: true
-      interval: 5s
-      config:
-        slave_id: 1
-      storage:
-        enable: true
-        strategy: realtime
-        interval: 1
-        max_records: 1000
-      points:
-        - id: dev1_temp
-          name: Temperature
-          address: "40001"
-          datatype: int16
-          scale: 0.1
-          offset: 0
-          unit: °C
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: dev1_humidity
-          name: Humidity
-          address: "40002"
-          datatype: int16
-          scale: 0.1
-          offset: 0
-          unit: '%'
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: dev1_pressure
-          name: Pressure
-          address: "40018"
-          datatype: int16
-          scale: 1
-          offset: 0
-          unit: kPa
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: "40001"
-          name: ID
-          address: "40001"
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-    - id: slave-2
-      name: Slave Device 2
-      enable: true
-      interval: 5s
-      config:
-        slave_id: 2
-      storage:
-        enable: true
-        strategy: interval
-        interval: 1
-        max_records: 1000
-      points:
-        - id: dev2_temp
-          name: Temperature
-          address: "40001"
-          datatype: int16
-          scale: 0.1
-          offset: 0
-          unit: °C
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: dev2_current
-          name: Current
-          address: "40004"
-          datatype: int16
-          scale: 1
-          offset: 0
-          unit: A
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: dev2_pressure
-          name: Pressure
-          address: "40018"
-          datatype: int16
-          scale: 1
-          offset: 0
-          unit: kPa
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-    - id: "3"
-      name: "3"
-      enable: true
-      interval: 5s
-      config:
-        slave_id: 3
-      points:
-        - id: S3-1
-          name: ID
-          address: "40001"
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-- id: opcua-test-1
-  name: OPC UA Local
-  protocol: opc-ua
-  enable: true
-  config:
-    auth_method: Anonymous
-    endpoint: opc.tcp://127.0.0.1:53530/OPCUA/SimulationServer
-    security_mode: None
-    security_policy: None
-  devices:
-    - id: opcua-dev-1
-      name: Simulation Server
-      enable: true
-      interval: 5s
-      config:
-        endpoint: opc.tcp://127.0.0.1:53530/OPCUA/SimulationServer
-      storage:
-        enable: false
-        strategy: interval
-        interval: 1
-        max_records: 1000
-      points:
-        - id: ns=3;i=1011
-          name: ns=3;i=1011
-          address: ns=3;i=1011
-          datatype: string
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=3;i=1001
-          name: ns=3;i=1001
-          address: ns=3;i=1001
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=3;i=1002
-          name: ns=3;i=1002
-          address: ns=3;i=1002
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=3;i=1003
-          name: ns=3;i=1003
-          address: ns=3;i=1003
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=3;i=1004
-          name: ns=3;i=1004
-          address: ns=3;i=1004
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=3;i=1005
-          name: ns=3;i=1005
-          address: ns=3;i=1005
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=3;i=1006
-          name: ns=3;i=1006
-          address: ns=3;i=1006
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=3;i=1007
-          name: ns=3;i=1007
-          address: ns=3;i=1007
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=AccessLevelCurrentRead
-          name: ns=5;s=AccessLevelCurrentRead
-          address: ns=5;s=AccessLevelCurrentRead
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=AccessLevelCurrentReadWrite
-          name: ns=5;s=AccessLevelCurrentReadWrite
-          address: ns=5;s=AccessLevelCurrentReadWrite
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=ByteAnalogItemArray
-          name: ns=5;s=ByteAnalogItemArray
-          address: ns=5;s=ByteAnalogItemArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=DoubleAnalogItemArray
-          name: ns=5;s=DoubleAnalogItemArray
-          address: ns=5;s=DoubleAnalogItemArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=FloatAnalogItemArray
-          name: ns=5;s=FloatAnalogItemArray
-          address: ns=5;s=FloatAnalogItemArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int16AnalogItemArray
-          name: ns=5;s=Int16AnalogItemArray
-          address: ns=5;s=Int16AnalogItemArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int32AnalogItemArray
-          name: ns=5;s=Int32AnalogItemArray
-          address: ns=5;s=Int32AnalogItemArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int64AnalogItemArray
-          name: ns=5;s=Int64AnalogItemArray
-          address: ns=5;s=Int64AnalogItemArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=SByteAnalogItemArray
-          name: ns=5;s=SByteAnalogItemArray
-          address: ns=5;s=SByteAnalogItemArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt16AnalogItemArray
-          name: ns=5;s=UInt16AnalogItemArray
-          address: ns=5;s=UInt16AnalogItemArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt32AnalogItemArray
-          name: ns=5;s=UInt32AnalogItemArray
-          address: ns=5;s=UInt32AnalogItemArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt64AnalogItemArray
-          name: ns=5;s=UInt64AnalogItemArray
-          address: ns=5;s=UInt64AnalogItemArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=ByteAnalogItem
-          name: ns=5;s=ByteAnalogItem
-          address: ns=5;s=ByteAnalogItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=DoubleAnalogItem
-          name: ns=5;s=DoubleAnalogItem
-          address: ns=5;s=DoubleAnalogItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=FloatAnalogItem
-          name: ns=5;s=FloatAnalogItem
-          address: ns=5;s=FloatAnalogItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int16AnalogItem
-          name: ns=5;s=Int16AnalogItem
-          address: ns=5;s=Int16AnalogItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int32AnalogItem
-          name: ns=5;s=Int32AnalogItem
-          address: ns=5;s=Int32AnalogItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int64AnalogItem
-          name: ns=5;s=Int64AnalogItem
-          address: ns=5;s=Int64AnalogItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=SByteAnalogItem
-          name: ns=5;s=SByteAnalogItem
-          address: ns=5;s=SByteAnalogItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Sample Instrument Int32AnalogItem
-          name: ns=5;s=Sample Instrument Int32AnalogItem
-          address: ns=5;s=Sample Instrument Int32AnalogItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt16AnalogItem
-          name: ns=5;s=UInt16AnalogItem
-          address: ns=5;s=UInt16AnalogItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt32AnalogItem
-          name: ns=5;s=UInt32AnalogItem
-          address: ns=5;s=UInt32AnalogItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt64AnalogItem
-          name: ns=5;s=UInt64AnalogItem
-          address: ns=5;s=UInt64AnalogItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=BooleanDataItem
-          name: ns=5;s=BooleanDataItem
-          address: ns=5;s=BooleanDataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=ByteDataItem
-          name: ns=5;s=ByteDataItem
-          address: ns=5;s=ByteDataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=ByteStringDataItem
-          name: ns=5;s=ByteStringDataItem
-          address: ns=5;s=ByteStringDataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=DateTimeDataItem
-          name: ns=5;s=DateTimeDataItem
-          address: ns=5;s=DateTimeDataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=DoubleDataItem
-          name: ns=5;s=DoubleDataItem
-          address: ns=5;s=DoubleDataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=FloatDataItem
-          name: ns=5;s=FloatDataItem
-          address: ns=5;s=FloatDataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=GUIDDataItem
-          name: ns=5;s=GUIDDataItem
-          address: ns=5;s=GUIDDataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int16DataItem
-          name: ns=5;s=Int16DataItem
-          address: ns=5;s=Int16DataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int32DataItem
-          name: ns=5;s=Int32DataItem
-          address: ns=5;s=Int32DataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int64DataItem
-          name: ns=5;s=Int64DataItem
-          address: ns=5;s=Int64DataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=SByteDataItem
-          name: ns=5;s=SByteDataItem
-          address: ns=5;s=SByteDataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=StringDataItem
-          name: ns=5;s=StringDataItem
-          address: ns=5;s=StringDataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt16DataItem
-          name: ns=5;s=UInt16DataItem
-          address: ns=5;s=UInt16DataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt32DataItem
-          name: ns=5;s=UInt32DataItem
-          address: ns=5;s=UInt32DataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt64DataItem
-          name: ns=5;s=UInt64DataItem
-          address: ns=5;s=UInt64DataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=XmlElementDataItem
-          name: ns=5;s=XmlElementDataItem
-          address: ns=5;s=XmlElementDataItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=MultiStateDiscreteItem
-          name: ns=5;s=MultiStateDiscreteItem
-          address: ns=5;s=MultiStateDiscreteItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=BooleanArray
-          name: ns=5;s=BooleanArray
-          address: ns=5;s=BooleanArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=ByteArray
-          name: ns=5;s=ByteArray
-          address: ns=5;s=ByteArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=ByteStringArray
-          name: ns=5;s=ByteStringArray
-          address: ns=5;s=ByteStringArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=DateTimeArray
-          name: ns=5;s=DateTimeArray
-          address: ns=5;s=DateTimeArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=DoubleArray
-          name: ns=5;s=DoubleArray
-          address: ns=5;s=DoubleArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=FloatArray
-          name: ns=5;s=FloatArray
-          address: ns=5;s=FloatArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=GUIDArrayArray
-          name: ns=5;s=GUIDArrayArray
-          address: ns=5;s=GUIDArrayArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int16Array
-          name: ns=5;s=Int16Array
-          address: ns=5;s=Int16Array
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int32Array
-          name: ns=5;s=Int32Array
-          address: ns=5;s=Int32Array
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int64Array
-          name: ns=5;s=Int64Array
-          address: ns=5;s=Int64Array
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=LocalizedTextArray
-          name: ns=5;s=LocalizedTextArray
-          address: ns=5;s=LocalizedTextArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=QualifiedNameArray
-          name: ns=5;s=QualifiedNameArray
-          address: ns=5;s=QualifiedNameArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=SByteArray
-          name: ns=5;s=SByteArray
-          address: ns=5;s=SByteArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=StringArray
-          name: ns=5;s=StringArray
-          address: ns=5;s=StringArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt16Array
-          name: ns=5;s=UInt16Array
-          address: ns=5;s=UInt16Array
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt32Array
-          name: ns=5;s=UInt32Array
-          address: ns=5;s=UInt32Array
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt64Array
-          name: ns=5;s=UInt64Array
-          address: ns=5;s=UInt64Array
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=VariantArray
-          name: ns=5;s=VariantArray
-          address: ns=5;s=VariantArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=XmlElementArray
-          name: ns=5;s=XmlElementArray
-          address: ns=5;s=XmlElementArray
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Boolean
-          name: ns=5;s=Boolean
-          address: ns=5;s=Boolean
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Byte
-          name: ns=5;s=Byte
-          address: ns=5;s=Byte
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=ByteString
-          name: ns=5;s=ByteString
-          address: ns=5;s=ByteString
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=DateTime
-          name: ns=5;s=DateTime
-          address: ns=5;s=DateTime
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Double
-          name: ns=5;s=Double
-          address: ns=5;s=Double
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Duration
-          name: ns=5;s=Duration
-          address: ns=5;s=Duration
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Enumeration
-          name: ns=5;s=Enumeration
-          address: ns=5;s=Enumeration
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Float
-          name: ns=5;s=Float
-          address: ns=5;s=Float
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=GUID
-          name: ns=5;s=GUID
-          address: ns=5;s=GUID
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Image
-          name: ns=5;s=Image
-          address: ns=5;s=Image
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=ImageBMP
-          name: ns=5;s=ImageBMP
-          address: ns=5;s=ImageBMP
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=ImageGIF
-          name: ns=5;s=ImageGIF
-          address: ns=5;s=ImageGIF
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=ImageJPG
-          name: ns=5;s=ImageJPG
-          address: ns=5;s=ImageJPG
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=ImagePNG
-          name: ns=5;s=ImagePNG
-          address: ns=5;s=ImagePNG
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int16
-          name: ns=5;s=Int16
-          address: ns=5;s=Int16
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int32
-          name: ns=5;s=Int32
-          address: ns=5;s=Int32
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Int64
-          name: ns=5;s=Int64
-          address: ns=5;s=Int64
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Integer
-          name: ns=5;s=Integer
-          address: ns=5;s=Integer
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=LocaleId
-          name: ns=5;s=LocaleId
-          address: ns=5;s=LocaleId
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=LocalizedText
-          name: ns=5;s=LocalizedText
-          address: ns=5;s=LocalizedText
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=NodeId
-          name: ns=5;s=NodeId
-          address: ns=5;s=NodeId
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Number
-          name: ns=5;s=Number
-          address: ns=5;s=Number
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=QualifiedName
-          name: ns=5;s=QualifiedName
-          address: ns=5;s=QualifiedName
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=SByte
-          name: ns=5;s=SByte
-          address: ns=5;s=SByte
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=String
-          name: ns=5;s=String
-          address: ns=5;s=String
-          datatype: string
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=TimeString
-          name: ns=5;s=TimeString
-          address: ns=5;s=TimeString
-          datatype: string
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt16
-          name: ns=5;s=UInt16
-          address: ns=5;s=UInt16
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt32
-          name: ns=5;s=UInt32
-          address: ns=5;s=UInt32
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInt64
-          name: ns=5;s=UInt64
-          address: ns=5;s=UInt64
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UInteger
-          name: ns=5;s=UInteger
-          address: ns=5;s=UInteger
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=UtcTime
-          name: ns=5;s=UtcTime
-          address: ns=5;s=UtcTime
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=Variant
-          name: ns=5;s=Variant
-          address: ns=5;s=Variant
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=XmlElement
-          name: ns=5;s=XmlElement
-          address: ns=5;s=XmlElement
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: ns=5;s=TwoStateDiscreteItem
-          name: ns=5;s=TwoStateDiscreteItem
-          address: ns=5;s=TwoStateDiscreteItem
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-- id: s7-test-1
-  name: S7 Test Channel
-  protocol: s7
-  enable: true
-  config:
-    ip: 192.168.1.100
-    plcType: S7-1200
-    port: 102
-    rack: 0
-    slot: 2
-    startup: warm
-  devices: []
-- id: modbus-rtu-1
-  name: Modbus RTU Channel (本地网关)
-  protocol: modbus-rtu
-  enable: false
-  config:
-    baudrate: 9600
-    port: /dev/ttyUSB0
-    timeout: 5s
-  devices:
-    - id: rtu-device-1
-      name: RTU Device 1
-      enable: true
-      interval: 2s
-      config:
-        slave_id: 1
-      points:
-        - id: rtu_temp
-          name: Temperature
-          address: "0"
-          datatype: int16
-          scale: 0.1
-          offset: 0
-          unit: °C
-          readwrite: RW
           group: ""
           report_mode: ""
           threshold: null

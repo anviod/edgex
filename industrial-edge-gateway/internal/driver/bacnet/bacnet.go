@@ -10,11 +10,12 @@ import (
 	"industrial-edge-gateway/internal/driver/bacnet/btypes/units"
 	"industrial-edge-gateway/internal/driver/bacnet/datalink"
 	"industrial-edge-gateway/internal/model"
-	"log"
 	"net"
 	"strconv"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 func init() {
@@ -206,7 +207,7 @@ func (d *BACnetDriver) Connect(ctx context.Context) error {
 	// Discover Target Device
 	if d.targetDeviceID > 0 {
 		if err := d.discoverDevice(d.targetDeviceID, d.targetIP, d.targetPort); err != nil {
-			log.Printf("[WARN] Initial discovery failed for device %d: %v. Driver will start in disconnected state.", d.targetDeviceID, err)
+			zap.L().Warn("Initial discovery failed", zap.Int("device_id", d.targetDeviceID), zap.Error(err))
 			// Do NOT close client here; we need it for recovery/retry
 			// d.client.Close()
 			// d.client = nil
@@ -223,7 +224,7 @@ func (d *BACnetDriver) Connect(ctx context.Context) error {
 }
 
 func (d *BACnetDriver) discoverDevice(deviceID int, ip string, port int) error {
-	log.Printf("[INFO] Discovering BACnet device %d (Target IP: %s, Port: %d)...", deviceID, ip, port)
+	zap.L().Info("Discovering BACnet device", zap.Int("device_id", deviceID), zap.String("ip", ip), zap.Int("port", port))
 
 	// WhoIs
 	whois := &WhoIsOpts{
@@ -240,29 +241,29 @@ func (d *BACnetDriver) discoverDevice(deviceID int, ip string, port int) error {
 		if parsedIP != nil {
 			addr := datalink.IPPortToAddress(parsedIP, port)
 			whois.Destination = addr
-			log.Printf("[INFO] Using Unicast WhoIs to %s:%d", ip, port)
+			zap.L().Info("Using Unicast WhoIs", zap.String("ip", ip), zap.Int("port", port))
 		}
 	}
 
 	// We might need a loop or retry here
 	devices, err := d.client.WhoIs(whois)
 	if err != nil {
-		log.Printf("[ERROR] WhoIs failed for device %d: %v", deviceID, err)
+		zap.L().Error("WhoIs failed for device", zap.Int("device_id", deviceID), zap.Error(err))
 		return fmt.Errorf("WhoIs failed: %v", err)
 	}
 
 	if len(devices) == 0 {
-		log.Printf("[DEBUG] No devices found for ID %d, retrying with Broadcast...", deviceID)
+		zap.L().Debug("No devices found, retrying with Broadcast", zap.Int("device_id", deviceID))
 		// Switch to Broadcast if Unicast failed
 		whois.Destination = nil
 		time.Sleep(1 * time.Second)
 		devices, err = d.client.WhoIs(whois)
 		if err != nil || len(devices) == 0 {
-			log.Printf("[WARN] Device %d not found on network after retry", deviceID)
+			zap.L().Warn("Device not found on network after retry", zap.Int("device_id", deviceID))
 
 			// Fallback: If discovery fails but we have explicit IP/Port, use it.
 			if ip != "" && port != 0 {
-				log.Printf("[WARN] Using configured address %s:%d as fallback.", ip, port)
+				zap.L().Warn("Using configured address as fallback", zap.String("ip", ip), zap.Int("port", port))
 				parsedIP := net.ParseIP(ip)
 				if parsedIP != nil {
 					addr := datalink.IPPortToAddress(parsedIP, port)
@@ -296,16 +297,16 @@ func (d *BACnetDriver) discoverDevice(deviceID int, ip string, port int) error {
 		LastDiscovery: time.Now(),
 	}
 	targetDevCtx := d.deviceContexts[deviceID]
-	log.Printf("[INFO] Found BACnet device %d at %v", deviceID, targetDevCtx.Device.Addr)
+	zap.L().Info("Found BACnet device", zap.Int("device_id", deviceID), zap.String("addr", fmt.Sprintf("%v", targetDevCtx.Device.Addr)))
 
 	// Fix: If configured port is different from discovered port (e.g. ephemeral), override it.
 	if port != 0 && len(targetDevCtx.Device.Addr.Mac) == 6 {
 		discPort := int(targetDevCtx.Device.Addr.Mac[4])<<8 | int(targetDevCtx.Device.Addr.Mac[5])
 		if discPort != port {
-			log.Printf("[WARN] Discovered device port %d differs from configured port %d. Overriding to %d to ensure connectivity.", discPort, port, port)
+			zap.L().Warn("Discovered device port differs from configured", zap.Int("disc_port", discPort), zap.Int("conf_port", port))
 			targetDevCtx.Device.Addr.Mac[4] = uint8(port >> 8)
 			targetDevCtx.Device.Addr.Mac[5] = uint8(port & 0xFF)
-			log.Printf("[INFO] Updated target device address to: %v", targetDevCtx.Device.Addr)
+			zap.L().Info("Updated target device address", zap.String("addr", fmt.Sprintf("%v", targetDevCtx.Device.Addr)))
 		}
 	}
 
@@ -342,7 +343,7 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 		// This handles simulators that respond from ephemeral ports but listen on 47808.
 		currentPort := int(devCtx.Device.Addr.Mac[4])<<8 | int(devCtx.Device.Addr.Mac[5])
 		if currentPort != 47808 {
-			log.Printf("[WARN] ReadPoints failed on port %d for device %d. Trying fallback to 47808...", currentPort, targetID)
+			zap.L().Warn("ReadPoints failed on port, trying fallback", zap.Int("port", currentPort), zap.Int("device_id", targetID))
 
 			// Create a temporary device copy with port 47808
 			tempDevice := devCtx.Device
@@ -362,7 +363,7 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 				// Easier strategy: Update the device context speculatively and retry via Scheduler?
 				// But Scheduler needs to be recreated.
 
-				log.Printf("[INFO] Speculatively updating device %d to port 47808 and recreating scheduler...", targetID)
+				zap.L().Info("Speculatively updating device to port 47808", zap.Int("device_id", targetID))
 
 				// Update Device Address
 				devCtx.Device.Addr.Mac[4] = uint8(47808 >> 8)
@@ -375,14 +376,14 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 				devCtx.Scheduler = NewPointScheduler(d.client, devCtx.Device, 20, 10*time.Millisecond, 10*time.Second)
 
 				// Retry Read
-				log.Printf("[INFO] Retrying ReadPoints with port 47808...")
+				zap.L().Info("Retrying ReadPoints with port 47808")
 				var err2 error
 				results, err2 = devCtx.Scheduler.Read(ctx, points)
 				if err2 == nil {
-					log.Printf("[INFO] SUCCESS: Fallback to port 47808 worked for device %d. Configuration updated.", targetID)
+					zap.L().Info("Fallback to port 47808 worked", zap.Int("device_id", targetID))
 					err = nil // Clear error
 				} else {
-					log.Printf("[WARN] Fallback to port 47808 also failed: %v. Reverting...", err2)
+					zap.L().Warn("Fallback to port 47808 also failed", zap.Error(err2))
 					// Revert (optional, but good practice if we want to be correct)
 					// Actually, if both failed, maybe 47808 is better anyway?
 					// Or maybe the device is just offline.
@@ -403,9 +404,9 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 
 func (d *BACnetDriver) checkRecovery(deviceID int) {
 	d.mu.Lock()
-	log.Printf("[DEBUG] checkRecovery called for device %d", deviceID)
+	zap.L().Debug("checkRecovery called", zap.Int("device_id", deviceID))
 	if d.client == nil {
-		log.Printf("[DEBUG] checkRecovery: d.client is nil!")
+		zap.L().Debug("checkRecovery: d.client is nil")
 		d.mu.Unlock()
 		return
 	}
@@ -417,13 +418,13 @@ func (d *BACnetDriver) checkRecovery(deviceID int) {
 
 	devCtx, exists := d.deviceContexts[deviceID]
 	if exists {
-		log.Printf("[DEBUG] checkRecovery: context found for device %d", deviceID)
+		zap.L().Debug("checkRecovery: context found", zap.Int("device_id", deviceID))
 		lastDiscovery = devCtx.LastDiscovery
 		ip = devCtx.Config.IP
 		port = devCtx.Config.Port
 		isContextExists = true
 	} else {
-		log.Printf("[DEBUG] checkRecovery: context NOT found for device %d (target: %d)", deviceID, d.targetDeviceID)
+		zap.L().Debug("checkRecovery: context NOT found", zap.Int("device_id", deviceID), zap.Int("target_id", d.targetDeviceID))
 		// Fallback: If this is the target device, use driver config
 		if deviceID == d.targetDeviceID {
 			lastDiscovery = d.lastDiscovery
@@ -437,19 +438,19 @@ func (d *BACnetDriver) checkRecovery(deviceID int) {
 	}
 
 	if time.Since(lastDiscovery) < 30*time.Second {
-		log.Printf("[DEBUG] checkRecovery skipped for device %d: too soon (last: %v, since: %v)", deviceID, lastDiscovery, time.Since(lastDiscovery))
+		zap.L().Debug("checkRecovery skipped: too soon", zap.Int("device_id", deviceID))
 		d.mu.Unlock()
 		return
 	}
 
 	// Update timestamp to prevent spamming
-	log.Printf("[DEBUG] checkRecovery triggering for device %d", deviceID)
+	zap.L().Debug("checkRecovery triggering", zap.Int("device_id", deviceID))
 	if isContextExists {
 		devCtx.LastDiscovery = time.Now()
-		log.Printf("[DEBUG] discoverDevice: Updated LastDiscovery for device %d to %v", deviceID, devCtx.LastDiscovery)
+		zap.L().Debug("Updated LastDiscovery", zap.Int("device_id", deviceID))
 	} else {
 		d.lastDiscovery = time.Now()
-		log.Printf("[DEBUG] discoverDevice: Updated driver.lastDiscovery to %v", d.lastDiscovery)
+		zap.L().Debug("Updated driver.lastDiscovery")
 	}
 	d.mu.Unlock()
 
@@ -470,12 +471,12 @@ func (d *BACnetDriver) checkRecovery(deviceID int) {
 			port = ctx.Config.Port
 		}
 
-		log.Printf("[INFO] Auto-recovering BACnet connection for device %d...", deviceID)
+		zap.L().Info("Auto-recovering BACnet connection", zap.Int("device_id", deviceID))
 		if err := d.discoverDevice(deviceID, ip, port); err != nil {
-			log.Printf("[ERROR] Auto-recovery failed: %v", err)
+			zap.L().Error("Auto-recovery failed", zap.Error(err))
 		} else {
 			d.connected = true
-			log.Printf("[INFO] Auto-recovery successful for device %d", deviceID)
+			zap.L().Info("Auto-recovery successful", zap.Int("device_id", deviceID))
 		}
 	}()
 }
@@ -621,7 +622,12 @@ func (d *BACnetDriver) SetDeviceConfig(config map[string]any) error {
 		}
 	}
 
-	log.Printf("[DEBUG] SetDeviceConfig: newID=%d, ip=%s, port=%d, targetDeviceID=%d, connected=%v, client=%v", newID, d.targetIP, d.targetPort, d.targetDeviceID, d.connected, d.client)
+	zap.L().Debug("SetDeviceConfig",
+		zap.Int("new_id", newID),
+		zap.String("ip", d.targetIP),
+		zap.Int("port", d.targetPort),
+		zap.Int("target_device_id", d.targetDeviceID),
+		zap.Bool("connected", d.connected))
 
 	if newID != 0 {
 		d.targetDeviceID = newID
@@ -647,7 +653,7 @@ func (d *BACnetDriver) SetDeviceConfig(config map[string]any) error {
 			// If connected, trigger discovery immediately
 			if d.connected && d.client != nil {
 				if err := d.discoverDevice(d.targetDeviceID, d.targetIP, d.targetPort); err != nil {
-					log.Printf("[ERROR] Failed to discover updated device %d: %v", d.targetDeviceID, err)
+					zap.L().Error("Failed to discover updated device", zap.Int("device_id", d.targetDeviceID), zap.Error(err))
 					return err
 				}
 			}
@@ -659,7 +665,7 @@ func (d *BACnetDriver) SetDeviceConfig(config map[string]any) error {
 
 // Scan performs a device discovery (WhoIs) and optionally reads device details
 func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, error) {
-	log.Printf("[INFO] BACnetDriver.Scan called with params: %v", params)
+
 	d.mu.Lock()
 	defaultInterfacePort := d.interfacePort
 	defaultSubnetCIDR := d.subnetCIDR
@@ -711,7 +717,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 	// If no specific interface, find all valid IPv4 interfaces
 	if len(targetIPs) == 0 {
 		if ips, err := getInterfaceIPs(); err != nil {
-			log.Printf("[WARN] Failed to list interface IPs for scan: %v", err)
+			zap.L().Warn("Failed to list interface IPs for scan", zap.Error(err))
 		} else {
 			targetIPs = append(targetIPs, ips...)
 		}
@@ -722,7 +728,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 	// But let's stick to the plan: if targetIPs is empty, we try 0.0.0.0 or just use defaultClient.
 	useDefaultClient := len(targetIPs) == 0
 
-	log.Printf("[INFO] Scan targetIPs: %v, useDefaultClient: %v", targetIPs, useDefaultClient)
+	zap.L().Info("Scan targetIPs", zap.Strings("ips", targetIPs), zap.Bool("use_default", useDefaultClient))
 
 	low := 0
 	high := 4194303 // Max Device ID
@@ -768,7 +774,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 			if scanClient == nil {
 				return
 			}
-			log.Printf("[INFO] Scanning on default client (%s)...", d.interfaceIP)
+			zap.L().Info("Scanning on default client", zap.String("interface", d.interfaceIP))
 
 			// If we are reusing the default client but scanning a specific interface (ifaceIP),
 			// we should calculate the broadcast address for that interface and use it.
@@ -786,7 +792,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 						// Using defaultInterfacePort (our binding port) is wrong if we are on a non-standard port (e.g. 47809).
 						port := 47808
 						broadcastDest = datalink.IPPortToAddress(broadcast, port)
-						log.Printf("[INFO] Calculated broadcast address for %s using default client: %s:%d", ifaceIP, broadcast.String(), port)
+						zap.L().Info("Calculated broadcast address using default client", zap.String("interface", ifaceIP), zap.String("broadcast", broadcast.String()), zap.Int("port", port))
 					}
 				}
 			}
@@ -799,7 +805,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 			}
 			scanClient, err = clientFactory(cb)
 			if err != nil {
-				log.Printf("[WARN] Failed to create client for scan on %s: %v", ifaceIP, err)
+				zap.L().Warn("Failed to create client for scan", zap.String("interface", ifaceIP), zap.Error(err))
 				return
 			}
 			defer scanClient.Close()
@@ -819,7 +825,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 					// Always broadcast to standard BACnet port 47808
 					port := 47808
 					broadcastDest = datalink.IPPortToAddress(broadcast, port)
-					log.Printf("[INFO] Calculated broadcast address for %s: %s:%d", ifaceIP, broadcast.String(), port)
+					zap.L().Info("Calculated broadcast address", zap.String("interface", ifaceIP), zap.String("broadcast", broadcast.String()), zap.Int("port", port))
 				}
 			}
 		}
@@ -832,10 +838,10 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 
 		devices, err := scanClient.WhoIs(whois)
 		if err != nil {
-			log.Printf("[WARN] Scan failed on %s: %v", ifaceIP, err)
+			zap.L().Warn("Scan failed on interface", zap.String("interface", ifaceIP), zap.Error(err))
 			return
 		}
-		log.Printf("[INFO] Scan on %s found %d devices", ifaceIP, len(devices))
+		zap.L().Info("Scan on interface found devices", zap.String("interface", ifaceIP), zap.Int("count", len(devices)))
 
 		// Also try Unicast to the interface IP itself (port 47808) to find local simulators
 		// This is necessary because if we are bound to 47809, we might miss Broadcast I-Am responses
@@ -859,12 +865,12 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 					High:        high,
 					Destination: unicastDest,
 				}
-				log.Printf("[INFO] Also sending Unicast WhoIs to %s:47808", targetUnicastIP)
+				zap.L().Info("Sending Unicast WhoIs", zap.String("ip", targetUnicastIP))
 				if dev2, err := scanClient.WhoIs(unicastWhoIs); err == nil {
-					log.Printf("[INFO] Unicast Scan to %s found %d devices", targetUnicastIP, len(dev2))
+					zap.L().Info("Unicast Scan found devices", zap.String("ip", targetUnicastIP), zap.Int("count", len(dev2)))
 					devices = append(devices, dev2...)
 				} else {
-					log.Printf("[WARN] Unicast Scan failed on %s: %v", targetUnicastIP, err)
+					zap.L().Warn("Unicast Scan failed", zap.String("ip", targetUnicastIP), zap.Error(err))
 				}
 			}
 		}
@@ -882,7 +888,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 			wg.Add(1)
 			// Check if this IP matches the driver's bound IP, or if driver is bound to all interfaces
 			isDriverIP := ip == d.interfaceIP || d.interfaceIP == "0.0.0.0"
-			log.Printf("[DEBUG] Scan loop: ip=%s, d.interfaceIP=%s, isDriverIP=%v", ip, d.interfaceIP, isDriverIP)
+			zap.L().Debug("Scan loop", zap.String("ip", ip), zap.String("driver_ip", d.interfaceIP), zap.Bool("is_driver_ip", isDriverIP))
 			go scanOnInterface(ip, useDefaultClient || isDriverIP)
 		}
 	}
@@ -899,7 +905,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 	for _, dev := range uniqueDevices {
 		ids = append(ids, dev.ID.Instance)
 	}
-	log.Printf("[INFO] Scan finished. Found %d unique devices: %v", len(uniqueDevices), ids)
+	zap.L().Info("Scan finished", zap.Int("count", len(uniqueDevices)), zap.Any("ids", ids))
 
 	// Enrich details (Vendor, Model, etc.)
 	// We can pick any client to read properties, or we should use the one that found it?
@@ -1003,7 +1009,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 
 	// Log the results for debugging
 	if data, err := json.Marshal(results); err == nil {
-		log.Printf("[INFO] Scan results: %s", string(data))
+		zap.L().Info("Scan results", zap.String("json", string(data)))
 	}
 
 	return results, nil
@@ -1084,11 +1090,11 @@ func (d *BACnetDriver) scanDeviceObjects(client Client, devID int) (any, error) 
 	}
 
 	if hasCached {
-		log.Printf("[INFO] scanDeviceObjects: Using cached address for device %d: %v", devID, cachedDev.Addr)
+		zap.L().Info("scanDeviceObjects: Using cached address", zap.Int("device_id", devID), zap.String("addr", fmt.Sprintf("%v", cachedDev.Addr)))
 		dev = cachedDev
 	} else {
 		// 1. Find the device via WhoIs
-		log.Printf("[INFO] scanDeviceObjects: Discovering device %d...", devID)
+		zap.L().Info("scanDeviceObjects: Discovering device", zap.Int("device_id", devID))
 		whois := &WhoIsOpts{
 			Low:  devID,
 			High: devID,
@@ -1102,7 +1108,7 @@ func (d *BACnetDriver) scanDeviceObjects(client Client, devID int) (any, error) 
 
 		// Fallback: Try Unicast to interface IP (for local simulators)
 		if (err != nil || len(devices) == 0) && d.interfaceIP != "" && d.interfaceIP != "0.0.0.0" {
-			log.Printf("[INFO] scanDeviceObjects: Broadcast WhoIs failed, trying Unicast to %s:47808", d.interfaceIP)
+			zap.L().Info("scanDeviceObjects: Broadcast WhoIs failed, trying Unicast", zap.String("ip", d.interfaceIP))
 			ip := net.ParseIP(d.interfaceIP)
 			if ip != nil {
 				unicastDest := datalink.IPPortToAddress(ip, 47808)
@@ -1122,11 +1128,11 @@ func (d *BACnetDriver) scanDeviceObjects(client Client, devID int) (any, error) 
 			return nil, fmt.Errorf("device %d not found (timeout or unreachable)", devID)
 		}
 		dev = devices[0]
-		log.Printf("[INFO] scanDeviceObjects: Found device %d at %v", devID, dev.Addr)
+		zap.L().Info("scanDeviceObjects: Found device", zap.Int("device_id", devID), zap.String("addr", fmt.Sprintf("%v", dev.Addr)))
 	}
 
 	// 2. Read ObjectList
-	log.Printf("[INFO] Reading ObjectList for device %d...", devID)
+	zap.L().Info("Reading ObjectList", zap.Int("device_id", devID))
 	// ObjectList is an array of ObjectIDs.
 	// We might need to read it index by index if it's too large, but let's try reading all.
 	// ArrayAll means read the whole array.
@@ -1147,17 +1153,17 @@ func (d *BACnetDriver) scanDeviceObjects(client Client, devID int) (any, error) 
 
 	resp, err := client.ReadProperty(dev, pd)
 	if err != nil {
-		log.Printf("[ERROR] Failed to read ObjectList (ArrayAll) for device %d: %v. Device might not support large reads.", devID, err)
+		zap.L().Error("Failed to read ObjectList", zap.Int("device_id", devID), zap.Error(err))
 		return nil, fmt.Errorf("failed to read object list: %v", err)
 	}
 
 	if len(resp.Object.Properties) == 0 {
-		log.Printf("[WARN] ObjectList response has no properties")
+		zap.L().Warn("ObjectList response has no properties")
 		return []any{}, nil
 	}
 
 	data := resp.Object.Properties[0].Data
-	log.Printf("[INFO] ObjectList data type: %T", data)
+	zap.L().Info("ObjectList data type", zap.String("type", fmt.Sprintf("%T", data)))
 
 	// Data should be []btypes.ObjectID
 	// But it might be parsed differently depending on decoding.
@@ -1176,7 +1182,7 @@ func (d *BACnetDriver) scanDeviceObjects(client Client, devID int) (any, error) 
 			}
 		}
 	} else {
-		log.Printf("[WARN] ObjectList data is not []ObjectID: %T", data)
+		zap.L().Warn("ObjectList data is not []ObjectID", zap.String("type", fmt.Sprintf("%T", data)))
 		return []any{}, nil
 	}
 
@@ -1222,7 +1228,7 @@ func (d *BACnetDriver) scanDeviceObjects(client Client, devID int) (any, error) 
 				respMap[key] = obj
 			}
 		} else {
-			log.Printf("[WARN] Failed to read batch properties for chunk %d: %v. Falling back to individual reads.", i, err)
+			zap.L().Warn("Failed to read batch properties, falling back", zap.Int("chunk", i), zap.Error(err))
 			// Fallback: Read individually
 			for _, oid := range chunk {
 				// Create a dummy object to hold results
@@ -1333,7 +1339,7 @@ func (d *BACnetDriver) scanDeviceObjects(client Client, devID int) (any, error) 
 
 		// Deduplicate: If we already processed this key in the current scan, skip it.
 		if _, exists := currentMap[key]; exists {
-			log.Printf("[WARN] Duplicate object detected in scan: %s. Merging/Skipping.", key)
+			zap.L().Warn("Duplicate object detected in scan", zap.String("key", key))
 			continue
 		}
 

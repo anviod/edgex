@@ -5,12 +5,13 @@ import (
 	"fmt"
 	drv "industrial-edge-gateway/internal/driver"
 	"industrial-edge-gateway/internal/model"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type ChannelStatus struct {
@@ -127,11 +128,11 @@ func (cm *ChannelManager) AddChannel(ch *model.Channel) error {
 		// Since map iteration order is random, this might reshuffle channels in config.
 		// For now it's acceptable, or we can maintain order if needed.
 		if err := cm.saveFunc(channels); err != nil {
-			log.Printf("Warning: Failed to save config after adding channel: %v", err)
+			zap.L().Warn("Failed to save config after adding channel", zap.Error(err))
 		}
 	}
 
-	log.Printf("Channel %s added (Protocol: %s, Devices: %d)", ch.Name, ch.Protocol, len(ch.Devices))
+	zap.L().Info("Channel added", zap.String("channel", ch.Name), zap.String("protocol", ch.Protocol), zap.Int("device_count", len(ch.Devices)))
 	return nil
 }
 
@@ -140,7 +141,7 @@ func (cm *ChannelManager) UpdateChannel(ch *model.Channel) error {
 	// 1. Stop existing channel
 	if err := cm.StopChannel(ch.ID); err != nil {
 		// Ignore error if channel was not running or found (but we should check existence)
-		log.Printf("Warning: stopping channel %s before update: %v", ch.ID, err)
+		zap.L().Warn("Stopping channel before update", zap.String("channel_id", ch.ID), zap.Error(err))
 	}
 
 	cm.mu.Lock()
@@ -183,11 +184,11 @@ func (cm *ChannelManager) UpdateChannel(ch *model.Channel) error {
 			channels = append(channels, *c)
 		}
 		if err := cm.saveFunc(channels); err != nil {
-			log.Printf("Warning: Failed to save config after updating channel: %v", err)
+			zap.L().Warn("Failed to save config after updating channel", zap.Error(err))
 		}
 	}
 
-	log.Printf("Channel %s updated", ch.Name)
+	zap.L().Info("Channel updated", zap.String("channel", ch.Name))
 	return nil
 }
 
@@ -214,11 +215,11 @@ func (cm *ChannelManager) RemoveChannel(channelID string) error {
 			channels = append(channels, *c)
 		}
 		if err := cm.saveFunc(channels); err != nil {
-			log.Printf("Warning: Failed to save config after removing channel: %v", err)
+			zap.L().Warn("Failed to save config after removing channel", zap.Error(err))
 		}
 	}
 
-	log.Printf("Channel %s removed", channelID)
+	zap.L().Info("Channel removed", zap.String("channel_id", channelID))
 	return nil
 }
 
@@ -234,23 +235,23 @@ func (cm *ChannelManager) StartChannel(channelID string) error {
 	}
 
 	if !ch.Enable {
-		log.Printf("Channel %s is disabled, skipping connection", ch.Name)
+		zap.L().Info("Channel is disabled, skipping connection", zap.String("channel", ch.Name))
 		return nil
 	}
 
 	// 连接驱动
 	err := d.Connect(cm.ctx)
 	if err != nil {
-		log.Printf("Failed to connect driver for channel %s: %v", ch.Name, err)
+		zap.L().Error("Failed to connect driver for channel", zap.String("channel", ch.Name), zap.Error(err))
 		return err
 	}
-	log.Printf("Driver connected for channel %s", ch.Name)
+	zap.L().Info("Driver connected for channel", zap.String("channel", ch.Name))
 
 	// 为该通道下的每个设备启动采集循环
 	for i := range ch.Devices {
 		dev := &ch.Devices[i]
 		if !dev.Enable {
-			log.Printf("Device %s in channel %s is disabled, skipping", dev.Name, ch.Name)
+			zap.L().Info("Device is disabled, skipping", zap.String("device", dev.Name), zap.String("channel", ch.Name))
 			continue
 		}
 
@@ -264,7 +265,7 @@ func (cm *ChannelManager) StartChannel(channelID string) error {
 		go cm.deviceLoop(&devCopy, d, ch)
 	}
 
-	log.Printf("Channel %s started with %d devices", ch.Name, len(ch.Devices))
+	zap.L().Info("Channel started", zap.String("channel", ch.Name), zap.Int("device_count", len(ch.Devices)))
 	return nil
 }
 
@@ -283,7 +284,7 @@ func (cm *ChannelManager) StopChannel(channelID string) error {
 	for _, device := range ch.Devices {
 		select {
 		case device.StopChan <- struct{}{}:
-			log.Printf("Device %s stopping...", device.Name)
+			zap.L().Info("Device stopping", zap.String("device", device.Name))
 		default:
 		}
 	}
@@ -485,7 +486,7 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 
 	results, err := d.ReadPoints(ctx, pointsCopy)
 	if err != nil {
-		log.Printf("Failed to read points for device %s: %v", deviceID, err)
+		zap.L().Warn("Failed to read points for device", zap.String("device_id", deviceID), zap.Error(err))
 		// Don't return error, return points with Bad quality so user can still manage them
 	}
 
@@ -537,7 +538,7 @@ func (cm *ChannelManager) deviceLoop(dev *model.Device, d drv.Driver, ch *model.
 
 	node := cm.stateManager.GetNode(dev.ID)
 	if node == nil {
-		log.Printf("Device %s node not found in state manager", dev.Name)
+		zap.L().Warn("Device node not found in state manager", zap.String("device", dev.Name))
 		return
 	}
 
@@ -549,8 +550,10 @@ func (cm *ChannelManager) deviceLoop(dev *model.Device, d drv.Driver, ch *model.
 			return
 		case <-ticker.C:
 			if !cm.stateManager.ShouldCollect(node) {
-				log.Printf("Device %s skipped collection (State: %v, NextRetry: %v)",
-					dev.Name, node.Runtime.State, node.Runtime.NextRetryTime)
+				zap.L().Debug("Device skipped collection",
+					zap.String("device", dev.Name),
+					zap.Any("state", node.Runtime.State),
+					zap.Time("next_retry", node.Runtime.NextRetryTime))
 				continue
 			}
 
@@ -691,7 +694,7 @@ func (cm *ChannelManager) collectDevice(dev *model.Device, d drv.Driver, ch *mod
 
 	// 设置设备配置 (BACnet 等需要 IP/Port)
 	if err := d.SetDeviceConfig(dev.Config); err != nil {
-		log.Printf("Failed to set device config for %s: %v", dev.Name, err)
+		zap.L().Error("Failed to set device config", zap.String("device", dev.Name), zap.Error(err))
 	}
 
 	// Ensure DeviceID is set on points for the driver
@@ -702,7 +705,7 @@ func (cm *ChannelManager) collectDevice(dev *model.Device, d drv.Driver, ch *mod
 	// 读取点位数据
 	results, err := d.ReadPoints(ctx, dev.Points)
 	if err != nil {
-		log.Printf("Error reading from device %s in channel %s: %v", dev.Name, ch.Name, err)
+		zap.L().Error("Error reading from device", zap.String("device", dev.Name), zap.String("channel", ch.Name), zap.Error(err))
 		cm.stateManager.onCollectFail(node)
 		return
 	}
@@ -1011,7 +1014,7 @@ func (cm *ChannelManager) AddDevice(channelID string, dev *model.Device) error {
 				if err := cm.validateDLT645Point(&p); err == nil {
 					dev.Points = append(dev.Points, p)
 				} else {
-					log.Printf("Warning: Failed to validate default DLT645 point %s: %v", p.Name, err)
+					zap.L().Warn("Failed to validate default DLT645 point", zap.String("point", p.Name), zap.Error(err))
 				}
 			}
 		}
@@ -1034,7 +1037,7 @@ func (cm *ChannelManager) AddDevice(channelID string, dev *model.Device) error {
 		// 获取切片中最新的那个设备的指针
 		newDev := &ch.Devices[len(ch.Devices)-1]
 		go cm.deviceLoop(newDev, d, ch)
-		log.Printf("Device %s started", dev.Name)
+		zap.L().Info("Device started", zap.String("device", dev.Name))
 	}
 
 	return cm.saveChannels()
@@ -1224,7 +1227,7 @@ func (cm *ChannelManager) restartDeviceLocked(ch *model.Channel, deviceIdx int) 
 		// So, creating a copy of Device struct is the correct way.
 
 		go cm.deviceLoop(&devCopy, d, ch)
-		log.Printf("Device %s restarted with updated points", dev.Name)
+		zap.L().Info("Device restarted with updated points", zap.String("device", dev.Name))
 	}
 
 	return cm.saveChannels()
@@ -1272,7 +1275,7 @@ func (cm *ChannelManager) UpdateDevice(channelID string, dev *model.Device) erro
 	if d, ok := cm.drivers[channelID]; ok && ch.Enable && dev.Enable {
 		newDev := &ch.Devices[idx]
 		go cm.deviceLoop(newDev, d, ch)
-		log.Printf("Device %s restarted", dev.Name)
+		zap.L().Info("Device restarted", zap.String("device", dev.Name))
 	}
 
 	return cm.saveChannels()
@@ -1352,7 +1355,7 @@ func (cm *ChannelManager) saveChannels() error {
 			channels = append(channels, *c)
 		}
 		if err := cm.saveFunc(channels); err != nil {
-			log.Printf("Warning: Failed to save config: %v", err)
+			zap.L().Warn("Failed to save config", zap.Error(err))
 			return err
 		}
 	}

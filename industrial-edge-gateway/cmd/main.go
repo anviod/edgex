@@ -13,13 +13,15 @@ import (
 	_ "industrial-edge-gateway/internal/driver/opcua"
 	_ "industrial-edge-gateway/internal/driver/s7"
 	"industrial-edge-gateway/internal/model"
+	"industrial-edge-gateway/internal/pkg/logger"
 	"industrial-edge-gateway/internal/server"
 	"industrial-edge-gateway/internal/storage"
-	"log"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
+
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -27,18 +29,31 @@ func main() {
 	confDir := flag.String("conf", "conf", "Path to configuration directory")
 	flag.Parse()
 
-	log.Println("Starting Industrial Edge Gateway...")
+	// Create LogBroadcaster
+	logBroadcaster := logger.NewLogBroadcaster()
+
+	// Init Logger (Console only for startup)
+	logger.InitLogger("info", "", nil)
+	zap.L().Info("Starting Industrial Edge Gateway...")
 
 	// 1. Load Config
 	cfg, err := config.LoadConfig(*confDir)
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		zap.L().Fatal("Failed to load config", zap.Error(err))
 	}
+
+	// Re-init Logger with config and broadcaster
+	// Ensure logs directory exists
+	if err := os.MkdirAll("logs", 0755); err != nil {
+		zap.L().Warn("Failed to create logs directory", zap.Error(err))
+	}
+	logger.InitLogger(cfg.Server.LogLevel, "logs/gateway.log", logBroadcaster)
+	zap.L().Info("Logger initialized", zap.String("level", cfg.Server.LogLevel), zap.String("file", "logs/gateway.log"))
 
 	// 2. Init Storage
 	store, err := storage.NewStorage(cfg.Storage.Path)
 	if err != nil {
-		log.Printf("Warning: Failed to init storage: %v (continuing without storage)", err)
+		zap.L().Warn("Failed to init storage (continuing without storage)", zap.Error(err))
 		store = nil
 	}
 	if store != nil {
@@ -53,7 +68,7 @@ func main() {
 	pipeline.AddHandler(func(v model.Value) {
 		if store != nil {
 			if err := store.SaveValue(v); err != nil {
-				log.Printf("Failed to save value: %v", err)
+				zap.L().Error("Failed to save value", zap.Error(err))
 			}
 		}
 	})
@@ -96,7 +111,7 @@ func main() {
 	}
 
 	// 4. Init Web Server
-	srv := server.NewServer(cm, store, pipeline, nbm, ecm, sm, dsm)
+	srv := server.NewServer(cm, store, pipeline, nbm, ecm, sm, dsm, logBroadcaster)
 
 	// Register pipeline handler for WebSocket broadcast
 	pipeline.AddHandler(func(v model.Value) {
@@ -113,13 +128,13 @@ func main() {
 
 		err := cm.AddChannel(&ch)
 		if err != nil {
-			log.Printf("Failed to add channel %s: %v", ch.Name, err)
+			zap.L().Error("Failed to add channel", zap.String("channel", ch.Name), zap.Error(err))
 			continue
 		}
 
 		err = cm.StartChannel(ch.ID)
 		if err != nil {
-			log.Printf("Failed to start channel %s: %v", ch.Name, err)
+			zap.L().Error("Failed to start channel", zap.String("channel", ch.Name), zap.Error(err))
 		}
 	}
 
@@ -130,9 +145,9 @@ func main() {
 			port = cfg.Server.Port
 		}
 		addr := ":" + strconv.Itoa(port)
-		log.Printf("Web server starting on %s", addr)
+		zap.L().Info("Web server starting", zap.String("addr", addr))
 		if err := srv.Start(addr); err != nil {
-			log.Fatalf("Web server failed: %v", err)
+			zap.L().Fatal("Web server failed", zap.Error(err))
 		}
 	}()
 
@@ -141,6 +156,6 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
 
-	log.Println("Shutting down...")
+	zap.L().Info("Shutting down...")
 	cm.Shutdown()
 }

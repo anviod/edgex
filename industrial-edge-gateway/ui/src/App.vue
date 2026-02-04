@@ -44,6 +44,13 @@
                 rounded="xl"
             ></v-list-item>
             <v-list-item 
+                prepend-icon="mdi-console-line" 
+                title="系统日志" 
+                to="/logs"
+                active-class="v-list-item--active"
+                rounded="xl"
+            ></v-list-item>
+            <v-list-item 
                 prepend-icon="mdi-cog" 
                 title="系统设置" 
                 to="/system"

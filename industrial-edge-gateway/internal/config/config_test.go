@@ -21,8 +21,9 @@ func TestSaveConfigConcurrency(t *testing.T) {
 	// Initial config
 	initialCfg := &Config{
 		Server: struct {
-			Port int `yaml:"port"`
-		}{Port: 8080},
+			Port     int    `yaml:"port"`
+			LogLevel string `yaml:"logLevel"`
+		}{Port: 8080, LogLevel: "info"},
 		Channels: []model.Channel{},
 	}
 
@@ -44,8 +45,9 @@ func TestSaveConfigConcurrency(t *testing.T) {
 			for j := 0; j < iterations; j++ {
 				cfg := &Config{
 					Server: struct {
-						Port int `yaml:"port"`
-					}{Port: 8080 + workerID},
+						Port     int    `yaml:"port"`
+						LogLevel string `yaml:"logLevel"`
+					}{Port: 8080 + workerID, LogLevel: "info"},
 					Channels: []model.Channel{
 						{ID: fmt.Sprintf("ch-%d-%d", workerID, j), Name: "Test Channel"},
 					},

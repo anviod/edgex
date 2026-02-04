@@ -14,7 +14,8 @@ var saveMu sync.Mutex
 
 type Config struct {
 	Server struct {
-		Port int `yaml:"port"`
+		Port     int    `yaml:"port"`
+		LogLevel string `yaml:"logLevel"`
 	} `yaml:"server"`
 	Storage struct {
 		Path string `yaml:"path"`

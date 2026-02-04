@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"industrial-edge-gateway/internal/core"
 	"industrial-edge-gateway/internal/model"
+	"industrial-edge-gateway/internal/pkg/logger"
 	"industrial-edge-gateway/internal/storage"
-	"log"
 	"math/rand/v2"
 	"runtime"
 	"strconv"
@@ -19,6 +19,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/websocket/v2"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type SystemStats struct {
@@ -36,18 +37,19 @@ type DashboardSummary struct {
 }
 
 type Server struct {
-	app      *fiber.App
-	cm       *core.ChannelManager
-	storage  *storage.Storage
-	hub      *Hub
-	pipeline *core.DataPipeline
-	nbm      *core.NorthboundManager
-	ecm      *core.EdgeComputeManager
-	sm       *core.SystemManager
-	dsm      *core.DeviceStorageManager
+	app            *fiber.App
+	cm             *core.ChannelManager
+	storage        *storage.Storage
+	hub            *Hub
+	pipeline       *core.DataPipeline
+	nbm            *core.NorthboundManager
+	ecm            *core.EdgeComputeManager
+	sm             *core.SystemManager
+	dsm            *core.DeviceStorageManager
+	logBroadcaster *logger.LogBroadcaster
 }
 
-func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeline, nbm *core.NorthboundManager, ecm *core.EdgeComputeManager, sm *core.SystemManager, dsm *core.DeviceStorageManager) *Server {
+func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeline, nbm *core.NorthboundManager, ecm *core.EdgeComputeManager, sm *core.SystemManager, dsm *core.DeviceStorageManager, logBroadcaster *logger.LogBroadcaster) *Server {
 	app := fiber.New()
 	app.Use(cors.New())
 
@@ -55,15 +57,16 @@ func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeli
 	go hub.run()
 
 	s := &Server{
-		app:      app,
-		cm:       cm,
-		storage:  st,
-		hub:      hub,
-		pipeline: pl,
-		nbm:      nbm,
-		ecm:      ecm,
-		sm:       sm,
-		dsm:      dsm,
+		app:            app,
+		cm:             cm,
+		storage:        st,
+		hub:            hub,
+		pipeline:       pl,
+		nbm:            nbm,
+		ecm:            ecm,
+		sm:             sm,
+		dsm:            dsm,
+		logBroadcaster: logBroadcaster,
 	}
 
 	// Inject ChannelManager into EdgeComputeManager
@@ -255,6 +258,9 @@ func (s *Server) setupRoutes() {
 
 	// ===== WebSocket =====
 	api.Get("/ws/values", websocket.New(s.handleWebSocket))
+	api.Get("/ws/logs", websocket.New(s.handleLogWebSocket))
+	api.Get("/logs/download", s.handleLogDownload)
+
 	// 兼容旧路径
 	s.app.Get("/ws", websocket.New(s.handleWebSocket))
 
@@ -392,7 +398,7 @@ func (s *Server) removeChannel(c *fiber.Ctx) error {
 
 func (s *Server) scanChannel(c *fiber.Ctx) error {
 	id := c.Params("channelId")
-	log.Printf("[INFO] Received Scan request for channel: %s", id)
+	zap.L().Info("Received Scan request for channel", zap.String("channel_id", id))
 
 	var params map[string]any
 	if len(c.Body()) > 0 {
@@ -793,7 +799,7 @@ func (s *Server) broadcastLoop() {
 		// Convert to JSON
 		b, err := json.Marshal(val)
 		if err != nil {
-			log.Printf("Error marshalling value for broadcast: %v", err)
+			zap.L().Error("Error marshalling value for broadcast", zap.Error(err))
 			return
 		}
 		// Send to hub broadcast channel
@@ -963,4 +969,39 @@ func (s *Server) getEdgeSharedSources(c *fiber.Ctx) error {
 		return c.Status(503).JSON(fiber.Map{"error": "Edge Compute Manager not initialized"})
 	}
 	return c.JSON(s.ecm.GetSharedSources())
+}
+
+// handleLogWebSocket handles real-time log streaming
+func (s *Server) handleLogWebSocket(c *websocket.Conn) {
+	if s.logBroadcaster == nil {
+		c.WriteMessage(websocket.CloseMessage, []byte("Log broadcaster not initialized"))
+		c.Close()
+		return
+	}
+
+	ch := s.logBroadcaster.Subscribe()
+	defer s.logBroadcaster.Unsubscribe(ch)
+	defer c.Close()
+
+	// Read loop to detect client disconnect
+	go func() {
+		for {
+			if _, _, err := c.ReadMessage(); err != nil {
+				c.Close()
+				return
+			}
+		}
+	}()
+
+	for msg := range ch {
+		c.SetWriteDeadline(time.Now().Add(5 * time.Second))
+		if err := c.WriteMessage(websocket.TextMessage, msg); err != nil {
+			break
+		}
+	}
+}
+
+// handleLogDownload serves the log file
+func (s *Server) handleLogDownload(c *fiber.Ctx) error {
+	return c.Download("logs/gateway.log", "gateway.log")
 }
