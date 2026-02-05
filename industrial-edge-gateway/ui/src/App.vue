@@ -7,11 +7,11 @@
         permanent 
         class="glass-drawer" 
         :rail="drawerRail"
-        width="260"
+        width="160"
     >
         <div class="d-flex align-center justify-center pa-4" style="height: 64px;">
             <v-icon icon="mdi-hexagon-multiple" size="32" color="primary"></v-icon>
-            <span v-if="!drawerRail" class="text-h6 font-weight-bold ml-2 text-primary text-truncate">Edge Gateway</span>
+            <span v-if="!drawerRail" class="text-h6 font-weight-bold ml-2 text-primary text-truncate">edgex</span>
         </div>
         
         <v-list nav class="bg-transparent">

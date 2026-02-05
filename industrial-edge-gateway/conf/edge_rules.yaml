@@ -44,10 +44,10 @@
               value: "1"
             - channel_id: modbus-tcp-1
               device_id: slave-2
-              expression: bitset(4, value)
+              expression: ""
               point_id: dev2_pressure
               point_name: Pressure
-              value: "1"
+              value: "2"
             - channel_id: modbus-tcp-1
               device_id: "3"
               point_id: S3-1
