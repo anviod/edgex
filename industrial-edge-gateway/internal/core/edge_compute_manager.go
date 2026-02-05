@@ -820,6 +820,7 @@ func (em *EdgeComputeManager) GetWindowData(ruleID string) []model.Value {
 }
 
 func evaluateThreshold(condition string, env map[string]any) (bool, error) {
+	env = prepareExprEnv(env)
 	program, err := expr.Compile(condition, expr.Env(env))
 	if err != nil {
 		return false, err
@@ -835,6 +836,7 @@ func evaluateThreshold(condition string, env map[string]any) (bool, error) {
 }
 
 func evaluateCalculation(expression string, env map[string]any) (any, error) {
+	env = prepareExprEnv(env)
 	program, err := expr.Compile(expression, expr.Env(env))
 	if err != nil {
 		return nil, err
@@ -844,6 +846,87 @@ func evaluateCalculation(expression string, env map[string]any) (any, error) {
 		return nil, err
 	}
 	return output, nil
+}
+
+func prepareExprEnv(env map[string]any) map[string]any {
+	if env == nil {
+		env = make(map[string]any)
+	}
+	// Check if already populated to avoid re-adding
+	if _, ok := env["bitand"]; ok {
+		return env
+	}
+
+	env["bitand"] = func(a, b any) (int64, error) { return bitwiseOp(a, b, func(x, y int64) int64 { return x & y }) }
+	env["bitor"] = func(a, b any) (int64, error) { return bitwiseOp(a, b, func(x, y int64) int64 { return x | y }) }
+	env["bitxor"] = func(a, b any) (int64, error) { return bitwiseOp(a, b, func(x, y int64) int64 { return x ^ y }) }
+	env["bitnot"] = func(a any) (int64, error) { return bitwiseUnary(a, func(x int64) int64 { return ^x }) }
+	env["bitshl"] = func(a, b any) (int64, error) { return bitwiseOp(a, b, func(x, y int64) int64 { return x << y }) }
+	env["bitshr"] = func(a, b any) (int64, error) { return bitwiseOp(a, b, func(x, y int64) int64 { return x >> y }) }
+	
+	return env
+}
+
+func bitwiseOp(a, b any, op func(int64, int64) int64) (int64, error) {
+	ia, err := toInt64(a)
+	if err != nil {
+		return 0, err
+	}
+	ib, err := toInt64(b)
+	if err != nil {
+		return 0, err
+	}
+	return op(ia, ib), nil
+}
+
+func bitwiseUnary(a any, op func(int64) int64) (int64, error) {
+	ia, err := toInt64(a)
+	if err != nil {
+		return 0, err
+	}
+	return op(ia), nil
+}
+
+func toInt64(v any) (int64, error) {
+	switch val := v.(type) {
+	case int:
+		return int64(val), nil
+	case int8:
+		return int64(val), nil
+	case int16:
+		return int64(val), nil
+	case int32:
+		return int64(val), nil
+	case int64:
+		return val, nil
+	case uint:
+		return int64(val), nil
+	case uint8:
+		return int64(val), nil
+	case uint16:
+		return int64(val), nil
+	case uint32:
+		return int64(val), nil
+	case uint64:
+		return int64(val), nil
+	case float32:
+		return int64(val), nil
+	case float64:
+		return int64(val), nil
+	case string:
+		f, err := strconv.ParseFloat(val, 64)
+		if err == nil {
+			return int64(f), nil
+		}
+		// Try parsing as int directly if float parse fails (though float parse handles ints)
+		i, err := strconv.ParseInt(val, 0, 64)
+		if err == nil {
+			return i, nil
+		}
+		return 0, fmt.Errorf("cannot convert string '%s' to int64", val)
+	default:
+		return 0, fmt.Errorf("cannot convert %T to int64", v)
+	}
 }
 
 func (em *EdgeComputeManager) executeActions(ruleID string, actions []model.RuleAction, val model.Value, env map[string]any) {

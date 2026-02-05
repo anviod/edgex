@@ -41,7 +41,7 @@
               value: "111"
             - channel_id: modbus-tcp-1
               device_id: slave-2
-              expression: v&64
+              expression: bitand(v, 64)
               point_id: dev2_pressure
               point_name: Pressure
               value: "222"

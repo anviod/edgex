@@ -82,6 +82,22 @@ func TestEdgeActionExpression(t *testing.T) {
 			ExpectedVal:   15.0,
 			ShouldUseExpr: true,
 		},
+		{
+			Name:          "Bitwise AND Function",
+			Expression:    "bitand(v, 64)",
+			Value:         "0",
+			InputVal:      65.0,
+			ExpectedVal:   64,
+			ShouldUseExpr: true,
+		},
+		{
+			Name:          "Bitwise OR Function",
+			Expression:    "bitor(v, 1)",
+			Value:         "0",
+			InputVal:      64,
+			ExpectedVal:   65,
+			ShouldUseExpr: true,
+		},
 	}
 
 	for _, tc := range tests {

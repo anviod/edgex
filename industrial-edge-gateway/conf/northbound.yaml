@@ -61,25 +61,24 @@ opcua:
       auth_methods:
         - Anonymous
         - UserName
-      users: {}
+      users:
+        admin: password123
       cert_file: ""
       key_file: ""
       devices:
         "3": true
-        Room_FC_2014_2228316: true
-        Room_FC_2014_2228317: true
+        Room_FC_2014_2228316: false
+        Room_FC_2014_2228317: false
         Room_FC_2014_2228318: true
         Room_FC_2014_2228319: true
-        Room_FC_2014_2228320: true
+        Room_FC_2014_2228320: false
         opcua-dev-1: false
-        opcua-device-1: false
-        remote-slave-1: false
         rtu-device-1: false
-        s7-pressure-sensor: true
-        s7-pump-1: true
-        s7-water-meter: true
-        slave-1: true
-        slave-2: true
+        s7-pressure-sensor: false
+        s7-pump-1: false
+        s7-water-meter: false
+        slave-1: false
+        slave-2: false
 sparkplug_b:
     - id: sparkplug-1
       name: Default Sparkplug B

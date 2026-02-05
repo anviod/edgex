@@ -1,6 +1,7 @@
 package opcua
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -34,6 +35,8 @@ type Server struct {
 	nodeMap   map[string]*server.VariableNode
 	gatewayID string
 	stats     Stats
+	ctx       context.Context
+	cancel    context.CancelFunc
 }
 
 // NewServer creates a new OPC UA Server
@@ -49,6 +52,8 @@ func NewServer(cfg model.OPCUAConfig, sb model.SouthboundManager) *Server {
 // Start starts the OPC UA Server
 func (s *Server) Start() error {
 	log.Printf("Starting OPC UA Server [%s] on port %d...", s.config.Name, s.config.Port)
+
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 
 	endpoint := fmt.Sprintf("opc.tcp://0.0.0.0:%d%s", s.config.Port, s.config.Endpoint)
 
@@ -161,7 +166,7 @@ func (s *Server) Start() error {
 		}
 	}()
 
-	go s.systemInfoLoop()
+	go s.systemInfoLoop(s.ctx)
 
 	log.Printf("OPC UA Server [%s] started at %s", s.config.Name, endpoint)
 	return nil
@@ -227,6 +232,9 @@ func (s *Server) ensureCert(certFile, keyFile string) error {
 
 // ... rest of the file ...
 func (s *Server) Stop() {
+	if s.cancel != nil {
+		s.cancel()
+	}
 	if s.srv != nil {
 		s.srv.Close()
 	}
@@ -473,11 +481,14 @@ func (s *Server) buildAddressSpace() error {
 	return nil
 }
 
-func (s *Server) systemInfoLoop() {
+func (s *Server) systemInfoLoop(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 	startTime := time.Now()
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-ticker.C:
 			var mem runtime.MemStats
 			runtime.ReadMemStats(&mem)

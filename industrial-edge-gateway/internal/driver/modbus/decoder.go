@@ -93,7 +93,7 @@ func (d *PointDecoder) Decode(point model.Point, raw []byte) (any, string, error
 
 	// 应用缩放和偏移
 	val = d.applyScaleOffset(point, val)
-	
+
 	// TODO: 可以添加范围检查以确定 Quality
 	return val, "Good", nil
 }
@@ -203,6 +203,8 @@ func (d *PointDecoder) reverseScaleOffset(point model.Point, value any) any {
 		fVal = v
 	case int:
 		fVal = float64(v)
+	case int64:
+		fVal = float64(v)
 	case string:
 		fVal, _ = strconv.ParseFloat(v, 64)
 	default:
@@ -225,6 +227,8 @@ func (d *PointDecoder) encodeRaw(point model.Point, value any) ([]uint16, error)
 			intVal = uint16(v)
 		case int:
 			intVal = uint16(v)
+		case int64:
+			intVal = uint16(v)
 		case string:
 			i, _ := strconv.Atoi(v)
 			intVal = uint16(i)
@@ -242,6 +246,8 @@ func (d *PointDecoder) encodeRaw(point model.Point, value any) ([]uint16, error)
 			fVal = v
 		case int:
 			fVal = float32(v)
+		case int64:
+			fVal = float32(v)
 		case string:
 			f, _ := strconv.ParseFloat(v, 32)
 			fVal = float32(f)
@@ -253,7 +259,7 @@ func (d *PointDecoder) encodeRaw(point model.Point, value any) ([]uint16, error)
 		bytes := make([]byte, 4)
 		binary.BigEndian.PutUint32(bytes, bits)
 		orderedBytes := d.applyByteOrder(bytes)
-		
+
 		reg1 := binary.BigEndian.Uint16(orderedBytes[0:2])
 		reg2 := binary.BigEndian.Uint16(orderedBytes[2:4])
 		return []uint16{reg1, reg2}, nil
@@ -264,6 +270,8 @@ func (d *PointDecoder) encodeRaw(point model.Point, value any) ([]uint16, error)
 		case float64:
 			uVal = uint32(v)
 		case int:
+			uVal = uint32(v)
+		case int64:
 			uVal = uint32(v)
 		case int32:
 			uVal = uint32(v)
@@ -284,6 +292,6 @@ func (d *PointDecoder) encodeRaw(point model.Point, value any) ([]uint16, error)
 		reg2 := binary.BigEndian.Uint16(orderedBytes[2:4])
 		return []uint16{reg1, reg2}, nil
 	}
-	
+
 	return nil, fmt.Errorf("encode not supported for type: %s", point.DataType)
 }

@@ -499,7 +499,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch, onUnmounted } from 'vue'
 import { showMessage } from '../composables/useGlobalState'
 import request from '@/utils/request'
 const loading = ref(false)
@@ -761,24 +761,41 @@ const opcuaStatsDialog = reactive({
     }
 })
 
-const openOpcuaStats = async (item) => {
-    opcuaStatsDialog.id = item.id
-    opcuaStatsDialog.visible = true
-    await refreshOpcuaStats()
-}
+let statsTimer = null
 
-const refreshOpcuaStats = async () => {
+const refreshOpcuaStats = async (isAuto = false) => {
     if (!opcuaStatsDialog.id) return
-    opcuaStatsDialog.loading = true
+    if (!isAuto) opcuaStatsDialog.loading = true
     try {
         const data = await request.get(`/api/northbound/opcua/${opcuaStatsDialog.id}/stats`)
         opcuaStatsDialog.data = data
     } catch (e) {
-        showMessage('获取监控信息失败: ' + e.message, 'error')
+        if (!isAuto) showMessage('获取监控信息失败: ' + e.message, 'error')
     } finally {
-        opcuaStatsDialog.loading = false
+        if (!isAuto) opcuaStatsDialog.loading = false
     }
 }
+
+const openOpcuaStats = (item) => {
+    opcuaStatsDialog.id = item.id
+    opcuaStatsDialog.visible = true
+}
+
+watch(() => opcuaStatsDialog.visible, (val) => {
+    if (val) {
+        refreshOpcuaStats(false)
+        statsTimer = setInterval(() => refreshOpcuaStats(true), 3000)
+    } else {
+        if (statsTimer) {
+            clearInterval(statsTimer)
+            statsTimer = null
+        }
+    }
+})
+
+onUnmounted(() => {
+    if (statsTimer) clearInterval(statsTimer)
+})
 
 const formatUptime = (seconds) => {
     if (seconds < 60) return seconds + '秒'

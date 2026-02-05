@@ -420,7 +420,14 @@
                                     label="触发条件 (Expression)"
                                     hint="例如: t1 > 50 || t2 > 80 (使用数据源别名)"
                                     rows="2"
-                                ></v-textarea>
+                                >
+                                    <template v-slot:append-inner>
+                                        <v-btn color="primary" variant="tonal" class="rounded-0 h-100" style="margin-top: -8px; margin-bottom: -8px; margin-right: -12px; min-width: 90px;" @click="openHelper(currentRule.condition, (v) => currentRule.condition = v)">
+                                            <v-icon start icon="mdi-calculator"></v-icon>
+                                            公式助手
+                                        </v-btn>
+                                    </template>
+                                </v-textarea>
                             </v-col>
                             <!-- Calculation Expression -->
                             <v-col cols="12" v-if="currentRule.type === 'calculation'">
@@ -429,7 +436,14 @@
                                     label="计算公式 (Expression)"
                                     hint="例如: value * 1.5 + 32"
                                     rows="2"
-                                ></v-textarea>
+                                >
+                                    <template v-slot:append-inner>
+                                        <v-btn color="primary" variant="tonal" class="rounded-0 h-100" style="margin-top: -8px; margin-bottom: -8px; margin-right: -12px; min-width: 90px;" @click="openHelper(currentRule.expression, (v) => currentRule.expression = v)">
+                                            <v-icon start icon="mdi-calculator"></v-icon>
+                                            公式助手
+                                        </v-btn>
+                                    </template>
+                                </v-textarea>
                             </v-col>
 
                             <!-- Actions -->
@@ -609,6 +623,22 @@
                                                             :return-object="false"
                                                         ></v-combobox>
                                                         <v-text-field
+                                                            v-model="target.expression"
+                                                            label="Expr 公式"
+                                                            density="compact"
+                                                            hide-details
+                                                            class="mr-2"
+                                                            style="width: 240px; white-space: nowrap"
+                                                            placeholder="v+1 or bitand(v,1)"
+                                                        >
+                                                            <template v-slot:append-inner>
+                                                                <v-btn color="primary" variant="tonal" class="rounded-0 h-100" style="margin-top: -6px; margin-bottom: -6px; margin-right: -12px;" @click="openHelper(target.expression, (v) => target.expression = v)">
+                                                                    <v-icon start icon="mdi-calculator"></v-icon>
+                                                                    助手
+                                                                </v-btn>
+                                                            </template>
+                                                        </v-text-field>
+                                                        <v-text-field
                                                             v-model="target.value"
                                                             label="Value 值"
                                                             density="compact"
@@ -646,6 +676,48 @@
                 </v-card-actions>
             </v-card>
         </v-dialog>
+
+        <!-- Expression Helper Dialog -->
+        <v-dialog v-model="helperDialog" max-width="600px">
+            <v-card>
+                <v-card-title class="bg-primary text-white">
+                    <v-icon start>mdi-calculator</v-icon>
+                    表达式转换助手
+                </v-card-title>
+                <v-card-text class="pt-4">
+                    <div class="text-body-2 mb-2">输入标准表达式 (例如: v & 64, v | 1, ~v):</div>
+                    <v-textarea 
+                        v-model="helperInput" 
+                        label="标准表达式 (Standard Syntax)" 
+                        variant="outlined"
+                        rows="3"
+                        auto-grow
+                    ></v-textarea>
+                    
+                    <div class="d-flex justify-center my-2">
+                        <v-btn color="secondary" prepend-icon="mdi-arrow-down-bold" @click="convertHelper">
+                            转换 (Convert)
+                        </v-btn>
+                    </div>
+                    
+                    <div class="text-body-2 mb-2">转换结果 (Function Syntax):</div>
+                    <v-textarea 
+                        v-model="helperOutput" 
+                        label="函数表达式 (Result)" 
+                        variant="outlined"
+                        bg-color="grey-lighten-4"
+                        rows="3"
+                        auto-grow
+                        readonly
+                    ></v-textarea>
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn color="grey" variant="text" @click="helperDialog = false">关闭</v-btn>
+                    <v-btn color="primary" @click="applyHelper" :disabled="!helperOutput">应用并填入</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
     </div>
 </template>
 
@@ -655,6 +727,56 @@ import { useRoute } from 'vue-router'
 import request from '@/utils/request'
 import { base64ToUint8Array, uint8ArrayToHex, detectFileType, downloadBytes } from '@/utils/decode'
 import EdgeComputeMetrics from './EdgeComputeMetrics.vue'
+
+// Expression Helper
+const helperDialog = ref(false)
+const helperInput = ref('')
+const helperOutput = ref('')
+let helperCallback = null
+
+const openHelper = (initialValue, callback) => {
+    helperInput.value = initialValue || ''
+    helperOutput.value = ''
+    helperCallback = callback
+    helperDialog.value = true
+}
+
+const convertHelper = () => {
+    let res = helperInput.value
+    if (!res) return
+
+    // Handle ~ (Unary NOT)
+    res = res.replace(/~\s*([a-zA-Z0-9_.]+|\([^)]+\))/g, 'bitnot($1)')
+
+    let prev = ''
+    let limit = 10
+    while (prev !== res && limit > 0) {
+        prev = res
+        limit--
+        
+        // << and >>
+        res = res.replace(/([a-zA-Z0-9_.]+|\([^)]+\))\s*(<<|>>)\s*([a-zA-Z0-9_.]+|\([^)]+\))/g, (m, a, op, b) => {
+             return op === '<<' ? `bitshl(${a}, ${b})` : `bitshr(${a}, ${b})`
+        })
+        
+        // &
+        res = res.replace(/([a-zA-Z0-9_.]+|\([^)]+\))\s*&\s*([a-zA-Z0-9_.]+|\([^)]+\))/g, 'bitand($1, $2)')
+        
+        // ^
+        res = res.replace(/([a-zA-Z0-9_.]+|\([^)]+\))\s*\^\s*([a-zA-Z0-9_.]+|\([^)]+\))/g, 'bitxor($1, $2)')
+        
+        // |
+        res = res.replace(/([a-zA-Z0-9_.]+|\([^)]+\))\s*\|\s*([a-zA-Z0-9_.]+|\([^)]+\))/g, 'bitor($1, $2)')
+    }
+    helperOutput.value = res
+}
+
+const applyHelper = () => {
+    if (helperCallback && helperOutput.value) {
+        helperCallback(helperOutput.value)
+    }
+    helperDialog.value = false
+}
 
 const route = useRoute()
 const tab = ref('metrics')
