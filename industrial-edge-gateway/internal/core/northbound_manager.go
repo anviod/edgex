@@ -24,13 +24,14 @@ type NorthboundManager struct {
 	opcuaServers     map[string]*opcua.Server
 	sparkplugClients map[string]*sparkplugb.Client
 	pipeline         *DataPipeline
+	sb               model.SouthboundManager
 	ctx              context.Context
 	cancel           context.CancelFunc
 	saveFunc         func(model.NorthboundConfig) error
 	mu               sync.RWMutex
 }
 
-func NewNorthboundManager(cfg model.NorthboundConfig, pipeline *DataPipeline, saveFunc func(model.NorthboundConfig) error) *NorthboundManager {
+func NewNorthboundManager(cfg model.NorthboundConfig, pipeline *DataPipeline, sb model.SouthboundManager, saveFunc func(model.NorthboundConfig) error) *NorthboundManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &NorthboundManager{
 		config:           cfg,
@@ -38,6 +39,7 @@ func NewNorthboundManager(cfg model.NorthboundConfig, pipeline *DataPipeline, sa
 		opcuaServers:     make(map[string]*opcua.Server),
 		sparkplugClients: make(map[string]*sparkplugb.Client),
 		pipeline:         pipeline,
+		sb:               sb,
 		ctx:              ctx,
 		cancel:           cancel,
 		saveFunc:         saveFunc,
@@ -121,7 +123,7 @@ func (nm *NorthboundManager) Start() {
 	// Start OPC UA Servers
 	for _, cfg := range nm.config.OPCUA {
 		if cfg.Enable {
-			server := opcua.NewServer(cfg)
+			server := opcua.NewServer(cfg, nm.sb)
 			if err := server.Start(); err != nil {
 				log.Printf("Failed to start OPC UA server [%s]: %v", cfg.Name, err)
 			} else {
@@ -181,6 +183,16 @@ func (nm *NorthboundManager) PublishMQTT(clientID string, topic string, payload 
 		return client.PublishRaw(topic, payload)
 	}
 	return fmt.Errorf("no active MQTT clients")
+}
+
+func (nm *NorthboundManager) GetOPCUAStats(id string) (opcua.Stats, error) {
+	nm.mu.RLock()
+	defer nm.mu.RUnlock()
+
+	if server, ok := nm.opcuaServers[id]; ok {
+		return server.GetStats(), nil
+	}
+	return opcua.Stats{}, fmt.Errorf("OPC UA server %s not found or not running", id)
 }
 
 func (nm *NorthboundManager) Stop() {
@@ -385,7 +397,7 @@ func (nm *NorthboundManager) UpsertOPCUAConfig(cfg model.OPCUAConfig) error {
 	}
 
 	if !exists {
-		newServer := opcua.NewServer(cfg)
+		newServer := opcua.NewServer(cfg, nm.sb)
 		if err := newServer.Start(); err != nil {
 			return err
 		}

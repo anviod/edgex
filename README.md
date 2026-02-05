@@ -23,7 +23,7 @@ Industrial Edge Gateway 是一个轻量级的工业边缘计算网关，旨在�
 | :--- | :--- | :--- |
 | **MQTT** | ✅ 已实现 | 支持自定义 Topic、Payload 模板 |
 | **Sparkplug B** | ✅ 已实现 | 支持 NBIRTH, NDEATH, DDATA 消息规范 |
-| **OPC UA Server** | 🚧 开发中 | 目前为 Mock 实现，仅提供基础结构 |
+| **OPC UA Server** | ✅ 已实现 | 基于 `awcullen/opcua` 实现，支持多种认证方式（匿名/用户名/证书），支持数据点位映射与反向控制，提供服务端运行监控（客户端数/订阅数/写统计） |
 
 ### 🧠 边缘计算 & 管理
 *   **规则引擎**: 内置轻量级规则引擎，支持 `expr` 表达式进行逻辑判断和联动控制。
@@ -35,6 +35,7 @@ Industrial Edge Gateway 是一个轻量级的工业边缘计算网关，旨在�
     *   基于 Vue 3 + Vuetify 的现代化 UI。
     *   **登录安全**: 支持 JWT 认证、登录倒计时保护。
     *   **视图切换**: 通道列表支持卡片/列表视图切换。
+    *   **北向管理**: 提供 OPC UA Server 安全配置（用户/证书）与实时运行状态监控看板。
 *   **配置管理**: 采用模块化 YAML 配置 (`conf/` 目录)，支持热重载（部分）。
 *   **离线支持**: 前端依赖已优化，支持完全离线局域网运行。
 
@@ -161,7 +162,7 @@ devices:
 - [ ] **其他驱动**: 逐步替换 Mitsubishi, Omron, DL/T645 的模拟实现。
 
 ### 北向增强
-- [ ] **OPC UA Server**: 实现完整的 Address Space 和 Subscription 支持。
+- [x] **OPC UA Server**: 实现基于 `awcullen/opcua` 的服务端，支持多重认证（匿名/用户名/证书）与运行监控。
 - [ ] **HTTP Push**: 支持通过 HTTP POST 推送数据到第三方 HTTP 服务器。
 
 ### 系统功能

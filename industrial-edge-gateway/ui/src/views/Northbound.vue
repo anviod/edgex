@@ -64,6 +64,7 @@
                         OPC UA: {{ item.name || item.id }}
                         <v-spacer></v-spacer>
                         <v-btn icon="mdi-cog" variant="text" size="small" color="primary" @click="openOpcuaSettings(item)"></v-btn>
+                        <v-btn icon="mdi-monitor-dashboard" variant="text" size="small" color="info" @click="openOpcuaStats(item)" title="运行监控"></v-btn>
                         <v-btn icon="mdi-delete" variant="text" size="small" color="error" @click="deleteProtocol('opcua', item.id)"></v-btn>
                         <v-chip :color="item.enable ? 'success' : 'grey'" size="small" class="ml-2">
                             {{ item.enable ? '启用' : '禁用' }}
@@ -361,7 +362,7 @@
         <!-- OPC UA Settings Dialog -->
         <v-dialog v-model="opcuaDialog.visible" max-width="800px">
             <v-card>
-                <v-card-title class="text-h5 pa-4">OPC UA 配置</v-card-title>
+                <v-card-title class="text-h5 pa-4">OPC UA 配置 (安全增强)</v-card-title>
                 <v-card-text>
                     <v-form>
                         <v-row class="mb-2">
@@ -381,6 +382,44 @@
                             </v-col>
                         </v-row>
                         
+                        <v-divider class="my-4"></v-divider>
+                        <div class="text-subtitle-1 mb-2 font-weight-bold">安全认证设置</div>
+                        <v-select
+                            v-model="opcuaDialog.config.auth_methods"
+                            :items="['Anonymous', 'UserName', 'Certificate']"
+                            label="认证方式"
+                            multiple
+                            chips
+                            variant="outlined"
+                            density="compact"
+                        ></v-select>
+
+                        <div v-if="opcuaDialog.config.auth_methods && opcuaDialog.config.auth_methods.includes('UserName')" class="ml-4 border-l-4 pl-4 my-2">
+                             <div class="text-subtitle-2 mb-2">用户列表 (用户名:密码)</div>
+                             <div v-for="(pwd, user) in opcuaDialog.config.users" :key="user" class="d-flex align-center mb-2">
+                                 <v-text-field :model-value="user" readonly label="用户名" density="compact" variant="outlined" hide-details class="mr-2"></v-text-field>
+                                 <v-text-field :model-value="pwd" readonly type="password" label="密码" density="compact" variant="outlined" hide-details class="mr-2"></v-text-field>
+                                 <v-btn icon="mdi-delete" size="small" color="error" variant="text" @click="delete opcuaDialog.config.users[user]"></v-btn>
+                             </div>
+                             <v-row class="align-center">
+                                 <v-col cols="5">
+                                     <v-text-field v-model="newUser" label="新用户名" density="compact" variant="outlined" hide-details></v-text-field>
+                                 </v-col>
+                                 <v-col cols="5">
+                                     <v-text-field v-model="newPwd" label="新密码" density="compact" variant="outlined" hide-details></v-text-field>
+                                 </v-col>
+                                 <v-col cols="2">
+                                     <v-btn icon="mdi-plus" color="primary" @click="addOpcuaUser"></v-btn>
+                                 </v-col>
+                             </v-row>
+                        </div>
+
+                        <div v-if="opcuaDialog.config.auth_methods && opcuaDialog.config.auth_methods.includes('Certificate')" class="ml-4 border-l-4 pl-4 my-2">
+                             <div class="text-subtitle-2 mb-2">证书配置</div>
+                             <v-text-field v-model="opcuaDialog.config.cert_file" label="服务器证书路径" placeholder="server.crt" variant="outlined" density="compact"></v-text-field>
+                             <v-text-field v-model="opcuaDialog.config.key_file" label="服务器私钥路径" placeholder="server.key" variant="outlined" density="compact"></v-text-field>
+                        </div>
+
                         <v-divider class="my-4"></v-divider>
                         <div class="text-subtitle-1 mb-2 font-weight-bold">设备映射设置</div>
                         <v-table density="compact" class="border rounded">
@@ -410,6 +449,49 @@
                     <v-spacer></v-spacer>
                     <v-btn variant="text" @click="opcuaDialog.visible = false">取消</v-btn>
                     <v-btn color="primary" variant="elevated" @click="saveOpcuaSettings" :loading="opcuaDialog.loading">保存配置</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
+
+        <!-- OPC UA Stats Dialog -->
+        <v-dialog v-model="opcuaStatsDialog.visible" max-width="500px">
+            <v-card>
+                <v-card-title class="d-flex align-center pa-4">
+                    <span class="text-h5">OPC UA 运行监控</span>
+                    <v-spacer></v-spacer>
+                    <v-btn icon="mdi-refresh" variant="text" size="small" @click="refreshOpcuaStats" :loading="opcuaStatsDialog.loading"></v-btn>
+                </v-card-title>
+                <v-card-text class="pa-4">
+                    <v-row>
+                        <v-col cols="6">
+                            <v-card class="pa-2 text-center" variant="outlined">
+                                <div class="text-caption text-grey">当前连接客户端</div>
+                                <div class="text-h4 text-primary mt-1">{{ opcuaStatsDialog.data.client_count || 0 }}</div>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="6">
+                            <v-card class="pa-2 text-center" variant="outlined">
+                                <div class="text-caption text-grey">当前订阅数量</div>
+                                <div class="text-h4 text-info mt-1">{{ opcuaStatsDialog.data.subscription_count || 0 }}</div>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="6">
+                            <v-card class="pa-2 text-center" variant="outlined">
+                                <div class="text-caption text-grey">最近写操作统计</div>
+                                <div class="text-h4 text-success mt-1">{{ opcuaStatsDialog.data.write_count || 0 }}</div>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="6">
+                            <v-card class="pa-2 text-center" variant="outlined">
+                                <div class="text-caption text-grey">运行时长</div>
+                                <div class="text-h4 text-grey mt-1">{{ formatUptime(opcuaStatsDialog.data.uptime || 0) }}</div>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+                </v-card-text>
+                <v-card-actions class="pa-4">
+                    <v-spacer></v-spacer>
+                    <v-btn variant="text" @click="opcuaStatsDialog.visible = false">关闭</v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
@@ -462,6 +544,20 @@ const addProtocol = (type) => {
     } else if (type === 'opcua') {
         openOpcuaSettings(null)
     }
+}
+
+const newUser = ref('')
+const newPwd = ref('')
+
+const addOpcuaUser = () => {
+    if (!newUser.value || !newPwd.value) {
+        showMessage('用户名和密码不能为空', 'warning')
+        return
+    }
+    if (!opcuaDialog.config.users) opcuaDialog.config.users = {}
+    opcuaDialog.config.users[newUser.value] = newPwd.value
+    newUser.value = ''
+    newPwd.value = ''
 }
 
 const fetchConfig = async () => {
@@ -612,12 +708,22 @@ const openOpcuaSettings = async (item) => {
             name: 'New OPC UA Server',
             port: 4840,
             endpoint: '/ipp/opcua/server',
-            devices: {}
+            devices: {},
+            auth_methods: ['Anonymous'],
+            users: {},
+            cert_file: '',
+            key_file: ''
         }
     }
     
     // Ensure devices map exists
     if (!opcuaDialog.config.devices) opcuaDialog.config.devices = {}
+    
+    // Ensure auth fields exist
+    if (!opcuaDialog.config.auth_methods) opcuaDialog.config.auth_methods = ['Anonymous']
+    if (!opcuaDialog.config.users) opcuaDialog.config.users = {}
+    if (!opcuaDialog.config.cert_file) opcuaDialog.config.cert_file = ''
+    if (!opcuaDialog.config.key_file) opcuaDialog.config.key_file = ''
     
     // Initialize unmapped devices to false
     allDevices.value.forEach(dev => {
@@ -641,6 +747,45 @@ const saveOpcuaSettings = async () => {
     } finally {
         opcuaDialog.loading = false
     }
+}
+
+const opcuaStatsDialog = reactive({
+    visible: false,
+    loading: false,
+    id: null,
+    data: {
+        client_count: 0,
+        subscription_count: 0,
+        write_count: 0,
+        uptime: 0
+    }
+})
+
+const openOpcuaStats = async (item) => {
+    opcuaStatsDialog.id = item.id
+    opcuaStatsDialog.visible = true
+    await refreshOpcuaStats()
+}
+
+const refreshOpcuaStats = async () => {
+    if (!opcuaStatsDialog.id) return
+    opcuaStatsDialog.loading = true
+    try {
+        const data = await request.get(`/api/northbound/opcua/${opcuaStatsDialog.id}/stats`)
+        opcuaStatsDialog.data = data
+    } catch (e) {
+        showMessage('获取监控信息失败: ' + e.message, 'error')
+    } finally {
+        opcuaStatsDialog.loading = false
+    }
+}
+
+const formatUptime = (seconds) => {
+    if (seconds < 60) return seconds + '秒'
+    if (seconds < 3600) return Math.floor(seconds / 60) + '分' + (seconds % 60) + '秒'
+    const hours = Math.floor(seconds / 3600)
+    const mins = Math.floor((seconds % 3600) / 60)
+    return hours + '小时' + mins + '分'
 }
 
 onMounted(fetchConfig)

@@ -56,9 +56,22 @@ opcua:
     - id: opcua-1
       name: Default OPC UA
       enable: true
-      port: 5000
+      port: 5050
       endpoint: /test
+      auth_methods:
+        - Anonymous
+        - UserName
+      users: {}
+      cert_file: ""
+      key_file: ""
       devices:
+        "3": true
+        Room_FC_2014_2228316: true
+        Room_FC_2014_2228317: true
+        Room_FC_2014_2228318: true
+        Room_FC_2014_2228319: true
+        Room_FC_2014_2228320: true
+        opcua-dev-1: false
         opcua-device-1: false
         remote-slave-1: false
         rtu-device-1: false
@@ -66,7 +79,7 @@ opcua:
         s7-pump-1: true
         s7-water-meter: true
         slave-1: true
-        slave-2: false
+        slave-2: true
 sparkplug_b:
     - id: sparkplug-1
       name: Default Sparkplug B

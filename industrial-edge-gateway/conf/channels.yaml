@@ -1,3 +1,42 @@
+- id: s7-test-1
+  name: S7 Test Channel
+  protocol: s7
+  enable: true
+  config:
+    ip: 192.168.1.100
+    plcType: S7-1200
+    port: 102
+    rack: 0
+    slot: 2
+    startup: warm
+  devices: []
+- id: modbus-rtu-1
+  name: Modbus RTU Channel (本地网关)
+  protocol: modbus-rtu
+  enable: false
+  config:
+    baudrate: 9600
+    port: /dev/ttyUSB0
+    timeout: 5s
+  devices:
+    - id: rtu-device-1
+      name: RTU Device 1
+      enable: true
+      interval: 2s
+      config:
+        slave_id: 1
+      points:
+        - id: rtu_temp
+          name: Temperature
+          address: "0"
+          datatype: int16
+          scale: 0.1
+          offset: 0
+          unit: °C
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
 - id: bac-test-1
   name: BAC测试
   protocol: bacnet-ip
@@ -2366,45 +2405,6 @@
           offset: 0
           unit: ""
           readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-- id: s7-test-1
-  name: S7 Test Channel
-  protocol: s7
-  enable: true
-  config:
-    ip: 192.168.1.100
-    plcType: S7-1200
-    port: 102
-    rack: 0
-    slot: 2
-    startup: warm
-  devices: []
-- id: modbus-rtu-1
-  name: Modbus RTU Channel (本地网关)
-  protocol: modbus-rtu
-  enable: false
-  config:
-    baudrate: 9600
-    port: /dev/ttyUSB0
-    timeout: 5s
-  devices:
-    - id: rtu-device-1
-      name: RTU Device 1
-      enable: true
-      interval: 2s
-      config:
-        slave_id: 1
-      points:
-        - id: rtu_temp
-          name: Temperature
-          address: "0"
-          datatype: int16
-          scale: 0.1
-          offset: 0
-          unit: °C
-          readwrite: RW
           group: ""
           report_mode: ""
           threshold: null

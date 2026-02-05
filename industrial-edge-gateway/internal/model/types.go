@@ -104,10 +104,10 @@ type Device struct {
 	Name     string         `json:"name" yaml:"name"`
 	Enable   bool           `json:"enable" yaml:"enable"`
 	Interval Duration       `json:"interval" yaml:"interval"`
-	Config   map[string]any `json:"config" yaml:"config"` // 设备特定配置（如 slave_id）
+	Config   map[string]any `json:"config" yaml:"config"`                       // 设备特定配置（如 slave_id）
 	Storage  DeviceStorage  `json:"storage,omitempty" yaml:"storage,omitempty"` // Data storage strategy
-	Points   []Point        `json:"points" yaml:"points"` // 该设备的点位列表
-	State    int            `json:"state" yaml:"-"`       // 运行时状态：0=Online, 1=Unstable, 2=Offline, 3=Quarantine
+	Points   []Point        `json:"points" yaml:"points"`                       // 该设备的点位列表
+	State    int            `json:"state" yaml:"-"`                             // 运行时状态：0=Online, 1=Unstable, 2=Offline, 3=Quarantine
 	StopChan chan struct{}  `json:"-" yaml:"-"`
 	// Runtime state fields
 	NodeRuntime *NodeRuntime `json:"runtime,omitempty" yaml:"-"`
@@ -170,12 +170,16 @@ type DevicePublishConfig struct {
 }
 
 type OPCUAConfig struct {
-	ID       string          `json:"id" yaml:"id"`
-	Name     string          `json:"name" yaml:"name"`
-	Enable   bool            `json:"enable" yaml:"enable"`
-	Port     int             `json:"port" yaml:"port"`
-	Endpoint string          `json:"endpoint" yaml:"endpoint"`
-	Devices  map[string]bool `json:"devices" yaml:"devices"` // Key: DeviceID, Value: Enable
+	ID          string            `json:"id" yaml:"id"`
+	Name        string            `json:"name" yaml:"name"`
+	Enable      bool              `json:"enable" yaml:"enable"`
+	Port        int               `json:"port" yaml:"port"`
+	Endpoint    string            `json:"endpoint" yaml:"endpoint"`
+	AuthMethods []string          `json:"auth_methods" yaml:"auth_methods"` // "Anonymous", "UserName", "Certificate"
+	Users       map[string]string `json:"users" yaml:"users"`               // Username -> Password
+	CertFile    string            `json:"cert_file" yaml:"cert_file"`       // Path to server certificate
+	KeyFile     string            `json:"key_file" yaml:"key_file"`         // Path to server private key
+	Devices     map[string]bool   `json:"devices" yaml:"devices"`           // Key: DeviceID, Value: Enable
 }
 
 type SparkplugBConfig struct {
@@ -269,4 +273,13 @@ type FailedAction struct {
 	RetryCount int            `json:"retry_count"`
 	LastError  string         `json:"last_error"`
 	Env        map[string]any `json:"env"`
+}
+
+// SouthboundManager interface defines methods required by Northbound components
+// to interact with southbound devices (e.g. for building address space or writing values)
+type SouthboundManager interface {
+	GetChannels() []Channel
+	GetChannelDevices(channelID string) []Device
+	GetDevice(channelID, deviceID string) *Device
+	WritePoint(channelID, deviceID, pointID string, value any) error
 }

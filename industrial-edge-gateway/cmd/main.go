@@ -81,8 +81,14 @@ func main() {
 	ecm.LoadRules(cfg.EdgeRules)
 	ecm.Start()
 
+	// 4. Init Channel Manager (Before Northbound)
+	cm := core.NewChannelManager(pipeline, func(channels []model.Channel) error {
+		cfg.Channels = channels
+		return config.SaveConfig(*confDir, cfg)
+	})
+
 	// 5. Init Northbound Manager
-	nbm := core.NewNorthboundManager(cfg.Northbound, pipeline, func(nbCfg model.NorthboundConfig) error {
+	nbm := core.NewNorthboundManager(cfg.Northbound, pipeline, cm, func(nbCfg model.NorthboundConfig) error {
 		cfg.Northbound = nbCfg
 		return config.SaveConfig(*confDir, cfg)
 	})
@@ -91,12 +97,6 @@ func main() {
 
 	// Connect Edge Compute to Northbound
 	ecm.SetNorthboundManager(nbm)
-
-	// 使用新的 ChannelManager（支持三级结构）
-	cm := core.NewChannelManager(pipeline, func(channels []model.Channel) error {
-		cfg.Channels = channels
-		return config.SaveConfig(*confDir, cfg)
-	})
 
 	// Init System Manager
 	sm := core.NewSystemManager(cfg, *confDir)

@@ -243,6 +243,7 @@ func (s *Server) setupRoutes() {
 	api.Get("/northbound/config", s.getNorthboundConfig)
 	api.Post("/northbound/mqtt", s.updateMQTTConfig)
 	api.Post("/northbound/opcua", s.updateOPCUAConfig)
+	api.Get("/northbound/opcua/:id/stats", s.getOPCUAStats)
 	api.Get("/points", s.getAllPoints)
 
 	// Edge Compute
@@ -1004,4 +1005,13 @@ func (s *Server) handleLogWebSocket(c *websocket.Conn) {
 // handleLogDownload serves the log file
 func (s *Server) handleLogDownload(c *fiber.Ctx) error {
 	return c.Download("logs/gateway.log", "gateway.log")
+}
+
+func (s *Server) getOPCUAStats(c *fiber.Ctx) error {
+	id := c.Params("id")
+	stats, err := s.nbm.GetOPCUAStats(id)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(stats)
 }
