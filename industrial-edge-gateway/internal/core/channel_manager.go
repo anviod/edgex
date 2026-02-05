@@ -808,6 +808,84 @@ func (cm *ChannelManager) WritePoint(channelID, deviceID, pointID string, value 
 	return d.WritePoint(ctx, targetPoint, value)
 }
 
+// ReadPoint 读取指定通道下设备点位的值
+func (cm *ChannelManager) ReadPoint(channelID, deviceID, pointID string) (model.Value, error) {
+	cm.mu.RLock()
+	_, ok := cm.channels[channelID]
+	d, okDrv := cm.drivers[channelID]
+	mu, okMu := cm.driverMus[channelID]
+	cm.mu.RUnlock()
+
+	if !ok || !okDrv {
+		return model.Value{}, fmt.Errorf("channel not found")
+	}
+
+	dev := cm.GetDevice(channelID, deviceID)
+	if dev == nil {
+		return model.Value{}, fmt.Errorf("device not found")
+	}
+
+	// 查找点位配置
+	var targetPoint model.Point
+	found := false
+	for _, p := range dev.Points {
+		if p.ID == pointID {
+			targetPoint = p
+			found = true
+			break
+		}
+	}
+	if !found {
+		return model.Value{}, fmt.Errorf("point not found")
+	}
+
+	// Ensure DeviceID is set
+	targetPoint.DeviceID = dev.ID
+
+	// 互斥锁保护驱动访问
+	if okMu {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+
+	// 设置从机 ID（如果是 Modbus）
+	if slaveID, ok := dev.Config["slave_id"]; ok {
+		if slaveIDUint, ok := slaveID.(float64); ok {
+			d.SetSlaveID(uint8(slaveIDUint))
+		} else if slaveIDInt, ok := slaveID.(int); ok {
+			d.SetSlaveID(uint8(slaveIDInt))
+		}
+	}
+
+	// 设置设备配置
+	d.SetDeviceConfig(dev.Config)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	results, err := d.ReadPoints(ctx, []model.Point{targetPoint})
+	if err != nil {
+		return model.Value{}, err
+	}
+
+	// Try finding by Name (most common)
+	if v, ok := results[targetPoint.Name]; ok {
+		return v, nil
+	}
+	// Try finding by ID
+	if v, ok := results[targetPoint.ID]; ok {
+		return v, nil
+	}
+	// Fallback: if single result, return it
+	if len(results) == 1 {
+		for _, v := range results {
+			return v, nil
+		}
+	}
+
+	return model.Value{}, fmt.Errorf("point value not returned")
+}
+
 // Shutdown 关闭所有通道
 func (cm *ChannelManager) Shutdown() {
 	cm.cancel()

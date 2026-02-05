@@ -3,6 +3,7 @@
   type: state
   enable: true
   priority: 0
+  check_interval: 5s
   trigger_mode: always
   source:
     alias: ""
@@ -22,29 +23,35 @@
       point_id: dev2_temp
       point_name: Temperature
   trigger_logic: ""
-  condition: t1 > 1 && t2>3
+  condition: t1 > 10 && t2>30
   expression: ""
   actions:
     - type: mqtt
       config:
+        interval: 30s
         message: TMPW
         send_strategy: single
         topic: gateway/warning
     - type: device_control
       config:
+        interval: 10s
         targets:
             - channel_id: modbus-tcp-1
               device_id: slave-1
-              expression: v+1
+              expression: bitset(1, value)
               point_id: dev1_pressure
               point_name: Pressure
-              value: "111"
+              value: "1"
             - channel_id: modbus-tcp-1
               device_id: slave-2
-              expression: bitand(v, 64)
+              expression: bitset(4, value)
               point_id: dev2_pressure
               point_name: Pressure
-              value: "222"
+              value: "1"
+            - channel_id: modbus-tcp-1
+              device_id: "3"
+              point_id: S3-1
+              value: "3"
   window:
     type: sliding
     size: 10s

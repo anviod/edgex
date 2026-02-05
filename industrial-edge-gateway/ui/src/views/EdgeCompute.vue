@@ -302,6 +302,15 @@
                                     persistent-hint
                                 ></v-select>
                             </v-col>
+                            <v-col cols="12" md="6">
+                                <v-combobox
+                                    v-model="currentRule.check_interval"
+                                    :items="['1s', '5s', '10s', '30s', '1m']"
+                                    label="检查频率 (Check Frequency)"
+                                    hint="如果不设置，则按数据到达频率实时检查"
+                                    persistent-hint
+                                ></v-combobox>
+                            </v-col>
 
                             <!-- Trigger Logic (Removed as per refactoring) -->
                             <!-- <v-col cols="12" md="6">
@@ -401,14 +410,14 @@
                             </v-col>
 
                             <!-- State Config -->
-                            <v-col cols="12" v-if="currentRule.type === 'state'">
-                                <div class="text-subtitle-1 mb-2">状态配置</div>
+                            <v-col cols="12" v-if="currentRule.type === 'state' || currentRule.type === 'threshold'">
+                                <div class="text-subtitle-1 mb-2">状态维持 (Duration & Count)</div>
                                 <v-row>
                                     <v-col cols="6">
-                                        <v-text-field v-model="currentRule.state.duration" label="持续时间" hint="例如: 10s"></v-text-field>
+                                        <v-text-field v-model="currentRule.state.duration" label="持续时间 (Duration)" hint="例如: 10s"></v-text-field>
                                     </v-col>
                                     <v-col cols="6">
-                                        <v-text-field v-model.number="currentRule.state.count" type="number" label="连续次数"></v-text-field>
+                                        <v-text-field v-model.number="currentRule.state.count" type="number" label="连续次数 (Count)"></v-text-field>
                                     </v-col>
                                 </v-row>
                             </v-col>
@@ -470,12 +479,44 @@
                                                 hide-details
                                             ></v-select>
                                         </v-col>
-                                        <v-col cols="12" md="8">
+                                        <v-col cols="12" md="3">
+                                            <v-text-field
+                                                v-model="action.config.interval"
+                                                label="频率限制 (Interval)"
+                                                placeholder="e.g. 1s"
+                                                density="compact"
+                                                hide-details
+                                                title="最小执行间隔 (Optional)"
+                                            ></v-text-field>
+                                        </v-col>
+                                        <v-col cols="12" md="5" class="d-flex align-center">
+                                            <template v-if="action.type === 'device_control'">
+                                                <v-checkbox
+                                                    v-model="action._batchMode"
+                                                    label="Batch Control (批量控制)"
+                                                    density="compact"
+                                                    hide-details
+                                                    class="mr-4 flex-grow-0"
+                                                    @update:model-value="toggleBatchMode(action)"
+                                                ></v-checkbox>
+                                                <v-btn
+                                                    v-if="action._batchMode"
+                                                    size="small"
+                                                    variant="text"
+                                                    prepend-icon="mdi-plus"
+                                                    @click="addTarget(action)"
+                                                >添加目标 (Add Target)</v-btn>
+                                            </template>
+                                        </v-col>
+                                        <v-col cols="12" md="1" class="d-flex justify-end">
+                                            <v-btn icon="mdi-delete" size="x-small" color="error" variant="text" @click="removeAction(index)"></v-btn>
+                                        </v-col>
+                                        <v-col cols="12">
                                             <!-- MQTT Config -->
                                             <div
                                                 v-if="action.type === 'mqtt'"
                                                 class="d-flex gap-2 align-center"
-                                                style="max-width: 1024px"
+                                                style="width: 100%"
                                             >
                                                 <v-text-field
                                                     v-model="action.config.topic"
@@ -507,23 +548,19 @@
                                             <!-- HTTP Config -->
                                             <div v-if="action.type === 'http'" class="d-flex flex-column gap-2">
                                                 <div class="d-flex gap-2">
-                                                    <v-text-field v-model="action.config.url" label="URL" density="compact" hide-details class="mr-2"></v-text-field>
-                                                    <v-select v-model="action.config.method" :items="['POST', 'GET', 'PUT']" label="Method" density="compact" hide-details style="max-width: 100px"></v-select>
-                                                    <v-select v-model="action.config.send_strategy" :items="[{title:'单条发送', value:'single'}, {title:'批量发送', value:'batch'}]" label="发送策略" density="compact" hide-details style="max-width: 120px"></v-select>
+                                                    <v-text-field v-model="action.config.url" label="URL (地址)" density="compact" hide-details class="mr-2"></v-text-field>
+                                                    <v-select v-model="action.config.method" :items="['POST', 'GET', 'PUT']" label="Method (方法)" density="compact" hide-details style="max-width: 150px"></v-select>
+                                                    <v-select v-model="action.config.send_strategy" :items="[{title:'单条发送', value:'single'}, {title:'批量发送', value:'batch'}]" label="发送策略 (Send Strategy)" density="compact" hide-details style="max-width: 200px"></v-select>
                                                 </div>
                                             </div>
                                             <!-- Device Control Config -->
                                             <div v-if="action.type === 'device_control'" class="d-flex flex-column gap-2">
-                                                <div class="d-flex align-center">
-                                                    <v-checkbox v-model="action._batchMode" label="批量控制" density="compact" hide-details class="flex-grow-0 mr-4" @update:model-value="toggleBatchMode(action)"></v-checkbox>
-                                                    <v-btn v-if="action._batchMode" size="small" variant="text" prepend-icon="mdi-plus" @click="addTarget(action)">添加目标</v-btn>
-                                                </div>
                                                 
                                                 <!-- Single Mode -->
                                                 <div
                                                     v-if="!action._batchMode"
                                                     class="d-flex gap-2 align-center"
-                                                    style="max-width: 1024px"
+                                                    style="width: 100%"
                                                 >
                                                     <v-select
                                                         v-model="action.config.channel_id"
@@ -534,7 +571,7 @@
                                                         density="compact"
                                                         hide-details
                                                         class="mr-2"
-                                                        style="width: 150px; white-space: nowrap"
+                                                        style="min-width: 120px; white-space: nowrap; flex: 1;"
                                                         @update:model-value="() => onActionChannelChange(action.config)"
                                                     ></v-select>
                                                     <v-select
@@ -546,7 +583,7 @@
                                                         density="compact"
                                                         hide-details
                                                         class="mr-2"
-                                                        style="width: 150px; white-space: nowrap"
+                                                        style="min-width: 120px; white-space: nowrap; flex: 1;"
                                                         :disabled="!action.config.channel_id"
                                                         @update:model-value="() => onActionDeviceChange(action.config)"
                                                         @click="() => loadActionDevices(action.config)"
@@ -560,14 +597,14 @@
                                                         density="compact"
                                                         hide-details
                                                         class="mr-2"
-                                                        style="width: 150px; white-space: nowrap"
+                                                        style="min-width: 120px; white-space: nowrap; flex: 1;"
                                                         :disabled="!action.config.device_id"
                                                         @click="() => loadActionPoints(action.config)"
                                                         :return-object="false"
                                                     ></v-combobox>
                                                     <v-text-field
                                                         v-model="action.config.value"
-                                                        label="Value 值 (可选)"
+                                                        label="Value (值)"
                                                         density="compact"
                                                         hide-details
                                                         style="width: 120px; white-space: nowrap"
@@ -576,92 +613,90 @@
                                                 
                                                 <!-- Batch Mode -->
                                                 <div v-else>
-                                                    <div
-                                                        v-for="(target, tIdx) in action.config.targets"
-                                                        :key="tIdx"
-                                                        class="d-flex gap-2 mb-2 align-center pa-2 border rounded"
-                                                        style="max-width: 1024px"
-                                                    >
-                                                        <v-select
-                                                            v-model="target.channel_id"
-                                                            :items="channels"
-                                                            item-title="name"
-                                                            item-value="id"
-                                                            label="Channel (通道)"
-                                                            density="compact"
-                                                            hide-details
-                                                            class="mr-2"
-                                                            style="width: 150px; white-space: nowrap"
-                                                            @update:model-value="() => onActionChannelChange(target)"
-                                                        ></v-select>
-                                                        <v-select
-                                                            v-model="target.device_id"
-                                                            :items="target._deviceList || []"
-                                                            item-title="name"
-                                                            item-value="id"
-                                                            label="Device (设备)"
-                                                            density="compact"
-                                                            hide-details
-                                                            class="mr-2"
-                                                            style="width: 150px; white-space: nowrap"
-                                                            :disabled="!target.channel_id"
-                                                            @update:model-value="() => onActionDeviceChange(target)"
-                                                            @click="() => loadActionDevices(target)"
-                                                        ></v-select>
-                                                        <v-combobox
-                                                            v-model="target.point_id"
-                                                            :items="target._pointList || []"
-                                                            item-title="name"
-                                                            item-value="id"
-                                                            label="Point (点位)"
-                                                            density="compact"
-                                                            hide-details
-                                                            class="mr-2"
-                                                            style="width: 150px; white-space: nowrap"
-                                                            :disabled="!target.device_id"
-                                                            @click="() => loadActionPoints(target)"
-                                                            :return-object="false"
-                                                        ></v-combobox>
-                                                        <v-text-field
-                                                            v-model="target.expression"
-                                                            label="Expr 公式"
-                                                            density="compact"
-                                                            hide-details
-                                                            class="mr-2"
-                                                            style="width: 240px; white-space: nowrap"
-                                                            placeholder="v+1 or bitand(v,1)"
-                                                        >
-                                                            <template v-slot:append-inner>
-                                                                <v-btn color="primary" variant="tonal" class="rounded-0 h-100" style="margin-top: -6px; margin-bottom: -6px; margin-right: -12px;" @click="openHelper(target.expression, (v) => target.expression = v)">
-                                                                    <v-icon start icon="mdi-calculator"></v-icon>
-                                                                    助手
-                                                                </v-btn>
-                                                            </template>
-                                                        </v-text-field>
-                                                        <v-text-field
-                                                            v-model="target.value"
-                                                            label="Value 值"
-                                                            density="compact"
-                                                            hide-details
-                                                            style="width: 120px; white-space: nowrap"
-                                                        ></v-text-field>
-                                                        <v-btn
-                                                            icon="mdi-delete"
-                                                            size="x-small"
-                                                            color="error"
-                                                            variant="text"
-                                                            @click="removeTarget(action, tIdx)"
-                                                        ></v-btn>
-                                                    </div>
+                                                    <template v-for="(target, tIdx) in action.config.targets" :key="tIdx">
+                                                        <v-card variant="outlined" class="mb-2 pa-2">
+                                                            <v-row density="compact" align="center">
+                                                                <v-col cols="12" md="2">
+                                                                    <v-select
+                                                                        v-model="target.channel_id"
+                                                                        :items="channels"
+                                                                        item-title="name"
+                                                                        item-value="id"
+                                                                        label="Channel (通道)"
+                                                                        density="compact"
+                                                                        hide-details
+                                                                        @update:model-value="() => onActionChannelChange(target)"
+                                                                    ></v-select>
+                                                                </v-col>
+                                                                <v-col cols="12" md="2">
+                                                                    <v-select
+                                                                        v-model="target.device_id"
+                                                                        :items="target._deviceList || []"
+                                                                        item-title="name"
+                                                                        item-value="id"
+                                                                        label="Device (设备)"
+                                                                        density="compact"
+                                                                        hide-details
+                                                                        :disabled="!target.channel_id"
+                                                                        @update:model-value="() => onActionDeviceChange(target)"
+                                                                        @click="() => loadActionDevices(target)"
+                                                                    ></v-select>
+                                                                </v-col>
+                                                                <v-col cols="12" md="2">
+                                                                    <v-combobox
+                                                                        v-model="target.point_id"
+                                                                        :items="target._pointList || []"
+                                                                        item-title="name"
+                                                                        item-value="id"
+                                                                        label="Point (点位)"
+                                                                        density="compact"
+                                                                        hide-details
+                                                                        :disabled="!target.device_id"
+                                                                        @click="() => loadActionPoints(target)"
+                                                                        :return-object="false"
+                                                                    ></v-combobox>
+                                                                </v-col>
+                                                                <v-col cols="12" md="3">
+                                                                     <v-text-field
+                                                                        v-model="target.expression"
+                                                                        label="Expr (公式)"
+                                                                        density="compact"
+                                                                        hide-details
+                                                                        placeholder="v+1 or bitand(v,1)"
+                                                                    >
+                                                                         <template v-slot:append-inner>
+                                                                            <v-btn color="primary" variant="tonal" class="rounded-0 h-100" style="margin-top: -6px; margin-bottom: -6px; margin-right: -12px; min-width: 32px; padding: 0 4px;" @click="openHelper(target.expression, (v) => target.expression = v)">
+                                                                                <v-icon icon="mdi-calculator" size="small"></v-icon>
+                                                                            </v-btn>
+                                                                        </template>
+                                                                     </v-text-field>
+                                                                </v-col>
+                                                                <v-col cols="12" md="2">
+                                                                    <v-text-field
+                                                                        v-model="target.value"
+                                                                        label="Value (值)"
+                                                                        density="compact"
+                                                                        hide-details
+                                                                    ></v-text-field>
+                                                                </v-col>
+                                                                <v-col cols="12" md="1" class="d-flex justify-end">
+                                                                     <v-btn
+                                                                        icon="mdi-delete"
+                                                                        size="x-small"
+                                                                        color="error"
+                                                                        variant="text"
+                                                                        @click="removeTarget(action, tIdx)"
+                                                                    ></v-btn>
+                                                                </v-col>
+                                                            </v-row>
+                                                        </v-card>
+                                                    </template>
                                                 </div>
                                             </div>
                                             <!-- Database Config -->
                                             <div v-if="action.type === 'database'" class="d-flex gap-2">
-                                                <v-text-field v-model="action.config.bucket" label="Bucket Name" placeholder="rule_events" density="compact" hide-details></v-text-field>
+                                                <v-text-field v-model="action.config.bucket" label="Bucket Name (桶名)" placeholder="rule_events" density="compact" hide-details></v-text-field>
                                             </div>
-                                        </v-col>
-                                        <v-col cols="12" md="1" class="d-flex justify-end">
-                                            <v-btn icon="mdi-delete" size="x-small" color="error" variant="text" @click="removeAction(index)"></v-btn>
                                         </v-col>
                                     </v-row>
                                 </v-card>
@@ -686,6 +721,7 @@
                 </v-card-title>
                 <v-card-text class="pt-4">
                     <div class="text-body-2 mb-2">输入标准表达式 (例如: v & 64, v | 1, ~v):</div>
+                    <div class="text-caption text-grey mb-2">提示: 系统已直接支持 v.N 语法 (如 v.4) 及 v.bit.N 语法 (如 v.bit.4) 读取第N位，无需转换。</div>
                     <v-textarea 
                         v-model="helperInput" 
                         label="标准表达式 (Standard Syntax)" 
@@ -694,7 +730,10 @@
                         auto-grow
                     ></v-textarea>
                     
-                    <div class="d-flex justify-center my-2">
+                    <div class="d-flex justify-center my-2 gap-2">
+                        <v-btn color="info" variant="text" prepend-icon="mdi-book-open-variant" @click="docsDialog = true">
+                            查看函数文档 (View Docs)
+                        </v-btn>
                         <v-btn color="secondary" prepend-icon="mdi-arrow-down-bold" @click="convertHelper">
                             转换 (Convert)
                         </v-btn>
@@ -718,6 +757,142 @@
                 </v-card-actions>
             </v-card>
         </v-dialog>
+        <!-- Expression Docs Dialog -->
+        <v-dialog v-model="docsDialog" max-width="900px" scrollable>
+            <v-card>
+                <v-card-title class="bg-info text-white">
+                    <v-icon start>mdi-book-open-variant</v-icon>
+                    表达式函数参考文档 (Expression Reference)
+                </v-card-title>
+                <v-card-text class="pa-4" style="max-height: 600px; overflow-y: auto;">
+                    
+                    <v-alert type="info" variant="tonal" class="mb-4" density="compact">
+                        <div class="text-subtitle-2 font-weight-bold">基本变量</div>
+                        <div><code>value</code> 或 <code>v</code> : 当前触发点位的值 (The current point value).</div>
+                        <div><code>t1</code>, <code>t2</code> ... : 数据源别名 (Source aliases defined in rule).</div>
+                    </v-alert>
+
+                    <div class="text-h6 mb-2">1. 位操作函数 (Bitwise Operations)</div>
+                    <v-table density="compact" class="mb-4 border">
+                        <thead>
+                            <tr>
+                                <th style="width: 200px">函数 (Function)</th>
+                                <th>说明 (Description)</th>
+                                <th>示例 (Example)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>bitand(a, b)</code></td>
+                                <td>按位与 (Bitwise AND). 对应 <code>a & b</code></td>
+                                <td><code>bitand(v, 1)</code> (判断最低位是否为1)</td>
+                            </tr>
+                            <tr>
+                                <td><code>bitor(a, b)</code></td>
+                                <td>按位或 (Bitwise OR). 对应 <code>a | b</code></td>
+                                <td><code>bitor(v, 4)</code> (将第3位置1)</td>
+                            </tr>
+                            <tr>
+                                <td><code>bitxor(a, b)</code></td>
+                                <td>按位异或 (Bitwise XOR). 对应 <code>a ^ b</code></td>
+                                <td><code>bitxor(v, 255)</code> (低8位取反)</td>
+                            </tr>
+                            <tr>
+                                <td><code>bitnot(a)</code></td>
+                                <td>按位取反 (Bitwise NOT). 对应 <code>~a</code></td>
+                                <td><code>bitnot(v)</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>bitshl(a, n)</code></td>
+                                <td>左移 (Left Shift). 对应 <code>a &lt;&lt; n</code></td>
+                                <td><code>bitshl(1, 4)</code> (结果 16)</td>
+                            </tr>
+                            <tr>
+                                <td><code>bitshr(a, n)</code></td>
+                                <td>右移 (Right Shift). 对应 <code>a &gt;&gt; n</code></td>
+                                <td><code>bitshr(v, 8)</code> (取高8位)</td>
+                            </tr>
+                        </tbody>
+                    </v-table>
+
+                    <div class="text-h6 mb-2">2. 位读取简写 (Bit Access Shortcuts)</div>
+                    <v-table density="compact" class="mb-4 border">
+                        <thead>
+                            <tr>
+                                <th style="width: 200px">语法 (Syntax)</th>
+                                <th>说明 (Description)</th>
+                                <th>等价公式 (Equivalent)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>v.N</code></td>
+                                <td>读取第N位 (1-based index). 返回 0 或 1.</td>
+                                <td><code>bitget(v, N-1)</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>v.bit.N</code></td>
+                                <td>同上，读取第N位 (1-based index).</td>
+                                <td><code>bitget(v, N-1)</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>bitget(v, n)</code></td>
+                                <td>读取第n位 (0-based index). 返回 0 或 1.</td>
+                                <td>-</td>
+                            </tr>
+                        </tbody>
+                    </v-table>
+                    <v-alert density="compact" variant="outlined" class="mb-4" color="warning">
+                        <strong>注意:</strong> <code>v.1</code> 代表第1位 (Bit 0), <code>v.4</code> 代表第4位 (Bit 3).
+                    </v-alert>
+
+                    <div class="text-h6 mb-2">3. 写入控制函数 (Target Write Only)</div>
+                    <p class="text-caption text-grey mb-2">仅在"动作列表 (Actions)" -> "Device Control" 的 "Expr" 字段有效。</p>
+                    <v-table density="compact" class="mb-4 border">
+                        <thead>
+                            <tr>
+                                <th style="width: 250px">语法 (Syntax)</th>
+                                <th>说明 (Description)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>bitset(N, value)</code></td>
+                                <td>
+                                    将目标点位的第N位 (1-based) 修改为 <code>value</code> 的值 (0或1)。
+                                    <br>保留其他位不变 (Read-Modify-Write)。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>bitset(N, 1)</code></td>
+                                <td>将目标点位的第N位 (1-based) 置为 1。</td>
+                            </tr>
+                            <tr>
+                                <td><code>bitset(N, 0)</code></td>
+                                <td>将目标点位的第N位 (1-based) 置为 0。</td>
+                            </tr>
+                        </tbody>
+                    </v-table>
+                    <v-alert density="compact" variant="outlined" class="mb-4" color="success">
+                        <strong>示例:</strong> 如果目标是 Slave Device 2 的 v.4 (第4位)，使用 <code>bitset(4, value)</code>。
+                        <br>这会自动读取设备当前值，修改第4位，然后写回。
+                    </v-alert>
+
+                    <div class="text-h6 mb-2">4. 通用运算符 (General Operators)</div>
+                    <v-chip-group class="mb-4">
+                        <v-chip size="small">Math: +, -, *, /, %, ^</v-chip>
+                        <v-chip size="small">Compare: ==, !=, &lt;, &gt;, &lt;=, &gt;=</v-chip>
+                        <v-chip size="small">Logic: &&, ||, !</v-chip>
+                        <v-chip size="small">Ternary: cond ? a : b</v-chip>
+                    </v-chip-group>
+
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn color="primary" @click="docsDialog = false">关闭 (Close)</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
     </div>
 </template>
 
@@ -730,6 +905,7 @@ import EdgeComputeMetrics from './EdgeComputeMetrics.vue'
 
 // Expression Helper
 const helperDialog = ref(false)
+const docsDialog = ref(false)
 const helperInput = ref('')
 const helperOutput = ref('')
 let helperCallback = null
@@ -846,6 +1022,7 @@ const currentRule = reactive({
     priority: 0,
     enable: true,
     trigger_mode: 'always',
+    check_interval: '',
     sources: [], // Multi-source
     trigger_logic: 'EXPR', // Default to EXPR for custom logic
     condition: '',

@@ -27,6 +27,10 @@ func (m *MockDeviceWriter) WritePoint(channelID, deviceID, pointID string, value
 	return m.Err
 }
 
+func (m *MockDeviceWriter) ReadPoint(channelID, deviceID, pointID string) (model.Value, error) {
+	return model.Value{Value: 0}, nil
+}
+
 func TestEdgeActionExpression(t *testing.T) {
 	// 1. Setup
 	em := NewEdgeComputeManager(nil, nil, nil)
@@ -96,6 +100,14 @@ func TestEdgeActionExpression(t *testing.T) {
 			Value:         "0",
 			InputVal:      64,
 			ExpectedVal:   65,
+			ShouldUseExpr: true,
+		},
+		{
+			Name:          "Bitwise Set (bitset)",
+			Expression:    "bitset(v, 4, 0)",
+			Value:         "0",
+			InputVal:      18, // 10010
+			ExpectedVal:   2,  // 00010
 			ShouldUseExpr: true,
 		},
 	}
@@ -204,6 +216,13 @@ func TestEvaluateThreshold(t *testing.T) {
 			Env:       map[string]any{"t1": 2.0},
 			Want:      false,
 			WantErr:   true, // Expr usually errors on missing vars
+		},
+		{
+			Name:      "Bit Access Syntax (v.N)",
+			Condition: "v.4 == 1",
+			Env:       map[string]any{"v": 18},
+			Want:      true,
+			WantErr:   false,
 		},
 	}
 

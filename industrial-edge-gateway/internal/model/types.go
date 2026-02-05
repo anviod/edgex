@@ -209,20 +209,21 @@ type SparkplugBConfig struct {
 
 // EdgeRule represents an edge computing rule
 type EdgeRule struct {
-	ID           string        `json:"id" yaml:"id"`
-	Name         string        `json:"name" yaml:"name"`
-	Type         string        `json:"type" yaml:"type"` // threshold, calculation, state, window
-	Enable       bool          `json:"enable" yaml:"enable"`
-	Priority     int           `json:"priority" yaml:"priority"`
-	TriggerMode  string        `json:"trigger_mode" yaml:"trigger_mode"`   // always, on_change
-	Source       RuleSource    `json:"source" yaml:"source"`               // Deprecated: use Sources
-	Sources      []RuleSource  `json:"sources" yaml:"sources"`             // New: Multiple sources
-	TriggerLogic string        `json:"trigger_logic" yaml:"trigger_logic"` // "AND", "OR", "EXPR"
-	Condition    string        `json:"condition" yaml:"condition"`         // Boolean Expression
-	Expression   string        `json:"expression" yaml:"expression"`       // Calculation Expression
-	Actions      []RuleAction  `json:"actions" yaml:"actions"`
-	Window       *WindowConfig `json:"window,omitempty" yaml:"window,omitempty"`
-	State        *StateConfig  `json:"state,omitempty" yaml:"state,omitempty"`
+	ID            string        `json:"id" yaml:"id"`
+	Name          string        `json:"name" yaml:"name"`
+	Type          string        `json:"type" yaml:"type"` // threshold, calculation, state, window
+	Enable        bool          `json:"enable" yaml:"enable"`
+	Priority      int           `json:"priority" yaml:"priority"`
+	CheckInterval string        `json:"check_interval" yaml:"check_interval"` // e.g. "5s", "1m"
+	TriggerMode   string        `json:"trigger_mode" yaml:"trigger_mode"`     // always, on_change
+	Source        RuleSource    `json:"source" yaml:"source"`                 // Deprecated: use Sources
+	Sources       []RuleSource  `json:"sources" yaml:"sources"`               // New: Multiple sources
+	TriggerLogic  string        `json:"trigger_logic" yaml:"trigger_logic"`   // "AND", "OR", "EXPR"
+	Condition     string        `json:"condition" yaml:"condition"`           // Boolean Expression
+	Expression    string        `json:"expression" yaml:"expression"`         // Calculation Expression
+	Actions       []RuleAction  `json:"actions" yaml:"actions"`
+	Window        *WindowConfig `json:"window,omitempty" yaml:"window,omitempty"`
+	State         *StateConfig  `json:"state,omitempty" yaml:"state,omitempty"`
 }
 
 type RuleSource struct {
@@ -252,16 +253,18 @@ type StateConfig struct {
 
 // RuleRuntimeState represents the runtime status of a rule
 type RuleRuntimeState struct {
-	RuleID         string    `json:"rule_id"`
-	RuleName       string    `json:"rule_name"`
-	Enable         bool      `json:"enable"`
-	LastTrigger    time.Time `json:"last_trigger"`
-	LastValue      any       `json:"last_value"`
-	TriggerCount   int64     `json:"trigger_count"`
-	CurrentStatus  string    `json:"current_status"` // NORMAL, ALARM
-	ConditionStart time.Time `json:"condition_start,omitempty"`
-	ConditionCount int       `json:"condition_count,omitempty"`
-	ErrorMessage   string    `json:"error_message,omitempty"`
+	RuleID         string            `json:"rule_id"`
+	RuleName       string            `json:"rule_name"`
+	Enable         bool              `json:"enable"`
+	LastCheckTime  time.Time         `json:"last_check_time,omitempty"` // For CheckInterval
+	LastTrigger    time.Time         `json:"last_trigger"`
+	LastValue      any               `json:"last_value"`
+	TriggerCount   int64             `json:"trigger_count"`
+	CurrentStatus  string            `json:"current_status"` // NORMAL, ALARM
+	ConditionStart time.Time         `json:"condition_start,omitempty"`
+	ConditionCount int               `json:"condition_count,omitempty"`
+	ErrorMessage   string            `json:"error_message,omitempty"`
+	ActionLastRuns map[int]time.Time `json:"action_last_runs,omitempty"`
 }
 
 type FailedAction struct {

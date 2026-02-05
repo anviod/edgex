@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -63,11 +64,12 @@ type EdgeComputeManager struct {
 	actionHook func(ruleID string, action model.RuleAction, val model.Value, env map[string]any, err error)
 
 	// Dependency Injection for Testing
-	writer DeviceWriter
+	writer DeviceIO
 }
 
-type DeviceWriter interface {
+type DeviceIO interface {
 	WritePoint(channelID, deviceID, pointID string, value any) error
+	ReadPoint(channelID, deviceID, pointID string) (model.Value, error)
 }
 
 type EdgeComputeMetrics struct {
@@ -156,7 +158,7 @@ func (em *EdgeComputeManager) SetChannelManager(cm *ChannelManager) {
 	}
 }
 
-func (em *EdgeComputeManager) SetDeviceWriter(w DeviceWriter) {
+func (em *EdgeComputeManager) SetDeviceWriter(w DeviceIO) {
 	em.writer = w
 }
 
@@ -287,6 +289,20 @@ func (em *EdgeComputeManager) handleValue(val model.Value) {
 	for _, id := range ruleIDs {
 		if rule, ok := em.rules[id]; ok {
 			if rule.Enable {
+				// Check Interval Logic (Throttling)
+				if rule.CheckInterval != "" {
+					em.stateMu.RLock()
+					state := em.ruleStates[rule.ID]
+					em.stateMu.RUnlock()
+
+					if state != nil {
+						if interval, err := time.ParseDuration(rule.CheckInterval); err == nil {
+							if time.Since(state.LastCheckTime) < interval {
+								continue
+							}
+						}
+					}
+				}
 				matchedRules = append(matchedRules, rule)
 			}
 		}
@@ -422,13 +438,13 @@ func (em *EdgeComputeManager) executeRule(rule model.EdgeRule, val model.Value) 
 	// Logic refactored: Logic is now fully determined by the Condition expression using aliases.
 	// AND/OR branching is removed.
 
-	var triggered bool
+	var rawTriggered bool
 	var err error
 	var outputVal model.Value = val
 
 	switch rule.Type {
-	case "threshold":
-		triggered, err = evaluateThreshold(rule.Condition, env)
+	case "threshold", "state":
+		rawTriggered, err = evaluateThreshold(rule.Condition, env)
 	case "calculation":
 		// Calculation rules always "trigger" if calculation succeeds,
 		// and they output a new value.
@@ -436,16 +452,14 @@ func (em *EdgeComputeManager) executeRule(rule model.EdgeRule, val model.Value) 
 		res, err = evaluateCalculation(rule.Expression, env)
 		if err == nil {
 			outputVal.Value = res
-			triggered = true
+			rawTriggered = true
 		}
 	case "window":
-		triggered, outputVal, err = em.evaluateWindow(rule, val, env)
-	case "state":
-		triggered, err = em.evaluateState(rule, val, state, env)
+		rawTriggered, outputVal, err = em.evaluateWindow(rule, val, env)
 	default:
 		// Default to threshold if condition exists, otherwise ignore
 		if rule.Condition != "" {
-			triggered, err = evaluateThreshold(rule.Condition, env)
+			rawTriggered, err = evaluateThreshold(rule.Condition, env)
 		}
 	}
 
@@ -461,7 +475,50 @@ func (em *EdgeComputeManager) executeRule(rule model.EdgeRule, val model.Value) 
 		return
 	}
 
-	if triggered {
+	finalTriggered := false
+
+	if !rawTriggered {
+		// Reset counters
+		state.ConditionStart = time.Time{}
+		state.ConditionCount = 0
+		finalTriggered = false
+		state.CurrentStatus = "NORMAL"
+	} else {
+		// Condition Met
+		if state.ConditionStart.IsZero() {
+			state.ConditionStart = time.Now()
+		}
+		state.ConditionCount++
+
+		// Check Constraints
+		constraintsMet := true
+		if rule.State != nil {
+			// Duration
+			if rule.State.Duration != "" {
+				if dur, err := time.ParseDuration(rule.State.Duration); err == nil {
+					if time.Since(state.ConditionStart) < dur {
+						constraintsMet = false
+						state.CurrentStatus = "WARNING" // Pending
+					}
+				}
+			}
+			// Count
+			if rule.State.Count > 0 {
+				if state.ConditionCount < rule.State.Count {
+					constraintsMet = false
+					if state.CurrentStatus != "WARNING" {
+						state.CurrentStatus = "WARNING"
+					}
+				}
+			}
+		}
+
+		if constraintsMet {
+			finalTriggered = true
+		}
+	}
+
+	if finalTriggered {
 		prevStatus := state.CurrentStatus
 
 		state.LastTrigger = time.Now()
@@ -486,19 +543,6 @@ func (em *EdgeComputeManager) executeRule(rule model.EdgeRule, val model.Value) 
 			go em.executeActions(rule.ID, rule.Actions, outputVal, env)
 		}
 	} else {
-		// For State rules, we might be in "Pending" state (waiting for duration),
-		// but if triggered is false, it means we are either NORMAL or PENDING.
-		// If we are resetting, we are NORMAL.
-		if rule.Type == "state" {
-			// Check internal state to decide if NORMAL or WARNING
-			if !state.ConditionStart.IsZero() {
-				state.CurrentStatus = "WARNING"
-			} else {
-				state.CurrentStatus = "NORMAL"
-			}
-		} else {
-			state.CurrentStatus = "NORMAL"
-		}
 		// Record status change/normal state to bblot
 		em.recordMinuteSnapshot(state)
 	}
@@ -706,61 +750,7 @@ func (em *EdgeComputeManager) evaluateWindow(rule model.EdgeRule, val model.Valu
 	return triggered, outputVal, err
 }
 
-func (em *EdgeComputeManager) evaluateState(rule model.EdgeRule, val model.Value, state *model.RuleRuntimeState, baseEnv map[string]any) (bool, error) {
-	// First check basic condition
-	env := make(map[string]any)
-	for k, v := range baseEnv {
-		env[k] = v
-	}
-	env["value"] = val.Value
-
-	conditionMet, err := evaluateThreshold(rule.Condition, env)
-	if err != nil {
-		return false, err
-	}
-
-	em.stateMu.Lock()
-	defer func() {
-		em.stateMu.Unlock()
-		go em.saveRuleState(rule.ID)
-	}()
-
-	if !conditionMet {
-		// Condition not met, reset state
-		state.ConditionStart = time.Time{}
-		state.ConditionCount = 0
-		return false, nil
-	}
-
-	// Condition is met
-	if state.ConditionStart.IsZero() {
-		state.ConditionStart = time.Now()
-	}
-	state.ConditionCount++
-
-	// Check constraints
-	if rule.State != nil {
-		// Check Duration
-		if rule.State.Duration != "" {
-			dur, err := time.ParseDuration(rule.State.Duration)
-			if err == nil {
-				if time.Since(state.ConditionStart) < dur {
-					return false, nil // Wait for duration
-				}
-			}
-		}
-
-		// Check Count
-		if rule.State.Count > 0 {
-			if state.ConditionCount < rule.State.Count {
-				return false, nil // Wait for count
-			}
-		}
-	}
-
-	// All constraints met
-	return true, nil
-}
+// evaluateState is removed as logic is merged into executeRule
 
 func toFloat(v any) (float64, bool) {
 	switch i := v.(type) {
@@ -819,8 +809,37 @@ func (em *EdgeComputeManager) GetWindowData(ruleID string) []model.Value {
 	return []model.Value{}
 }
 
+var bitAccessRegex = regexp.MustCompile(`\b([a-zA-Z_]\w*)\.(?:bit\.)?(\d+)\b`)
+var bitMapRegex = regexp.MustCompile(`^bitget\(v,\s*(\d+)\)$`)
+var bitSetRegex = regexp.MustCompile(`^bitset\((\d+),\s*(\d+)\)$`)
+var bitSetValueRegex = regexp.MustCompile(`^bitset\((\d+),\s*value\)$`)
+
+func preprocessExpression(input string) string {
+	return bitAccessRegex.ReplaceAllStringFunc(input, func(match string) string {
+		submatches := bitAccessRegex.FindStringSubmatch(match)
+		if len(submatches) == 3 {
+			// Support 1-based indexing: v.1 -> bitget(v, 0)
+			// Parse N
+			if n, err := strconv.Atoi(submatches[2]); err == nil && n > 0 {
+				return fmt.Sprintf("bitget(%s, %d)", submatches[1], n-1)
+			}
+			// Fallback or 0? If n=0, maybe treat as 0? But user said start from 1.
+			// If v.0, keep as 0? Or invalid?
+			// Let's assume v.0 is invalid or map to -1 (error).
+			// For safety, if n=0, let's just use 0 (so v.0 -> bit 0).
+			// But v.1 -> bit 0. This collision is bad.
+			// Let's stick to user request: "from 1 start counting". So v.1 -> 0.
+			// If input is v.0, we can treat it as bit 0 too?
+			// Let's implement strictly n-1 for n>0.
+			return fmt.Sprintf("bitget(%s, %s)", submatches[1], submatches[2])
+		}
+		return match
+	})
+}
+
 func evaluateThreshold(condition string, env map[string]any) (bool, error) {
 	env = prepareExprEnv(env)
+	condition = preprocessExpression(condition)
 	program, err := expr.Compile(condition, expr.Env(env))
 	if err != nil {
 		return false, err
@@ -837,6 +856,7 @@ func evaluateThreshold(condition string, env map[string]any) (bool, error) {
 
 func evaluateCalculation(expression string, env map[string]any) (any, error) {
 	env = prepareExprEnv(env)
+	expression = preprocessExpression(expression)
 	program, err := expr.Compile(expression, expr.Env(env))
 	if err != nil {
 		return nil, err
@@ -863,7 +883,44 @@ func prepareExprEnv(env map[string]any) map[string]any {
 	env["bitnot"] = func(a any) (int64, error) { return bitwiseUnary(a, func(x int64) int64 { return ^x }) }
 	env["bitshl"] = func(a, b any) (int64, error) { return bitwiseOp(a, b, func(x, y int64) int64 { return x << y }) }
 	env["bitshr"] = func(a, b any) (int64, error) { return bitwiseOp(a, b, func(x, y int64) int64 { return x >> y }) }
-	
+
+	env["bitget"] = func(val, pos any) (int64, error) {
+		v, err := toInt64(val)
+		if err != nil {
+			return 0, err
+		}
+		p, err := toInt64(pos)
+		if err != nil {
+			return 0, err
+		}
+		if p < 0 || p > 63 {
+			return 0, fmt.Errorf("bit position out of range")
+		}
+		return (v >> p) & 1, nil
+	}
+
+	env["bitset"] = func(val, pos, newBit any) (int64, error) {
+		v, err := toInt64(val)
+		if err != nil {
+			return 0, err
+		}
+		p, err := toInt64(pos)
+		if err != nil {
+			return 0, err
+		}
+		b, err := toInt64(newBit)
+		if err != nil {
+			return 0, err
+		}
+		if p < 0 || p > 63 {
+			return 0, fmt.Errorf("bit position out of range")
+		}
+		if b != 0 {
+			return v | (1 << p), nil
+		}
+		return v &^ (1 << p), nil
+	}
+
 	return env
 }
 
@@ -930,7 +987,30 @@ func toInt64(v any) (int64, error) {
 }
 
 func (em *EdgeComputeManager) executeActions(ruleID string, actions []model.RuleAction, val model.Value, env map[string]any) {
-	for _, action := range actions {
+	for i, action := range actions {
+		// Frequency Limit Check
+		if intervalStr, ok := action.Config["interval"].(string); ok && intervalStr != "" {
+			if duration, err := time.ParseDuration(intervalStr); err == nil {
+				em.stateMu.Lock()
+				state := em.ruleStates[ruleID]
+				if state != nil {
+					if state.ActionLastRuns == nil {
+						state.ActionLastRuns = make(map[int]time.Time)
+					}
+					lastRun := state.ActionLastRuns[i]
+					if time.Since(lastRun) < duration {
+						em.stateMu.Unlock()
+						continue // Skip this action
+					}
+					// Update last run time
+					state.ActionLastRuns[i] = time.Now()
+					// Trigger save in background to persist state
+					go em.saveRuleState(ruleID)
+				}
+				em.stateMu.Unlock()
+			}
+		}
+
 		go func(act model.RuleAction) {
 			err := em.executeSingleAction(ruleID, act, val, env)
 			if em.actionHook != nil {
@@ -963,6 +1043,38 @@ func (em *EdgeComputeManager) resolveValueTemplate(val any, env map[string]any) 
 	})
 
 	return resolved
+}
+
+func (em *EdgeComputeManager) calculateRMW(cid, did, pid string, bitIdx int, bitValRes any, expression string) (any, error) {
+	// Read current value
+	currentVal, err := em.writer.ReadPoint(cid, did, pid)
+	if err == nil {
+		// Modify bit
+		curInt, _ := toInt64(currentVal.Value)
+		resInt, _ := toInt64(bitValRes)
+
+		var newVal int64
+		if resInt != 0 {
+			newVal = curInt | (1 << bitIdx)
+		} else {
+			newVal = curInt &^ (1 << bitIdx)
+		}
+		log.Printf("[EdgeAction] RMW: %s/%s/%s | Expr: %s (Bit %d) | Cur: %d | BitVal: %d | New: %d", cid, did, pid, expression, bitIdx, curInt, resInt, newVal)
+		return newVal, nil
+	} else {
+		log.Printf("[EdgeAction] RMW Warning: Failed to read point %s/%s/%s: %v. Fallback to writing bit value directly.", cid, did, pid, err)
+		// Fallback: Write the bit value (shifted) directly? Or just the 0/1?
+		// User expectation: If formula exists, use it.
+		// If we can't read, we can't preserve other bits.
+		// We return the best guess (bitmask only) or error?
+		// Let's return the shifted value so at least that bit is correct.
+		resInt, _ := toInt64(bitValRes)
+		if resInt != 0 {
+			return int64(1) << bitIdx, nil
+		} else {
+			return int64(0), nil
+		}
+	}
 }
 
 func (em *EdgeComputeManager) executeSingleAction(ruleID string, action model.RuleAction, val model.Value, env map[string]any) error {
@@ -1058,6 +1170,9 @@ func (em *EdgeComputeManager) executeSingleAction(ruleID string, action model.Ru
 				expression, _ := targetMap["expression"].(string)
 
 				if cid != "" && did != "" && pid != "" {
+					// Flag to track if expression logic handled the value
+					expressionHandled := false
+
 					// 1. Resolve expression if present
 					if expression != "" {
 						// Prepare Env for Expression
@@ -1073,22 +1188,95 @@ func (em *EdgeComputeManager) executeSingleAction(ruleID string, action model.Ru
 							calcEnv["v"] = val.Value
 						}
 
-						res, err := evaluateCalculation(expression, calcEnv)
-						if err == nil {
-							valToWrite = res
+						// Check for Bit Mapping (Read-Modify-Write)
+						preprocessed := preprocessExpression(expression)
+
+						// Case 1: bitget(v, N) - Copy bit from value
+						matches := bitMapRegex.FindStringSubmatch(preprocessed)
+						if len(matches) == 2 {
+							bitIdx, _ := strconv.Atoi(matches[1])
+							// Evaluate to get the bit value (0 or 1)
+							res, err := evaluateCalculation(expression, calcEnv)
+							if err == nil {
+								if newVal, err := em.calculateRMW(cid, did, pid, bitIdx, res, expression); err == nil {
+									valToWrite = newVal
+									expressionHandled = true
+								}
+							} else {
+								log.Printf("[EdgeAction] Failed to evaluate expression '%s': %v", expression, err)
+							}
 						} else {
-							log.Printf("[EdgeAction] Failed to evaluate expression '%s': %v", expression, err)
-							// Fallback to value or keep valToWrite as is?
-							// If expression fails, maybe we should NOT write?
-							// For now, let's log and fallback to static value
+							// Case 2: bitset(N, val) - Set constant bit value
+							matchesSet := bitSetRegex.FindStringSubmatch(expression)
+							matchesSetValue := bitSetValueRegex.FindStringSubmatch(expression)
+
+							if len(matchesSetValue) == 2 {
+								// bitset(N, value) - Use target's "value" field
+								n, _ := strconv.Atoi(matchesSetValue[1])
+								bitIdx := n - 1
+								if bitIdx < 0 {
+									bitIdx = 0
+								}
+
+								// Resolve target value
+								var resolvedVal int64
+								// 1. Resolve template if it's a string
+								rawVal := valToWrite
+								if rawVal != nil {
+									rawVal = em.resolveValueTemplate(rawVal, env)
+								}
+								// 2. Convert to int
+								if fVal, ok := toFloat(rawVal); ok {
+									resolvedVal = int64(fVal)
+								} else {
+									// Try string parse
+									if sVal, ok := rawVal.(string); ok {
+										if f, err := strconv.ParseFloat(sVal, 64); err == nil {
+											resolvedVal = int64(f)
+										}
+									}
+								}
+
+								if newVal, err := em.calculateRMW(cid, did, pid, bitIdx, resolvedVal, expression); err == nil {
+									valToWrite = newVal
+									expressionHandled = true
+								}
+
+							} else if len(matchesSet) == 3 {
+								// bitset(N, val) where N is 1-based, val is constant literal
+								n, _ := strconv.Atoi(matchesSet[1])
+								val, _ := strconv.Atoi(matchesSet[2])
+								bitIdx := n - 1
+								if bitIdx < 0 {
+									bitIdx = 0
+								}
+
+								// Direct RMW with constant value
+								if newVal, err := em.calculateRMW(cid, did, pid, bitIdx, int64(val), expression); err == nil {
+									valToWrite = newVal
+									expressionHandled = true
+								}
+							} else {
+								// Case 3: Standard expression
+								res, err := evaluateCalculation(expression, calcEnv)
+								if err == nil {
+									valToWrite = res
+									expressionHandled = true
+								} else {
+									log.Printf("[EdgeAction] Failed to evaluate expression '%s': %v", expression, err)
+								}
+							}
 						}
 					}
 
 					// 2. Resolve value template if string (and no expression success or expression result is string)
-					if valToWrite != nil {
-						valToWrite = em.resolveValueTemplate(valToWrite, env)
-					} else {
-						valToWrite = val.Value
+					// Only resolve if expression NOT handled
+					if !expressionHandled {
+						if valToWrite != nil {
+							valToWrite = em.resolveValueTemplate(valToWrite, env)
+						} else {
+							valToWrite = val.Value
+						}
 					}
 
 					if err := em.writer.WritePoint(cid, did, pid, valToWrite); err != nil {

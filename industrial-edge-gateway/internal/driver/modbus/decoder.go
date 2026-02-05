@@ -229,6 +229,10 @@ func (d *PointDecoder) encodeRaw(point model.Point, value any) ([]uint16, error)
 			intVal = uint16(v)
 		case int64:
 			intVal = uint16(v)
+		case int16:
+			intVal = uint16(v)
+		case uint16:
+			intVal = v
 		case string:
 			i, _ := strconv.Atoi(v)
 			intVal = uint16(i)
