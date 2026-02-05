@@ -1,3 +1,1124 @@
+- id: bac-test-1
+  name: BAC测试
+  protocol: bacnet-ip
+  enable: true
+  config:
+    interface_port: 47808
+    ip: 192.168.3.106
+    port: 47808
+  devices:
+    - id: Room_FC_2014_2228318
+      name: Room_FC_2014_2228318
+      enable: true
+      interval: 5s
+      config:
+        device_id: 2228318
+        ip: 192.168.3.106
+        model_name: Room_FC_2014
+        network_number: 0
+        object_name: RoomController.Simulator
+        port: 50739
+        vendor_id: 260
+        vendor_name: F. Chaxel, Thanks to Morten Kvistgaard, MIT licence, 2015
+      storage:
+        enable: true
+        strategy: interval
+        interval: 1
+        max_records: 100
+      points:
+        - id: Temperature.Indoor
+          name: Indoor Temperature
+          address: AnalogInput:0
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Temperature.Water
+          name: Glycol Water Temperature
+          address: AnalogInput:1
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Temperature.Outdoor
+          name: Outdoor Temperature
+          address: AnalogInput:2
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: SetPoint.Value
+          name: Effective SetPoint
+          address: AnalogValue:0
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.1
+          name: Setoint 1
+          address: AnalogValue:1
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.2
+          name: Setpoint 2
+          address: AnalogValue:2
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.3
+          name: Setpoint 3
+          address: AnalogValue:3
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.Heater
+          name: Heater Status
+          address: BinaryValue:0
+          datatype: bool
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.Chiller
+          name: Chiller Status
+          address: BinaryValue:1
+          datatype: bool
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State
+          name: Controler State Command
+          address: MultiStateValue:0
+          datatype: uint16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.VentilationLevel
+          name: Ventilation level
+          address: MultiStateValue:1
+          datatype: uint16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+    - id: Room_FC_2014_2228319
+      name: Room_FC_2014_2228319
+      enable: true
+      interval: 5s
+      config:
+        device_id: 2228319
+        ip: 192.168.3.106
+        model_name: Room_FC_2014
+        network_number: 0
+        object_name: RoomController.Simulator
+        port: 53912
+        vendor_id: 260
+        vendor_name: F. Chaxel, Thanks to Morten Kvistgaard, MIT licence, 2015
+      points:
+        - id: Temperature.Indoor
+          name: Indoor Temperature
+          address: AnalogInput:0
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Temperature.Water
+          name: Glycol Water Temperature
+          address: AnalogInput:1
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Temperature.Outdoor
+          name: Outdoor Temperature
+          address: AnalogInput:2
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: SetPoint.Value
+          name: Effective SetPoint
+          address: AnalogValue:0
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.1
+          name: Setoint 1
+          address: AnalogValue:1
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.2
+          name: Setpoint 2
+          address: AnalogValue:2
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.3
+          name: Setpoint 3
+          address: AnalogValue:3
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.Heater
+          name: Heater Status
+          address: BinaryValue:0
+          datatype: bool
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.Chiller
+          name: Chiller Status
+          address: BinaryValue:1
+          datatype: bool
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State
+          name: Controler State Command
+          address: MultiStateValue:0
+          datatype: uint16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.VentilationLevel
+          name: Ventilation level
+          address: MultiStateValue:1
+          datatype: uint16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+    - id: Room_FC_2014_2228317
+      name: Room_FC_2014_2228317
+      enable: true
+      interval: 5s
+      config:
+        device_id: 2228317
+        ip: 192.168.3.106
+        model_name: Room_FC_2014
+        network_number: 0
+        object_name: RoomController.Simulator
+        port: 53985
+        vendor_id: 260
+        vendor_name: F. Chaxel, Thanks to Morten Kvistgaard, MIT licence, 2015
+      points:
+        - id: Temperature.Indoor
+          name: Indoor Temperature
+          address: AnalogInput:0
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Temperature.Water
+          name: Glycol Water Temperature
+          address: AnalogInput:1
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Temperature.Outdoor
+          name: Outdoor Temperature
+          address: AnalogInput:2
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: SetPoint.Value
+          name: Effective SetPoint
+          address: AnalogValue:0
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.1
+          name: Setoint 1
+          address: AnalogValue:1
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.2
+          name: Setpoint 2
+          address: AnalogValue:2
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.3
+          name: Setpoint 3
+          address: AnalogValue:3
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.Heater
+          name: Heater Status
+          address: BinaryValue:0
+          datatype: bool
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.Chiller
+          name: Chiller Status
+          address: BinaryValue:1
+          datatype: bool
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State
+          name: Controler State Command
+          address: MultiStateValue:0
+          datatype: uint16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.VentilationLevel
+          name: Ventilation level
+          address: MultiStateValue:1
+          datatype: uint16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+    - id: Room_FC_2014_2228316
+      name: Room_FC_2014_2228316
+      enable: true
+      interval: 5s
+      config:
+        device_id: 2228316
+        ip: 192.168.3.106
+        model_name: Room_FC_2014
+        network_number: 0
+        object_name: RoomController.Simulator
+        port: 54331
+        vendor_id: 260
+        vendor_name: F. Chaxel, Thanks to Morten Kvistgaard, MIT licence, 2015
+      points:
+        - id: Temperature.Indoor
+          name: Indoor Temperature
+          address: AnalogInput:0
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Temperature.Water
+          name: Glycol Water Temperature
+          address: AnalogInput:1
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Temperature.Outdoor
+          name: Outdoor Temperature
+          address: AnalogInput:2
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: SetPoint.Value
+          name: Effective SetPoint
+          address: AnalogValue:0
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.1
+          name: Setoint 1
+          address: AnalogValue:1
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.2
+          name: Setpoint 2
+          address: AnalogValue:2
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.3
+          name: Setpoint 3
+          address: AnalogValue:3
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.Heater
+          name: Heater Status
+          address: BinaryValue:0
+          datatype: bool
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.Chiller
+          name: Chiller Status
+          address: BinaryValue:1
+          datatype: bool
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State
+          name: Controler State Command
+          address: MultiStateValue:0
+          datatype: uint16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.VentilationLevel
+          name: Ventilation level
+          address: MultiStateValue:1
+          datatype: uint16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+    - id: Room_FC_2014_2228320
+      name: Room_FC_2014_2228320
+      enable: true
+      interval: 5s
+      config:
+        device_id: 2228320
+        ip: 192.168.3.106
+        model_name: Room_FC_2014
+        network_number: 0
+        object_name: RoomController.Simulator
+        port: 62018
+        vendor_id: 260
+        vendor_name: F. Chaxel, Thanks to Morten Kvistgaard, MIT licence, 2015
+      points:
+        - id: Temperature.Indoor
+          name: Indoor Temperature
+          address: AnalogInput:0
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Temperature.Water
+          name: Glycol Water Temperature
+          address: AnalogInput:1
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Temperature.Outdoor
+          name: Outdoor Temperature
+          address: AnalogInput:2
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: SetPoint.Value
+          name: Effective SetPoint
+          address: AnalogValue:0
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.1
+          name: Setoint 1
+          address: AnalogValue:1
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.2
+          name: Setpoint 2
+          address: AnalogValue:2
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Setpoint.3
+          name: Setpoint 3
+          address: AnalogValue:3
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: "62"
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.Heater
+          name: Heater Status
+          address: BinaryValue:0
+          datatype: bool
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.Chiller
+          name: Chiller Status
+          address: BinaryValue:1
+          datatype: bool
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State
+          name: Controler State Command
+          address: MultiStateValue:0
+          datatype: uint16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: State.VentilationLevel
+          name: Ventilation level
+          address: MultiStateValue:1
+          datatype: uint16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+- id: s7-channel-1
+  name: Siemens S7 Channel
+  protocol: s7
+  enable: false
+  config:
+    address: 192.168.1.200:102
+  devices:
+    - id: s7-pump-1
+      name: 冷却泵1
+      enable: true
+      interval: 1s
+      config: {}
+      points:
+        - id: pump_status
+          name: 开关状态
+          address: I:2.0
+          datatype: bool
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: pump_on_off
+          name: 启停开关
+          address: DB3:332.1
+          datatype: bool
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: pump_fault_status
+          name: 水泵故障反馈
+          address: DB3:12.4
+          datatype: bool
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: pump_man_status
+          name: 手自动状态
+          address: DB3:332.0
+          datatype: bool
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: pump_run_hours
+          name: 累计运行时长
+          address: DB3:334
+          datatype: int32
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: fault_status
+          name: 变频器故障反馈
+          address: I:2.1
+          datatype: bool
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: frequency
+          name: 频率反馈
+          address: DB3:342
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: freq_spt_set_manual
+          name: 手动频率设定
+          address: DB3:338
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: spt_set
+          name: 设定值
+          address: DB14:2
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: set_feedback_value
+          name: 设定反馈值
+          address: DB14:6
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: p_value
+          name: P值
+          address: DB14:14
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: i_value
+          name: I值
+          address: DB14:18
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: d_value
+          name: D值
+          address: DB14:22
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: freq_upper_limit
+          name: 频率上限
+          address: DB14:26
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: freq_lower_limit
+          name: 频率下限
+          address: DB14:30
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+    - id: s7-water-meter
+      name: 水表
+      enable: true
+      interval: 5s
+      config: {}
+      points:
+        - id: accumulated_amount
+          name: 水表数值
+          address: DB1:7408
+          datatype: uint16
+          scale: 0
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+    - id: s7-pressure-sensor
+      name: 压力温度传感器
+      enable: true
+      interval: 1s
+      config: {}
+      points:
+        - id: P1
+          name: P1
+          address: DB3:20
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P2
+          name: P2
+          address: DB3:24
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P3
+          name: P3
+          address: DB3:28
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P4
+          name: P4
+          address: DB3:32
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P5
+          name: P5
+          address: DB3:36
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P6
+          name: P6
+          address: DB3:40
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P7
+          name: P7
+          address: DB3:44
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P8
+          name: P8
+          address: DB3:48
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P9
+          name: P9
+          address: DB3:52
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P10
+          name: P10
+          address: DB3:56
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P11
+          name: P11
+          address: DB3:60
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P12
+          name: P12
+          address: DB3:64
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P13
+          name: P13
+          address: DB3:68
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P14
+          name: P14
+          address: DB3:72
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P15
+          name: P15
+          address: DB3:76
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P16
+          name: P16
+          address: DB3:80
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P17
+          name: P17
+          address: DB3:84
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P18
+          name: P18
+          address: DB3:88
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P19
+          name: P19
+          address: DB3:92
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P20
+          name: P20
+          address: DB3:96
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: P21
+          name: P21
+          address: DB3:100
+          datatype: float32
+          scale: 0
+          offset: 0
+          unit: mpa
+          readwrite: R
+          group: ""
+          report_mode: ""
+          threshold: null
 - id: modbus-tcp-1
   name: Modbus TCP Channel 1
   protocol: modbus-tcp
@@ -139,26 +1260,15 @@
     - id: opcua-dev-1
       name: Simulation Server
       enable: true
-      interval: 5s
+      interval: 30s
       config:
         endpoint: opc.tcp://127.0.0.1:53530/OPCUA/SimulationServer
       storage:
-        enable: false
+        enable: true
         strategy: interval
         interval: 1
-        max_records: 1000
+        max_records: 100
       points:
-        - id: ns=3;i=1011
-          name: ns=3;i=1011
-          address: ns=3;i=1011
-          datatype: string
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
         - id: ns=3;i=1001
           name: ns=3;i=1001
           address: ns=3;i=1001
@@ -1295,1397 +2405,6 @@
           offset: 0
           unit: °C
           readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-- id: bac-test-1
-  name: BAC测试
-  protocol: bacnet-ip
-  enable: true
-  config:
-    interface_port: 47808
-    ip: 192.168.3.106
-    port: 47808
-  devices:
-    - id: Room_FC_2014_2228318
-      name: Room_FC_2014_2228318
-      enable: true
-      interval: 5s
-      config:
-        device_id: 2228318
-        ip: 192.168.3.106
-        model_name: Room_FC_2014
-        network_number: 0
-        object_name: RoomController.Simulator
-        port: 50739
-        vendor_id: 260
-        vendor_name: F. Chaxel, Thanks to Morten Kvistgaard, MIT licence, 2015
-      storage:
-        enable: true
-        strategy: interval
-        interval: 1
-        max_records: 1000
-      points:
-        - id: Temperature.Indoor
-          name: Indoor Temperature
-          address: AnalogInput:0
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Water
-          name: Glycol Water Temperature
-          address: AnalogInput:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Outdoor
-          name: Outdoor Temperature
-          address: AnalogInput:2
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: SetPoint.Value
-          name: Effective SetPoint
-          address: AnalogValue:0
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.1
-          name: Setoint 1
-          address: AnalogValue:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.2
-          name: Setpoint 2
-          address: AnalogValue:2
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.3
-          name: Setpoint 3
-          address: AnalogValue:3
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.Heater
-          name: Heater Status
-          address: BinaryValue:0
-          datatype: bool
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.Chiller
-          name: Chiller Status
-          address: BinaryValue:1
-          datatype: bool
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State
-          name: Controler State Command
-          address: MultiStateValue:0
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.VentilationLevel
-          name: Ventilation level
-          address: MultiStateValue:1
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-    - id: Room_FC_2014_2228322
-      name: Room_FC_2014_2228322
-      enable: true
-      interval: 5s
-      config:
-        device_id: 2228322
-        ip: 192.168.3.106
-        model_name: Room_FC_2014
-        network_number: 0
-        object_name: RoomController.Simulator
-        port: 53021
-        vendor_id: 260
-        vendor_name: F. Chaxel, Thanks to Morten Kvistgaard, MIT licence, 2015
-      points:
-        - id: Temperature.Indoor
-          name: Indoor Temperature
-          address: AnalogInput:0
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Water
-          name: Glycol Water Temperature
-          address: AnalogInput:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Outdoor
-          name: Outdoor Temperature
-          address: AnalogInput:2
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: SetPoint.Value
-          name: Effective SetPoint
-          address: AnalogValue:0
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.1
-          name: Setoint 1
-          address: AnalogValue:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.2
-          name: Setpoint 2
-          address: AnalogValue:2
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.3
-          name: Setpoint 3
-          address: AnalogValue:3
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.Heater
-          name: Heater Status
-          address: BinaryValue:0
-          datatype: bool
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.Chiller
-          name: Chiller Status
-          address: BinaryValue:1
-          datatype: bool
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State
-          name: Controler State Command
-          address: MultiStateValue:0
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.VentilationLevel
-          name: Ventilation level
-          address: MultiStateValue:1
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-    - id: Room_FC_2014_2228321
-      name: Room_FC_2014_2228321
-      enable: true
-      interval: 5s
-      config:
-        device_id: 2228321
-        ip: 192.168.3.106
-        model_name: Room_FC_2014
-        network_number: 0
-        object_name: RoomController.Simulator
-        port: 60725
-        vendor_id: 260
-        vendor_name: F. Chaxel, Thanks to Morten Kvistgaard, MIT licence, 2015
-      points:
-        - id: Temperature.Indoor
-          name: Indoor Temperature
-          address: AnalogInput:0
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Water
-          name: Glycol Water Temperature
-          address: AnalogInput:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Outdoor
-          name: Outdoor Temperature
-          address: AnalogInput:2
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: SetPoint.Value
-          name: Effective SetPoint
-          address: AnalogValue:0
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.1
-          name: Setoint 1
-          address: AnalogValue:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.2
-          name: Setpoint 2
-          address: AnalogValue:2
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.3
-          name: Setpoint 3
-          address: AnalogValue:3
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.Heater
-          name: Heater Status
-          address: BinaryValue:0
-          datatype: bool
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.Chiller
-          name: Chiller Status
-          address: BinaryValue:1
-          datatype: bool
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State
-          name: Controler State Command
-          address: MultiStateValue:0
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.VentilationLevel
-          name: Ventilation level
-          address: MultiStateValue:1
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-    - id: Room_FC_2014_2228319
-      name: Room_FC_2014_2228319
-      enable: true
-      interval: 5s
-      config:
-        device_id: 2228319
-        ip: 192.168.3.106
-        model_name: Room_FC_2014
-        network_number: 0
-        object_name: RoomController.Simulator
-        port: 53912
-        vendor_id: 260
-        vendor_name: F. Chaxel, Thanks to Morten Kvistgaard, MIT licence, 2015
-      points:
-        - id: Temperature.Indoor
-          name: Indoor Temperature
-          address: AnalogInput:0
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Water
-          name: Glycol Water Temperature
-          address: AnalogInput:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Outdoor
-          name: Outdoor Temperature
-          address: AnalogInput:2
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: SetPoint.Value
-          name: Effective SetPoint
-          address: AnalogValue:0
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.1
-          name: Setoint 1
-          address: AnalogValue:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.2
-          name: Setpoint 2
-          address: AnalogValue:2
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.3
-          name: Setpoint 3
-          address: AnalogValue:3
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.Heater
-          name: Heater Status
-          address: BinaryValue:0
-          datatype: bool
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.Chiller
-          name: Chiller Status
-          address: BinaryValue:1
-          datatype: bool
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State
-          name: Controler State Command
-          address: MultiStateValue:0
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.VentilationLevel
-          name: Ventilation level
-          address: MultiStateValue:1
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-    - id: Room_FC_2014_2228317
-      name: Room_FC_2014_2228317
-      enable: true
-      interval: 5s
-      config:
-        device_id: 2228317
-        ip: 192.168.3.106
-        model_name: Room_FC_2014
-        network_number: 0
-        object_name: RoomController.Simulator
-        port: 53985
-        vendor_id: 260
-        vendor_name: F. Chaxel, Thanks to Morten Kvistgaard, MIT licence, 2015
-      points:
-        - id: Temperature.Indoor
-          name: Indoor Temperature
-          address: AnalogInput:0
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Water
-          name: Glycol Water Temperature
-          address: AnalogInput:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Outdoor
-          name: Outdoor Temperature
-          address: AnalogInput:2
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: SetPoint.Value
-          name: Effective SetPoint
-          address: AnalogValue:0
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.1
-          name: Setoint 1
-          address: AnalogValue:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.2
-          name: Setpoint 2
-          address: AnalogValue:2
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.3
-          name: Setpoint 3
-          address: AnalogValue:3
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.Heater
-          name: Heater Status
-          address: BinaryValue:0
-          datatype: bool
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.Chiller
-          name: Chiller Status
-          address: BinaryValue:1
-          datatype: bool
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State
-          name: Controler State Command
-          address: MultiStateValue:0
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.VentilationLevel
-          name: Ventilation level
-          address: MultiStateValue:1
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-    - id: Room_FC_2014_2228316
-      name: Room_FC_2014_2228316
-      enable: true
-      interval: 5s
-      config:
-        device_id: 2228316
-        ip: 192.168.3.106
-        model_name: Room_FC_2014
-        network_number: 0
-        object_name: RoomController.Simulator
-        port: 54331
-        vendor_id: 260
-        vendor_name: F. Chaxel, Thanks to Morten Kvistgaard, MIT licence, 2015
-      points:
-        - id: Temperature.Indoor
-          name: Indoor Temperature
-          address: AnalogInput:0
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Water
-          name: Glycol Water Temperature
-          address: AnalogInput:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Outdoor
-          name: Outdoor Temperature
-          address: AnalogInput:2
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: SetPoint.Value
-          name: Effective SetPoint
-          address: AnalogValue:0
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.1
-          name: Setoint 1
-          address: AnalogValue:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.2
-          name: Setpoint 2
-          address: AnalogValue:2
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.3
-          name: Setpoint 3
-          address: AnalogValue:3
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.Heater
-          name: Heater Status
-          address: BinaryValue:0
-          datatype: bool
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.Chiller
-          name: Chiller Status
-          address: BinaryValue:1
-          datatype: bool
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State
-          name: Controler State Command
-          address: MultiStateValue:0
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.VentilationLevel
-          name: Ventilation level
-          address: MultiStateValue:1
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-    - id: Room_FC_2014_2228320
-      name: Room_FC_2014_2228320
-      enable: true
-      interval: 5s
-      config:
-        device_id: 2228320
-        ip: 192.168.3.106
-        model_name: Room_FC_2014
-        network_number: 0
-        object_name: RoomController.Simulator
-        port: 62018
-        vendor_id: 260
-        vendor_name: F. Chaxel, Thanks to Morten Kvistgaard, MIT licence, 2015
-      points:
-        - id: Temperature.Indoor
-          name: Indoor Temperature
-          address: AnalogInput:0
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Water
-          name: Glycol Water Temperature
-          address: AnalogInput:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Outdoor
-          name: Outdoor Temperature
-          address: AnalogInput:2
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: SetPoint.Value
-          name: Effective SetPoint
-          address: AnalogValue:0
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.1
-          name: Setoint 1
-          address: AnalogValue:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.2
-          name: Setpoint 2
-          address: AnalogValue:2
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Setpoint.3
-          name: Setpoint 3
-          address: AnalogValue:3
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: "62"
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.Heater
-          name: Heater Status
-          address: BinaryValue:0
-          datatype: bool
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.Chiller
-          name: Chiller Status
-          address: BinaryValue:1
-          datatype: bool
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State
-          name: Controler State Command
-          address: MultiStateValue:0
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: State.VentilationLevel
-          name: Ventilation level
-          address: MultiStateValue:1
-          datatype: uint16
-          scale: 1
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-- id: s7-channel-1
-  name: Siemens S7 Channel
-  protocol: s7
-  enable: false
-  config:
-    address: 192.168.1.200:102
-  devices:
-    - id: s7-pump-1
-      name: 冷却泵1
-      enable: true
-      interval: 1s
-      config: {}
-      points:
-        - id: pump_status
-          name: 开关状态
-          address: I:2.0
-          datatype: bool
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: pump_on_off
-          name: 启停开关
-          address: DB3:332.1
-          datatype: bool
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: pump_fault_status
-          name: 水泵故障反馈
-          address: DB3:12.4
-          datatype: bool
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: pump_man_status
-          name: 手自动状态
-          address: DB3:332.0
-          datatype: bool
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: pump_run_hours
-          name: 累计运行时长
-          address: DB3:334
-          datatype: int32
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: fault_status
-          name: 变频器故障反馈
-          address: I:2.1
-          datatype: bool
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: frequency
-          name: 频率反馈
-          address: DB3:342
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: freq_spt_set_manual
-          name: 手动频率设定
-          address: DB3:338
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: spt_set
-          name: 设定值
-          address: DB14:2
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: set_feedback_value
-          name: 设定反馈值
-          address: DB14:6
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: p_value
-          name: P值
-          address: DB14:14
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: i_value
-          name: I值
-          address: DB14:18
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: d_value
-          name: D值
-          address: DB14:22
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: freq_upper_limit
-          name: 频率上限
-          address: DB14:26
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: freq_lower_limit
-          name: 频率下限
-          address: DB14:30
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-    - id: s7-water-meter
-      name: 水表
-      enable: true
-      interval: 5s
-      config: {}
-      points:
-        - id: accumulated_amount
-          name: 水表数值
-          address: DB1:7408
-          datatype: uint16
-          scale: 0
-          offset: 0
-          unit: ""
-          readwrite: RW
-          group: ""
-          report_mode: ""
-          threshold: null
-    - id: s7-pressure-sensor
-      name: 压力温度传感器
-      enable: true
-      interval: 1s
-      config: {}
-      points:
-        - id: P1
-          name: P1
-          address: DB3:20
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P2
-          name: P2
-          address: DB3:24
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P3
-          name: P3
-          address: DB3:28
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P4
-          name: P4
-          address: DB3:32
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P5
-          name: P5
-          address: DB3:36
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P6
-          name: P6
-          address: DB3:40
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P7
-          name: P7
-          address: DB3:44
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P8
-          name: P8
-          address: DB3:48
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P9
-          name: P9
-          address: DB3:52
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P10
-          name: P10
-          address: DB3:56
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P11
-          name: P11
-          address: DB3:60
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P12
-          name: P12
-          address: DB3:64
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P13
-          name: P13
-          address: DB3:68
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P14
-          name: P14
-          address: DB3:72
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P15
-          name: P15
-          address: DB3:76
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P16
-          name: P16
-          address: DB3:80
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P17
-          name: P17
-          address: DB3:84
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P18
-          name: P18
-          address: DB3:88
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P19
-          name: P19
-          address: DB3:92
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P20
-          name: P20
-          address: DB3:96
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: P21
-          name: P21
-          address: DB3:100
-          datatype: float32
-          scale: 0
-          offset: 0
-          unit: mpa
-          readwrite: R
           group: ""
           report_mode: ""
           threshold: null

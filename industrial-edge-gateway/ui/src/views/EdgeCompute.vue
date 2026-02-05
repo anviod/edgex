@@ -104,59 +104,67 @@
 
             </v-window-item>
 
-            <v-window-item value="logs">
-                <v-card>
-                    <v-card-title>
-                        历史日志查询
-                        <v-spacer></v-spacer>
-                        <v-btn color="success" prepend-icon="mdi-download" @click="exportLogs" :disabled="logs.length === 0">导出 CSV</v-btn>
+            <v-window-item value="logs" class="h-100">
+                <v-card class="h-100 d-flex flex-column">
+                    <v-card-title class="flex-shrink-0">
+ 
                     </v-card-title>
-                    <v-card-text>
-                        <v-row>
+                    <v-card-text class="flex-grow-1 d-flex flex-column overflow-hidden">
+                        <v-row class="flex-shrink-0 mb-2">
                             <v-col cols="12" md="3">
                                 <v-text-field type="datetime-local" v-model="query.start" label="开始时间" density="compact" hide-details></v-text-field>
                             </v-col>
                             <v-col cols="12" md="3">
                                 <v-text-field type="datetime-local" v-model="query.end" label="结束时间" density="compact" hide-details></v-text-field>
                             </v-col>
-                            <v-col cols="12" md="3">
+                            <v-col cols="12" md="2">
                                 <v-text-field v-model="query.ruleId" label="规则ID (可选)" density="compact" hide-details></v-text-field>
                             </v-col>
-                            <v-col cols="12" md="3">
+                            <v-col cols="12" md="2">
                                 <v-btn color="primary" block @click="queryLogs">查询</v-btn>
                             </v-col>
+                            <v-col cols="12" md="2">
+                               <v-btn color="success" prepend-icon="mdi-download" @click="exportLogs" :disabled="logs.length === 0">导出 CSV</v-btn>
+                            </v-col>
                         </v-row>
-                        <v-table class="mt-4">
-                            <thead>
-                                <tr>
-                                    <th>时间</th>
-                                    <th>规则ID</th>
-                                    <th>规则名称</th>
-                                    <th>状态</th>
-                                    <th>触发次数</th>
-                                    <th>值</th>
-                                    <th>错误信息</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="log in logs" :key="log.minute + log.rule_id">
-                                    <td>{{ log.minute }}</td>
-                                    <td>{{ log.rule_id }}</td>
-                                    <td>{{ log.rule_name }}</td>
-                                    <td>
-                                        <v-chip :color="getStatusColor(log.status)" size="small">
-                                            {{ log.status }}
-                                        </v-chip>
-                                    </td>
-                                    <td>{{ log.trigger_count }}</td>
-                                    <td>{{ log.last_value }}</td>
-                                    <td class="text-error">{{ log.error_message }}</td>
-                                </tr>
-                                <tr v-if="logs.length === 0">
-                                    <td colspan="7" class="text-center text-grey">暂无历史日志</td>
-                                </tr>
-                            </tbody>
-                        </v-table>
+                        
+                        <div class="flex-grow-1 overflow-auto border rounded">
+                            <v-table density="compact" fixed-header height="100%">
+                                <thead>
+                                    <tr>
+                                        <th style="white-space: nowrap">时间</th>
+                                        <th style="white-space: nowrap">规则ID</th>
+                                        <th style="white-space: nowrap">规则名称</th>
+                                        <th style="white-space: nowrap">状态</th>
+                                        <th style="white-space: nowrap">触发次数</th>
+                                        <th style="white-space: nowrap">值</th>
+                                        <th style="white-space: nowrap">错误信息</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="log in logs" :key="log.minute + log.rule_id">
+                                        <td style="white-space: nowrap">{{ log.minute }}</td>
+                                        <td style="white-space: nowrap">{{ log.rule_id }}</td>
+                                        <td style="white-space: nowrap">{{ log.rule_name }}</td>
+                                        <td>
+                                            <v-chip :color="getStatusColor(log.status)" size="x-small">
+                                                {{ log.status }}
+                                            </v-chip>
+                                        </td>
+                                        <td>{{ log.trigger_count }}</td>
+                                        <td class="truncate-cell" @click="showDetails('完整值', log.last_value)" title="点击查看详情">
+                                            {{ log.last_value }}
+                                        </td>
+                                        <td class="truncate-cell text-error" @click="showDetails('错误详情', log.error_message)" title="点击查看详情">
+                                            {{ log.error_message }}
+                                        </td>
+                                    </tr>
+                                    <tr v-if="logs.length === 0">
+                                        <td colspan="7" class="text-center text-grey">暂无历史日志</td>
+                                    </tr>
+                                </tbody>
+                            </v-table>
+                        </div>
                     </v-card-text>
                 </v-card>
             </v-window-item>
@@ -188,6 +196,68 @@
                 <v-card-actions>
                     <v-spacer></v-spacer>
                     <v-btn color="primary" variant="text" @click="windowDialog = false">关闭</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
+
+        <!-- Details Dialog -->
+        <v-dialog v-model="detailsDialog" max-width="800px">
+            <v-card>
+                <v-card-title>
+                    {{ detailTitle }}
+                    <v-spacer></v-spacer>
+                    <v-btn icon="mdi-close" variant="text" @click="detailsDialog = false"></v-btn>
+                </v-card-title>
+                <v-card-text>
+                    <v-tabs v-model="detailsTab" density="compact" class="mb-2">
+                        <v-tab value="text">文本/原始内容</v-tab>
+                        <v-tab value="hex" :disabled="!decodedHex">Hex 视图</v-tab>
+                    </v-tabs>
+                    
+                    <v-window v-model="detailsTab">
+                        <v-window-item value="text">
+                            <div class="text-body-2 mb-2 text-grey">内容长度: {{ detailContent.length }}</div>
+                            <v-textarea
+                                v-model="detailContent"
+                                readonly
+                                auto-grow
+                                rows="5"
+                                max-rows="15"
+                                variant="outlined"
+                                style="font-family: monospace;"
+                            ></v-textarea>
+                        </v-window-item>
+                        
+                        <v-window-item value="hex">
+                            <div class="text-body-2 mb-2 text-grey">Hex 视图 ({{ decodedBytes ? decodedBytes.length : 0 }} bytes)</div>
+                            <v-textarea
+                                v-model="decodedHex"
+                                readonly
+                                auto-grow
+                                rows="5"
+                                max-rows="15"
+                                variant="outlined"
+                                style="font-family: monospace;"
+                            ></v-textarea>
+                        </v-window-item>
+                    </v-window>
+
+                    <v-alert v-if="detectedFile" type="info" variant="tonal" class="mt-2" density="compact">
+                        <div class="d-flex align-center">
+                            <span>检测到文件格式: <strong>{{ detectedFile.name }} ({{ detectedFile.ext }})</strong></span>
+                            <v-spacer></v-spacer>
+                            <v-btn color="primary" size="small" prepend-icon="mdi-download" @click="downloadDetectedFile">
+                                下载文件
+                            </v-btn>
+                        </div>
+                    </v-alert>
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn color="secondary" variant="text" prepend-icon="mdi-code-tags" @click="tryDecode" v-if="!decodedHex">
+                        尝试 Base64 解码
+                    </v-btn>
+                    <v-btn color="primary" variant="text" @click="detailsDialog = false">关闭</v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
@@ -583,6 +653,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import request from '@/utils/request'
+import { base64ToUint8Array, uint8ArrayToHex, detectFileType, downloadBytes } from '@/utils/decode'
 import EdgeComputeMetrics from './EdgeComputeMetrics.vue'
 
 const route = useRoute()
@@ -597,6 +668,47 @@ const windowDialog = ref(false)
 const windowData = ref([])
 const currentWindowRuleName = ref('')
 let timer = null
+
+// Details Dialog
+const detailsDialog = ref(false)
+const detailTitle = ref('')
+const detailContent = ref('')
+const detailsTab = ref('text')
+const decodedHex = ref('')
+const detectedFile = ref(null)
+const decodedBytes = ref(null)
+
+const showDetails = (title, content) => {
+    detailTitle.value = title
+    detailContent.value = String(content || '')
+    detailsDialog.value = true
+    
+    // Reset state
+    detailsTab.value = 'text'
+    decodedHex.value = ''
+    detectedFile.value = null
+    decodedBytes.value = null
+}
+
+const tryDecode = () => {
+    try {
+        const bytes = base64ToUint8Array(detailContent.value)
+        decodedBytes.value = bytes
+        decodedHex.value = uint8ArrayToHex(bytes)
+        detectedFile.value = detectFileType(bytes)
+        
+        detailsTab.value = 'hex'
+        showMessage('解码成功', 'success')
+    } catch (e) {
+        showMessage('Base64 解码失败: ' + e.message, 'error')
+    }
+}
+
+const downloadDetectedFile = () => {
+    if (decodedBytes.value && detectedFile.value) {
+        downloadBytes(decodedBytes.value, `download.${detectedFile.value.ext}`)
+    }
+}
 
 const query = reactive({
     start: '',
@@ -1074,3 +1186,22 @@ onUnmounted(() => {
     if (timer) clearInterval(timer)
 })
 </script>
+
+<style scoped>
+.edge-compute-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.truncate-cell {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+.truncate-cell:hover {
+    color: #1976D2; /* primary color */
+    background-color: #f5f5f5;
+}
+</style>

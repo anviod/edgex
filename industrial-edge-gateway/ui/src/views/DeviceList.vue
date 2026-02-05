@@ -485,14 +485,87 @@
                         density="compact"
                         class="elevation-1"
                     >
-                        <template v-slot:item.ts="{ item }">
-                            {{ formatHistoryTime(item.ts) }}
+                        <template v-slot:item="{ item }">
+                            <tr>
+                                <td>{{ formatHistoryTime(item.ts) }}</td>
+                                <td 
+                                    v-for="header in historyHeaders.slice(1)" 
+                                    :key="header.key"
+                                    class="truncate-cell"
+                                    @click="showDetails(header.title, getHistoryValue(item, header.key))"
+                                    :title="getHistoryValue(item, header.key)"
+                                >
+                                    {{ getHistoryValue(item, header.key) }}
+                                </td>
+                            </tr>
                         </template>
                         <template v-slot:no-data>
                             <div class="text-center pa-4">暂无数据</div>
                         </template>
                     </v-data-table>
                 </v-card-text>
+            </v-card>
+        </v-dialog>
+
+        <!-- Details Dialog -->
+        <v-dialog v-model="detailsDialog" max-width="800px">
+            <v-card>
+                <v-card-title>
+                    {{ detailsTitle }}
+                    <v-spacer></v-spacer>
+                    <v-btn icon="mdi-close" variant="text" @click="detailsDialog = false"></v-btn>
+                </v-card-title>
+                <v-card-text>
+                    <v-tabs v-model="detailsTab" density="compact" class="mb-2">
+                        <v-tab value="text">文本/原始内容</v-tab>
+                        <v-tab value="hex" :disabled="!decodedHex">Hex 视图</v-tab>
+                    </v-tabs>
+                    
+                    <v-window v-model="detailsTab">
+                        <v-window-item value="text">
+                            <div class="text-body-2 mb-2 text-grey">内容长度: {{ detailsContent.length }}</div>
+                            <v-textarea
+                                v-model="detailsContent"
+                                readonly
+                                auto-grow
+                                rows="5"
+                                max-rows="15"
+                                variant="outlined"
+                                style="font-family: monospace;"
+                            ></v-textarea>
+                        </v-window-item>
+                        
+                        <v-window-item value="hex">
+                            <div class="text-body-2 mb-2 text-grey">Hex 视图 ({{ decodedBytes ? decodedBytes.length : 0 }} bytes)</div>
+                            <v-textarea
+                                v-model="decodedHex"
+                                readonly
+                                auto-grow
+                                rows="5"
+                                max-rows="15"
+                                variant="outlined"
+                                style="font-family: monospace;"
+                            ></v-textarea>
+                        </v-window-item>
+                    </v-window>
+
+                    <v-alert v-if="detectedFile" type="info" variant="tonal" class="mt-2" density="compact">
+                        <div class="d-flex align-center">
+                            <span>检测到文件格式: <strong>{{ detectedFile.name }} ({{ detectedFile.ext }})</strong></span>
+                            <v-spacer></v-spacer>
+                            <v-btn color="primary" size="small" prepend-icon="mdi-download" @click="downloadDetectedFile">
+                                下载文件
+                            </v-btn>
+                        </div>
+                    </v-alert>
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn color="secondary" variant="text" prepend-icon="mdi-code-tags" @click="tryBase64Decode">
+                        尝试 Base64 解码
+                    </v-btn>
+                    <v-btn color="primary" variant="text" @click="detailsDialog = false">关闭</v-btn>
+                </v-card-actions>
             </v-card>
         </v-dialog>
 
@@ -636,6 +709,7 @@ import { ref, onMounted, computed, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { globalState, showMessage } from '../composables/useGlobalState'
 import request from '@/utils/request'
+import { base64ToUint8Array, uint8ArrayToHex, detectFileType, downloadBytes } from '@/utils/decode'
 
 const route = useRoute()
 const router = useRouter()
@@ -1028,6 +1102,56 @@ const goToPoints = (device) => {
     router.push(`/channels/${channelId}/devices/${device.id}/points`)
 }
 
+// Details Logic
+const detailsDialog = ref(false)
+const detailsTitle = ref('')
+const detailsContent = ref('')
+const detailsTab = ref('text')
+const decodedHex = ref('')
+const detectedFile = ref(null)
+const decodedBytes = ref(null)
+
+const showDetails = (title, content) => {
+    detailsTitle.value = title
+    detailsContent.value = String(content)
+    detailsDialog.value = true
+    
+    // Reset state
+    detailsTab.value = 'text'
+    decodedHex.value = ''
+    detectedFile.value = null
+    decodedBytes.value = null
+}
+
+const tryBase64Decode = () => {
+    try {
+        const bytes = base64ToUint8Array(detailsContent.value)
+        decodedBytes.value = bytes
+        decodedHex.value = uint8ArrayToHex(bytes)
+        detectedFile.value = detectFileType(bytes)
+        
+        detailsTab.value = 'hex'
+        showMessage('解码成功', 'success')
+    } catch (e) {
+        showMessage('Base64 解码失败: ' + e.message, 'error')
+    }
+}
+
+const downloadDetectedFile = () => {
+    if (decodedBytes.value && detectedFile.value) {
+        downloadBytes(decodedBytes.value, `download.${detectedFile.value.ext}`)
+    }
+}
+
+const getHistoryValue = (item, key) => {
+    // key is 'data.prop'
+    if (key.startsWith('data.')) {
+        const prop = key.split('.')[1]
+        return item.data ? (item.data[prop] ?? '') : ''
+    }
+    return ''
+}
+
 // Scan Logic
 const scanDialog = ref(false)
 const isScanning = ref(false)
@@ -1141,3 +1265,17 @@ onMounted(() => {
     fetchRules()
 })
 </script>
+
+<style scoped>
+.truncate-cell {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+.truncate-cell:hover {
+    color: #1976D2; /* primary color */
+    background-color: #f5f5f5;
+}
+</style>

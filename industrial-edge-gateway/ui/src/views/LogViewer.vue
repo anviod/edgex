@@ -1,9 +1,9 @@
 <template>
-    <div class="h-100 d-flex flex-column">
+    <div class="h-100 d-flex flex-column pa-4">
         <!-- Toolbar -->
-        <v-toolbar class="glass-toolbar mb-4 rounded border">
-            <v-toolbar-title class="text-subtitle-1 font-weight-bold ml-4">
-                <v-icon icon="mdi-console-line" size="small" start color="primary"></v-icon>
+        <v-toolbar class="glass-toolbar mb-4 rounded-lg border elevation-1" density="comfortable">
+            <v-toolbar-title class="text-subtitle-1 font-weight-bold ml-4 d-flex align-center">
+                <v-icon icon="mdi-console-line" size="small" start color="primary" class="mr-2"></v-icon>
                 实时日志
             </v-toolbar-title>
             
@@ -36,7 +36,7 @@
                 prepend-icon="mdi-delete-sweep"
                 size="small"
                 @click="clearLogs"
-                class="mr-2"
+                class="mr-2 rounded"
             >
                 清空屏幕
             </v-btn>
@@ -47,14 +47,14 @@
                 prepend-icon="mdi-download"
                 size="small"
                 @click="downloadLogs"
-                class="mr-4"
+                class="mr-4 rounded"
             >
                 导出 CSV
             </v-btn>
         </v-toolbar>
 
         <!-- Log Terminal -->
-        <div class="log-terminal flex-grow-1 rounded pa-4 mb-2" ref="terminalRef">
+        <div class="log-terminal flex-grow-1 rounded-lg pa-4 mb-2 border elevation-0" ref="terminalRef">
             <div v-if="displayLogs.length === 0" class="text-grey text-center mt-10">
                 暂无日志...
             </div>

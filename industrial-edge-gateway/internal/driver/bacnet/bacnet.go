@@ -299,14 +299,16 @@ func (d *BACnetDriver) discoverDevice(deviceID int, ip string, port int) error {
 	targetDevCtx := d.deviceContexts[deviceID]
 	zap.L().Info("Found BACnet device", zap.Int("device_id", deviceID), zap.String("addr", fmt.Sprintf("%v", targetDevCtx.Device.Addr)))
 
-	// Fix: If configured port is different from discovered port (e.g. ephemeral), override it.
+	// Fix: If configured port is different from discovered port, we should prefer discovered port
+	// unless we are sure. But here we were overwriting discovered port with configured port.
+	// We should let the discovered port be used, and if it fails, the scheduler fallback will try 47808.
 	if port != 0 && len(targetDevCtx.Device.Addr.Mac) == 6 {
 		discPort := int(targetDevCtx.Device.Addr.Mac[4])<<8 | int(targetDevCtx.Device.Addr.Mac[5])
 		if discPort != port {
-			zap.L().Warn("Discovered device port differs from configured", zap.Int("disc_port", discPort), zap.Int("conf_port", port))
-			targetDevCtx.Device.Addr.Mac[4] = uint8(port >> 8)
-			targetDevCtx.Device.Addr.Mac[5] = uint8(port & 0xFF)
-			zap.L().Info("Updated target device address", zap.String("addr", fmt.Sprintf("%v", targetDevCtx.Device.Addr)))
+			zap.L().Warn("Discovered device port differs from configured, using discovered port", zap.Int("disc_port", discPort), zap.Int("conf_port", port))
+			// Do NOT overwrite. Let it use discPort.
+			// targetDevCtx.Device.Addr.Mac[4] = uint8(port >> 8)
+			// targetDevCtx.Device.Addr.Mac[5] = uint8(port & 0xFF)
 		}
 	}
 
@@ -873,6 +875,23 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 					zap.L().Warn("Unicast Scan failed", zap.String("ip", targetUnicastIP), zap.Error(err))
 				}
 			}
+		} else if targetUnicastIP == "0.0.0.0" {
+			// If bound to 0.0.0.0, explicit unicast to localhost is often required to find local simulators
+			// that don't respond to broadcast or are on the loopback interface.
+			zap.L().Info("Sending Unicast WhoIs to localhost (fallback for 0.0.0.0)")
+			localhostIP := net.ParseIP("127.0.0.1")
+			unicastDest := datalink.IPPortToAddress(localhostIP, 47808)
+			unicastWhoIs := &WhoIsOpts{
+				Low:         low,
+				High:        high,
+				Destination: unicastDest,
+			}
+			if dev2, err := scanClient.WhoIs(unicastWhoIs); err == nil {
+				zap.L().Info("Localhost Unicast Scan found devices", zap.Int("count", len(dev2)))
+				devices = append(devices, dev2...)
+			} else {
+				zap.L().Warn("Localhost Unicast Scan failed", zap.Error(err))
+			}
 		}
 
 		mu.Lock()
@@ -970,6 +989,27 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 			},
 		}
 		resp, err := readerClient.ReadProperty(dev, pd)
+		// Fallback to 47808 if read fails on ephemeral port
+		if err != nil && len(dev.Addr.Mac) >= 6 {
+			port := int(dev.Addr.Mac[4])<<8 | int(dev.Addr.Mac[5])
+			if port != 47808 {
+				zap.L().Warn("ReadProperty failed on ephemeral port, trying 47808", zap.Int("port", port), zap.Error(err))
+				fallbackDev := dev
+				// Copy Mac to avoid modifying original device if shared (though dev is value type here, Mac is slice ref)
+				// dev.Addr.Mac is a slice. We must copy it.
+				newMac := make([]byte, len(dev.Addr.Mac))
+				copy(newMac, dev.Addr.Mac)
+				newMac[4] = 0xBA
+				newMac[5] = 0xC0
+				fallbackDev.Addr.Mac = newMac
+				fallbackDev.Port = 47808
+
+				resp, err = readerClient.ReadProperty(fallbackDev, pd)
+				if err == nil {
+					zap.L().Info("Fallback to 47808 succeeded")
+				}
+			}
+		}
 		if err == nil && len(resp.Object.Properties) > 0 {
 			if val, ok := resp.Object.Properties[0].Data.(string); ok {
 				return val
