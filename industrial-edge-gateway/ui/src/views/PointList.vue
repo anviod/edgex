@@ -52,6 +52,7 @@
                         <tr>
                             <th class="text-left">点位ID</th>
                             <th class="text-left">点位名称</th>
+                            <th class="text-left">读写权限</th>
                             <th class="text-left">数值</th>
                             <th class="text-left">质量</th>
                             <th class="text-left">时间戳</th>
@@ -62,6 +63,16 @@
                         <tr v-for="point in points" :key="point.id">
                             <td class="font-weight-medium">{{ point.id }}</td>
                             <td>{{ point.name }}</td>
+                            <td>
+                                <v-chip
+                                    size="x-small"
+                                    :color="point.readwrite === 'RW' ? 'success' : 'info'"
+                                    variant="outlined"
+                                    class="font-weight-medium"
+                                >
+                                    {{ point.readwrite }}
+                                </v-chip>
+                            </td>
                             <td style="max-width: 200px;">
                                 <div 
                                     class="d-flex align-center cursor-pointer"
@@ -88,18 +99,17 @@
                                 <v-btn 
                                     v-if="point.readwrite === 'RW' || point.readwrite === 'W'"
                                     color="secondary" 
-                                    size="small" 
+                                    size="x-small" 
                                     variant="tonal"
-                                    prepend-icon="mdi-pencil"
-                                    class="mr-2"
+                                    icon="mdi-pencil"
+                                    class="mr-1"
                                     @click="openWriteDialog(point)"
-                                >
-                                    写入
-                                </v-btn>
+                                    title="写入数值"
+                                ></v-btn>
                                 <v-btn 
                                     icon="mdi-file-edit-outline"
-                                    size="small"
-                                    variant="text"
+                                    size="x-small"
+                                    variant="tonal"
                                     color="primary"
                                     class="mr-1"
                                     @click="openEditDialog(point)"
@@ -107,8 +117,8 @@
                                 ></v-btn>
                                 <v-btn 
                                     icon="mdi-delete-outline"
-                                    size="small"
-                                    variant="text"
+                                    size="x-small"
+                                    variant="tonal"
                                     color="error"
                                     @click="confirmDelete(point)"
                                     title="删除点位"
@@ -414,7 +424,7 @@
         </v-dialog>
 
         <!-- Scan Dialog -->
-        <v-dialog v-model="scanDialog.visible" max-width="900px" persistent>
+        <v-dialog v-model="scanDialog.visible" max-width="1200px" persistent>
             <v-card>
                 <v-card-title class="d-flex align-center bg-info text-white">
                     <v-icon icon="mdi-radar" class="mr-2"></v-icon>
@@ -1072,7 +1082,22 @@ const scanPoints = async () => {
                 // Flatten OPC UA tree for display
                 scanDialog.results = flattenOpcNodes(res)
             } else {
-                scanDialog.results = res
+                // For BACnet (and others), process diff_status based on existing points in UI
+                // This overrides backend's "existing" status (from driver history) if the point was deleted in App
+                scanDialog.results = res.map(item => {
+                    if (channelProtocol.value === 'bacnet-ip') {
+                         const key = `${item.type}:${item.instance}`
+                         if (existingAddresses.value.has(key)) {
+                             item.diff_status = 'existing'
+                         } else {
+                             // If not in App, reset 'existing' to 'new' so it can be re-added
+                             if (item.diff_status === 'existing') {
+                                 item.diff_status = 'new'
+                             }
+                         }
+                    }
+                    return item
+                })
             }
         } else {
             showMessage('扫描结果格式错误', 'error')

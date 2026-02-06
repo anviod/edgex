@@ -90,13 +90,15 @@
                             <td v-if="channelProtocol === 'bacnet-ip'">
                                 {{ device.config?.ip || '-' }}
                             </td>
-                            <td v-if="channelProtocol === 'opc-ua'">
-                                <span class="text-caption">{{ device.config?.endpoint || '-' }}</span>
+                            <td v-if="channelProtocol === 'opc-ua'" style="max-width: 200px;">
+                                <div class="text-caption text-truncate" :title="device.config?.endpoint || '-'">
+                                    {{ device.config?.endpoint || '-' }}
+                                </div>
                             </td>
-                            <td v-if="channelProtocol === 'bacnet-ip'">
-                                <span class="text-caption">
+                            <td v-if="channelProtocol === 'bacnet-ip'" style="max-width: 200px;">
+                                <div class="text-caption text-truncate" :title="`${device.config?.vendor_name || '-'} / ${device.config?.model_name || '-'}`">
                                     {{ device.config?.vendor_name || '-' }} / {{ device.config?.model_name || '-' }}
-                                </span>
+                                </div>
                             </td>
                             <td>
                                 <v-chip size="small" :color="device.enable ? 'success' : 'grey'" variant="flat">
@@ -112,46 +114,47 @@
                             <td>
                                 <v-btn 
                                     color="primary" 
-                                    size="small" 
+                                    size="x-small" 
                                     variant="tonal"
-                                    prepend-icon="mdi-eye"
-                                    class="mr-2"
+                                    icon="mdi-eye"
+                                    class="mr-1"
                                     @click="goToPoints(device)"
-                                >
-                                    查看点位
-                                </v-btn>
+                                    title="查看点位"
+                                ></v-btn>
                                 <v-btn 
                                     color="secondary" 
-                                    size="small" 
+                                    size="x-small" 
                                     variant="tonal"
                                     icon="mdi-link-variant"
-                                    class="mr-2"
+                                    class="mr-1"
                                     @click="showRuleUsage(device)"
                                     title="查看关联规则"
                                 ></v-btn>
                                 <v-btn
                                     color="primary"
-                                    size="small"
+                                    size="x-small" 
                                     variant="tonal"
                                     icon="mdi-history"
-                                    class="mr-2"
+                                    class="mr-1"
                                     @click="openHistoryDialog(device)"
                                     title="查看历史数据"
                                 ></v-btn>
                                 <v-btn
                                     color="info"
-                                    size="small"
+                                    size="x-small" 
                                     variant="tonal"
                                     icon="mdi-pencil"
-                                    class="mr-2"
+                                    class="mr-1"
                                     @click="openDialog(device)"
+                                    title="编辑设备"
                                 ></v-btn>
                                 <v-btn
                                     color="error"
-                                    size="small"
+                                    size="x-small" 
                                     variant="tonal"
                                     icon="mdi-delete"
                                     @click="confirmDelete(device)"
+                                    title="删除设备"
                                 ></v-btn>
                             </td>
                         </tr>

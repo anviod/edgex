@@ -2,6 +2,10 @@
 
 Industrial Edge Gateway 是一个轻量级的工业边缘计算网关，旨在连接工业现场设备（南向）与云端/上层应用（北向），并提供本地边缘计算能力。项目采用 Go 语言开发后端，Vue 3 开发前端管理界面。
 
+<div align="center">
+  <img src="./industrial-edge-gateway/docs/img/首页监控.png" width="800" />
+</div>
+
 ## ✨ 主要特性
 
 ### 🔌 南向采集协议 (Southbound)
@@ -10,7 +14,7 @@ Industrial Edge Gateway 是一个轻量级的工业边缘计算网关，旨在�
 | :--- | :--- | :--- |
 | **Modbus TCP / RTU / RTU Over TCP** | ✅ 已实现 | 完整支持，基于 `simonvetter/modbus` |
 | **BACnet IP** | ✅ 已实现 | 支持设备发现 (Who-Is/I-Am)、多网口广播 + 单播回退（尊重 I-Am 源端口）、对象扫描与点位读写、批量读失败自动回退到单读、异常端口回退至 47808、读超时与自动恢复优化。**新增本地模拟器支持**：针对 Windows 本地运行的模拟器，自动尝试 localhost 单播发现。 |
-| **OPC UA Client** | ✅ 已实现 | 基于 `gopcua/opcua` 实现，支持读写操作、订阅 (Subscription) 与监控 (Monitoring)，支持断线自动重连 |
+| **OPC UAClient** | ✅ 已实现 | 基于 `gopcua/opcua` 实现，支持读写操作、订阅 (Subscription) 与监控 (Monitoring)，支持断线自动重连 |
 | **Siemens S7** | 🚧 模拟中 | 支持 S7-200Smart/1200/1500 等 (模拟) |
 | **EtherNet/IP (ODVA)** | 🚧 模拟中 | 模拟实现 |
 | **Mitsubishi MELSEC (SLMP)** | 🚧 模拟中 | 模拟实现 |
@@ -23,7 +27,7 @@ Industrial Edge Gateway 是一个轻量级的工业边缘计算网关，旨在�
 | :--- | :--- | :--- |
 | **MQTT** | ✅ 已实现 | 支持自定义 Topic、Payload 模板 |
 | **Sparkplug B** | ✅ 已实现 | 支持 NBIRTH, NDEATH, DDATA 消息规范 |
-| **OPC UA Server** | ✅ 已实现 | 基于 `awcullen/opcua` 实现，支持多种认证方式（匿名/用户名/证书），支持数据点位映射与反向控制，提供服务端运行监控（客户端数/订阅数/写统计） |
+| **OPC UAServer** | ✅ 已实现 | 基于 `awcullen/opcua` 实现，支持多种认证方式（匿名/用户名/证书），支持数据点位映射与反向控制，提供服务端运行监控（客户端数/订阅数/写统计） |
 
 ### 🧠 边缘计算 & 管理
 *   **规则引擎**: 内置轻量级规则引擎，支持 `expr` 表达式进行逻辑判断和联动控制。
@@ -35,7 +39,7 @@ Industrial Edge Gateway 是一个轻量级的工业边缘计算网关，旨在�
     *   基于 Vue 3 + Vuetify 的现代化 UI。
     *   **登录安全**: 支持 JWT 认证、登录倒计时保护。
     *   **视图切换**: 通道列表支持卡片/列表视图切换。
-    *   **北向管理**: 提供 OPC UA Server 安全配置（用户/证书）与实时运行状态监控看板。
+    *   **北向管理**: 提供 OPC UAServer 安全配置（用户/证书）与实时运行状态监控看板。
 *   **配置管理**: 采用模块化 YAML 配置 (`conf/` 目录)，支持热重载（部分）。
 *   **离线支持**: 前端依赖已优化，支持完全离线局域网运行。
 
@@ -202,19 +206,74 @@ devices:
 ## 📅 TODO / Roadmap
 
 ### 核心驱动完善
-- [x] **OPC UA Client**: 对接 `gopcua/opcua` 实现真实读写。
+- [x] **OPC UAClient**: 对接 `gopcua/opcua` 实现真实读写。
 - [ ] **Siemens S7**: 实现 S7 协议的真实 TCP 通信。
 - [ ] **EtherNet/IP**: 实现 CIP/EIP 协议栈。
 - [ ] **其他驱动**: 逐步替换 Mitsubishi, Omron, DL/T645 的模拟实现。
 
 ### 北向增强
-- [x] **OPC UA Server**: 实现基于 `awcullen/opcua` 的服务端，支持多重认证（匿名/用户名/证书）与运行监控。
+- [x] **OPC UAServer**: 实现基于 `awcullen/opcua` 的服务端，支持多重认证（匿名/用户名/证书）与运行监控。
 - [ ] **HTTP Push**: 支持通过 HTTP POST 推送数据到第三方 HTTP 服务器。
 
 ### 系统功能
 - [ ] **真实系统监控**: 替换 Dashboard 中的模拟 CPU/内存数据为真实系统调用 (如 `gopsutil`)。
 - [ ] **日志持久化**: 提供基于文件的日志查看和下载功能。
 - [ ] **数据存储**: 增强时序数据存储能力（目前仅存储配置和少量状态）。
+
+## 📸 界面预览 (Gallery)
+
+### 📊 概览与系统
+
+#### 登录页
+![登录页](./industrial-edge-gateway/docs/img/登录页.png)
+
+#### 首页监控
+![首页监控](./industrial-edge-gateway/docs/img/首页监控.png)
+
+#### 系统设置
+![系统设置相关](./industrial-edge-gateway/docs/img/系统设置相关.png)
+
+### 🔌 南向采集 (BACnet / OPC UA)
+
+#### 通道列表
+![南向通道采集](./industrial-edge-gateway/docs/img/南向通道采集.png)
+
+#### BACnet 设备发现
+![BACnet设备发现扫描](./industrial-edge-gateway/docs/img/BACnet设备发现扫描.png)
+
+#### BACnet 点位扫描
+![BAC点位对象扫描发现](./industrial-edge-gateway/docs/img/BAC点位对象扫描发现.png)
+
+#### OPC UA模型扫描
+![OPC UA设备模型扫描](./industrial-edge-gateway/docs/img/OPC_UA_设备模型扫描.png)
+
+#### OPC UA数据订阅
+![OPC UA设备数据订阅](./industrial-edge-gateway/docs/img/OPC_UA_设备数据订阅.png)
+
+#### OPC UA数据转换
+![OPC UA设备数据转换](./industrial-edge-gateway/docs/img/OPC_UA_设备数据转换.png)
+
+### 🧠 边缘计算
+
+#### 计算监控
+![边缘计算监控](./industrial-edge-gateway/docs/img/边缘计算监控.png)
+
+#### 规则配置
+![边缘计算规则配置](./industrial-edge-gateway/docs/img/边缘计算规则配置.png)
+
+#### 规则日志
+![边缘计算规则运行日志查询导出](./industrial-edge-gateway/docs/img/边缘计算规则运行日志查询导出.png)
+
+### ☁️ 北向数据
+
+#### 北向总览
+![北向数据共享总览页面](./industrial-edge-gateway/docs/img/北向数据共享总览页面.png)
+
+#### MQTT 监控
+![北向数据共享MQTT 运行监控](./industrial-edge-gateway/docs/img/北向数据共享MQTT运行监控.png)
+
+#### MQTT 手册
+![北向数据共享MQTT 帮助手册](./industrial-edge-gateway/docs/img/北向数据共享MQTT帮助手册.png)
 
 ## 📄 License
 

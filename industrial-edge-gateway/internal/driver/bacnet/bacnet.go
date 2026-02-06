@@ -1327,14 +1327,39 @@ func (d *BACnetDriver) scanDeviceObjects(client Client, devID int) (any, error) 
 							res.Description = v
 						}
 					case btypes.PropUnits:
+						var u units.Unit
+						found := false
 						if v, ok := prop.Data.(btypes.Enumerated); ok {
-							res.Units = units.Unit(v).String()
+							u = units.Unit(v)
+							found = true
 						} else if v, ok := prop.Data.(uint); ok {
-							res.Units = units.Unit(v).String()
-						} else if v, ok := prop.Data.(float64); ok {
-							res.Units = units.Unit(v).String()
+							u = units.Unit(v)
+							found = true
+						} else if v, ok := prop.Data.(uint32); ok {
+							u = units.Unit(v)
+							found = true
+						} else if v, ok := prop.Data.(uint16); ok {
+							u = units.Unit(v)
+							found = true
 						} else if v, ok := prop.Data.(int); ok {
-							res.Units = units.Unit(v).String()
+							u = units.Unit(v)
+							found = true
+						} else if v, ok := prop.Data.(float64); ok {
+							u = units.Unit(v)
+							found = true
+						}
+
+						if found {
+							switch u {
+							case units.DegreesCelsius:
+								res.Units = "℃"
+							case units.DegreesFahrenheit:
+								res.Units = "℉"
+							case units.NoUnits:
+								res.Units = ""
+							default:
+								res.Units = u.String()
+							}
 						} else {
 							res.Units = fmt.Sprintf("%v", prop.Data)
 						}
