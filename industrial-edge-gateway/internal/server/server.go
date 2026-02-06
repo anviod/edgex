@@ -244,6 +244,7 @@ func (s *Server) setupRoutes() {
 	api.Post("/northbound/mqtt", s.updateMQTTConfig)
 	api.Post("/northbound/opcua", s.updateOPCUAConfig)
 	api.Get("/northbound/opcua/:id/stats", s.getOPCUAStats)
+	api.Get("/northbound/mqtt/:id/stats", s.getMQTTStats)
 	api.Get("/points", s.getAllPoints)
 
 	// Edge Compute
@@ -1010,6 +1011,15 @@ func (s *Server) handleLogDownload(c *fiber.Ctx) error {
 func (s *Server) getOPCUAStats(c *fiber.Ctx) error {
 	id := c.Params("id")
 	stats, err := s.nbm.GetOPCUAStats(id)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(stats)
+}
+
+func (s *Server) getMQTTStats(c *fiber.Ctx) error {
+	id := c.Params("id")
+	stats, err := s.nbm.GetMQTTStats(id)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": err.Error()})
 	}

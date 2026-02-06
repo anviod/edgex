@@ -92,6 +92,9 @@ func main() {
 		cfg.Northbound = nbCfg
 		return config.SaveConfig(*confDir, cfg)
 	})
+	cm.SetStatusHandler(func(deviceID string, status int) {
+		nbm.OnDeviceStatusChange(deviceID, status)
+	})
 	nbm.Start()
 	defer nbm.Stop()
 

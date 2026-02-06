@@ -30,16 +30,17 @@ type ChannelManager struct {
 	drivers      map[string]drv.Driver     // channel.id -> driver
 	driverMus    map[string]*sync.Mutex    // channel.id -> mutex for driver access
 	pipeline     *DataPipeline
-	stateManager *CommunicationManageTemplate
-	mu           sync.RWMutex
-	ctx          context.Context
-	cancel       context.CancelFunc
-	saveFunc     func([]model.Channel) error
+	stateManager  *CommunicationManageTemplate
+	mu            sync.RWMutex
+	ctx           context.Context
+	cancel        context.CancelFunc
+	saveFunc      func([]model.Channel) error
+	statusHandler func(deviceID string, status int)
 }
 
 func NewChannelManager(pipeline *DataPipeline, saveFunc func([]model.Channel) error) *ChannelManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &ChannelManager{
+	cm := &ChannelManager{
 		channels:     make(map[string]*model.Channel),
 		drivers:      make(map[string]drv.Driver),
 		driverMus:    make(map[string]*sync.Mutex),
@@ -49,6 +50,24 @@ func NewChannelManager(pipeline *DataPipeline, saveFunc func([]model.Channel) er
 		cancel:       cancel,
 		saveFunc:     saveFunc,
 	}
+
+	// Wire state manager events
+	cm.stateManager.OnStateChange = func(deviceID string, oldState, newState NodeState) {
+		cm.mu.RLock()
+		handler := cm.statusHandler
+		cm.mu.RUnlock()
+		if handler != nil {
+			handler(deviceID, int(newState))
+		}
+	}
+
+	return cm
+}
+
+func (cm *ChannelManager) SetStatusHandler(h func(deviceID string, status int)) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+	cm.statusHandler = h
 }
 
 func (cm *ChannelManager) GetChannelStats() []ChannelStatus {
@@ -670,6 +689,16 @@ func (cm *ChannelManager) validateEtherNetIPPoint(point *model.Point) error {
 
 // collectDevice 从设备采集数据
 func (cm *ChannelManager) collectDevice(dev *model.Device, d drv.Driver, ch *model.Channel, node *DeviceNodeTemplate) {
+	start := time.Now()
+	defer func() {
+		duration := time.Since(start)
+		zap.L().Info("Device collection cycle finished",
+			zap.String("device", dev.Name),
+			zap.Int("point_count", len(dev.Points)),
+			zap.String("duration", fmt.Sprintf("%.3fs", duration.Seconds())),
+		)
+	}()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

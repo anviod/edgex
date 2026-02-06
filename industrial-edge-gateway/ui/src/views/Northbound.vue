@@ -28,7 +28,9 @@
                         <v-icon icon="mdi-access-point-network" color="primary" class="mr-3"></v-icon>
                         MQTT: {{ item.name || item.id }}
                         <v-spacer></v-spacer>
+                        <v-btn icon="mdi-help-circle" variant="text" size="small" color="secondary" @click="openMqttHelp(item)" title="帮助文档"></v-btn>
                         <v-btn icon="mdi-cog" variant="text" size="small" color="primary" @click="openMqttSettings(item)"></v-btn>
+                        <v-btn icon="mdi-monitor-dashboard" variant="text" size="small" color="info" @click="openMqttStats(item)" title="运行监控"></v-btn>
                         <v-btn icon="mdi-delete" variant="text" size="small" color="error" @click="deleteProtocol('mqtt', item.id)"></v-btn>
                         
                         <template v-if="!item.enable">
@@ -50,6 +52,9 @@
                             </v-list-item>
                             <v-list-item title="发布主题" :subtitle="item.topic">
                                 <template v-slot:prepend><v-icon icon="mdi-post" color="grey"></v-icon></template>
+                            </v-list-item>
+                            <v-list-item v-if="item.subscribe_topic" title="订阅主题" :subtitle="item.subscribe_topic">
+                                <template v-slot:prepend><v-icon icon="mdi-download-network" color="grey"></v-icon></template>
                             </v-list-item>
                         </v-list>
                     </v-card-text>
@@ -171,6 +176,22 @@
                         <v-text-field v-model="mqttDialog.config.broker" label="Broker 地址" hint="tcp://127.0.0.1:1883" persistent-hint variant="outlined" density="compact" class="mb-2"></v-text-field>
                         <v-text-field v-model="mqttDialog.config.client_id" label="Client ID" variant="outlined" density="compact" class="mb-2"></v-text-field>
                         <v-text-field v-model="mqttDialog.config.topic" label="发布主题" variant="outlined" density="compact" class="mb-2"></v-text-field>
+                        <v-text-field v-model="mqttDialog.config.subscribe_topic" label="订阅主题 (用于写入)" placeholder="/things/{client_id}/write/req" persistent-placeholder variant="outlined" density="compact" class="mb-2"></v-text-field>
+                        <v-text-field v-model="mqttDialog.config.write_response_topic" label="写入响应主题" placeholder="默认: 订阅主题/resp" persistent-placeholder variant="outlined" density="compact" class="mb-2"></v-text-field>
+                        
+                        <v-divider class="my-4"></v-divider>
+                        <div class="text-subtitle-1 mb-2 font-weight-bold">状态上报配置 (LWT)</div>
+                        <v-text-field v-model="mqttDialog.config.status_topic" label="状态主题" placeholder="默认: 发布主题/status" persistent-placeholder variant="outlined" density="compact" class="mb-2"></v-text-field>
+                        <v-row>
+                            <v-col cols="12" md="6">
+                                <v-textarea v-model="mqttDialog.config.online_payload" label="上线消息内容 (JSON)" placeholder='{"status":"online"}' rows="3" variant="outlined" density="compact"></v-textarea>
+                            </v-col>
+                            <v-col cols="12" md="6">
+                                <v-textarea v-model="mqttDialog.config.offline_payload" label="离线消息内容 (LWT)" placeholder='{"status":"offline"}' rows="3" variant="outlined" density="compact"></v-textarea>
+                            </v-col>
+                        </v-row>
+                        <v-divider class="my-4"></v-divider>
+
                         <v-row>
                             <v-col cols="12" md="6">
                                 <v-text-field v-model="mqttDialog.config.username" label="用户名" variant="outlined" density="compact"></v-text-field>
@@ -186,6 +207,7 @@
                             <thead>
                                 <tr>
                                     <th>设备名称</th>
+                                    <th style="width: 100px;">在线状态</th>
                                     <th style="width: 80px;">启用</th>
                                     <th style="width: 250px;">策略</th>
                                     <th style="width: 150px;">上报周期</th>
@@ -196,6 +218,11 @@
                                     <td>
                                         <div>{{ dev.name }}</div>
                                         <div class="text-caption text-grey">{{ dev.channelName }}</div>
+                                    </td>
+                                    <td>
+                                        <v-chip v-if="dev.state === 0" color="success" size="small" variant="flat">在线</v-chip>
+                                        <v-chip v-else-if="dev.state === 1" color="warning" size="small" variant="flat">不稳定</v-chip>
+                                        <v-chip v-else color="error" size="small" variant="flat">离线</v-chip>
                                     </td>
                                     <td>
                                         <v-checkbox-btn 
@@ -236,6 +263,153 @@
                     <v-btn variant="text" @click="mqttDialog.visible = false">取消</v-btn>
                     <v-btn color="primary" variant="elevated" @click="saveMqttSettings" :loading="mqttDialog.loading">保存配置</v-btn>
                 </v-card-actions>
+            </v-card>
+        </v-dialog>
+
+        <!-- MQTT Help Dialog -->
+        <v-dialog v-model="mqttHelpDialog.visible" max-width="900">
+            <v-card>
+                <v-toolbar color="primary" density="compact">
+                    <v-toolbar-title class="text-white">
+                        <v-icon icon="mdi-help-circle-outline" class="mr-2"></v-icon>
+                        MQTT 接入文档
+                    </v-toolbar-title>
+                    <v-spacer></v-spacer>
+                    <v-btn icon="mdi-close" variant="text" color="white" @click="mqttHelpDialog.visible = false"></v-btn>
+                </v-toolbar>
+
+                <div class="d-flex flex-row">
+                    <v-tabs v-model="mqttHelpDialog.activeTab" direction="vertical" color="primary" style="min-width: 160px; height: 500px" class="border-e">
+                        <v-tab value="reporting">
+                            <v-icon start>mdi-upload-network</v-icon>
+                            数据上报
+                        </v-tab>
+                        <v-tab value="control">
+                            <v-icon start>mdi-remote</v-icon>
+                            设备控制
+                        </v-tab>
+                        <v-tab value="status">
+                            <v-icon start>mdi-access-point-check</v-icon>
+                            在线状态
+                        </v-tab>
+                    </v-tabs>
+
+                    <v-window v-model="mqttHelpDialog.activeTab" class="flex-grow-1" style="height: 500px; overflow-y: auto;">
+                        <!-- Data Reporting -->
+                        <v-window-item value="reporting" class="pa-4">
+                            <div class="text-h6 mb-1">数据上报 (Data Reporting)</div>
+                            <p class="text-body-2 text-grey mb-4">设备采集的数据将按照以下格式自动上报到 Broker。</p>
+
+                            <v-card variant="outlined" class="mb-4 border-primary">
+                                <v-card-text class="pa-3">
+                                    <div class="text-caption font-weight-bold text-primary mb-1">Topic (发布主题)</div>
+                                    <div class="d-flex align-center bg-grey-lighten-4 pa-2 rounded font-weight-medium text-body-2">
+                                        <span class="text-truncate">{{ mqttHelpDialog.topic }}</span>
+                                        <v-spacer></v-spacer>
+                                        <v-btn size="x-small" variant="text" icon="mdi-content-copy" color="grey" @click="copyToClipboard(mqttHelpDialog.topic)"></v-btn>
+                                    </div>
+                                </v-card-text>
+                            </v-card>
+
+                            <div class="text-subtitle-2 mb-2 font-weight-bold">Payload 格式 (JSON)</div>
+                            <v-sheet class="bg-grey-lighten-4 text-grey-darken-4 pa-3 rounded code-block border" style="font-family: monospace; font-size: 13px; line-height: 1.5;">
+<pre class="ma-0">{
+  <span class="text-primary">"timestamp"</span>: <span class="text-warning">1678888888888</span>,
+  <span class="text-primary">"node"</span>: <span class="text-success">"device_name"</span>,   <span class="text-grey">// 设备名称</span>
+  <span class="text-primary">"group"</span>: <span class="text-success">"channel_name"</span>, <span class="text-grey">// 通道名称</span>
+  <span class="text-primary">"values"</span>: {
+    <span class="text-primary">"point_name"</span>: <span class="text-warning">123.45</span>   <span class="text-grey">// 点位名: 值</span>
+  },
+  <span class="text-primary">"errors"</span>: {},            <span class="text-grey">// 错误信息 (可选)</span>
+  <span class="text-primary">"metas"</span>: {}              <span class="text-grey">// 元数据 (可选)</span>
+}</pre>
+                            </v-sheet>
+                        </v-window-item>
+
+                        <!-- Device Control -->
+                        <v-window-item value="control" class="pa-4">
+                            <div class="text-h6 mb-1">设备控制 (Device Control)</div>
+                            <p class="text-body-2 text-grey mb-4">向设备写入数据，支持多点位同时写入。</p>
+
+                            <v-card variant="outlined" class="mb-4 border-info">
+                                <v-card-text class="pa-3">
+                                    <div class="text-caption font-weight-bold text-info mb-1">Topic (订阅主题 - 发送请求)</div>
+                                    <div class="d-flex align-center bg-grey-lighten-4 pa-2 rounded font-weight-medium text-body-2">
+                                        <span class="text-truncate">{{ mqttHelpDialog.subscribe_topic || '未配置' }}</span>
+                                        <v-spacer></v-spacer>
+                                        <v-btn size="x-small" variant="text" icon="mdi-content-copy" color="grey" @click="copyToClipboard(mqttHelpDialog.subscribe_topic)"></v-btn>
+                                    </div>
+                                </v-card-text>
+                            </v-card>
+
+                            <div class="text-subtitle-2 mb-2 font-weight-bold">请求 Payload (JSON)</div>
+                            <v-sheet class="bg-grey-lighten-4 text-grey-darken-4 pa-3 rounded code-block mb-4 border" style="font-family: monospace; font-size: 13px;">
+<pre class="ma-0">{
+  <span class="text-primary">"uuid"</span>: <span class="text-success">"req_123456"</span>,    <span class="text-grey">// 请求ID (可选，用于匹配响应)</span>
+  <span class="text-primary">"group"</span>: <span class="text-success">"channel_name"</span>, <span class="text-grey">// 通道名称</span>
+  <span class="text-primary">"node"</span>: <span class="text-success">"device_name"</span>,   <span class="text-grey">// 设备名称</span>
+  <span class="text-primary">"values"</span>: {
+    <span class="text-primary">"point_name"</span>: <span class="text-warning">1</span>        <span class="text-grey">// 要写入的点位和值</span>
+  }
+}</pre>
+                            </v-sheet>
+
+                            <v-divider class="mb-4"></v-divider>
+
+                            <v-card variant="outlined" class="mb-4 border-success">
+                                <v-card-text class="pa-3">
+                                    <div class="text-caption font-weight-bold text-success mb-1">Topic (响应主题 - 接收结果)</div>
+                                    <div class="d-flex align-center bg-grey-lighten-4 pa-2 rounded font-weight-medium text-body-2">
+                                        <span class="text-truncate">{{ mqttHelpDialog.write_response_topic || (mqttHelpDialog.subscribe_topic ? mqttHelpDialog.subscribe_topic + '/resp' : '未配置') }}</span>
+                                        <v-spacer></v-spacer>
+                                        <v-btn size="x-small" variant="text" icon="mdi-content-copy" color="grey" @click="copyToClipboard(mqttHelpDialog.write_response_topic || (mqttHelpDialog.subscribe_topic ? mqttHelpDialog.subscribe_topic + '/resp' : ''))"></v-btn>
+                                    </div>
+                                </v-card-text>
+                            </v-card>
+
+                            <div class="text-subtitle-2 mb-2 font-weight-bold">响应 Payload (JSON)</div>
+                            <v-sheet class="bg-grey-lighten-4 text-grey-darken-4 pa-3 rounded code-block border" style="font-family: monospace; font-size: 13px;">
+<pre class="ma-0">{
+  <span class="text-primary">"uuid"</span>: <span class="text-success">"req_123456"</span>,
+  <span class="text-primary">"success"</span>: <span class="text-warning">true</span>,         <span class="text-grey">// 是否成功</span>
+  <span class="text-primary">"message"</span>: <span class="text-success">"error msg"</span>   <span class="text-grey">// 错误信息 (如果失败)</span>
+}</pre>
+                            </v-sheet>
+                        </v-window-item>
+
+                        <!-- Online/Offline Status -->
+                        <v-window-item value="status" class="pa-4">
+                            <div class="text-h6 mb-1">上下线状态 (Status)</div>
+                            <p class="text-body-2 text-grey mb-4">网关/通道以及<strong class="text-primary">南向设备</strong>的连接状态变更时发布。</p>
+
+                            <v-alert density="compact" type="info" variant="tonal" class="mb-4 text-caption">
+                                支持变量替换: <code>{status}</code>, <code>{timestamp}</code>, <code>{device_id}</code>, <code>{device_name}</code>。
+                                <br>如果配置了 Status Topic，南向设备状态也会发布到该主题（建议在 Payload 中包含 device_id 以区分）。
+                            </v-alert>
+
+                            <v-card variant="outlined" class="mb-4 border-warning">
+                                <v-card-text class="pa-3">
+                                    <div class="text-caption font-weight-bold text-warning mb-1">Topic (状态主题)</div>
+                                    <div class="d-flex align-center bg-grey-lighten-4 pa-2 rounded font-weight-medium text-body-2">
+                                        <span class="text-truncate">{{ mqttHelpDialog.status_topic || mqttHelpDialog.topic + '/status' }}</span>
+                                        <v-spacer></v-spacer>
+                                        <v-btn size="x-small" variant="text" icon="mdi-content-copy" color="grey" @click="copyToClipboard(mqttHelpDialog.status_topic || mqttHelpDialog.topic + '/status')"></v-btn>
+                                    </div>
+                                </v-card-text>
+                            </v-card>
+
+                            <div class="text-subtitle-2 mb-2 font-weight-bold">Payload (上线 - Online)</div>
+                            <v-sheet class="bg-grey-lighten-4 text-grey-darken-4 pa-3 rounded code-block mb-4 border" style="font-family: monospace; font-size: 13px;">
+                                <pre class="ma-0">{{ mqttHelpDialog.online_payload || '{\n  "status": "online",\n  "timestamp": 1678888888888\n}' }}</pre>
+                            </v-sheet>
+
+                            <div class="text-subtitle-2 mb-2 font-weight-bold">Payload (离线/遗嘱 - Offline/LWT)</div>
+                            <v-sheet class="bg-grey-lighten-4 text-grey-darken-4 pa-3 rounded code-block border" style="font-family: monospace; font-size: 13px;">
+                                <pre class="ma-0">{{ mqttHelpDialog.offline_payload || '{\n  "status": "offline",\n  "timestamp": 1678888888888\n}' }}</pre>
+                            </v-sheet>
+                        </v-window-item>
+                    </v-window>
+                </div>
             </v-card>
         </v-dialog>
 
@@ -394,24 +568,26 @@
                             density="compact"
                         ></v-select>
 
-                        <div v-if="opcuaDialog.config.auth_methods && opcuaDialog.config.auth_methods.includes('UserName')" class="ml-4 border-l-4 pl-4 my-2">
-                             <div class="text-subtitle-2 mb-2">用户列表 (用户名:密码)</div>
-                             <div v-for="(pwd, user) in opcuaDialog.config.users" :key="user" class="d-flex align-center mb-2">
-                                 <v-text-field :model-value="user" readonly label="用户名" density="compact" variant="outlined" hide-details class="mr-2"></v-text-field>
-                                 <v-text-field :model-value="pwd" readonly type="password" label="密码" density="compact" variant="outlined" hide-details class="mr-2"></v-text-field>
-                                 <v-btn icon="mdi-delete" size="small" color="error" variant="text" @click="delete opcuaDialog.config.users[user]"></v-btn>
+                        <div v-if="opcuaDialog.config.auth_methods && opcuaDialog.config.auth_methods.includes('UserName')" class="my-2">
+                             <div class="d-flex align-center justify-space-between mb-2">
+                                <div class="text-subtitle-2">用户列表 (用户名:密码)</div>
+                                <v-btn icon="mdi-plus" size="small" color="primary" variant="flat" @click="addOpcuaUser"></v-btn>
                              </div>
-                             <v-row class="align-center">
-                                 <v-col cols="5">
-                                     <v-text-field v-model="newUser" label="新用户名" density="compact" variant="outlined" hide-details></v-text-field>
-                                 </v-col>
-                                 <v-col cols="5">
-                                     <v-text-field v-model="newPwd" label="新密码" density="compact" variant="outlined" hide-details></v-text-field>
-                                 </v-col>
-                                 <v-col cols="2">
-                                     <v-btn icon="mdi-plus" color="primary" @click="addOpcuaUser"></v-btn>
-                                 </v-col>
-                             </v-row>
+                             <div v-for="(item, index) in opcuaDialog.userList" :key="index" class="d-flex align-center mb-2">
+                                 <v-text-field v-model="item.username" label="用户名" density="compact" variant="outlined" hide-details class="mr-2"></v-text-field>
+                                 <v-text-field 
+                                    v-model="item.password" 
+                                    :type="item.visible ? 'text' : 'password'" 
+                                    label="密码" 
+                                    density="compact" 
+                                    variant="outlined" 
+                                    hide-details 
+                                    class="mr-2"
+                                    :append-inner-icon="item.visible ? 'mdi-eye-off' : 'mdi-eye'"
+                                    @click:append-inner="item.visible = !item.visible"
+                                 ></v-text-field>
+                                 <v-btn icon="mdi-delete" size="small" color="error" variant="text" @click="opcuaDialog.userList.splice(index, 1)"></v-btn>
+                             </div>
                         </div>
 
                         <div v-if="opcuaDialog.config.auth_methods && opcuaDialog.config.auth_methods.includes('Certificate')" class="ml-4 border-l-4 pl-4 my-2">
@@ -495,8 +671,118 @@
                 </v-card-actions>
             </v-card>
         </v-dialog>
+
+        <!-- MQTT Stats Dialog -->
+        <v-dialog v-model="mqttStatsDialog.visible" max-width="900px" content-class="glass-dialog-wrapper">
+            <v-card class="glass-dialog">
+                <v-card-title class="d-flex align-center pa-4 text-white bg-primary">
+                    <v-icon icon="mdi-monitor-dashboard" start></v-icon>
+                    <span class="text-h6">MQTT 运行监控</span>
+                    <v-spacer></v-spacer>
+                    <v-btn icon="mdi-refresh" variant="text" size="small" @click="refreshMqttStats" :loading="mqttStatsDialog.loading"></v-btn>
+                    <v-btn icon="mdi-close" variant="text" size="small" @click="mqttStatsDialog.visible = false"></v-btn>
+                </v-card-title>
+                
+                <v-card-text class="pa-4">
+                    <!-- Top Stats Cards -->
+                    <v-row class="mb-4">
+                        <v-col cols="12" sm="6" md="3">
+                            <v-card class="pa-3 text-center" elevation="2">
+                                <div class="text-caption text-grey">发送成功</div>
+                                <div class="text-h4 text-success mt-1">{{ mqttStatsDialog.data.success_count || 0 }}</div>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" sm="6" md="3">
+                            <v-card class="pa-3 text-center" elevation="2">
+                                <div class="text-caption text-grey">发送失败</div>
+                                <div class="text-h4 text-error mt-1">{{ mqttStatsDialog.data.fail_count || 0 }}</div>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" sm="6" md="3">
+                            <v-card class="pa-3 text-center" elevation="2">
+                                <div class="text-caption text-grey">重连次数</div>
+                                <div class="text-h4 text-warning mt-1">{{ mqttStatsDialog.data.reconnect_count || 0 }}</div>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" sm="6" md="3">
+                            <v-card class="pa-3 text-center" elevation="2">
+                                <div class="text-caption text-grey">断线时长</div>
+                                <div class="text-h4 text-grey-darken-1 mt-1">{{ formatDisconnectDuration(mqttStatsDialog.data.last_offline_time, mqttStatsDialog.data.last_online_time) }}</div>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+
+                    <v-divider class="mb-4"></v-divider>
+
+                    <!-- Log Viewer Control Bar -->
+                    <div class="d-flex align-center mb-2">
+                        <v-icon icon="mdi-console-line" size="small" color="grey" class="mr-2"></v-icon>
+                        <span class="text-subtitle-2 font-weight-bold">实时日志 (MQTT)</span>
+                        <v-spacer></v-spacer>
+                        
+                        <v-switch
+                            v-model="mqttStatsDialog.isStreaming"
+                            color="success"
+                            label="实时滚动"
+                            hide-details
+                            density="compact"
+                            class="mr-4"
+                            inset
+                        ></v-switch>
+
+                        <v-btn
+                            variant="outlined"
+                            size="small"
+                            prepend-icon="mdi-download"
+                            @click="downloadMqttLogs"
+                            class="mr-2"
+                        >
+                            下载日志
+                        </v-btn>
+                    </div>
+
+                    <!-- Log Viewer Area -->
+                    <v-card variant="outlined" class="log-viewer-container rounded bg-white">
+                        <div class="log-content pa-2" style="height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;">
+                            <div v-if="mqttPaginatedLogs.length === 0" class="text-center text-grey mt-12">暂无日志...</div>
+                            <div v-for="(log, idx) in mqttPaginatedLogs" :key="idx" class="log-line border-b">
+                                <span class="text-grey mr-2">[{{ formatTime(log.ts) }}]</span>
+                                <span :class="getLevelClass(log.level)" class="font-weight-bold mr-2">{{ (log.level || 'INFO').toUpperCase() }}</span>
+                                <span class="text-black">{{ log.msg }}</span>
+                                <span v-for="(val, key) in getExtraFields(log)" :key="key" class="text-grey ml-2 text-caption">
+                                    {{ key }}={{ val }}
+                                </span>
+                            </div>
+                        </div>
+                        <v-divider></v-divider>
+                        <div class="d-flex align-center justify-center pa-1">
+                             <v-pagination
+                                v-if="mqttStatsDialog.logs.length > 0"
+                                v-model="mqttStatsDialog.page"
+                                :length="mqttPageCount"
+                                :total-visible="5"
+                                density="compact"
+                                size="small"
+                            ></v-pagination>
+                        </div>
+                    </v-card>
+                </v-card-text>
+            </v-card>
+        </v-dialog>
     </div>
 </template>
+
+<style>
+.glass-dialog {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95) !important;
+}
+.log-line {
+    white-space: pre-wrap;
+    word-break: break-all;
+    padding: 2px 0;
+}
+</style>
 
 <script setup>
 import { ref, reactive, onMounted, watch, onUnmounted } from 'vue'
@@ -520,7 +806,8 @@ const mqttDialog = reactive({
 const opcuaDialog = reactive({
     visible: false,
     loading: false,
-    config: { devices: {} }
+    config: { devices: {} },
+    userList: []
 })
 
 const sparkplugbDialog = reactive({
@@ -546,18 +833,8 @@ const addProtocol = (type) => {
     }
 }
 
-const newUser = ref('')
-const newPwd = ref('')
-
 const addOpcuaUser = () => {
-    if (!newUser.value || !newPwd.value) {
-        showMessage('用户名和密码不能为空', 'warning')
-        return
-    }
-    if (!opcuaDialog.config.users) opcuaDialog.config.users = {}
-    opcuaDialog.config.users[newUser.value] = newPwd.value
-    newUser.value = ''
-    newPwd.value = ''
+    opcuaDialog.userList.push({ username: '', password: '', visible: false })
 }
 
 const fetchConfig = async () => {
@@ -609,6 +886,11 @@ const openMqttSettings = async (item) => {
             broker: 'tcp://127.0.0.1:1883',
             client_id: 'mqtt_client_' + Date.now(),
             topic: 'data',
+            subscribe_topic: '/neuron/+/write/req',
+            write_response_topic: '',
+            status_topic: '',
+            online_payload: '',
+            offline_payload: '',
             devices: {}
         }
     }
@@ -724,6 +1006,13 @@ const openOpcuaSettings = async (item) => {
     if (!opcuaDialog.config.users) opcuaDialog.config.users = {}
     if (!opcuaDialog.config.cert_file) opcuaDialog.config.cert_file = ''
     if (!opcuaDialog.config.key_file) opcuaDialog.config.key_file = ''
+
+    opcuaDialog.userList = []
+    if (opcuaDialog.config.users) {
+        for (const [u, p] of Object.entries(opcuaDialog.config.users)) {
+            opcuaDialog.userList.push({ username: u, password: p, visible: false })
+        }
+    }
     
     // Initialize unmapped devices to false
     allDevices.value.forEach(dev => {
@@ -737,6 +1026,17 @@ const openOpcuaSettings = async (item) => {
 
 const saveOpcuaSettings = async () => {
     opcuaDialog.loading = true
+    
+    // Sync userList back to config.users
+    opcuaDialog.config.users = {}
+    if (opcuaDialog.userList) {
+        opcuaDialog.userList.forEach(u => {
+            if (u.username) {
+                opcuaDialog.config.users[u.username] = u.password
+            }
+        })
+    }
+
     try {
         await request.post('/api/northbound/opcua', opcuaDialog.config)
         showMessage('OPC UA 配置已保存', 'success')
@@ -793,8 +1093,175 @@ watch(() => opcuaStatsDialog.visible, (val) => {
     }
 })
 
+// MQTT Help Logic
+const mqttHelpDialog = reactive({
+    visible: false,
+    activeTab: 'reporting',
+    topic: '',
+    subscribe_topic: '',
+    write_response_topic: '',
+    status_topic: '',
+    online_payload: '',
+    offline_payload: ''
+})
+
+const openMqttHelp = (item) => {
+    mqttHelpDialog.topic = item.topic || ''
+    mqttHelpDialog.subscribe_topic = item.subscribe_topic || ''
+    mqttHelpDialog.write_response_topic = item.write_response_topic || ''
+    mqttHelpDialog.status_topic = item.status_topic || ''
+    mqttHelpDialog.online_payload = item.online_payload || ''
+    mqttHelpDialog.offline_payload = item.offline_payload || ''
+    mqttHelpDialog.visible = true
+}
+
+const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+        showMessage('已复制到剪贴板', 'success')
+    }).catch(() => {
+        showMessage('复制失败', 'error')
+    })
+}
+
+// MQTT Stats & Monitoring Logic
+const mqttStatsDialog = reactive({
+    visible: false,
+    loading: false,
+    id: null,
+    data: {
+        success_count: 0,
+        fail_count: 0,
+        reconnect_count: 0,
+        last_offline_time: 0,
+        last_online_time: 0
+    },
+    logs: [],
+    page: 1,
+    isStreaming: true
+})
+
+import { computed } from 'vue' // Ensure computed is available
+
+const mqttPaginatedLogs = computed(() => {
+    const start = (mqttStatsDialog.page - 1) * 20
+    const end = start + 20
+    return mqttStatsDialog.logs.slice(start, end)
+})
+
+const mqttPageCount = computed(() => {
+    return Math.ceil(mqttStatsDialog.logs.length / 20) || 1
+})
+
+const openMqttStats = (item) => {
+    mqttStatsDialog.id = item.id
+    mqttStatsDialog.visible = true
+    mqttStatsDialog.logs = [] 
+    refreshMqttStats(false)
+}
+
+const refreshMqttStats = async (isAuto = false) => {
+    if (!mqttStatsDialog.id) return
+    if (!isAuto) mqttStatsDialog.loading = true
+    try {
+        const data = await request.get(`/api/northbound/mqtt/${mqttStatsDialog.id}/stats`)
+        mqttStatsDialog.data = data
+    } catch (e) {
+        // Silent fail on auto refresh
+        if (!isAuto) showMessage('获取监控信息失败: ' + e.message, 'error')
+    } finally {
+        if (!isAuto) mqttStatsDialog.loading = false
+    }
+}
+
+const formatDisconnectDuration = (offlineTime, onlineTime) => {
+    if (!offlineTime) return '0s'
+    const now = Date.now()
+    if (offlineTime > onlineTime) {
+        const diff = Math.floor((now - offlineTime) / 1000)
+        return formatUptime(diff)
+    }
+    return '0s'
+}
+
+const formatTime = (ts) => {
+    if (!ts) return ''
+    return new Date(ts).toLocaleTimeString() + '.' + new Date(ts).getMilliseconds().toString().padStart(3, '0')
+}
+
+const getLevelClass = (level) => {
+    const l = (level || '').toUpperCase()
+    if (l === 'ERROR' || l === 'FATAL') return 'text-error'
+    if (l === 'WARN') return 'text-warning'
+    return 'text-success'
+}
+
+const getExtraFields = (log) => {
+    const { ts, level, msg, caller, component, ...rest } = log
+    return rest
+}
+
+const downloadMqttLogs = () => {
+    const rows = mqttStatsDialog.logs.map(log => {
+        const ts = log.ts ? new Date(log.ts).toLocaleString() : ''
+        const level = (log.level || 'INFO').toUpperCase()
+        const msg = log.msg || ''
+        return `[${ts}] [${level}] ${msg}`
+    })
+    
+    const content = rows.join('\n')
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `mqtt_logs_${new Date().toISOString().slice(0,19).replace(/[:T]/g, '-')}.log`
+    link.click()
+    URL.revokeObjectURL(link.href)
+}
+
+let mqttWs = null
+let mqttStatsTimer = null
+
+watch(() => mqttStatsDialog.visible, (val) => {
+    if (val) {
+        mqttStatsTimer = setInterval(() => refreshMqttStats(true), 1000)
+        
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        const host = window.location.host
+        let token = ''
+        try {
+             const raw = localStorage.getItem('loginInfo')
+             if (raw) {
+                 const parsed = JSON.parse(raw)
+                 token = parsed.token || (parsed.data && parsed.data.token) || ''
+             }
+        } catch(e) {}
+        
+        mqttWs = new WebSocket(`${protocol}//${host}/api/ws/logs?token=${token}`)
+        mqttWs.onmessage = (event) => {
+            if (!mqttStatsDialog.isStreaming) return
+            try {
+                const log = JSON.parse(event.data)
+                if (log.component === 'mqtt-client') {
+                    mqttStatsDialog.logs.unshift(log)
+                    if (mqttStatsDialog.logs.length > 500) mqttStatsDialog.logs.pop()
+                }
+            } catch(e) {}
+        }
+    } else {
+        if (mqttStatsTimer) {
+            clearInterval(mqttStatsTimer)
+            mqttStatsTimer = null
+        }
+        if (mqttWs) {
+            mqttWs.close()
+            mqttWs = null
+        }
+    }
+})
+
 onUnmounted(() => {
     if (statsTimer) clearInterval(statsTimer)
+    if (mqttStatsTimer) clearInterval(mqttStatsTimer)
+    if (mqttWs) mqttWs.close()
 })
 
 const formatUptime = (seconds) => {

@@ -2,12 +2,15 @@ package mqtt
 
 import (
 	"encoding/json"
+	"fmt"
 	"industrial-edge-gateway/internal/model"
-	"log"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"go.uber.org/zap"
 )
 
 const (
@@ -17,8 +20,17 @@ const (
 	StatusError        = 3
 )
 
+type MQTTStats struct {
+	SuccessCount    int64 `json:"success_count"`
+	FailCount       int64 `json:"fail_count"`
+	ReconnectCount  int64 `json:"reconnect_count"`
+	LastOfflineTime int64 `json:"last_offline_time"`
+	LastOnlineTime  int64 `json:"last_online_time"`
+}
+
 type Client struct {
 	config     model.MQTTConfig
+	configMu   sync.RWMutex
 	client     mqtt.Client
 	lastValues sync.Map
 
@@ -31,6 +43,16 @@ type Client struct {
 
 	periodicMu sync.Mutex
 	periodic   map[string]*periodicItem
+
+	// Southbound Manager for writing
+	sb model.SouthboundManager
+
+	// Stats counters (using atomic int64)
+	successCount    int64
+	failCount       int64
+	reconnectCount  int64
+	lastOfflineTime int64
+	lastOnlineTime  int64
 }
 
 type AggregatedPayload struct {
@@ -54,9 +76,10 @@ type periodicItem struct {
 	stop      chan struct{}
 }
 
-func NewClient(cfg model.MQTTConfig) *Client {
+func NewClient(cfg model.MQTTConfig, sb model.SouthboundManager) *Client {
 	c := &Client{
 		config:   cfg,
+		sb:       sb,
 		stopChan: make(chan struct{}),
 		buffers:  make(map[string]*bufferItem),
 		periodic: make(map[string]*periodicItem),
@@ -70,6 +93,16 @@ func (c *Client) GetStatus() int {
 	return c.status
 }
 
+func (c *Client) GetStats() MQTTStats {
+	return MQTTStats{
+		SuccessCount:    atomic.LoadInt64(&c.successCount),
+		FailCount:       atomic.LoadInt64(&c.failCount),
+		ReconnectCount:  atomic.LoadInt64(&c.reconnectCount),
+		LastOfflineTime: atomic.LoadInt64(&c.lastOfflineTime),
+		LastOnlineTime:  atomic.LoadInt64(&c.lastOnlineTime),
+	}
+}
+
 func (c *Client) setStatus(s int) {
 	c.statusMu.Lock()
 	defer c.statusMu.Unlock()
@@ -77,12 +110,16 @@ func (c *Client) setStatus(s int) {
 }
 
 func (c *Client) UpdateConfig(cfg model.MQTTConfig) error {
+	c.configMu.RLock()
 	needRestart := c.config.Broker != cfg.Broker ||
 		c.config.ClientID != cfg.ClientID ||
 		c.config.Username != cfg.Username ||
 		c.config.Password != cfg.Password
+	c.configMu.RUnlock()
 
+	c.configMu.Lock()
 	c.config = cfg
+	c.configMu.Unlock()
 
 	if needRestart {
 		c.Stop()
@@ -108,9 +145,13 @@ func (c *Client) updatePeriodicTasks() {
 	c.periodicMu.Lock()
 	defer c.periodicMu.Unlock()
 
+	c.configMu.RLock()
+	devices := c.config.Devices
+	c.configMu.RUnlock()
+
 	// Stop removed or changed tasks
 	for devID, item := range c.periodic {
-		devCfg, ok := c.config.Devices[devID]
+		devCfg, ok := devices[devID]
 		if !ok || !devCfg.Enable || devCfg.Strategy != "periodic" || time.Duration(devCfg.Interval) <= 0 {
 			close(item.stop)
 			item.ticker.Stop()
@@ -119,7 +160,7 @@ func (c *Client) updatePeriodicTasks() {
 	}
 
 	// Start new tasks
-	for devID, devCfg := range c.config.Devices {
+	for devID, devCfg := range devices {
 		if !devCfg.Enable || devCfg.Strategy != "periodic" || time.Duration(devCfg.Interval) <= 0 {
 			continue
 		}
@@ -174,7 +215,10 @@ func (c *Client) flushPeriodic(deviceID string, item *periodicItem) {
 
 	data, err := json.Marshal(payload)
 	if err != nil {
-		log.Printf("Failed to marshal periodic value for MQTT: %v", err)
+		zap.L().Error("Failed to marshal periodic value for MQTT",
+			zap.Error(err),
+			zap.String("component", "mqtt-client"),
+		)
 		return
 	}
 
@@ -182,10 +226,20 @@ func (c *Client) flushPeriodic(deviceID string, item *periodicItem) {
 		return
 	}
 
-	token := c.client.Publish(c.config.Topic, 0, false, data)
+	c.configMu.RLock()
+	topic := c.config.Topic
+	c.configMu.RUnlock()
+
+	token := c.client.Publish(topic, 0, false, data)
 	go func() {
 		if token.Wait() && token.Error() != nil {
-			log.Printf("Failed to publish to MQTT: %v", token.Error())
+			atomic.AddInt64(&c.failCount, 1)
+			zap.L().Error("Failed to publish to MQTT",
+				zap.Error(token.Error()),
+				zap.String("component", "mqtt-client"),
+			)
+		} else {
+			atomic.AddInt64(&c.successCount, 1)
 		}
 	}()
 }
@@ -206,24 +260,99 @@ func (c *Client) PublishRaw(topic string, payload []byte) error {
 func (c *Client) connectLoop() {
 	c.setStatus(StatusReconnecting)
 
+	c.configMu.RLock()
+	broker := c.config.Broker
+	clientID := c.config.ClientID
+	username := c.config.Username
+	password := c.config.Password
+	statusTopic := c.config.StatusTopic
+	topic := c.config.Topic
+	offlinePayload := c.config.OfflinePayload
+	c.configMu.RUnlock()
+
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker(c.config.Broker)
-	opts.SetClientID(c.config.ClientID)
-	if c.config.Username != "" {
-		opts.SetUsername(c.config.Username)
-		opts.SetPassword(c.config.Password)
+	opts.AddBroker(broker)
+	opts.SetClientID(clientID)
+	if username != "" {
+		opts.SetUsername(username)
+		opts.SetPassword(password)
 	}
 	// Disable auto reconnect to control it manually
 	opts.SetAutoReconnect(false)
 
+	// Set Last Will and Testament (LWT)
+	if statusTopic == "" && topic != "" {
+		statusTopic = topic + "/status"
+	}
+
+	if statusTopic != "" {
+		if offlinePayload == "" {
+			b, _ := json.Marshal(map[string]any{
+				"status":    "offline",
+				"timestamp": time.Now().UnixMilli(),
+			})
+			offlinePayload = string(b)
+		}
+		opts.SetWill(statusTopic, offlinePayload, 1, true)
+	}
+
 	opts.SetOnConnectHandler(func(client mqtt.Client) {
-		log.Printf("Connected to MQTT Broker: %s", c.config.Broker)
+		zap.L().Info("Connected to MQTT Broker",
+			zap.String("broker", broker),
+			zap.String("component", "mqtt-client"),
+		)
 		c.setStatus(StatusConnected)
+		atomic.StoreInt64(&c.lastOnlineTime, time.Now().UnixMilli())
+
+		// Publish Online Status
+		// Re-evaluate statusTopic here in case config changed (though config update restarts client)
+		c.configMu.RLock()
+		statusTopic := c.config.StatusTopic
+		topic := c.config.Topic
+		onlinePayload := c.config.OnlinePayload
+		subscribeTopic := c.config.SubscribeTopic
+		c.configMu.RUnlock()
+
+		if statusTopic == "" && topic != "" {
+			statusTopic = topic + "/status"
+		}
+
+		if statusTopic != "" {
+			if onlinePayload == "" {
+				b, _ := json.Marshal(map[string]any{
+					"status":    "online",
+					"timestamp": time.Now().UnixMilli(),
+				})
+				onlinePayload = string(b)
+			}
+			client.Publish(statusTopic, 1, true, onlinePayload)
+		}
+
+		// Subscribe to write requests if configured
+		if subscribeTopic != "" {
+			token := client.Subscribe(subscribeTopic, 0, c.handleWriteRequest)
+			if token.Wait() && token.Error() != nil {
+				zap.L().Error("Failed to subscribe to write topic",
+					zap.String("topic", subscribeTopic),
+					zap.Error(token.Error()),
+					zap.String("component", "mqtt-client"),
+				)
+			} else {
+				zap.L().Info("Subscribed to write topic",
+					zap.String("topic", subscribeTopic),
+					zap.String("component", "mqtt-client"),
+				)
+			}
+		}
 	})
 
 	opts.SetConnectionLostHandler(func(client mqtt.Client, err error) {
-		log.Printf("MQTT Connection Lost: %v", err)
+		zap.L().Warn("MQTT Connection Lost",
+			zap.Error(err),
+			zap.String("component", "mqtt-client"),
+		)
 		c.setStatus(StatusDisconnected)
+		atomic.StoreInt64(&c.lastOfflineTime, time.Now().UnixMilli())
 		// Trigger reconnection
 		go c.reconnectLogic()
 	})
@@ -232,9 +361,111 @@ func (c *Client) connectLoop() {
 
 	// Initial connection attempt
 	if token := c.client.Connect(); token.Wait() && token.Error() != nil {
-		log.Printf("Initial MQTT connection failed: %v", token.Error())
+		zap.L().Error("Initial MQTT connection failed",
+			zap.Error(token.Error()),
+			zap.String("component", "mqtt-client"),
+		)
 		c.setStatus(StatusDisconnected)
+		atomic.StoreInt64(&c.lastOfflineTime, time.Now().UnixMilli())
 		go c.reconnectLogic()
+	} else {
+		atomic.StoreInt64(&c.lastOnlineTime, time.Now().UnixMilli())
+	}
+}
+
+// WriteRequest represents the payload for writing points via MQTT
+type WriteRequest struct {
+	UUID   string         `json:"uuid"`
+	Group  string         `json:"group"` // Channel ID
+	Node   string         `json:"node"`  // Device ID
+	Values map[string]any `json:"values"`
+}
+
+// WriteResponse represents the response payload
+type WriteResponse struct {
+	UUID    string `json:"uuid"`
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+}
+
+func (c *Client) handleWriteRequest(client mqtt.Client, msg mqtt.Message) {
+	zap.L().Info("Received write request",
+		zap.String("topic", msg.Topic()),
+		zap.String("component", "mqtt-client"),
+	)
+
+	var req WriteRequest
+	if err := json.Unmarshal(msg.Payload(), &req); err != nil {
+		zap.L().Error("Failed to unmarshal write request",
+			zap.Error(err),
+			zap.String("component", "mqtt-client"),
+		)
+		return
+	}
+
+	if req.Group == "" || req.Node == "" || len(req.Values) == 0 {
+		zap.L().Warn("Invalid write request: missing group, node or values",
+			zap.String("component", "mqtt-client"),
+		)
+		return
+	}
+
+	if c.sb == nil {
+		zap.L().Error("Southbound manager not initialized",
+			zap.String("component", "mqtt-client"),
+		)
+		return
+	}
+
+	var errs []string
+	success := true
+
+	for pointID, val := range req.Values {
+		if err := c.sb.WritePoint(req.Group, req.Node, pointID, val); err != nil {
+			zap.L().Error("Failed to write point",
+				zap.String("device", req.Node),
+				zap.String("point", pointID),
+				zap.Error(err),
+				zap.String("component", "mqtt-client"),
+			)
+			errs = append(errs, pointID+": "+err.Error())
+			success = false
+		} else {
+			zap.L().Info("Write point success",
+				zap.String("device", req.Node),
+				zap.String("point", pointID),
+				zap.Any("value", val),
+				zap.String("component", "mqtt-client"),
+			)
+		}
+	}
+
+	// Send response if UUID is present
+	if req.UUID != "" {
+		c.configMu.RLock()
+		respTopic := c.config.WriteResponseTopic
+		c.configMu.RUnlock()
+		if respTopic == "" {
+			respTopic = msg.Topic() + "/resp"
+		}
+		resp := WriteResponse{
+			UUID:    req.UUID,
+			Success: success,
+		}
+		if len(errs) > 0 {
+			// Join errors
+			msg := ""
+			for i, e := range errs {
+				if i > 0 {
+					msg += "; "
+				}
+				msg += e
+			}
+			resp.Message = msg
+		}
+
+		data, _ := json.Marshal(resp)
+		c.PublishRaw(respTopic, data)
 	}
 }
 
@@ -253,6 +484,7 @@ func (c *Client) reconnectLogic() {
 		token := c.client.Connect()
 		if token.Wait() && token.Error() == nil {
 			// Connected successfully
+			atomic.AddInt64(&c.reconnectCount, 1)
 			return
 		}
 
@@ -275,8 +507,12 @@ func (c *Client) Publish(v model.Value) {
 	}
 
 	// Filter based on device config if configured
-	if len(c.config.Devices) > 0 {
-		devCfg, ok := c.config.Devices[v.DeviceID]
+	c.configMu.RLock()
+	devCfg, ok := c.config.Devices[v.DeviceID]
+	devicesCount := len(c.config.Devices)
+	c.configMu.RUnlock()
+
+	if devicesCount > 0 {
 		if !ok || !devCfg.Enable {
 			return
 		}
@@ -344,7 +580,10 @@ func (c *Client) flushDevice(deviceID string) {
 
 	data, err := json.Marshal(item.payload)
 	if err != nil {
-		log.Printf("Failed to marshal value for MQTT: %v", err)
+		zap.L().Error("Failed to marshal value for MQTT",
+			zap.Error(err),
+			zap.String("component", "mqtt-client"),
+		)
 		return
 	}
 
@@ -352,10 +591,97 @@ func (c *Client) flushDevice(deviceID string) {
 		return
 	}
 
-	token := c.client.Publish(c.config.Topic, 0, false, data)
+	c.configMu.RLock()
+	topic := c.config.Topic
+	c.configMu.RUnlock()
+
+	token := c.client.Publish(topic, 0, false, data)
 	go func() {
 		if token.Wait() && token.Error() != nil {
-			log.Printf("Failed to publish to MQTT: %v", token.Error())
+			atomic.AddInt64(&c.failCount, 1)
+			zap.L().Error("Failed to publish to MQTT",
+				zap.Error(token.Error()),
+				zap.String("component", "mqtt-client"),
+			)
+		} else {
+			atomic.AddInt64(&c.successCount, 1)
+		}
+	}()
+}
+
+// PublishDeviceStatus publishes device online/offline status
+func (c *Client) PublishDeviceStatus(deviceID string, status int) {
+	if c.client == nil || !c.client.IsConnected() {
+		return
+	}
+
+	// Check if device is enabled in this channel
+	c.configMu.RLock()
+	devCfg, ok := c.config.Devices[deviceID]
+	statusTopic := c.config.StatusTopic
+	topic := c.config.Topic
+	onlinePayload := c.config.OnlinePayload
+	offlinePayload := c.config.OfflinePayload
+	c.configMu.RUnlock()
+
+	if !ok || !devCfg.Enable {
+		return
+	}
+
+	// Determine status string
+	statusStr := "offline"
+	if status == 0 { // NodeStateOnline
+		statusStr = "online"
+	}
+
+	// Determine Topic
+	if statusTopic == "" {
+		if topic == "" {
+			return
+		}
+		statusTopic = topic + "/status"
+	}
+
+	// Determine Payload Template
+	var payloadTmpl string
+	if statusStr == "online" {
+		payloadTmpl = onlinePayload
+	} else {
+		payloadTmpl = offlinePayload
+	}
+
+	if payloadTmpl == "" {
+		// Default
+		b, _ := json.Marshal(map[string]any{
+			"status":    statusStr,
+			"timestamp": time.Now().UnixMilli(),
+			"device_id": deviceID,
+		})
+		payloadTmpl = string(b)
+	}
+
+	// Handle variables in Topic
+	topic = strings.ReplaceAll(statusTopic, "{device_id}", deviceID)
+	topic = strings.ReplaceAll(topic, "{device_name}", deviceID) // Fallback
+
+	// Handle variables in Payload
+	payload := strings.ReplaceAll(payloadTmpl, "{status}", statusStr)
+	payload = strings.ReplaceAll(payload, "{device_id}", deviceID)
+	payload = strings.ReplaceAll(payload, "{device_name}", deviceID) // Fallback
+	payload = strings.ReplaceAll(payload, "{timestamp}", fmt.Sprintf("%d", time.Now().UnixMilli()))
+
+	token := c.client.Publish(topic, 0, false, payload)
+	go func() {
+		if token.Wait() && token.Error() != nil {
+			atomic.AddInt64(&c.failCount, 1)
+			zap.L().Error("Failed to publish device status",
+				zap.String("device", deviceID),
+				zap.String("status", statusStr),
+				zap.Error(token.Error()),
+				zap.String("component", "mqtt-client"),
+			)
+		} else {
+			atomic.AddInt64(&c.successCount, 1)
 		}
 	}()
 }

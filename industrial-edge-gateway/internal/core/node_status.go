@@ -15,9 +15,12 @@ type DeviceNodeTemplate struct {
 
 // ==================== 通信管理模板 ====================
 // CommunicationManageTemplate 管理设备采集的状态机和重试策略
+type StateChangeCallback func(deviceID string, oldState, newState NodeState)
+
 type CommunicationManageTemplate struct {
-	nodes map[string]*DeviceNodeTemplate // 管理的设备节点
-	mu    sync.RWMutex                   // 读写锁，保护nodes访问
+	nodes         map[string]*DeviceNodeTemplate // 管理的设备节点
+	mu            sync.RWMutex                   // 读写锁，保护nodes访问
+	OnStateChange StateChangeCallback            // 状态变更回调
 }
 
 func (c *CommunicationManageTemplate) finalizeCollect(node *DeviceNodeTemplate, ctx *CollectContext) {
@@ -139,6 +142,9 @@ func (c *CommunicationManageTemplate) ShouldCollect(node *DeviceNodeTemplate) bo
 //  2. 隔离状态避免频繁重试浪费资源
 //  3. 失败后重置成功计数
 func (c *CommunicationManageTemplate) onCollectFail(node *DeviceNodeTemplate) {
+	// 记录旧状态
+	oldState := node.Runtime.State
+
 	// 更新失败统计
 	node.Runtime.FailCount++               // 增加连续失败次数
 	node.Runtime.SuccessCount = 0          // 重置连续成功次数
@@ -157,6 +163,11 @@ func (c *CommunicationManageTemplate) onCollectFail(node *DeviceNodeTemplate) {
 		}
 		node.Runtime.NextRetryTime = time.Now().Add(backoff)
 	}
+
+	// 触发状态变更回调
+	if oldState != node.Runtime.State && c.OnStateChange != nil {
+		c.OnStateChange(node.DeviceID, oldState, node.Runtime.State)
+	}
 }
 
 // onCollectSuccess 处理采集成功的情况
@@ -174,6 +185,9 @@ func (c *CommunicationManageTemplate) onCollectFail(node *DeviceNodeTemplate) {
 //  2. 降低恢复门槛（只需1次成功），避免设备长期处于不良状态
 //  3. 累计成功次数用于监控设备稳定性
 func (c *CommunicationManageTemplate) onCollectSuccess(node *DeviceNodeTemplate) {
+	// 记录旧状态
+	oldState := node.Runtime.State
+
 	// 更新成功统计
 	node.Runtime.SuccessCount++ // 增加连续成功次数
 	node.Runtime.FailCount = 0  // 重置连续失败次数
@@ -181,6 +195,11 @@ func (c *CommunicationManageTemplate) onCollectSuccess(node *DeviceNodeTemplate)
 	// 只需1次成功即可恢复在线状态
 	if node.Runtime.SuccessCount >= 1 {
 		node.Runtime.State = NodeStateOnline
+	}
+
+	// 触发状态变更回调
+	if oldState != node.Runtime.State && c.OnStateChange != nil {
+		c.OnStateChange(node.DeviceID, oldState, node.Runtime.State)
 	}
 }
 

@@ -4,11 +4,36 @@ mqtt:
       enable: true
       broker: tcp://127.0.0.1:1883
       client_id: industrial_gateway_001
-      topic: gateway/uplink
+      topic: /things/industrial_gateway_001/data/resp
+      subscribe_topic: /things/industrial_gateway_001/set
+      status_topic: ""
+      online_payload: ""
+      offline_payload: ""
+      write_response_topic: /things/industrial_gateway_001/set/resp
       username: ""
       password: ""
       devices:
         "3":
+            enable: false
+            strategy: periodic
+            interval: 10s
+        Room_FC_2014_2228316:
+            enable: false
+            strategy: periodic
+            interval: 10s
+        Room_FC_2014_2228317:
+            enable: false
+            strategy: periodic
+            interval: 10s
+        Room_FC_2014_2228318:
+            enable: false
+            strategy: periodic
+            interval: 10s
+        Room_FC_2014_2228319:
+            enable: false
+            strategy: periodic
+            interval: 10s
+        Room_FC_2014_2228320:
             enable: false
             strategy: periodic
             interval: 10s
@@ -18,6 +43,10 @@ mqtt:
             interval: 10s
         bacnet-2228317:
             enable: true
+            strategy: periodic
+            interval: 10s
+        opcua-dev-1:
+            enable: false
             strategy: periodic
             interval: 10s
         opcua-device-1:

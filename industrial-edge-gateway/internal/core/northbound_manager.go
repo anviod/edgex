@@ -110,7 +110,7 @@ func (nm *NorthboundManager) Start() {
 	// Start MQTT Clients
 	for _, cfg := range nm.config.MQTT {
 		if cfg.Enable {
-			client := mqtt.NewClient(cfg)
+			client := mqtt.NewClient(cfg, nm.sb)
 			if err := client.Start(); err != nil {
 				log.Printf("Failed to start MQTT client [%s]: %v", cfg.Name, err)
 			} else {
@@ -165,6 +165,16 @@ func (nm *NorthboundManager) handleValue(v model.Value) {
 	}
 }
 
+// OnDeviceStatusChange handles device status changes and notifies northbound clients
+func (nm *NorthboundManager) OnDeviceStatusChange(deviceID string, status int) {
+	nm.mu.RLock()
+	defer nm.mu.RUnlock()
+
+	for _, client := range nm.mqttClients {
+		client.PublishDeviceStatus(deviceID, status)
+	}
+}
+
 // PublishMQTT publishes a message to a specific MQTT client or all if clientID is empty
 func (nm *NorthboundManager) PublishMQTT(clientID string, topic string, payload []byte) error {
 	nm.mu.RLock()
@@ -193,6 +203,16 @@ func (nm *NorthboundManager) GetOPCUAStats(id string) (opcua.Stats, error) {
 		return server.GetStats(), nil
 	}
 	return opcua.Stats{}, fmt.Errorf("OPC UA server %s not found or not running", id)
+}
+
+func (nm *NorthboundManager) GetMQTTStats(id string) (mqtt.MQTTStats, error) {
+	nm.mu.RLock()
+	defer nm.mu.RUnlock()
+
+	if client, ok := nm.mqttClients[id]; ok {
+		return client.GetStats(), nil
+	}
+	return mqtt.MQTTStats{}, fmt.Errorf("MQTT client %s not found or not running", id)
 }
 
 func (nm *NorthboundManager) Stop() {
@@ -265,7 +285,7 @@ func (nm *NorthboundManager) UpsertMQTTConfig(cfg model.MQTTConfig) error {
 	}
 
 	if !exists {
-		newClient := mqtt.NewClient(cfg)
+		newClient := mqtt.NewClient(cfg, nm.sb)
 		if err := newClient.Start(); err != nil {
 			return err
 		}

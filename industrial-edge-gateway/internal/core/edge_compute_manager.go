@@ -1173,6 +1173,13 @@ func (em *EdgeComputeManager) executeSingleAction(ruleID string, action model.Ru
 					// Flag to track if expression logic handled the value
 					expressionHandled := false
 
+					// 0. Safety check for empty expression with RMW intent
+					// If the user provided a value but meant to use RMW (implied by context or missing expression),
+					// we can't guess, but we can log.
+					if expression == "" {
+						log.Printf("[EdgeAction] Info: Empty expression for %s/%s/%s, using direct value write", cid, did, pid)
+					}
+
 					// 1. Resolve expression if present
 					if expression != "" {
 						// Prepare Env for Expression
