@@ -241,11 +241,17 @@ devices:
 #### BACnet 设备发现
 ![BACnet设备发现扫描](./industrial-edge-gateway/docs/img/BACnet设备发现扫描.png)
 
+#### BACnet 设备发现结果
+![BACnet设备发现扫描结果](./industrial-edge-gateway/docs/img/BACnet设备发现扫描结果.png)
+
 #### BACnet 点位扫描
 ![BAC点位对象扫描发现](./industrial-edge-gateway/docs/img/BAC点位对象扫描发现.png)
 
 #### OPC UA模型扫描
 ![OPC UA设备模型扫描](./industrial-edge-gateway/docs/img/OPC_UA_设备模型扫描.png)
+
+#### OPC UA模型扫描结果
+![OPC UA设备模型扫描结果](./industrial-edge-gateway/docs/img/OPC_UA_设备模型扫描结果.png)
 
 #### OPC UA数据订阅
 ![OPC UA设备数据订阅](./industrial-edge-gateway/docs/img/OPC_UA_设备数据订阅.png)

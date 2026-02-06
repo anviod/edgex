@@ -622,7 +622,7 @@
         </v-dialog>
 
         <!-- Scan Dialog -->
-        <v-dialog v-model="scanDialog" max-width="900px" persistent>
+        <v-dialog v-model="scanDialog" max-width="1200px" persistent>
             <v-card>
                 <v-card-title class="d-flex align-center">
                     扫描设备
@@ -645,7 +645,7 @@
                     
                     <v-divider class="mb-4"></v-divider>
                     
-                    <v-table hover>
+                    <v-table hover density="compact">
                         <thead>
                             <tr>
                                 <th style="width: 50px">
@@ -654,13 +654,13 @@
                                         @update:model-value="toggleSelectAllScan"
                                     ></v-checkbox-btn>
                                 </th>
-                                <th class="text-left">Device ID</th>
-                                <th class="text-left">IP 地址</th>
-                                <th class="text-left">端口</th>
-                                <th class="text-left">厂商</th>
-                                <th class="text-left">型号</th>
-                                <th class="text-left">对象名称</th>
-                                <th class="text-left">标记</th>
+                                <th class="text-left" style="width: 10%">Device ID</th>
+                                <th class="text-left" style="width: 15%">IP 地址</th>
+                                <th class="text-left" style="width: 10%">端口</th>
+                                <th class="text-left" style="width: 20%">厂商</th>
+                                <th class="text-left" style="width: 15%">型号</th>
+                                <th class="text-left" style="width: 20%">对象名称</th>
+                                <th class="text-left" style="width: 10%">标记</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -678,9 +678,21 @@
                                 <td>{{ dev.device_id }}</td>
                                 <td>{{ dev.ip }}</td>
                                 <td>{{ dev.port }}</td>
-                                <td>{{ dev.vendor_name }}</td>
-                                <td>{{ dev.model_name }}</td>
-                                <td>{{ dev.object_name }}</td>
+                                <td style="max-width: 200px;">
+                                    <div class="text-truncate" :title="dev.vendor_name">
+                                        {{ dev.vendor_name }}
+                                    </div>
+                                </td>
+                                <td style="max-width: 150px;">
+                                    <div class="text-truncate" :title="dev.model_name">
+                                        {{ dev.model_name }}
+                                    </div>
+                                </td>
+                                <td style="max-width: 200px;">
+                                    <div class="text-truncate" :title="dev.object_name">
+                                        {{ dev.object_name }}
+                                    </div>
+                                </td>
                                 <td>
                                     <v-chip v-if="dev.diff_status === 'new'" size="small" color="success" variant="flat" class="mr-1">New</v-chip>
                                     <v-chip v-else-if="dev.diff_status === 'existing'" size="small" color="warning" variant="flat" class="mr-1">Existing</v-chip>

@@ -529,7 +529,7 @@
         </v-dialog>
 
         <!-- Scan Dialog -->
-        <v-dialog v-model="scanDialog.show" max-width="800px">
+        <v-dialog v-model="scanDialog.show" max-width="1200px">
             <v-card>
                 <v-card-title class="d-flex justify-space-between align-center">
                     <span>BACnet 设备扫描 - {{ scanDialog.channelName }}</span>
@@ -543,18 +543,30 @@
                         <v-data-table
                             v-model="scanDialog.selected"
                             :headers="[
-                                { title: '设备名称', key: 'name' },
-                                { title: '设备 ID', key: 'device_id' },
-                                { title: 'IP 地址', key: 'ip' },
-                                { title: '网络号', key: 'network_number' },
-                                { title: 'MAC', key: 'mac_address' },
-                                { title: '包含对象数', key: 'object_count', value: item => item.objects ? item.objects.length : 0 }
+                                { title: '设备名称', key: 'name', width: '20%' },
+                                { title: '设备 ID', key: 'device_id', width: '10%' },
+                                { title: 'IP 地址', key: 'ip', width: '15%' },
+                                { title: '网络号', key: 'network_number', width: '10%' },
+                                { title: 'MAC', key: 'mac_address', width: '15%' },
+                                { title: '包含对象数', key: 'object_count', value: item => item.objects ? item.objects.length : 0, width: '10%' },
+                                { title: '厂商', key: 'vendor_name', width: '20%' }
                             ]"
                             :items="scanDialog.results"
                             show-select
                             return-object
                             item-value="device_id"
+                            density="compact"
                         >
+                            <template v-slot:item.name="{ item }">
+                                <div class="text-truncate" style="max-width: 200px;" :title="item.name">
+                                    {{ item.name }}
+                                </div>
+                            </template>
+                            <template v-slot:item.vendor_name="{ item }">
+                                <div class="text-truncate" style="max-width: 200px;" :title="item.vendor_name">
+                                    {{ item.vendor_name }}
+                                </div>
+                            </template>
                             <template v-slot:no-data>
                                 <div class="text-center">未扫描到设备</div>
                             </template>
