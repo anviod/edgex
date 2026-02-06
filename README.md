@@ -15,11 +15,11 @@ Industrial Edge Gateway 是一个轻量级的工业边缘计算网关，旨在�
 | **Modbus TCP / RTU / RTU Over TCP** | ✅ 已实现 | 完整支持，基于 `simonvetter/modbus` |
 | **BACnet IP** | ✅ 已实现 | 支持设备发现 (Who-Is/I-Am)、多网口广播 + 单播回退（尊重 I-Am 源端口）、对象扫描与点位读写、批量读失败自动回退到单读、异常端口回退至 47808、读超时与自动恢复优化。**新增本地模拟器支持**：针对 Windows 本地运行的模拟器，自动尝试 localhost 单播发现。 |
 | **OPC UAClient** | ✅ 已实现 | 基于 `gopcua/opcua` 实现，支持读写操作、订阅 (Subscription) 与监控 (Monitoring)，支持断线自动重连 |
-| **Siemens S7** | 🚧 模拟中 | 支持 S7-200Smart/1200/1500 等 (模拟) |
-| **EtherNet/IP (ODVA)** | 🚧 模拟中 | 模拟实现 |
-| **Mitsubishi MELSEC (SLMP)** | 🚧 模拟中 | 模拟实现 |
-| **Omron FINS (TCP/UDP)** | 🚧 模拟中 | 模拟实现 |
-| **DL/T645-2007** | 🚧 模拟中 | 模拟实现 |
+| **Siemens S7** | 🚧 开发中 | 支持 S7-200Smart/1200/1500 等 (定制开发) |
+| **EtherNet/IP (ODVA)** | 🚧 开发中 | 开发实现 |
+| **Mitsubishi MELSEC (SLMP)** | 🚧 开发中 | 开发实现 |
+| **Omron FINS (TCP/UDP)** | 🚧 开发中 | 开发实现 |
+| **DL/T645-2007** | 🚧 开发中 | 开发实现 |
 
 ### ☁️ 北向上报协议 (Northbound)
 
@@ -209,7 +209,7 @@ devices:
 - [x] **OPC UAClient**: 对接 `gopcua/opcua` 实现真实读写。
 - [ ] **Siemens S7**: 实现 S7 协议的真实 TCP 通信。
 - [ ] **EtherNet/IP**: 实现 CIP/EIP 协议栈。
-- [ ] **其他驱动**: 逐步替换 Mitsubishi, Omron, DL/T645 的模拟实现。
+- [ ] **其他驱动**: 逐步替换 Mitsubishi, Omron, DL/T645 的开发实现。
 
 ### 北向增强
 - [x] **OPC UAServer**: 实现基于 `awcullen/opcua` 的服务端，支持多重认证（匿名/用户名/证书）与运行监控。
