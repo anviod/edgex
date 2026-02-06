@@ -152,22 +152,26 @@ type NorthboundConfig struct {
 }
 
 type MQTTConfig struct {
-	ID       string                         `json:"id" yaml:"id"`
-	Name     string                         `json:"name" yaml:"name"`
-	Enable   bool                           `json:"enable" yaml:"enable"`
-	Broker         string                         `json:"broker" yaml:"broker"`
-	ClientID       string                         `json:"client_id" yaml:"client_id"`
-	Topic          string                         `json:"topic" yaml:"topic"`
-	SubscribeTopic string                         `json:"subscribe_topic" yaml:"subscribe_topic"` // New: Subscribe topic for write requests
+	ID             string `json:"id" yaml:"id"`
+	Name           string `json:"name" yaml:"name"`
+	Enable         bool   `json:"enable" yaml:"enable"`
+	Broker         string `json:"broker" yaml:"broker"`
+	ClientID       string `json:"client_id" yaml:"client_id"`
+	Topic          string `json:"topic" yaml:"topic"`
+	SubscribeTopic string `json:"subscribe_topic" yaml:"subscribe_topic"` // New: Subscribe topic for write requests
 
 	StatusTopic        string `json:"status_topic" yaml:"status_topic"`                 // Online/Offline status topic
+	LwtTopic           string `json:"lwt_topic" yaml:"lwt_topic"`                       // LWT topic (if different from StatusTopic)
 	OnlinePayload      string `json:"online_payload" yaml:"online_payload"`             // Payload for online status
-	OfflinePayload     string `json:"offline_payload" yaml:"offline_payload"`           // Payload for offline status (LWT)
+	OfflinePayload     string `json:"offline_payload" yaml:"offline_payload"`           // Payload for offline status (graceful disconnect)
+	LwtPayload         string `json:"lwt_payload" yaml:"lwt_payload"`                   // Payload for LWT (ungraceful disconnect)
+	IgnoreOfflineData  bool   `json:"ignore_offline_data" yaml:"ignore_offline_data"`   // If true, do not report data when device is offline
+
 	WriteResponseTopic string `json:"write_response_topic" yaml:"write_response_topic"` // Topic for write responses
 
-	Username       string                         `json:"username" yaml:"username"`
-	Password       string                         `json:"password" yaml:"password"`
-	Devices        map[string]DevicePublishConfig `json:"devices" yaml:"devices"`
+	Username string                         `json:"username" yaml:"username"`
+	Password string                         `json:"password" yaml:"password"`
+	Devices  map[string]DevicePublishConfig `json:"devices" yaml:"devices"`
 }
 
 type DevicePublishConfig struct {

@@ -216,6 +216,16 @@ func (c *Client) flushPeriodic(deviceID string, item *periodicItem) {
 	}
 	c.periodicMu.Unlock()
 
+	c.configMu.RLock()
+	ignoreOffline := c.config.IgnoreOfflineData
+	c.configMu.RUnlock()
+
+	if ignoreOffline {
+		if len(payload.Values) > 0 && len(payload.Errors) == len(payload.Values) {
+			return
+		}
+	}
+
 	data, err := json.Marshal(payload)
 	if err != nil {
 		zap.L().Error("Failed to marshal periodic value for MQTT",
@@ -233,6 +243,8 @@ func (c *Client) flushPeriodic(deviceID string, item *periodicItem) {
 	topic := c.config.Topic
 	c.configMu.RUnlock()
 
+	topic = c.replaceGlobalVars(topic)
+
 	token := c.client.Publish(topic, 0, false, data)
 	go func() {
 		if token.Wait() && token.Error() != nil {
@@ -243,6 +255,12 @@ func (c *Client) flushPeriodic(deviceID string, item *periodicItem) {
 			)
 		} else {
 			atomic.AddInt64(&c.successCount, 1)
+			zap.L().Debug("Published to MQTT",
+				zap.String("topic", topic),
+				zap.Int("bytes", len(data)),
+				zap.String("payload", string(data)),
+				zap.String("component", "mqtt-client"),
+			)
 		}
 	}()
 }
@@ -269,8 +287,10 @@ func (c *Client) connectLoop() {
 	username := c.config.Username
 	password := c.config.Password
 	statusTopic := c.config.StatusTopic
+	lwtTopic := c.config.LwtTopic
 	topic := c.config.Topic
 	offlinePayload := c.config.OfflinePayload
+	lwtPayload := c.config.LwtPayload
 	c.configMu.RUnlock()
 
 	opts := mqtt.NewClientOptions()
@@ -283,20 +303,37 @@ func (c *Client) connectLoop() {
 	// Disable auto reconnect to control it manually
 	opts.SetAutoReconnect(false)
 
-	// Set Last Will and Testament (LWT)
-	if statusTopic == "" && topic != "" {
-		statusTopic = topic + "/status"
+	// Determine LWT Topic
+	finalLwtTopic := lwtTopic
+	if finalLwtTopic == "" {
+		finalLwtTopic = statusTopic
 	}
+	if finalLwtTopic == "" && topic != "" {
+		finalLwtTopic = topic + "/status"
+	}
+	// Replace vars in LWT Topic
+	finalLwtTopic = c.replaceGlobalVars(finalLwtTopic)
 
-	if statusTopic != "" {
-		if offlinePayload == "" {
+	if finalLwtTopic != "" {
+		// Determine LWT Payload
+		finalLwtPayload := lwtPayload
+		if finalLwtPayload == "" {
+			finalLwtPayload = offlinePayload // Fallback to OfflinePayload if LwtPayload is not set
+		}
+		if finalLwtPayload == "" {
 			b, _ := json.Marshal(map[string]any{
 				"status":    "offline",
 				"timestamp": time.Now().UnixMilli(),
 			})
-			offlinePayload = string(b)
+			finalLwtPayload = string(b)
 		}
-		opts.SetWill(statusTopic, offlinePayload, 1, true)
+
+		// Handle variables in Payload for LWT
+		// Use replaceDeviceVars with clientID as deviceID for gateway-level LWT
+		payload := c.replaceDeviceVars(finalLwtPayload, clientID)
+		payload = strings.ReplaceAll(payload, "{status}", "lwt")
+
+		opts.SetWill(finalLwtTopic, payload, 1, true)
 	}
 
 	opts.SetOnConnectHandler(func(client mqtt.Client) {
@@ -320,6 +357,9 @@ func (c *Client) connectLoop() {
 			statusTopic = topic + "/status"
 		}
 
+		// Replace vars in Status Topic
+		statusTopic = c.replaceGlobalVars(statusTopic)
+
 		if statusTopic != "" {
 			if onlinePayload == "" {
 				b, _ := json.Marshal(map[string]any{
@@ -328,11 +368,16 @@ func (c *Client) connectLoop() {
 				})
 				onlinePayload = string(b)
 			}
-			client.Publish(statusTopic, 1, true, onlinePayload)
+			// Handle variables in Payload for Online Status
+			payload := c.replaceDeviceVars(onlinePayload, clientID)
+			payload = strings.ReplaceAll(payload, "{status}", "online")
+
+			client.Publish(statusTopic, 1, true, payload)
 		}
 
 		// Subscribe to write requests if configured
 		if subscribeTopic != "" {
+			subscribeTopic = c.replaceGlobalVars(subscribeTopic)
 			token := client.Subscribe(subscribeTopic, 0, c.handleWriteRequest)
 			if token.Wait() && token.Error() != nil {
 				zap.L().Error("Failed to subscribe to write topic",
@@ -450,6 +495,8 @@ func (c *Client) handleWriteRequest(client mqtt.Client, msg mqtt.Message) {
 		c.configMu.RUnlock()
 		if respTopic == "" {
 			respTopic = msg.Topic() + "/resp"
+		} else {
+			respTopic = c.replaceGlobalVars(respTopic)
 		}
 		resp := WriteResponse{
 			UUID:    req.UUID,
@@ -580,6 +627,16 @@ func (c *Client) flushDevice(deviceID string) {
 	delete(c.buffers, deviceID)
 	c.bufferMu.Unlock()
 
+	c.configMu.RLock()
+	ignoreOffline := c.config.IgnoreOfflineData
+	c.configMu.RUnlock()
+
+	if ignoreOffline {
+		if len(item.payload.Values) > 0 && len(item.payload.Errors) == len(item.payload.Values) {
+			return
+		}
+	}
+
 	data, err := json.Marshal(item.payload)
 	if err != nil {
 		zap.L().Error("Failed to marshal value for MQTT",
@@ -597,6 +654,8 @@ func (c *Client) flushDevice(deviceID string) {
 	topic := c.config.Topic
 	c.configMu.RUnlock()
 
+	topic = c.replaceGlobalVars(topic)
+
 	token := c.client.Publish(topic, 0, false, data)
 	go func() {
 		if token.Wait() && token.Error() != nil {
@@ -607,6 +666,12 @@ func (c *Client) flushDevice(deviceID string) {
 			)
 		} else {
 			atomic.AddInt64(&c.successCount, 1)
+			zap.L().Debug("Published to MQTT",
+				zap.String("topic", topic),
+				zap.Int("bytes", len(data)),
+				zap.String("payload", string(data)),
+				zap.String("component", "mqtt-client"),
+			)
 		}
 	}()
 }
@@ -663,14 +728,11 @@ func (c *Client) PublishDeviceStatus(deviceID string, status int) {
 	}
 
 	// Handle variables in Topic
-	topic = strings.ReplaceAll(statusTopic, "{device_id}", deviceID)
-	topic = strings.ReplaceAll(topic, "{device_name}", deviceID) // Fallback
+	topic = c.replaceDeviceVars(statusTopic, deviceID)
 
 	// Handle variables in Payload
-	payload := strings.ReplaceAll(payloadTmpl, "{status}", statusStr)
-	payload = strings.ReplaceAll(payload, "{device_id}", deviceID)
-	payload = strings.ReplaceAll(payload, "{device_name}", deviceID) // Fallback
-	payload = strings.ReplaceAll(payload, "{timestamp}", fmt.Sprintf("%d", time.Now().UnixMilli()))
+	payload := c.replaceDeviceVars(payloadTmpl, deviceID)
+	payload = strings.ReplaceAll(payload, "{status}", statusStr)
 
 	token := c.client.Publish(topic, 0, false, payload)
 	go func() {
@@ -684,6 +746,13 @@ func (c *Client) PublishDeviceStatus(deviceID string, status int) {
 			)
 		} else {
 			atomic.AddInt64(&c.successCount, 1)
+			zap.L().Debug("Published device status",
+				zap.String("device", deviceID),
+				zap.String("status", statusStr),
+				zap.String("topic", topic),
+				zap.String("payload", payload),
+				zap.String("component", "mqtt-client"),
+			)
 		}
 	}()
 }
@@ -691,7 +760,62 @@ func (c *Client) PublishDeviceStatus(deviceID string, status int) {
 func (c *Client) Stop() {
 	close(c.stopChan)
 	if c.client != nil && c.client.IsConnected() {
+		// Publish Offline Status (Graceful)
+		c.configMu.RLock()
+		statusTopic := c.config.StatusTopic
+		topic := c.config.Topic
+		offlinePayload := c.config.OfflinePayload
+		clientID := c.config.ClientID
+		c.configMu.RUnlock()
+
+		if statusTopic == "" && topic != "" {
+			statusTopic = topic + "/status"
+		}
+
+		if statusTopic != "" {
+			if offlinePayload == "" {
+				b, _ := json.Marshal(map[string]any{
+					"status":    "offline",
+					"timestamp": time.Now().UnixMilli(),
+				})
+				offlinePayload = string(b)
+			}
+			// Handle variables in Payload
+			payload := c.replaceDeviceVars(offlinePayload, clientID)
+			payload = strings.ReplaceAll(payload, "{status}", "offline")
+
+			token := c.client.Publish(statusTopic, 1, true, payload)
+			token.WaitTimeout(2 * time.Second)
+		}
+
 		c.client.Disconnect(250)
 	}
 	c.setStatus(StatusDisconnected)
+}
+
+func (c *Client) replaceGlobalVars(text string) string {
+	c.configMu.RLock()
+	clientID := c.config.ClientID
+	c.configMu.RUnlock()
+
+	text = strings.ReplaceAll(text, "{client_id}", clientID)
+	// Add other global variables if needed
+	return text
+}
+
+func (c *Client) replaceDeviceVars(text, deviceID string) string {
+	// First replace global vars
+	text = c.replaceGlobalVars(text)
+
+	// Replace device specific vars
+	text = strings.ReplaceAll(text, "{device_id}", deviceID)
+	text = strings.ReplaceAll(text, "{device_name}", deviceID) // Fallback
+	text = strings.ReplaceAll(text, "%device_id%", deviceID)
+
+	// Timestamp
+	ts := fmt.Sprintf("%d", time.Now().UnixMilli())
+	text = strings.ReplaceAll(text, "{timestamp}", ts)
+	text = strings.ReplaceAll(text, "%timestamp%", ts)
+
+	return text
 }

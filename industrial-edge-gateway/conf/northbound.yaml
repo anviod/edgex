@@ -4,17 +4,20 @@ mqtt:
       enable: true
       broker: tcp://127.0.0.1:1883
       client_id: industrial_gateway_001
-      topic: /things/industrial_gateway_001/data/resp
-      subscribe_topic: /things/industrial_gateway_001/set
-      status_topic: ""
-      online_payload: ""
-      offline_payload: ""
-      write_response_topic: /things/industrial_gateway_001/set/resp
+      topic: things/{client_id}/up
+      subscribe_topic: things/{client_id}/down/req
+      status_topic: things/{client_id}/status
+      lwt_topic: ""
+      online_payload: '{"status":"online","device_id":"%device_id%","timestamp":"%timestamp%"}'
+      offline_payload: '{"status":"offline","device_id":"%device_id%","timestamp":"%timestamp%"}'
+      lwt_payload: ""
+      ignore_offline_data: true
+      write_response_topic: things/{client_id}/down/resp
       username: ""
       password: ""
       devices:
         "3":
-            enable: false
+            enable: true
             strategy: periodic
             interval: 10s
         Room_FC_2014_2228316:

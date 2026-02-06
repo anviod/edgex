@@ -174,22 +174,42 @@
                              </v-col>
                         </v-row>
                         <v-text-field v-model="mqttDialog.config.broker" label="Broker 地址" hint="tcp://127.0.0.1:1883" persistent-hint variant="outlined" density="compact" class="mb-2"></v-text-field>
-                        <v-text-field v-model="mqttDialog.config.client_id" label="Client ID" variant="outlined" density="compact" class="mb-2"></v-text-field>
+                        <v-row>
+                            <v-col cols="12" md="8">
+                                <v-text-field v-model="mqttDialog.config.client_id" label="Client ID" variant="outlined" density="compact" class="mb-2"></v-text-field>
+                            </v-col>
+                            <v-col cols="12" md="4">
+                                <v-btn color="secondary" variant="outlined" block class="mb-2" @click="autoFillTopics" height="40">
+                                    <v-icon start icon="mdi-auto-fix"></v-icon>
+                                    一键生成推荐主题
+                                </v-btn>
+                            </v-col>
+                        </v-row>
                         <v-text-field v-model="mqttDialog.config.topic" label="发布主题" variant="outlined" density="compact" class="mb-2"></v-text-field>
                         <v-text-field v-model="mqttDialog.config.subscribe_topic" label="订阅主题 (用于写入)" placeholder="/things/{client_id}/write/req" persistent-placeholder variant="outlined" density="compact" class="mb-2"></v-text-field>
                         <v-text-field v-model="mqttDialog.config.write_response_topic" label="写入响应主题" placeholder="默认: 订阅主题/resp" persistent-placeholder variant="outlined" density="compact" class="mb-2"></v-text-field>
+                        <v-switch v-model="mqttDialog.config.ignore_offline_data" label="设备离线时不主动上报数据" color="primary" hide-details class="mb-2" hint="当设备离线（所有点位采集失败）时，停止上报周期数据" persistent-hint></v-switch>
                         
                         <v-divider class="my-4"></v-divider>
-                        <div class="text-subtitle-1 mb-2 font-weight-bold">状态上报配置 (LWT)</div>
-                        <v-text-field v-model="mqttDialog.config.status_topic" label="状态主题" placeholder="默认: 发布主题/status" persistent-placeholder variant="outlined" density="compact" class="mb-2"></v-text-field>
+                        <div class="text-subtitle-1 mb-2 font-weight-bold">状态上报配置 (Status)</div>
+                        <v-text-field v-model="mqttDialog.config.status_topic" label="状态主题 (在线)" placeholder="默认: 发布主题/status" persistent-placeholder variant="outlined" density="compact" class="mb-2"></v-text-field>
                         <v-row>
                             <v-col cols="12" md="6">
                                 <v-textarea v-model="mqttDialog.config.online_payload" label="上线消息内容 (JSON)" placeholder='{"status":"online"}' rows="3" variant="outlined" density="compact"></v-textarea>
                             </v-col>
                             <v-col cols="12" md="6">
-                                <v-textarea v-model="mqttDialog.config.offline_payload" label="离线消息内容 (LWT)" placeholder='{"status":"offline"}' rows="3" variant="outlined" density="compact"></v-textarea>
+                                <v-textarea v-model="mqttDialog.config.offline_payload" label="离线消息内容 (JSON)" placeholder='{"status":"offline"}' rows="3" variant="outlined" density="compact"></v-textarea>
                             </v-col>
                         </v-row>
+                        
+                        <v-divider class="my-4"></v-divider>
+                        <div class="text-subtitle-1 mb-2 font-weight-bold">遗嘱配置 (LWT)</div>
+                        <v-text-field v-model="mqttDialog.config.lwt_topic" label="遗嘱主题 (LWT)" placeholder="可选: 默认为状态主题" persistent-placeholder variant="outlined" density="compact" class="mb-2" hint="客户端意外断开时，Broker 将向此主题发布遗嘱消息"></v-text-field>
+                        <v-textarea v-model="mqttDialog.config.lwt_payload" label="遗嘱消息内容 (LWT)" placeholder='{"status":"lwt"}' rows="3" variant="outlined" density="compact"></v-textarea>
+                        
+                        <div class="text-caption text-grey mb-2">
+                            支持变量: %device_id% (设备ID/ClientID), %timestamp% (时间戳)
+                        </div>
                         <v-divider class="my-4"></v-divider>
 
                         <v-row>
@@ -802,6 +822,40 @@ const mqttDialog = reactive({
     loading: false,
     config: {}
 })
+
+const autoFillTopics = () => {
+    if (!mqttDialog.config.client_id) {
+        mqttDialog.config.client_id = 'edge-gateway'
+    }
+    
+    // Use {client_id} variable supported by backend
+    const root = `things/{client_id}`
+    
+    mqttDialog.config.topic = `${root}/up`
+    mqttDialog.config.subscribe_topic = `${root}/down/req`
+    mqttDialog.config.write_response_topic = `${root}/down/resp`
+    
+    mqttDialog.config.status_topic = `${root}/status`
+    mqttDialog.config.lwt_topic = `${root}/lwt`
+    
+    mqttDialog.config.online_payload = JSON.stringify({
+        status: "online",
+        device_id: "%device_id%",
+        timestamp: "%timestamp%"
+    })
+    mqttDialog.config.offline_payload = JSON.stringify({
+        status: "offline",
+        device_id: "%device_id%",
+        timestamp: "%timestamp%"
+    })
+    mqttDialog.config.lwt_payload = JSON.stringify({
+        status: "lwt",
+        device_id: "%device_id%",
+        timestamp: "%timestamp%"
+    })
+    
+    showMessage('已自动生成推荐的主题配置', 'success')
+}
 
 const opcuaDialog = reactive({
     visible: false,

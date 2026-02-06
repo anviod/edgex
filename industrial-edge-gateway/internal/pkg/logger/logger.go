@@ -113,10 +113,12 @@ func InitLogger(logLevel string, logFile string, broadcaster *LogBroadcaster) (*
 
 	// Broadcaster Core (WebSocket)
 	if broadcaster != nil {
+		// Always allow Debug logs for WebSocket to support real-time monitoring
+		// regardless of the file/console log level.
 		cores = append(cores, zapcore.NewCore(
 			jsonEncoder,
 			zapcore.AddSync(broadcaster),
-			level,
+			zap.DebugLevel,
 		))
 	}
 
