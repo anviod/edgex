@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"industrial-edge-gateway/internal/model"
 	"log"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -153,6 +154,11 @@ func (t *ModbusTransport) Connect(ctx context.Context) error {
 		return nil
 	}
 
+	// Ensure previous client is closed
+	if t.client != nil {
+		_ = t.client.Close()
+	}
+
 	// Build URL
 	url, ok := t.cfg.Config["url"].(string)
 	if !ok || url == "" {
@@ -292,13 +298,28 @@ func (t *ModbusTransport) withRetry(ctx context.Context, fn func() (any, error))
 		lastErr = err
 		log.Printf("Modbus operation failed (attempt %d/%d): %v", i+1, t.maxRetries+1, err)
 
-		// If connection error, force disconnect to trigger reconnect next time
-		// Simple heuristic: if error is not nil, we might want to reconnect
-		// But read errors might be transient.
-		// For now, let's just keep going.
-		// Ideally we should check if it's a network error.
+		// Only disconnect on network/IO errors, not protocol errors
+		// Protocol errors: "illegal", "exception", "busy"
+		// Network errors: "timeout", "reset", "broken pipe", "EOF"
+		errMsg := err.Error()
+		isProtocolError := false
+		if len(errMsg) > 0 {
+			// Check for common Modbus protocol errors that don't require reconnect
+			if contains(errMsg, "illegal") || contains(errMsg, "exception") || contains(errMsg, "busy") {
+				isProtocolError = true
+			}
+		}
+
+		if !isProtocolError {
+			// Force disconnect to trigger reconnect on next attempt
+			t.Disconnect()
+		}
 	}
 	return nil, lastErr
+}
+
+func contains(s, substr string) bool {
+	return strings.Contains(strings.ToLower(s), substr)
 }
 
 func (t *ModbusTransport) ReadRegisters(ctx context.Context, regType string, offset uint16, count uint16) ([]byte, error) {

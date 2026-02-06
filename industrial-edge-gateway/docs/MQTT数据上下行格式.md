@@ -1,11 +1,11 @@
-数据上下行格式
+数据上下行格式 支持 neuron方式上报
 以下内容描述 MQTT 插件如何上报采集的数据，以及如何通过 MQTT 插件实现读写点位数据。
 
 数据上报
 MQTT 插件将采集到的数据以 JSON 形式发布到指定的主题。 上报数据的具体格式由上报数据格式参数指定，有Values-format 格式、Tags-format 格式、ECP-format 格式、Custom 自定义格式多种格式可选。
 
 上报主题
-上报主题在北向节点订阅中指定，其默认值为 /neuron/{MQTT driver name} ，见下图
+上报主题在北向节点订阅中指定，其默认值为 /things/{MQTT driver name} ，见下图
 
 Values-format 格式
 在 Values-format 格式中， 上报的数据由以下字段构成：
@@ -192,7 +192,7 @@ json
     "custom_tag_errors": [{"name": "tag3", "error": 2014}, {"name": "tag4", "error": 2015}]
 }
 示例二
-通过自定义数据格式，添加全局静态点位。该静态点位在所有驱动采集组上报数据时，均会携带。如 NeuronEX 部署在一个物理网关上，可将网关的SN号、IP地址、位置信息等信息，添加到所有驱动采集组中。
+通过自定义数据格式，添加全局静态点位。该静态点位在所有驱动采集组上报数据时，均会携带。如 edgex 部署在一个物理网关上，可将网关的SN号、IP地址、位置信息等信息，添加到所有驱动采集组中。
 
 json
 {
@@ -267,7 +267,7 @@ json
 
 静态点位功能支持布尔、整型、浮点型、字符串四种数据类型。复杂数据类型，如数组、结构体等，将以字符串形式上报。
 
-如果添加的静态点位，为 NeuronEX 实例中所有采集组共用，既可以勾选所有采集组，添加静态点位，也可以在 Custom 自定义格式中，统一添加静态点位，参考 自定义格式：示例二。
+如果添加的静态点位，为 edgex 实例中所有采集组共用，既可以勾选所有采集组，添加静态点位，也可以在 Custom 自定义格式中，统一添加静态点位，参考 自定义格式：示例二。
 
 注意
 
@@ -279,7 +279,7 @@ json
 
 读 Tags
 请求
-通过发送 JSON 形式的请求到 MQTT 主题 /neuron/{node_name}/read/req，您可以读取一组点位数据。
+通过发送 JSON 形式的请求到 MQTT 主题 /things/{node_name}/read/req，您可以读取一组点位数据。
 
 请求体
 读请求体由以下字段构成：
@@ -296,7 +296,7 @@ json
     "group": "grp"
 }
 响应
-读响应会发布到 MQTT 主题 /neuron/{node_name}/read/resp 。
+读响应会发布到 MQTT 主题 /things/{node_name}/read/resp 。
 
 响应体
 读响应体由以下字段构成：
@@ -325,7 +325,7 @@ TIP
 
 写 Tag
 请求
-通过发送 JSON 形式的请求到写请求主题参数指定的 MQTT 主题，您可以写一个点位数据。可在 MQTT 参数配置中配置写请求的主题，默认为为 /neuron/{random_str}/write/req。
+通过发送 JSON 形式的请求到写请求主题参数指定的 MQTT 主题，您可以写一个点位数据。可在 MQTT 参数配置中配置写请求的主题，默认为为 /things/{random_str}/write/req。
 
 请求体
 写一个 Tag
@@ -347,7 +347,7 @@ json
     "value": 1234
 }
 写多个 Tag
-Neuron 提供了对多点位写入的支持。要在一次请求中可以写入多个点位数据, 写请求体应由以下字段构成：
+edgex 提供了对多点位写入的支持。要在一次请求中可以写入多个点位数据, 写请求体应由以下字段构成：
 
 uuid : 唯一的标志，会在响应中原样返回用以区分对应的请求。
 node : 某个南向节点名字。
@@ -372,25 +372,27 @@ json
     ]
 }
 响应
-写响应会发布到写响应主题参数指定的 MQTT 主题。默认写响应主题参数为 /neuron/{random_str}//write/resp。
+写响应会发布到配置的写响应主题（Write Response Topic）。若未配置，默认在写请求主题后追加 `/resp`。
 
 响应体
 写响应体由以下字段构成：
 
 uuid : 对应请求中所设置的唯一标志。
-error : 错误码。0 代表成功，非零代表失败。
-以下为一个读响应样例：
+success : 布尔值，true 代表成功，false 代表失败。
+message : （可选）失败时的错误信息。
+
+以下为一个写响应样例：
 
 json
 {
   "uuid": "cd32be1b-c8b1-3257-94af-77f847b1ed3e",
-  "error": 0
+  "success": true
 }
 驱动状态上报
 上报所有南向驱动状态到指定的 MQTT 主题。
 
 状态上报主题
-上报主题在北向节点配置中指定，其默认值为 /neuron/{random_str}/state/update
+上报主题在北向节点配置中指定，其默认值为 /things/{random_str}/state/update
 
 状态上报间隔
 状态上报间隔在北向节点配置中指定，指每条消息之间间隔的秒数，其默认值为 1，允许的范围为 1-3600。
@@ -418,3 +420,28 @@ json
     }
   ]
 }
+
+设备状态通知
+当设备上线或离线时，MQTT 插件会发布状态消息。支持 LWT（遗嘱消息）。
+
+状态主题
+可在配置中指定状态主题（Status Topic）。默认值为 `{topic}/status`。支持变量替换。
+
+状态载荷
+可在配置中指定上线（Online Payload）和离线（Offline Payload）的 JSON 模板。
+
+默认载荷格式：
+json
+{
+  "status": "online", // 或 "offline"
+  "timestamp": 1658134132237,
+  "device_id": "device1"
+}
+
+变量替换
+在主题（Topic）和载荷（Payload）配置中，支持以下变量替换：
+
+- `{device_id}` : 设备 ID
+- `{device_name}` : 设备名称
+- `{status}` : 状态 ("online" 或 "offline")
+- `{timestamp}` : 当前时间戳 (毫秒)

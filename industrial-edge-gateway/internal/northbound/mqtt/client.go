@@ -210,6 +210,9 @@ func (c *Client) flushPeriodic(deviceID string, item *periodicItem) {
 
 	for _, v := range item.values {
 		payload.Values[v.PointID] = v.Value
+		if v.Quality != "Good" {
+			payload.Errors[v.PointID] = v.Quality
+		}
 	}
 	c.periodicMu.Unlock()
 
@@ -563,8 +566,7 @@ func (c *Client) Publish(v model.Value) {
 	// Add value to buffer
 	item.payload.Values[v.PointID] = v.Value
 	if v.Quality != "Good" {
-		// Optionally record errors
-		// item.payload.Errors[v.PointID] = v.Quality
+		item.payload.Errors[v.PointID] = v.Quality
 	}
 }
 
