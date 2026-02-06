@@ -267,6 +267,9 @@ devices:
 #### 规则配置
 ![边缘计算规则配置](./industrial-edge-gateway/docs/img/边缘计算规则配置.png)
 
+#### 规则帮助手册
+![边缘计算规则帮助手册](./industrial-edge-gateway/docs/img/边缘计算规则配置帮助文档.png)
+
 #### 规则日志
 ![边缘计算规则运行日志查询导出](./industrial-edge-gateway/docs/img/边缘计算规则运行日志查询导出.png)
 
