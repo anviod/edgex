@@ -267,6 +267,14 @@ devices:
 #### 规则配置
 ![边缘计算规则配置](./industrial-edge-gateway/docs/img/边缘计算规则配置.png)
 
+#### 边缘计算规则支持类型
+![边缘计算规则支持类型](./industrial-edge-gateway/docs/img/边缘计算规则支持类型.png)
+
+#### 边缘计算规则支持动作类型
+![边缘计算规则支持动作类型](./industrial-edge-gateway/docs/img/边缘计算规则支持动作类型.png)
+
+
+
 #### 规则帮助手册
 ![边缘计算规则帮助手册](./industrial-edge-gateway/docs/img/边缘计算规则配置帮助文档.png)
 
