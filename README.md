@@ -25,7 +25,7 @@ Industrial Edge Gateway 是一个轻量级的工业边缘计算网关，旨在�
 
 | 协议 | 状态 | 说明 |
 | :--- | :--- | :--- |
-| **MQTT** | ✅ 已实现 | 支持自定义 Topic、Payload 模板 |
+| **MQTT** | ✅ 已实现 | 支持自定义 Topic、Payload 模板 支持批量点位映射与反向控制，提供服务端运行监控（数据统计）|
 | **Sparkplug B** | ✅ 已实现 | 支持 NBIRTH, NDEATH, DDATA 消息规范 |
 | **OPC UAServer** | ✅ 已实现 | 基于 `awcullen/opcua` 实现，支持多种认证方式（匿名/用户名/证书），支持数据点位映射与反向控制，提供服务端运行监控（客户端数/订阅数/写统计） |
 
