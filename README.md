@@ -12,7 +12,7 @@ Industrial Edge Gateway 是一个轻量级的工业边缘计算网关，旨在�
 
 | 协议 | 状态 | 说明 |
 | :--- | :--- | :--- |
-| **Modbus TCP / RTU / RTU Over TCP** | ✅ 已实现 | 完整支持，基于 `simonvetter/modbus` |
+| **Modbus TCP / RTU / RTU Over TCP** | ✅ 已实现 | 完整支持，基于 `simonvetter/modbus`；**增强解码器**：支持 `int32`/`uint32`/`int16`/`uint16` 等多种整数类型转换与自动缩放 |
 | **BACnet IP** | ✅ 已实现 | 支持设备发现 (Who-Is/I-Am)、多网口广播 + 单播回退（尊重 I-Am 源端口）、对象扫描与点位读写、批量读失败自动回退到单读、异常端口回退至 47808、读超时与自动恢复优化。**新增本地模拟器支持**：针对 Windows 本地运行的模拟器，自动尝试 localhost 单播发现。 |
 | **OPC UAClient** | ✅ 已实现 | 基于 `gopcua/opcua` 实现，支持读写操作、订阅 (Subscription) 与监控 (Monitoring)，支持断线自动重连 |
 | **Siemens S7** | 🚧 开发中 | 支持 S7-200Smart/1200/1500 等 (定制开发) |
@@ -27,7 +27,7 @@ Industrial Edge Gateway 是一个轻量级的工业边缘计算网关，旨在�
 | :--- | :--- | :--- |
 | **MQTT** | ✅ 已实现 | 支持自定义 Topic、Payload 模板 支持批量点位映射与反向控制，提供服务端运行监控（数据统计）|
 | **Sparkplug B** | ✅ 已实现 | 支持 NBIRTH, NDEATH, DDATA 消息规范 |
-| **OPC UAServer** | ✅ 已实现 | 基于 `awcullen/opcua` 实现，支持多种认证方式（匿名/用户名/证书）；**架构优化**：节点映射重构为以 Channel ID 为主键，修复 Objects 目录遍历问题；提供服务端运行监控（客户端数/订阅数/写统计） |
+| **OPC UAServer** | ✅ 已实现 | 基于 `awcullen/opcua` 实现，支持多种认证方式（匿名/用户名/证书）；**安全增强**：启用 `Basic256Sha256` 策略与证书信任机制；**双向互通**：支持客户端写入操作（云端反控）；提供服务端运行监控（客户端数/订阅数/写统计） |
 
 ### 🧠 边缘计算 & 管理
 *   **规则引擎**: 内置轻量级规则引擎，支持 `expr` 表达式进行逻辑判断和联动控制。
@@ -151,6 +151,26 @@ npm run build
 - 端口策略：尊重设备 I-Am 的源端口进行后续单播通信，异常时回退到标准端口 47808。
 - 网关通过 WebSocket 将最新值实时推送到前端，列表可见质量标签（Good/Bad）与时间戳。
 - 本机同时运行网关与模拟器时，如遇 47808 端口冲突，请将网关绑定到指定网卡 IP（例如 `192.168.3.106:47808`）而非 `0.0.0.0:47808`。
+
+### 4. OPC UA 服务端指南 (OPC UA Server Guide)
+
+网关内置高性能 OPC UA 服务端，支持标准 OPC UA 客户端（如 UaExpert, Prosys）直接连接，实现数据监控与云端反控。
+
+- **安全连接 (Security)**:
+  - 默认启用 `Basic256Sha256` (SignAndEncrypt) 安全策略。
+  - **证书管理**: 自动生成有效期 10 年的自签名证书。首次连接时若提示证书不可信，请在客户端信任网关证书。
+  - **用户认证**: 支持 `admin` / `admin` (默认) 登录，也支持匿名访问（可配置）。
+
+- **双向互通 (Bi-directional)**:
+  - **数据上报**: 所有南向通道采集的数据自动映射到 OPC UA 地址空间 (`Objects/Gateway/Channels/...`)。
+  - **反向控制**: 支持客户端直接修改点位值（Write Attribute），网关自动透传写入指令至底层设备（如 Modbus 寄存器），实现远程控制。
+
+- **客户端连接示例 (UaExpert)**:
+  1. 添加服务器 URL: `opc.tcp://<Gateway_IP>:4840`
+  2. 选择安全策略 `Basic256Sha256 - Sign & Encrypt`。
+  3. 认证方式选择 `User & Password`，输入 `admin` / `admin`。
+  4. 连接并浏览 `Objects` -> `Gateway` -> `Channels` 查看实时数据。
+
 
 ## 📡 API 概览
 - 所有 API 需要携带认证头：`Authorization: Bearer <token>`（默认账号见 `conf/users.yaml`）。
