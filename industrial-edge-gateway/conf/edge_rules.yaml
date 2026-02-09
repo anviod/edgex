@@ -23,7 +23,7 @@
       point_id: dev2_temp
       point_name: Temperature
   trigger_logic: ""
-  condition: t1 > 10 && t2>30
+  condition: t1 > 100 && t2>300
   expression: ""
   actions:
     - type: mqtt
@@ -59,4 +59,4 @@
     aggr_func: avg
   state:
     duration: 10s
-    count: 1
+    count: 10

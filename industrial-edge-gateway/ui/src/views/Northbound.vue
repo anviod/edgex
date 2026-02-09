@@ -46,6 +46,9 @@
                         <v-list density="compact" bg-color="transparent">
                             <v-list-item title="Broker地址" :subtitle="item.broker">
                                 <template v-slot:prepend><v-icon icon="mdi-server" color="grey"></v-icon></template>
+                                <template v-slot:append>
+                                    <v-btn icon="mdi-content-copy" size="x-small" variant="text" color="grey" @click="copyToClipboard(item.broker)" title="复制"></v-btn>
+                                </template>
                             </v-list-item>
                             <v-list-item title="Client ID" :subtitle="item.client_id">
                                 <template v-slot:prepend><v-icon icon="mdi-identifier" color="grey"></v-icon></template>
@@ -68,6 +71,7 @@
                         <v-icon icon="mdi-server" color="primary" class="mr-3"></v-icon>
                         OPC UA: {{ item.name || item.id }}
                         <v-spacer></v-spacer>
+                        <v-btn icon="mdi-help-circle" variant="text" size="small" color="secondary" @click="openOpcuaHelp(item)" title="帮助文档"></v-btn>
                         <v-btn icon="mdi-cog" variant="text" size="small" color="primary" @click="openOpcuaSettings(item)"></v-btn>
                         <v-btn icon="mdi-monitor-dashboard" variant="text" size="small" color="info" @click="openOpcuaStats(item)" title="运行监控"></v-btn>
                         <v-btn icon="mdi-delete" variant="text" size="small" color="error" @click="deleteProtocol('opcua', item.id)"></v-btn>
@@ -85,6 +89,9 @@
                             </v-list-item>
                             <v-list-item title="完整地址" :subtitle="'opc.tcp://localhost:' + item.port + item.endpoint">
                                 <template v-slot:prepend><v-icon icon="mdi-web" color="grey"></v-icon></template>
+                                <template v-slot:append>
+                                    <v-btn icon="mdi-content-copy" size="x-small" variant="text" color="grey" @click="copyToClipboard('opc.tcp://localhost:' + item.port + item.endpoint)" title="复制"></v-btn>
+                                </template>
                             </v-list-item>
                         </v-list>
                     </v-card-text>
@@ -115,6 +122,9 @@
                         <v-list density="compact" bg-color="transparent">
                             <v-list-item title="Broker地址" :subtitle="item.broker">
                                 <template v-slot:prepend><v-icon icon="mdi-server" color="grey"></v-icon></template>
+                                <template v-slot:append>
+                                    <v-btn icon="mdi-content-copy" size="x-small" variant="text" color="grey" @click="copyToClipboard(item.broker)" title="复制"></v-btn>
+                                </template>
                             </v-list-item>
                             <v-list-item title="Group ID" :subtitle="item.group_id">
                                 <template v-slot:prepend><v-icon icon="mdi-folder-outline" color="grey"></v-icon></template>
@@ -156,6 +166,141 @@
                     <v-spacer></v-spacer>
                     <v-btn variant="text" @click="addDialog.visible = false">取消</v-btn>
                 </v-card-actions>
+            </v-card>
+        </v-dialog>
+
+        <!-- OPC UA Help Dialog -->
+        <v-dialog v-model="opcuaHelpDialog.visible" max-width="900">
+            <v-card>
+                <v-toolbar color="primary" density="compact">
+                    <v-toolbar-title class="text-white">
+                        <v-icon icon="mdi-help-circle-outline" class="mr-2"></v-icon>
+                        OPC UA 接入文档
+                    </v-toolbar-title>
+                    <v-spacer></v-spacer>
+                    <v-btn icon="mdi-close" variant="text" color="white" @click="opcuaHelpDialog.visible = false"></v-btn>
+                </v-toolbar>
+
+                <div class="d-flex flex-row">
+                    <v-tabs v-model="opcuaHelpDialog.activeTab" direction="vertical" color="primary" style="min-width: 160px; height: 500px" class="border-e">
+                        <v-tab value="connection">
+                            <v-icon start>mdi-lan-connect</v-icon>
+                            连接配置
+                        </v-tab>
+                        <v-tab value="auth">
+                            <v-icon start>mdi-account-key</v-icon>
+                            身份认证
+                        </v-tab>
+                        <v-tab value="subscription">
+                            <v-icon start>mdi-rss</v-icon>
+                            数据订阅
+                        </v-tab>
+                    </v-tabs>
+
+                    <v-window v-model="opcuaHelpDialog.activeTab" class="flex-grow-1" style="height: 500px; overflow-y: auto;">
+                        <!-- Connection -->
+                        <v-window-item value="connection" class="pa-4">
+                            <div class="text-h6 mb-1">连接配置 (Connection)</div>
+                            <p class="text-body-2 text-grey mb-4">使用 OPC UA 客户端（如 UaExpert, SCADA）连接到本网关。</p>
+
+                            <v-card variant="outlined" class="mb-4 border-primary">
+                                <v-card-text class="pa-3">
+                                    <div class="text-caption font-weight-bold text-primary mb-1">Endpoint URL (服务地址)</div>
+                                    <div class="d-flex align-center bg-grey-lighten-4 pa-2 rounded font-weight-medium text-body-2">
+                                        <span class="text-truncate">opc.tcp://{{ location_host ? location_host.split(':')[0] : 'localhost' }}:{{ opcuaHelpDialog.port }}{{ opcuaHelpDialog.endpoint }}</span>
+                                        <v-spacer></v-spacer>
+                                        <v-btn size="x-small" variant="text" icon="mdi-content-copy" color="grey" @click="copyToClipboard('opc.tcp://' + (location_host ? location_host.split(':')[0] : 'localhost') + ':' + opcuaHelpDialog.port + opcuaHelpDialog.endpoint)"></v-btn>
+                                    </div>
+                                    <div class="text-caption text-grey mt-1">提示：如果从外部访问，请将 localhost 替换为网关的实际 IP 地址。</div>
+                                </v-card-text>
+                            </v-card>
+
+                            <div class="text-subtitle-2 mb-2 font-weight-bold">安全策略 (Security Policies)</div>
+                            <v-alert density="compact" type="info" variant="tonal" class="mb-4 text-caption">
+                                网关默认支持以下安全策略。建议生产环境使用加密连接。
+                            </v-alert>
+                            <v-list density="compact" class="bg-grey-lighten-4 rounded border">
+                                <v-list-item title="None" subtitle="不加密 (仅用于调试)"></v-list-item>
+                                <v-list-item title="Basic256Sha256" subtitle="签名并加密 (推荐)"></v-list-item>
+                                <v-list-item title="Aes128_Sha256_RsaOaep" subtitle="签名并加密"></v-list-item>
+                            </v-list>
+                        </v-window-item>
+
+                        <!-- Authentication -->
+                        <v-window-item value="auth" class="pa-4">
+                            <div class="text-h6 mb-1">身份认证 (Authentication)</div>
+                            <p class="text-body-2 text-grey mb-4">配置客户端连接时的身份验证方式。</p>
+
+                            <div class="text-subtitle-2 mb-2 font-weight-bold">支持的认证模式</div>
+                            <v-expansion-panels variant="accordion" class="mb-4">
+                                <v-expansion-panel title="匿名登录 (Anonymous)">
+                                    <v-expansion-panel-text class="text-body-2">
+                                        如果配置中启用了匿名访问，客户端可以选择 <strong>Anonymous</strong> 方式登录，无需用户名和密码。<br>
+                                        <span class="text-warning">注意：生产环境建议禁用匿名访问。</span>
+                                    </v-expansion-panel-text>
+                                </v-expansion-panel>
+                                <v-expansion-panel title="用户名/密码 (Username/Password)">
+                                    <v-expansion-panel-text class="text-body-2">
+                                        客户端选择 <strong>Username</strong> 方式，并输入配置中预设的用户名和密码。<br>
+                                        可以在 "配置" -> "用户管理" 中添加或修改用户。
+                                    </v-expansion-panel-text>
+                                </v-expansion-panel>
+                            </v-expansion-panels>
+                        </v-window-item>
+
+                        <!-- Subscription -->
+                        <v-window-item value="subscription" class="pa-4">
+                            <div class="text-h6 mb-1">数据订阅 (Subscription)</div>
+                            <p class="text-body-2 text-grey mb-4">浏览地址空间并订阅点位数据。</p>
+
+                            <div class="text-subtitle-2 mb-2 font-weight-bold">地址空间结构 (Address Space)</div>
+                            <v-sheet class="bg-grey-lighten-4 text-grey-darken-4 pa-3 rounded code-block mb-4 border" style="font-family: monospace; font-size: 13px;">
+                                <div class="mb-1">Root</div>
+                                <div class="pl-4 mb-1">└── Objects</div>
+                                <div class="pl-8 mb-1">└── <span class="text-primary">DeviceName</span> (设备名称)</div>
+                                <div class="pl-12">└── <span class="text-success">PointName</span> (点位名称)</div>
+                            </v-sheet>
+
+                            <div class="text-subtitle-2 mb-2 font-weight-bold">NodeID 格式</div>
+                            <p class="text-caption text-grey mb-2">
+                                点位 NodeID 通常采用 String 类型，格式为 <code>ns=2;s=DeviceName/PointName</code>。
+                            </p>
+                            <v-table density="compact" class="border rounded mb-4">
+                                <thead>
+                                    <tr>
+                                        <th>属性</th>
+                                        <th>值</th>
+                                        <th>说明</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Namespace Index (ns)</td>
+                                        <td>2</td>
+                                        <td>默认命名空间索引</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Identifier Type</td>
+                                        <td>String (s)</td>
+                                        <td>字符串标识符</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Identifier</td>
+                                        <td>Device/Point</td>
+                                        <td>设备名/点位名组合</td>
+                                    </tr>
+                                </tbody>
+                            </v-table>
+
+                            <div class="text-subtitle-2 mb-2 font-weight-bold">常见问题</div>
+                            <ul class="text-caption text-grey pl-4">
+                                <li class="mb-1">如果无法浏览到设备节点，请检查设备是否已在"设备管理"中添加并启用。</li>
+                                <li class="mb-1">如果读取值为 BadWaitingForInitialData，表示设备尚未采集到有效数据。</li>
+                                <li>客户端订阅间隔建议不低于设备采集周期的 1/2。</li>
+                            </ul>
+                        </v-window-item>
+                    </v-window>
+                </div>
             </v-card>
         </v-dialog>
 
@@ -577,7 +722,35 @@
                         </v-row>
                         
                         <v-divider class="my-4"></v-divider>
-                        <div class="text-subtitle-1 mb-2 font-weight-bold">安全认证设置</div>
+                        <div class="text-subtitle-1 mb-2 font-weight-bold">安全策略 (Security Policy)</div>
+                        <v-select
+                            v-model="opcuaDialog.config.security_policy"
+                            :items="[
+                                { title: '自动 (Auto - Allow All)', value: 'Auto' },
+                                { title: '允许不加密 (None)', value: 'None' },
+                                { title: 'Basic256 (Sign & Encrypt)', value: 'Basic256' },
+                                { title: 'Basic256Sha256 (Sign & Encrypt)', value: 'Basic256Sha256' }
+                            ]"
+                            label="安全策略"
+                            variant="outlined"
+                            density="compact"
+                            hint="指定允许的连接安全策略。'Auto' 允许所有。"
+                            persistent-hint
+                        ></v-select>
+                        
+                        <v-text-field 
+                            v-model="opcuaDialog.config.trusted_cert_path" 
+                            label="受信任证书目录" 
+                            placeholder="/path/to/trusted/certs" 
+                            variant="outlined" 
+                            density="compact"
+                            class="mt-2"
+                            hint="存放客户端可信证书的目录 (可选)"
+                            persistent-hint
+                        ></v-text-field>
+
+                        <v-divider class="my-4"></v-divider>
+                        <div class="text-subtitle-1 mb-2 font-weight-bold">身份认证 (Authentication)</div>
                         <v-select
                             v-model="opcuaDialog.config.auth_methods"
                             :items="['Anonymous', 'UserName', 'Certificate']"
@@ -650,8 +823,8 @@
         </v-dialog>
 
         <!-- OPC UA Stats Dialog -->
-        <v-dialog v-model="opcuaStatsDialog.visible" max-width="500px">
-            <v-card>
+        <v-dialog v-model="opcuaStatsDialog.visible" max-width="900px" content-class="glass-dialog-wrapper">
+            <v-card class="glass-dialog">
                 <v-card-title class="d-flex align-center pa-4">
                     <span class="text-h5">OPC UA 运行监控</span>
                     <v-spacer></v-spacer>
@@ -684,6 +857,61 @@
                             </v-card>
                         </v-col>
                     </v-row>
+
+                    <v-divider class="my-4"></v-divider>
+
+                    <!-- Log Viewer Control Bar -->
+                    <div class="d-flex align-center mb-2">
+                        <v-icon icon="mdi-console-line" size="small" color="grey" class="mr-2"></v-icon>
+                        <span class="text-subtitle-2 font-weight-bold">实时日志 (OPC UA)</span>
+                        <v-spacer></v-spacer>
+                        
+                        <v-switch
+                            v-model="opcuaStatsDialog.isStreaming"
+                            color="success"
+                            label="实时滚动"
+                            hide-details
+                            density="compact"
+                            class="mr-4"
+                            inset
+                        ></v-switch>
+
+                        <v-btn
+                            variant="outlined"
+                            size="small"
+                            prepend-icon="mdi-download"
+                            @click="downloadOpcuaLogs"
+                            class="mr-2"
+                        >
+                            下载日志
+                        </v-btn>
+                    </div>
+
+                    <!-- Log Viewer Area -->
+                    <v-card variant="outlined" class="log-viewer-container rounded bg-white">
+                        <div class="log-content pa-2" style="height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;">
+                            <div v-if="opcuaPaginatedLogs.length === 0" class="text-center text-grey mt-12">暂无日志...</div>
+                            <div v-for="(log, idx) in opcuaPaginatedLogs" :key="idx" class="log-line border-b">
+                                <span class="text-grey mr-2">[{{ formatTime(log.ts) }}]</span>
+                                <span :class="getLevelClass(log.level)" class="font-weight-bold mr-2">{{ (log.level || 'INFO').toUpperCase() }}</span>
+                                <span class="text-black">{{ log.msg }}</span>
+                                <span v-for="(val, key) in getExtraFields(log)" :key="key" class="text-grey ml-2 text-caption">
+                                    {{ key }}={{ val }}
+                                </span>
+                            </div>
+                        </div>
+                        <v-divider></v-divider>
+                        <div class="d-flex align-center justify-center pa-1">
+                             <v-pagination
+                                v-if="opcuaStatsDialog.logs.length > 0"
+                                v-model="opcuaStatsDialog.page"
+                                :length="opcuaPageCount"
+                                :total-visible="5"
+                                density="compact"
+                                size="small"
+                            ></v-pagination>
+                        </div>
+                    </v-card>
                 </v-card-text>
                 <v-card-actions class="pa-4">
                     <v-spacer></v-spacer>
@@ -807,6 +1035,11 @@
 <script setup>
 import { ref, reactive, onMounted, watch, onUnmounted } from 'vue'
 import { showMessage } from '../composables/useGlobalState'
+
+const location_host = ref('')
+onMounted(() => {
+    location_host.value = window.location.host
+})
 import request from '@/utils/request'
 const loading = ref(false)
 const config = ref({
@@ -1044,6 +1277,8 @@ const openOpcuaSettings = async (item) => {
             name: 'New OPC UA Server',
             port: 4840,
             endpoint: '/ipp/opcua/server',
+            security_policy: 'Auto',
+            trusted_cert_path: '',
             devices: {},
             auth_methods: ['Anonymous'],
             users: {},
@@ -1055,6 +1290,10 @@ const openOpcuaSettings = async (item) => {
     // Ensure devices map exists
     if (!opcuaDialog.config.devices) opcuaDialog.config.devices = {}
     
+    // Ensure security fields exist
+    if (!opcuaDialog.config.security_policy) opcuaDialog.config.security_policy = 'Auto'
+    if (!opcuaDialog.config.trusted_cert_path) opcuaDialog.config.trusted_cert_path = ''
+
     // Ensure auth fields exist
     if (!opcuaDialog.config.auth_methods) opcuaDialog.config.auth_methods = ['Anonymous']
     if (!opcuaDialog.config.users) opcuaDialog.config.users = {}
@@ -1103,6 +1342,19 @@ const saveOpcuaSettings = async () => {
     }
 }
 
+const opcuaHelpDialog = reactive({
+    visible: false,
+    activeTab: 'connection',
+    endpoint: '',
+    port: 4840
+})
+
+const openOpcuaHelp = (item) => {
+    opcuaHelpDialog.endpoint = item.endpoint || ''
+    opcuaHelpDialog.port = item.port || 4840
+    opcuaHelpDialog.visible = true
+}
+
 const opcuaStatsDialog = reactive({
     visible: false,
     loading: false,
@@ -1112,10 +1364,41 @@ const opcuaStatsDialog = reactive({
         subscription_count: 0,
         write_count: 0,
         uptime: 0
-    }
+    },
+    logs: [],
+    page: 1,
+    isStreaming: true
 })
 
+const opcuaPaginatedLogs = computed(() => {
+    const start = (opcuaStatsDialog.page - 1) * 20
+    const end = start + 20
+    return opcuaStatsDialog.logs.slice(start, end)
+})
+
+const opcuaPageCount = computed(() => {
+    return Math.ceil(opcuaStatsDialog.logs.length / 20) || 1
+})
+
+const downloadOpcuaLogs = () => {
+    const rows = opcuaStatsDialog.logs.map(log => {
+        const ts = log.ts ? new Date(log.ts).toLocaleString() : ''
+        const level = (log.level || 'INFO').toUpperCase()
+        const msg = log.msg || ''
+        return `[${ts}] [${level}] ${msg}`
+    })
+    
+    const content = rows.join('\n')
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `opcua_logs_${new Date().toISOString().slice(0,19).replace(/[:T]/g, '-')}.log`
+    link.click()
+    URL.revokeObjectURL(link.href)
+}
+
 let statsTimer = null
+let opcuaWs = null
 
 const refreshOpcuaStats = async (isAuto = false) => {
     if (!opcuaStatsDialog.id) return
@@ -1133,16 +1416,47 @@ const refreshOpcuaStats = async (isAuto = false) => {
 const openOpcuaStats = (item) => {
     opcuaStatsDialog.id = item.id
     opcuaStatsDialog.visible = true
+    opcuaStatsDialog.logs = []
 }
 
 watch(() => opcuaStatsDialog.visible, (val) => {
     if (val) {
         refreshOpcuaStats(false)
         statsTimer = setInterval(() => refreshOpcuaStats(true), 3000)
+
+        // WebSocket for logs
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        const host = window.location.host
+        let token = ''
+        try {
+             const raw = localStorage.getItem('loginInfo')
+             if (raw) {
+                 const parsed = JSON.parse(raw)
+                 token = parsed.token || (parsed.data && parsed.data.token) || ''
+             }
+        } catch(e) {}
+        
+        opcuaWs = new WebSocket(`${protocol}//${host}/api/ws/logs?token=${token}`)
+        opcuaWs.onmessage = (event) => {
+            if (!opcuaStatsDialog.isStreaming) return
+            try {
+                const log = JSON.parse(event.data)
+                // Filter for opcua-server component
+                if (log.component === 'opcua-server') {
+                    opcuaStatsDialog.logs.unshift(log)
+                    if (opcuaStatsDialog.logs.length > 500) opcuaStatsDialog.logs.pop()
+                }
+            } catch(e) {}
+        }
+
     } else {
         if (statsTimer) {
             clearInterval(statsTimer)
             statsTimer = null
+        }
+        if (opcuaWs) {
+            opcuaWs.close()
+            opcuaWs = null
         }
     }
 })
@@ -1316,6 +1630,7 @@ onUnmounted(() => {
     if (statsTimer) clearInterval(statsTimer)
     if (mqttStatsTimer) clearInterval(mqttStatsTimer)
     if (mqttWs) mqttWs.close()
+    if (opcuaWs) opcuaWs.close()
 })
 
 const formatUptime = (seconds) => {

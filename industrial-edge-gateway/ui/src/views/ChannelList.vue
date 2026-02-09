@@ -148,17 +148,35 @@
         <!-- Add/Edit Dialog -->
         <v-dialog v-model="dialog.show" max-width="500px">
             <v-card>
-                <v-card-title>
+                <v-card-title class="d-flex align-center">
                     <span class="text-h5">{{ dialog.isEdit ? '编辑通道' : '添加通道' }}</span>
+                    <v-btn icon="mdi-help-circle-outline" variant="text" color="info" size="small" class="ml-2" @click="showHelp = true" v-if="!dialog.isEdit">
+                        <v-tooltip activator="parent" location="right">查看帮助说明</v-tooltip>
+                    </v-btn>
                 </v-card-title>
                 <v-card-text>
                     <v-container>
                         <v-row>
                             <v-col cols="12">
-                                <v-text-field v-model="dialog.form.id" label="ID" :disabled="dialog.isEdit" required></v-text-field>
+                                <v-text-field 
+                                    v-model="dialog.form.id" 
+                                    label="ID" 
+                                    :disabled="dialog.isEdit" 
+                                    required
+                                    :rules="idRules"
+                                    :append-inner-icon="!dialog.isEdit ? 'mdi-refresh' : undefined"
+                                    @click:append-inner="generateId"
+                                    title="点击自动生成随机ID"
+                                ></v-text-field>
                             </v-col>
                             <v-col cols="12">
-                                <v-text-field v-model="dialog.form.name" label="名称" required></v-text-field>
+                                <v-text-field 
+                                    v-model="dialog.form.name" 
+                                    label="名称" 
+                                    required
+                                    hint="给通道起一个易于识别的名称"
+                                    persistent-hint
+                                ></v-text-field>
                             </v-col>
                             <v-col cols="12">
                                 <v-select
@@ -581,6 +599,27 @@
             </v-card>
         </v-dialog>
 
+        <!-- Help Dialog -->
+        <v-dialog v-model="showHelp" max-width="600px">
+            <v-card>
+                <v-card-title>采集通道帮助说明</v-card-title>
+                <v-card-text>
+                    <p class="mb-2">采集通道用于定义与物理设备或子系统的连接方式。配置时请注意以下几点：</p>
+                    <ul class="ml-4 mb-2">
+                        <li><strong>ID:</strong> 通道的唯一标识符。系统支持自动生成16位随机字符，您也可以手动输入（仅限字母、数字、下划线和横杠）。ID一旦创建不可修改。</li>
+                        <li><strong>名称:</strong> 为通道起一个易于识别的名称，方便在列表中查看。</li>
+                        <li><strong>协议:</strong> 选择设备支持的通信协议（如 Modbus, BACnet, OPC UA 等）。不同协议会有不同的配置项。</li>
+                        <li><strong>启用:</strong> 只有启用的通道才会进行数据采集。</li>
+                    </ul>
+                    <p>如果遇到连接问题，请检查 IP、端口以及防火墙设置。</p>
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn color="primary" variant="text" @click="showHelp = false">关闭</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
+
         <!-- Manual Add Dialog -->
         <v-dialog v-model="manualAddDialog.show" max-width="400px">
             <v-card>
@@ -749,6 +788,23 @@ const protocols = [
     { title: 'BACnet IP', value: 'bacnet-ip' },
     { title: 'OPC UA', value: 'opc-ua' }
 ]
+
+const showHelp = ref(false)
+
+const idRules = [
+    v => !!v || 'ID 不能为空',
+    v => /^[a-zA-Z0-9_-]+$/.test(v) || 'ID 只能包含字母、数字、下划线和横杠'
+]
+
+const generateId = () => {
+    if (dialog.isEdit) return
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    let result = ''
+    for (let i = 0; i < 16; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    dialog.form.id = result
+}
 
 const dialog = reactive({
     show: false,

@@ -95,8 +95,6 @@ func main() {
 	cm.SetStatusHandler(func(deviceID string, status int) {
 		nbm.OnDeviceStatusChange(deviceID, status)
 	})
-	nbm.Start()
-	defer nbm.Stop()
 
 	// Connect Edge Compute to Northbound
 	ecm.SetNorthboundManager(nbm)
@@ -140,6 +138,10 @@ func main() {
 			zap.L().Error("Failed to start channel", zap.String("channel", ch.Name), zap.Error(err))
 		}
 	}
+
+	// Start Northbound Manager (after channels are loaded so OPC UA can build address space)
+	nbm.Start()
+	defer nbm.Stop()
 
 	// 6. Start Web Server
 	go func() {

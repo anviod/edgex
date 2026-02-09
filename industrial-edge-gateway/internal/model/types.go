@@ -160,12 +160,12 @@ type MQTTConfig struct {
 	Topic          string `json:"topic" yaml:"topic"`
 	SubscribeTopic string `json:"subscribe_topic" yaml:"subscribe_topic"` // New: Subscribe topic for write requests
 
-	StatusTopic        string `json:"status_topic" yaml:"status_topic"`                 // Online/Offline status topic
-	LwtTopic           string `json:"lwt_topic" yaml:"lwt_topic"`                       // LWT topic (if different from StatusTopic)
-	OnlinePayload      string `json:"online_payload" yaml:"online_payload"`             // Payload for online status
-	OfflinePayload     string `json:"offline_payload" yaml:"offline_payload"`           // Payload for offline status (graceful disconnect)
-	LwtPayload         string `json:"lwt_payload" yaml:"lwt_payload"`                   // Payload for LWT (ungraceful disconnect)
-	IgnoreOfflineData  bool   `json:"ignore_offline_data" yaml:"ignore_offline_data"`   // If true, do not report data when device is offline
+	StatusTopic       string `json:"status_topic" yaml:"status_topic"`               // Online/Offline status topic
+	LwtTopic          string `json:"lwt_topic" yaml:"lwt_topic"`                     // LWT topic (if different from StatusTopic)
+	OnlinePayload     string `json:"online_payload" yaml:"online_payload"`           // Payload for online status
+	OfflinePayload    string `json:"offline_payload" yaml:"offline_payload"`         // Payload for offline status (graceful disconnect)
+	LwtPayload        string `json:"lwt_payload" yaml:"lwt_payload"`                 // Payload for LWT (ungraceful disconnect)
+	IgnoreOfflineData bool   `json:"ignore_offline_data" yaml:"ignore_offline_data"` // If true, do not report data when device is offline
 
 	WriteResponseTopic string `json:"write_response_topic" yaml:"write_response_topic"` // Topic for write responses
 
@@ -181,16 +181,19 @@ type DevicePublishConfig struct {
 }
 
 type OPCUAConfig struct {
-	ID          string            `json:"id" yaml:"id"`
-	Name        string            `json:"name" yaml:"name"`
-	Enable      bool              `json:"enable" yaml:"enable"`
-	Port        int               `json:"port" yaml:"port"`
-	Endpoint    string            `json:"endpoint" yaml:"endpoint"`
-	AuthMethods []string          `json:"auth_methods" yaml:"auth_methods"` // "Anonymous", "UserName", "Certificate"
-	Users       map[string]string `json:"users" yaml:"users"`               // Username -> Password
-	CertFile    string            `json:"cert_file" yaml:"cert_file"`       // Path to server certificate
-	KeyFile     string            `json:"key_file" yaml:"key_file"`         // Path to server private key
-	Devices     map[string]bool   `json:"devices" yaml:"devices"`           // Key: DeviceID, Value: Enable
+	ID              string            `json:"id" yaml:"id"`
+	Name            string            `json:"name" yaml:"name"`
+	Enable          bool              `json:"enable" yaml:"enable"`
+	Port            int               `json:"port" yaml:"port"`
+	Endpoint        string            `json:"endpoint" yaml:"endpoint"`
+	SecurityPolicy  string            `json:"security_policy" yaml:"security_policy"` // "None", "Basic256", "Basic256Sha256", "Auto"
+	SecurityMode    string            `json:"security_mode" yaml:"security_mode"`     // "None", "Sign", "SignAndEncrypt"
+	TrustedCertPath string            `json:"trusted_cert_path" yaml:"trusted_cert_path"`
+	AuthMethods     []string          `json:"auth_methods" yaml:"auth_methods"` // "Anonymous", "UserName", "Certificate"
+	Users           map[string]string `json:"users" yaml:"users"`               // Username -> Password
+	CertFile        string            `json:"cert_file" yaml:"cert_file"`       // Path to server certificate
+	KeyFile         string            `json:"key_file" yaml:"key_file"`         // Path to server private key
+	Devices         map[string]bool   `json:"devices" yaml:"devices"`           // Key: DeviceID, Value: Enable
 }
 
 type SparkplugBConfig struct {

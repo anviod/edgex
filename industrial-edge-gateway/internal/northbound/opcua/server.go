@@ -8,7 +8,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"log"
 	"math/big"
 	"net"
 	"net/url"
@@ -24,6 +23,7 @@ import (
 
 	"github.com/awcullen/opcua/server"
 	"github.com/awcullen/opcua/ua"
+	"go.uber.org/zap"
 )
 
 // Server is the OPC UA Server implementation
@@ -51,11 +51,18 @@ func NewServer(cfg model.OPCUAConfig, sb model.SouthboundManager) *Server {
 
 // Start starts the OPC UA Server
 func (s *Server) Start() error {
-	log.Printf("Starting OPC UA Server [%s] on port %d...", s.config.Name, s.config.Port)
+	zap.L().Info("Starting OPC UA Server...",
+		zap.String("name", s.config.Name),
+		zap.Int("port", s.config.Port),
+		zap.String("component", "opcua-server"),
+	)
 
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 
 	endpoint := fmt.Sprintf("opc.tcp://0.0.0.0:%d%s", s.config.Port, s.config.Endpoint)
+	// Sanitize name for URI (remove spaces)
+	safeName := strings.ReplaceAll(s.config.Name, " ", "")
+	appURI := fmt.Sprintf("urn:edgex-gateway:%s", safeName)
 
 	// Ensure certificates exist
 	certFile := s.config.CertFile
@@ -75,15 +82,16 @@ func (s *Server) Start() error {
 		}
 	}
 
-	if err := s.ensureCert(certFile, keyFile); err != nil {
+	if err := s.ensureCert(certFile, keyFile, appURI); err != nil {
 		return fmt.Errorf("failed to ensure certificate: %v", err)
 	}
 
 	appDesc := ua.ApplicationDescription{
-		ApplicationURI:  fmt.Sprintf("urn:edgex-gateway:%s", s.config.Name),
+		ApplicationURI:  appURI,
 		ProductURI:      "http://github.com/awcullen/opcua",
 		ApplicationName: ua.LocalizedText{Text: s.config.Name, Locale: "en"},
 		ApplicationType: ua.ApplicationTypeServer,
+		DiscoveryURLs:   []string{endpoint},
 	}
 
 	// Configure User Tokens
@@ -128,15 +136,39 @@ func (s *Server) Start() error {
 		}))
 	}
 
+	// Security Configuration
+	// Handle Security Policy
+	if s.config.SecurityPolicy == "None" {
+		opts = append(opts, server.WithSecurityPolicyNone(true))
+	} else if s.config.SecurityPolicy != "" && s.config.SecurityPolicy != "Auto" {
+		// If a specific secure policy is selected, disable None (unless explicitly allowed, but here we assume strict)
+		opts = append(opts, server.WithSecurityPolicyNone(false))
+	} else {
+		// Default (Auto): Allow None for convenience
+		opts = append(opts, server.WithSecurityPolicyNone(true))
+	}
+
+	// Handle Trusted Certificates
+	if s.config.TrustedCertPath != "" {
+		opts = append(opts, server.WithTrustedCertificatesPaths(s.config.TrustedCertPath, ""))
+	}
+
 	if hasAuthMethod("Certificate") {
 		opts = append(opts, server.WithAuthenticateX509IdentityFunc(func(userIdentity ua.X509Identity, applicationURI string, endpointURL string) error {
 			// Verify the certificate
 			cert, err := x509.ParseCertificate([]byte(userIdentity.Certificate))
 			if err != nil {
-				log.Printf("OPC UA Certificate Auth failed: %v", err)
+				zap.L().Error("OPC UA Certificate Auth failed",
+					zap.Error(err),
+					zap.String("component", "opcua-server"),
+				)
 				return ua.BadUserAccessDenied
 			}
-			log.Printf("OPC UA Client Authenticated via Certificate: %s (Issuer: %s)", cert.Subject, cert.Issuer)
+			zap.L().Info("OPC UA Client Authenticated via Certificate",
+				zap.String("subject", cert.Subject.String()),
+				zap.String("issuer", cert.Issuer.String()),
+				zap.String("component", "opcua-server"),
+			)
 			return nil
 		}))
 	}
@@ -162,34 +194,83 @@ func (s *Server) Start() error {
 	// Start Listener
 	go func() {
 		if err := s.srv.ListenAndServe(); err != nil {
-			log.Printf("OPC UA Server [%s] error: %v", s.config.Name, err)
+			zap.L().Error("OPC UA Server error",
+				zap.String("name", s.config.Name),
+				zap.Error(err),
+				zap.String("component", "opcua-server"),
+			)
 		}
 	}()
 
 	go s.systemInfoLoop(s.ctx)
 
-	log.Printf("OPC UA Server [%s] started at %s", s.config.Name, endpoint)
+	zap.L().Info("OPC UA Server started",
+		zap.String("name", s.config.Name),
+		zap.String("endpoint", endpoint),
+		zap.String("component", "opcua-server"),
+	)
 	return nil
 }
 
-func (s *Server) ensureCert(certFile, keyFile string) error {
+func (s *Server) ensureCert(certFile, keyFile, appURI string) error {
+	regenerate := false
 	if _, err := os.Stat(certFile); err == nil {
 		if _, err := os.Stat(keyFile); err == nil {
-			return nil
+			// Check if certificate has correct URI
+			certPEM, err := os.ReadFile(certFile)
+			if err == nil {
+				block, _ := pem.Decode(certPEM)
+				if block != nil {
+					cert, err := x509.ParseCertificate(block.Bytes)
+					if err == nil {
+						foundURI := false
+						foundCN := false
+						for _, u := range cert.URIs {
+							if u.String() == appURI {
+								foundURI = true
+								break
+							}
+						}
+
+						// Check CommonName
+						if cert.Subject.CommonName == s.config.Name {
+							foundCN = true
+						}
+
+						if !foundURI || !foundCN {
+							zap.L().Warn("Existing certificate mismatch (URI or CN), regenerating...",
+								zap.String("expected_uri", appURI),
+								zap.String("expected_cn", s.config.Name),
+								zap.String("component", "opcua-server"),
+							)
+							regenerate = true
+						}
+					}
+				}
+			}
+			if !regenerate {
+				return nil
+			}
 		}
 	}
 
-	log.Println("Generating self-signed certificate...")
+	zap.L().Info("Generating self-signed certificate...", zap.String("component", "opcua-server"))
 
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return err
 	}
 
+	uri, err := url.Parse(appURI)
+	if err != nil {
+		return fmt.Errorf("failed to parse application URI: %v", err)
+	}
+
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject: pkix.Name{
 			Organization: []string{"EdgeX Gateway"},
+			CommonName:   s.config.Name,
 		},
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(365 * 24 * time.Hour),
@@ -199,14 +280,8 @@ func (s *Server) ensureCert(certFile, keyFile string) error {
 		BasicConstraintsValid: true,
 		DNSNames:              []string{"localhost", "127.0.0.1"},
 		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("0.0.0.0")},
-		URIs:                  []*url.URL{},
+		URIs:                  []*url.URL{uri},
 	}
-
-	// Add ApplicationURI to SANs
-	// Note: We need net/url import
-	// But to avoid more imports errors, I'll skip URI SAN for now or try to add it if simple
-	// OPC UA requires ApplicationURI in SubjectAltName
-	// I'll skip for now to minimize risk, or add net/url
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
 	if err != nil {
@@ -238,7 +313,10 @@ func (s *Server) Stop() {
 	if s.srv != nil {
 		s.srv.Close()
 	}
-	log.Printf("OPC UA Server [%s] stopped", s.config.Name)
+	zap.L().Info("OPC UA Server stopped",
+		zap.String("name", s.config.Name),
+		zap.String("component", "opcua-server"),
+	)
 }
 
 func (s *Server) UpdateConfig(cfg model.OPCUAConfig) error {
@@ -265,6 +343,13 @@ func (s *Server) Update(v model.Value) {
 			status = 0x80000000 // Bad
 		}
 
+		zap.L().Debug("OPC UA Node Update",
+			zap.String("point_id", v.PointID),
+			zap.Any("value", v.Value),
+			zap.String("quality", v.Quality),
+			zap.String("component", "opcua-server"),
+		)
+
 		node.SetValue(ua.DataValue{
 			Value:           v.Value,
 			StatusCode:      ua.StatusCode(status),
@@ -281,7 +366,7 @@ func (s *Server) buildAddressSpace() error {
 	createFolder := func(parentID ua.NodeID, id string, name string) ua.NodeID {
 		nodeID := ua.ParseNodeID(fmt.Sprintf("ns=%d;s=%s", nsIndex, id))
 		organizes := ua.ParseNodeID("i=35")
-		server.NewObjectNode(
+		node := server.NewObjectNode(
 			s.srv,
 			nodeID,
 			ua.QualifiedName{NamespaceIndex: nsIndex, Name: name},
@@ -293,6 +378,9 @@ func (s *Server) buildAddressSpace() error {
 			},
 			0,
 		)
+		if err := s.srv.NamespaceManager().AddNode(node); err != nil {
+			zap.L().Error("Failed to add OPC UA Object Node", zap.String("node_id", fmt.Sprintf("%v", nodeID)), zap.Error(err))
+		}
 		return nodeID
 	}
 
@@ -303,51 +391,10 @@ func (s *Server) buildAddressSpace() error {
 
 		// Create VariableNode
 		// NewVariableNode signature: (server, nodeID, browseName, displayName, description, rolePermissions, references, value, dataType, valueRank, arrayDimensions, accessLevel, minimumSamplingInterval, historizing, historian)
-		// We are passing writeHandler to historian? No, the last argument is Historian.
-		// Wait, where is WriteHandler?
-		// Looking at search results snippet 2:
-		// func NewVariableNode(..., historizing bool, historian HistoryReadWriter) *VariableNode
-		// It seems NewVariableNode DOES NOT accept WriteHandler in constructor!
-		// It might be set via a method or it's not supported directly via constructor.
-		// But wait, the search result snippet 4 showed someone using `getRolePermissions`.
-		// Let's check VariableNode methods.
-		// If constructor doesn't take it, maybe we set it after creation?
-		// v.SetWriteHandler?
-		// But I got "undefined: server.WriteHandler" earlier when I tried to use the type.
-		// This suggests `server.WriteHandler` type is NOT exported or doesn't exist.
-		// And NewVariableNode doesn't take it.
-		// So how to intercept writes?
-		// Maybe by implementing a custom Node? No, VariableNode is concrete.
-		// Ah, awcullen/opcua server usually handles writes internally.
-		// If we want to intercept, we might need to look at `server.New`.
-		// But `server.New` takes options.
-		// Maybe `server.WithWriteHandler`? No.
 
-		// Let's look at `VariableNode` struct definition if possible.
-		// But I can't read library code directly.
-		// However, I can try to set `OnWrite` or something similar if it exists.
-		// OR, maybe the library uses a callback mechanism on the Server object?
-
-		// Alternative: `awcullen/opcua` might not support per-node write callback easily in this version.
-		// BUT, I see `server.HistoryReadWriter` interface in the error message.
-		// `func(ns *server.NamespaceManager, sess *server.Session, req *ua.WriteValue) ua.StatusCode` does not implement `server.HistoryReadWriter`.
-		// This confirms the last argument is indeed `HistoryReadWriter`.
-		// So `NewVariableNode` definitely does NOT take a WriteHandler as last argument.
-
-		// I will create the node without write handler first, and then try to set it.
-		// If `v.SetWriteHandler` doesn't exist (likely), I might be stuck unless I find the right API.
-		// Let's assume for a moment that we can't intercept writes easily.
-		// But that would be a major limitation.
-		// Wait, `ua.StatusCode` constants are also undefined?
-		// `ua.StatusCodeBadWriteNotSupported` undefined.
-		// I need to find correct constants.
-		// Usually they are `ua.Status...`.
-
-		// Let's fix constants first:
-		// ua.StatusCodeGood -> ua.StatusOK (0) ? No, `ua.StatusOK` was undefined too?
-		// `ua.StatusCodeGood` is 0.
-		// `ua.StatusBadWriteNotSupported` -> `ua.StatusCodeBadWriteNotSupported`?
-		// Let's check `ua` package constants.
+		// Note: writeHandler is not directly supported by NewVariableNode in this version.
+		// We would need to implement a custom node or hook into the server if we want to intercept writes.
+		// For now, we proceed with standard variable creation.
 
 		v := server.NewVariableNode(
 			s.srv,
@@ -368,6 +415,10 @@ func (s *Server) buildAddressSpace() error {
 			false,
 			nil, // Historian
 		)
+
+		if err := s.srv.NamespaceManager().AddNode(v); err != nil {
+			zap.L().Error("Failed to add OPC UA Variable Node", zap.String("node_id", fmt.Sprintf("%v", nodeID)), zap.Error(err))
+		}
 
 		// Attempt to set WriteHandler if possible.
 		// Since I can't find SetWriteHandler, and NewVariableNode doesn't take it...
@@ -403,9 +454,14 @@ func (s *Server) buildAddressSpace() error {
 
 	channelsID := createFolder(gatewayID, "Gateway/Channels", "Channels")
 
-	for _, ch := range s.sb.GetChannels() {
+	channels := s.sb.GetChannels()
+	zap.L().Info("Building OPC UA Address Space", zap.Int("channel_count", len(channels)))
+
+	for _, ch := range channels {
 		chNodeIDStr := fmt.Sprintf("Channels/%s", ch.ID)
-		chNodeID := createFolder(channelsID, chNodeIDStr, ch.Name)
+		// Use ID as BrowseName to ensure consistency with user request
+		zap.L().Info("Adding OPC UA Channel Node", zap.String("channel_id", ch.ID), zap.String("channel_name", ch.Name))
+		chNodeID := createFolder(channelsID, chNodeIDStr, ch.ID)
 
 		createVar(chNodeID, chNodeIDStr+"/Protocol", "Protocol", ch.Protocol, s.getDataTypeID("string"), 1, nil)
 		createVar(chNodeID, chNodeIDStr+"/Status", "Status", "Running", s.getDataTypeID("string"), 1, nil)
@@ -414,8 +470,20 @@ func (s *Server) buildAddressSpace() error {
 		devsNodeID := createFolder(chNodeID, devsNodeIDStr, "Devices")
 
 		for _, dev := range ch.Devices {
+			// Check if device is enabled in config
+			// If config.Devices is empty, we assume "Allow All" for better UX.
+			// If config.Devices is populated, we apply strict filtering.
+			if s.config.Devices != nil && len(s.config.Devices) > 0 {
+				if enabled, ok := s.config.Devices[dev.ID]; !ok || !enabled {
+					zap.L().Debug("Skipping OPC UA Device Node (Not Enabled)", zap.String("device_id", dev.ID))
+					continue
+				}
+			}
+
 			dNodeIDStr := devsNodeIDStr + "/" + dev.ID
-			dNodeID := createFolder(devsNodeID, dNodeIDStr, dev.Name)
+			zap.L().Info("Adding OPC UA Device Node", zap.String("device_id", dev.ID), zap.String("device_name", dev.Name))
+			// Use ID as BrowseName
+			dNodeID := createFolder(devsNodeID, dNodeIDStr, dev.ID)
 
 			createVar(dNodeID, dNodeIDStr+"/Vendor", "Vendor", getString(dev.Config, "vendor_name"), s.getDataTypeID("string"), 1, nil)
 			createVar(dNodeID, dNodeIDStr+"/Model", "Model", getString(dev.Config, "model_name"), s.getDataTypeID("string"), 1, nil)
@@ -446,7 +514,13 @@ func (s *Server) buildAddressSpace() error {
 						// Extract value
 						val := req.Value.Value
 
-						log.Printf("[OPC UA Write] Writing to device: %s/%s/%s Value: %v", cid, did, pid, val)
+						zap.L().Info("OPC UA Write Request",
+							zap.String("channel_id", cid),
+							zap.String("device_id", did),
+							zap.String("point_id", pid),
+							zap.Any("value", val),
+							zap.String("component", "opcua-server"),
+						)
 
 						// Update stats
 						s.mu.Lock()
@@ -457,7 +531,13 @@ func (s *Server) buildAddressSpace() error {
 						// Call Southbound Write
 						err := s.sb.WritePoint(cid, did, pid, val)
 						if err != nil {
-							log.Printf("[OPC UA Write Error] %v", err)
+							zap.L().Error("OPC UA Write Failed",
+								zap.String("channel_id", cid),
+								zap.String("device_id", did),
+								zap.String("point_id", pid),
+								zap.Error(err),
+								zap.String("component", "opcua-server"),
+							)
 							return ua.StatusCode(0x801F0000) // BadUserAccessDenied (approx) or BadInternalError
 						}
 
