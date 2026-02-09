@@ -40,7 +40,7 @@ Industrial Edge Gateway is a lightweight industrial edge computing gateway desig
     *   **UI Experience**: Modern console style, supports pagination (30 lines per page) and reverse ordering.
 *   **Visual Management**:
     *   Modern UI based on Vue 3 + Vuetify.
-    *   **Login Security**: Supports JWT authentication, login countdown protection.
+    *   **Login Security**: Supports JWT authentication, **LDAP / Active Directory integration** (configurable via System Settings), login countdown protection.
     *   **View Switching**: Channel list supports card/list view switching.
     *   **Interaction Upgrade**: Collection channel configuration supports **ID Auto-generation**, regex validation, and embedded help documentation to improve configuration efficiency.
     *   **Northbound Management**: Provides OPC UA Server security configuration (User/Certificate) and real-time runtime status monitoring dashboard.
