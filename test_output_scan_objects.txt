@@ -1,1 +1,0 @@
-GetFileAttributesEx cmd/test_scan_objects/main.go: The system cannot find the path specified.
