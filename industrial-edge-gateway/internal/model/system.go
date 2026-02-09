@@ -84,7 +84,22 @@ type SystemConfig struct {
 	Routes              []StaticRoute        `json:"routes"`
 	HA                  HAConfig             `json:"ha"`
 	Hostname            HostnameConfig       `json:"hostname"`
+	LDAP                LDAPConfig           `json:"ldap"`
 	ConnectivityTargets []ConnectivityTarget `json:"connectivity_targets,omitempty"`
+}
+
+// LDAPConfig represents LDAP authentication settings
+type LDAPConfig struct {
+	Enabled      bool   `json:"enabled"`
+	Server       string `json:"server"`        // e.g., ldap.example.com
+	Port         int    `json:"port"`          // e.g., 389 or 636
+	BaseDN       string `json:"base_dn"`       // e.g., dc=example,dc=com
+	BindDN       string `json:"bind_dn"`       // e.g., cn=admin,dc=example,dc=com (optional for anonymous bind)
+	BindPassword string `json:"bind_password"` // (optional)
+	UserFilter   string `json:"user_filter"`   // e.g., (uid=%s) or (sAMAccountName=%s)
+	Attributes   string `json:"attributes"`    // e.g., "uid,cn,mail"
+	UseSSL       bool   `json:"use_ssl"`       // LDAPS
+	SkipVerify   bool   `json:"skip_verify"`   // Skip SSL verification
 }
 
 // ConnectivityTarget represents a target to verify network connectivity

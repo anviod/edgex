@@ -34,6 +34,21 @@
       </div>
 
       <v-form ref="loginFormRef" @submit.prevent="handleLogin">
+        <!-- Login Method Toggle -->
+        <div class="d-flex justify-center mb-4">
+            <v-btn-toggle
+                v-model="ctxData.loginMethod"
+                mandatory
+                rounded="xl"
+                color="primary"
+                density="compact"
+                class="login-method-toggle"
+            >
+                <v-btn value="local" size="small" prepend-icon="mdi-account-circle">本地登录</v-btn>
+                <v-btn value="ldap" size="small" prepend-icon="mdi-domain">LDAP 登录</v-btn>
+            </v-btn-toggle>
+        </div>
+
         <!-- HTML5 Username Input -->
         <div class="custom-input-group mb-4">
             <div class="input-icon">
@@ -138,6 +153,7 @@ const ctxData = reactive({
     userName: '',
     password: '',
   },
+  loginMethod: 'local',
   loading: false,
   rememberMe: false,
   configInfo: config.configInfo || {},
@@ -287,14 +303,21 @@ const handleLogin = async () => {
       await getNonce()
     }
 
-    // 密码加密
-    const hashedPwd = sha256(ctxData.loginForm.password + ctxData.nonce).toString(encHex)
+    let passwordToSend = ''
+    if (ctxData.loginMethod === 'ldap') {
+      // LDAP 模式：发送原始密码
+      passwordToSend = ctxData.loginForm.password
+    } else {
+      // 本地模式：发送 Hash 密码
+      passwordToSend = sha256(ctxData.loginForm.password + ctxData.nonce).toString(encHex)
+    }
 
     const loginData = {
       loginFlag: true,
+      loginType: ctxData.loginMethod,
       data: {
         username: ctxData.loginForm.userName,
-        password: hashedPwd,
+        password: passwordToSend,
         nonce: ctxData.nonce,
       },
       token: '',

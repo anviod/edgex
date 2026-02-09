@@ -10,6 +10,7 @@
           <v-tab value="routes">静态路由</v-tab>
           <v-tab value="ha">双机热备</v-tab>
           <v-tab value="hostname">主机名</v-tab>
+          <v-tab value="ldap">LDAP 设置</v-tab>
           <v-tab value="status">系统状态</v-tab>
         </v-tabs>
       </v-toolbar>
@@ -227,7 +228,41 @@
             </v-row>
           </v-window-item>
 
-          <!-- 6. System Status -->
+          <!-- 6. LDAP Settings -->
+          <v-window-item value="ldap">
+            <v-row>
+              <v-col cols="12" md="6">
+                <v-card variant="outlined" class="pa-4">
+                  <v-card-title>LDAP 连接配置</v-card-title>
+                  <v-switch label="启用 LDAP 登录" v-model="ldapConfig.enabled" color="primary"></v-switch>
+                  <v-text-field label="服务器地址" v-model="ldapConfig.server" placeholder="ldap.example.com"></v-text-field>
+                  <v-text-field label="端口" v-model.number="ldapConfig.port" type="number" placeholder="389"></v-text-field>
+                  <v-text-field label="Base DN" v-model="ldapConfig.base_dn" placeholder="dc=example,dc=com"></v-text-field>
+                  <v-row>
+                    <v-col cols="6">
+                      <v-switch label="使用 SSL (LDAPS)" v-model="ldapConfig.use_ssl" color="primary"></v-switch>
+                    </v-col>
+                    <v-col cols="6">
+                      <v-switch label="跳过证书验证" v-model="ldapConfig.skip_verify" color="warning" :disabled="!ldapConfig.use_ssl"></v-switch>
+                    </v-col>
+                  </v-row>
+                </v-card>
+              </v-col>
+
+              <v-col cols="12" md="6">
+                <v-card variant="outlined" class="pa-4">
+                  <v-card-title>认证与搜索配置</v-card-title>
+                  <v-text-field label="Bind DN (留空则匿名)" v-model="ldapConfig.bind_dn" placeholder="cn=admin,dc=example,dc=com"></v-text-field>
+                  <v-text-field label="Bind Password" v-model="ldapConfig.bind_password" type="password"></v-text-field>
+                  <v-text-field label="用户过滤器" v-model="ldapConfig.user_filter" placeholder="(uid=%s)" hint="%s 将被替换为用户名"></v-text-field>
+                  <v-text-field label="属性映射" v-model="ldapConfig.attributes" placeholder="uid,cn,mail"></v-text-field>
+                  <v-btn color="primary" block class="mt-4" @click="saveConfig">应用 LDAP 设置</v-btn>
+                </v-card>
+              </v-col>
+            </v-row>
+          </v-window-item>
+
+          <!-- 7. System Status -->
           <v-window-item value="status">
             <v-alert type="success" variant="tonal" class="mb-4">系统运行正常</v-alert>
             <v-btn color="warning" class="mr-2">重启系统</v-btn>
@@ -428,6 +463,20 @@ const hostnameConfig = reactive({
   interfaces: []
 })
 
+// LDAP Config
+const ldapConfig = reactive({
+  enabled: false,
+  server: '',
+  port: 389,
+  base_dn: '',
+  bind_dn: '',
+  bind_password: '',
+  user_filter: '(uid=%s)',
+  attributes: '',
+  use_ssl: false,
+  skip_verify: false
+})
+
 const API_BASE = '/api/system'
 
 const loadConfig = async () => {
@@ -442,6 +491,7 @@ const loadConfig = async () => {
     if (configData.routes) staticRoutes.value = configData.routes
     if (configData.ha) Object.assign(haConfig, configData.ha)
     if (configData.hostname) Object.assign(hostnameConfig, configData.hostname)
+    if (configData.ldap) Object.assign(ldapConfig, configData.ldap)
 
     if (Array.isArray(netRes)) {
       const liveInterfaces = netRes
@@ -471,7 +521,8 @@ const saveConfig = async () => {
     network: networkInterfaces.value,
     routes: staticRoutes.value,
     ha: haConfig,
-    hostname: hostnameConfig
+    hostname: hostnameConfig,
+    ldap: ldapConfig
   }
   
   try {

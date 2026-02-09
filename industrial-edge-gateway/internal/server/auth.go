@@ -243,7 +243,8 @@ func ClearLoginFail(ip string) {
 
 // LoginRequest defines the login payload
 type LoginRequest struct {
-	LoginFlag bool `json:"loginFlag"`
+	LoginFlag bool   `json:"loginFlag"`
+	LoginType string `json:"loginType"` // "local" or "ldap"
 	Data      struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -313,20 +314,40 @@ func (s *Server) handleLogin(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"code": "1", "msg": "加密已过期或无效，请刷新页面"})
 	}
 
-	// 2. Get User
-	user, found := s.sm.GetUser(req.Data.Username)
-	if !found {
-		AddLoginFail(ip)
-		return c.JSON(fiber.Map{"code": "1", "msg": "用户不存在"})
-	}
+	var user *model.UserConfig
+	var found bool
 
-	// 3. Verify Password
-	expected := sha256.Sum256([]byte(user.Password + req.Data.Nonce))
-	expectedHex := hex.EncodeToString(expected[:])
+	if req.LoginType == "ldap" {
+		// LDAP Authentication
+		var err error
+		var success bool
+		success, user, err = s.AuthenticateLDAP(req.Data.Username, req.Data.Password)
+		if !success {
+			AddLoginFail(ip)
+			msg := "LDAP认证失败"
+			if err != nil {
+				msg = fmt.Sprintf("LDAP认证失败: %v", err)
+			}
+			return c.JSON(fiber.Map{"code": "1", "msg": msg})
+		}
+		found = true
+	} else {
+		// Local Authentication (Default)
+		// 2. Get User
+		user, found = s.sm.GetUser(req.Data.Username)
+		if !found {
+			AddLoginFail(ip)
+			return c.JSON(fiber.Map{"code": "1", "msg": "用户不存在"})
+		}
 
-	if req.Data.Password != expectedHex {
-		AddLoginFail(ip)
-		return c.JSON(fiber.Map{"code": "1", "msg": "密码错误"})
+		// 3. Verify Password
+		expected := sha256.Sum256([]byte(user.Password + req.Data.Nonce))
+		expectedHex := hex.EncodeToString(expected[:])
+
+		if req.Data.Password != expectedHex {
+			AddLoginFail(ip)
+			return c.JSON(fiber.Map{"code": "1", "msg": "密码错误"})
+		}
 	}
 
 	// 4. Login Success
