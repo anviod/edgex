@@ -1,207 +1,211 @@
 # Industrial Edge Gateway
 
-Industrial Edge Gateway 是一个轻量级的工业边缘计算网关，旨在连接工业现场设备（南向）与云端/上层应用（北向），并提供本地边缘计算能力。项目采用 Go 语言开发后端，Vue 3 开发前端管理界面。
+[中文文档](./README_CN.md)
+
+Industrial Edge Gateway is a lightweight industrial edge computing gateway designed to connect industrial field devices (Southbound) with cloud/upper-layer applications (Northbound) and provide local edge computing capabilities. The project uses Go for the backend and Vue 3 for the frontend management interface.
 
 <div align="center">
   <img src="./industrial-edge-gateway/docs/img/首页监控.png" width="800" />
 </div>
 
-## ✨ 主要特性
+## ✨ Key Features
 
-### 🔌 南向采集协议 (Southbound)
+### 🔌 Southbound Protocols
 
-| 协议 | 状态 | 说明 |
+| Protocol | Status | Description |
 | :--- | :--- | :--- |
-| **Modbus TCP / RTU / RTU Over TCP** | ✅ 已实现 | 完整支持，基于 `simonvetter/modbus`；**增强解码器**：支持 `int32`/`uint32`/`int16`/`uint16` 等多种整数类型转换与自动缩放 |
-| **BACnet IP** | ✅ 已实现 | 支持设备发现 (Who-Is/I-Am)、多网口广播 + 单播回退（尊重 I-Am 源端口）、对象扫描与点位读写、批量读失败自动回退到单读、异常端口回退至 47808、读超时与自动恢复优化。**新增本地模拟器支持**：针对 Windows 本地运行的模拟器，自动尝试 localhost 单播发现。 |
-| **OPC UAClient** | ✅ 已实现 | 基于 `gopcua/opcua` 实现，支持读写操作、订阅 (Subscription) 与监控 (Monitoring)，支持断线自动重连 |
-| **Siemens S7** | 🚧 开发中 | 支持 S7-200Smart/1200/1500 等 (定制开发) |
-| **EtherNet/IP (ODVA)** | 🚧 开发中 | 开发实现 |
-| **Mitsubishi MELSEC (SLMP)** | 🚧 开发中 | 开发实现 |
-| **Omron FINS (TCP/UDP)** | 🚧 开发中 | 开发实现 |
-| **DL/T645-2007** | 🚧 开发中 | 开发实现 |
+| **Modbus TCP / RTU / RTU Over TCP** | ✅ Implemented | Full support, based on `simonvetter/modbus`; **Enhanced Decoder**: Supports conversion and automatic scaling for multiple integer types like `int32`/`uint32`/`int16`/`uint16` |
+| **BACnet IP** | ✅ Implemented | Supports device discovery (Who-Is/I-Am), multi-interface broadcast + unicast fallback (respects I-Am source port), object scanning and point read/write, automatic fallback to single read upon batch read failure, fallback to 47808 on abnormal ports, read timeout and automatic recovery optimization. **New Local Simulator Support**: Automatically attempts localhost unicast discovery for simulators running locally on Windows. |
+| **OPC UA Client** | ✅ Implemented | Based on `gopcua/opcua`, supports read/write operations, Subscription and Monitoring, supports automatic reconnection on disconnection |
+| **Siemens S7** | 🚧 In Development | Supports S7-200Smart/1200/1500 etc. (Custom Development) |
+| **EtherNet/IP (ODVA)** | 🚧 In Development | Planned implementation |
+| **Mitsubishi MELSEC (SLMP)** | 🚧 In Development | Planned implementation |
+| **Omron FINS (TCP/UDP)** | 🚧 In Development | Planned implementation |
+| **DL/T645-2007** | 🚧 In Development | Planned implementation |
 
-### ☁️ 北向上报协议 (Northbound)
+### ☁️ Northbound Protocols
 
-| 协议 | 状态 | 说明 |
+| Protocol | Status | Description |
 | :--- | :--- | :--- |
-| **MQTT** | ✅ 已实现 | 支持自定义 Topic、Payload 模板 支持批量点位映射与反向控制，提供服务端运行监控（数据统计）|
-| **Sparkplug B** | ✅ 已实现 | 支持 NBIRTH, NDEATH, DDATA 消息规范 |
-| **OPC UAServer** | ✅ 已实现 | 基于 `awcullen/opcua` 实现，支持多种认证方式（匿名/用户名/证书）；**安全增强**：启用 `Basic256Sha256` 策略与证书信任机制；**双向互通**：支持客户端写入操作（云端反控）；提供服务端运行监控（客户端数/订阅数/写统计） |
+| **MQTT** | ✅ Implemented | Supports custom Topic/Payload templates, batch point mapping and reverse control, provides server runtime monitoring (data statistics) |
+| **Sparkplug B** | ✅ Implemented | Supports NBIRTH, NDEATH, DDATA message specifications |
+| **OPC UA Server** | ✅ Implemented | Based on `awcullen/opcua`, supports multiple authentication methods (Anonymous/User/Certificate); **Security Enhancement**: Enables `Basic256Sha256` policy and certificate trust mechanism; **Bi-directional**: Supports client write operations (Cloud Control); provides server runtime monitoring (Client count/Subscription count/Write statistics) |
 
-### 🧠 边缘计算 & 管理
-*   **规则引擎**: 内置轻量级规则引擎，支持 `expr` 表达式进行逻辑判断和联动控制。
-*   **日志系统**:
-    *   **实时日志**: 支持 WebSocket 实时推送，具备暂停/继续、日志级别筛选（INFO/WARN/ERROR等）、清屏功能。
-    *   **历史日志**: 分钟级快照持久化（bbolt），支持按日期查询与 CSV 导出。
-    *   **UI体验**: 现代化控制台风格，支持分页显示（每页30行）与倒序排列。
-*   **可视化管理**:
-    *   基于 Vue 3 + Vuetify 的现代化 UI。
-    *   **登录安全**: 支持 JWT 认证、登录倒计时保护。
-    *   **视图切换**: 通道列表支持卡片/列表视图切换。
-    *   **交互升级**: 采集通道配置支持 **ID 自动生成**、正则校验与嵌入式帮助文档，提升配置效率。
-    *   **北向管理**: 提供 OPC UAServer 安全配置（用户/证书）与实时运行状态监控看板。
-*   **配置管理**: 采用模块化 YAML 配置 (`conf/` 目录)，支持热重载（部分）。
-*   **离线支持**: 前端依赖已优化，支持完全离线局域网运行。
+### 🧠 Edge Computing & Management
 
-## 🧠 边缘计算指南 (Edge Computing Guide)
+*   **Rule Engine**: Built-in lightweight rule engine supporting `expr` expressions for logic judgment and linkage control.
+*   **Log System**:
+    *   **Real-time Logs**: Supports WebSocket real-time push, pause/resume, log level filtering (INFO/WARN/ERROR, etc.), and clear screen.
+    *   **Historical Logs**: Minute-level snapshot persistence (bbolt), supports query by date and CSV export.
+    *   **UI Experience**: Modern console style, supports pagination (30 lines per page) and reverse ordering.
+*   **Visual Management**:
+    *   Modern UI based on Vue 3 + Vuetify.
+    *   **Login Security**: Supports JWT authentication, login countdown protection.
+    *   **View Switching**: Channel list supports card/list view switching.
+    *   **Interaction Upgrade**: Collection channel configuration supports **ID Auto-generation**, regex validation, and embedded help documentation to improve configuration efficiency.
+    *   **Northbound Management**: Provides OPC UA Server security configuration (User/Certificate) and real-time runtime status monitoring dashboard.
+*   **Configuration Management**: Modular YAML configuration (`conf/` directory), supports hot reload (partial).
+*   **Offline Support**: Frontend dependencies optimized for fully offline LAN operation.
 
-本网关内置强大的边缘计算引擎，支持基于规则的本地联动控制，特别针对工业位操作（Bitwise Operations）进行了深度优化。
+## 🧠 Edge Computing Guide
 
-### 1. 表达式语法 (Expression Syntax)
+The gateway features a powerful built-in edge computing engine, supporting rule-based local linkage control, specifically optimized for industrial bitwise operations.
 
-规则引擎兼容 `expr` 语言，并扩展了工业场景专用的语法糖：
+### 1. Expression Syntax
 
-#### 基础变量
-*   `v`: 当前点位的实时值 (Value)。
+The rule engine is compatible with `expr` language and extends syntax sugar for industrial scenarios:
 
-#### 位操作增强
-针对 PLC/控制器常见的位逻辑，支持 **1-based** (v.N) 和 **0-based** (v.bit.N) 两种风格：
+#### Basic Variables
+*   `v`: Real-time value of the current point.
 
-| 语法/函数 | 索引方式 | 说明 | 等效函数 |
+#### Bitwise Operation Enhancements
+Targeting common bit logic in PLCs/Controllers, supports **1-based** (v.N) and **0-based** (v.bit.N) styles:
+
+| Syntax/Function | Indexing | Description | Equivalent Function |
 | :--- | :--- | :--- | :--- |
-| **`v.N`** | **1-based** | 获取第 N 位 (从1开始) | `bitget(v, N-1)` |
-| **`v.bit.N`** | **0-based** | 获取第 N 位 (索引从0开始) | `bitget(v, N)` |
+| **`v.N`** | **1-based** | Get Nth bit (starting from 1) | `bitget(v, N-1)` |
+| **`v.bit.N`** | **0-based** | Get Nth bit (index starting from 0) | `bitget(v, N)` |
 
-**内置位运算函数**:
-*   `bitget(v, n)`: 获取第 n 位 (0/1)
-*   `bitset(v, n)`: 将第 n 位置 1
-*   `bitclr(v, n)`: 将第 n 位置 0
+**Built-in Bitwise Functions**:
+*   `bitget(v, n)`: Get nth bit (0/1)
+*   `bitset(v, n)`: Set nth bit to 1
+*   `bitclr(v, n)`: Set nth bit to 0
 *   `bitand(a, b)`, `bitor(a, b)`, `bitxor(a, b)`, `bitnot(a)`
-*   `bitshl(v, n)` (左移), `bitshr(v, n)` (右移)
+*   `bitshl(v, n)` (Left Shift), `bitshr(v, n)` (Right Shift)
 
-### 2. 智能写入机制 (Read-Modify-Write)
+### 2. Intelligent Write Mechanism (Read-Modify-Write)
 
-当对寄存器进行位操作写入时，网关采用 **RMW (读-改-写)** 机制，确保**不破坏其他位的状态**。
+When performing bitwise writes to a register, the gateway uses a **RMW (Read-Modify-Write)** mechanism to ensure **other bits remain unaffected**.
 
-*   **场景**: 仅修改 16位 状态字中的第 4 位 (v.4)，保持第 1-3 位不变。
-*   **流程**:
-    1.  **Read**: 驱动读取当前点位完整值 (e.g., `0001`)。
-    2.  **Modify**: 根据公式 `v.4` (置位) 计算新值 (`1001`)。
-    3.  **Write**: 将新值 `1001` 写入设备。
-*   **配置**: 在动作 (Action) 的写入公式中直接使用 `v.N` 即可触发此机制。
+*   **Scenario**: Modify only the 4th bit (v.4) of a 16-bit status word, keeping bits 1-3 unchanged.
+*   **Process**:
+    1.  **Read**: Driver reads the current full value of the point (e.g., `0001`).
+    2.  **Modify**: Calculate new value (`1001`) based on formula `v.4` (Set bit).
+    3.  **Write**: Write the new value `1001` to the device.
+*   **Configuration**: Directly use `v.N` in the Action write formula to trigger this mechanism.
 
-### 3. 批量控制 (Batch Control)
-支持单条规则触发多个设备的动作：
-*   **多目标**: 在 UI 中为同一个动作添加多个 Target (设备+点位)。
-*   **并行执行**: 引擎会自动并发处理所有目标的写入请求。
+### 3. Batch Control
 
-### 4. UI 辅助
-*   **表达式测试**: 规则编辑器内置“计算器”图标，可实时测试表达式结果。
-*   **函数文档**: 点击“查看函数文档”可浏览完整支持的函数列表与示例。
+Supports triggering actions on multiple devices with a single rule:
+*   **Multi-target**: Add multiple Targets (Device + Point) for the same action in the UI.
+*   **Parallel Execution**: The engine automatically handles write requests for all targets concurrently.
 
-## 🛠️ 技术栈
+### 4. UI Assistance
+*   **Expression Test**: Rule editor includes a "Calculator" icon for real-time expression result testing.
+*   **Function Docs**: Click "View Function Documentation" to browse the complete list of supported functions and examples.
 
-*   **后端**: Go 1.25+
-    *   Web 框架: [Fiber](https://github.com/gofiber/fiber)
+## 🛠️ Tech Stack
+
+*   **Backend**: Go 1.25+
+    *   Web Framework: [Fiber](https://github.com/gofiber/fiber)
     *   MQTT: [Paho MQTT](https://github.com/eclipse/paho.mqtt.golang)
     *   Modbus: [simonvetter/modbus](https://github.com/simonvetter/modbus)
     *   OPC UA: [gopcua/opcua](https://github.com/gopcua/opcua)
-    *   表达式引擎: [expr](https://github.com/expr-lang/expr)
-*   **前端**: Vue 3
-    *   构建工具: Vite
-    *   UI 库: Vuetify 3
-    *   路由: Vue Router 4
-    *   HTTP 客户端: Axios (带自动 Token 注入)
+    *   Expression Engine: [expr](https://github.com/expr-lang/expr)
+*   **Frontend**: Vue 3
+    *   Build Tool: Vite
+    *   UI Library: Vuetify 3
+    *   Router: Vue Router 4
+    *   HTTP Client: Axios (with automatic Token injection)
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 前置要求
+### Prerequisites
 *   [Go](https://go.dev/dl/) 1.25+
-*   [Node.js](https://nodejs.org/) 16+ (仅用于编译前端)
+*   [Node.js](https://nodejs.org/) 16+ (Only for compiling frontend)
 
-### 1. 启动后端
+### 1. Start Backend
 
-后端支持通过 `-conf` 参数指定配置目录（默认为 `./conf`）。
+The backend supports specifying the configuration directory via `-conf` parameter (default is `./conf`).
 
 ```bash
-# 获取依赖
+# Get dependencies
 go mod tidy
 
-# 运行网关
+# Run gateway
 go run cmd/main.go
 
-# 或者指定配置目录
+# Or specify config directory
 go run cmd/main.go -conf ./conf/
 ```
 
-### 2. 编译前端
+### 2. Compile Frontend
 
-前端代码位于 `ui/` 目录下。生产环境构建后，后端会自动托管 `ui/dist` 静态资源。
+Frontend code is located in the `ui/` directory. After production build, the backend automatically hosts `ui/dist` static resources.
 
 ```bash
 cd ui
 
-# 安装依赖 (建议使用 npm 或 pnpm)
+# Install dependencies (npm or pnpm recommended)
 npm install
 
-# 编译生产环境代码
+# Build for production
 npm run build
 ```
 
-访问 `http://localhost:8082` (默认端口) 即可进入管理界面。  
-默认账号见 `conf/users.yaml`（admin / passwd@123）。
+Access `http://localhost:8082` (default port) to enter the management interface.
+Default account see `conf/users.yaml` (admin / passwd@123).
 
-### 3. 设备扫描与点位管理（BACnet）
-- 通道页面进入设备 → 点位列表 → 点击“扫描点位”即可从设备读取对象列表（并行富化 Vendor/Model/ObjectName/当前值）。
-- 勾选后点击“添加选定点位”，系统将以 `Type:Instance` 地址和合适的数据类型（AI/AV→float32，Binary→bool，MultiState→uint16）批量注册。
-- 发现流程：优先单播 WhoIs（目标 IP/端口），失败后进行多网口广播；仍失败时使用配置地址回退构造设备并标记为离线。
-- 扫描结果结构（示例字段）：`device_id`, `ip`, `port`, `vendor_name`, `model_name`, `object_name`。
-- 读取策略：批量读取失败时自动回退到单属性读取；读取/传输层超时已提升（典型 10s）并配合 30s 冷却的自动恢复机制。
-- 端口策略：尊重设备 I-Am 的源端口进行后续单播通信，异常时回退到标准端口 47808。
-- 网关通过 WebSocket 将最新值实时推送到前端，列表可见质量标签（Good/Bad）与时间戳。
-- 本机同时运行网关与模拟器时，如遇 47808 端口冲突，请将网关绑定到指定网卡 IP（例如 `192.168.3.106:47808`）而非 `0.0.0.0:47808`。
+### 3. Device Scanning & Point Management (BACnet)
+- Go to Channel page -> Devices -> Point List -> Click "Scan Points" to read object list from device (Parallel enrichment of Vendor/Model/ObjectName/Current Value).
+- Select and click "Add Selected Points", the system will batch register using `Type:Instance` address and appropriate data types (AI/AV→float32, Binary→bool, MultiState→uint16).
+- Discovery Process: Prioritizes Unicast WhoIs (Target IP/Port), falls back to multi-interface broadcast on failure; if still fails, constructs device using configured address and marks as offline.
+- Scan Result Structure (Example fields): `device_id`, `ip`, `port`, `vendor_name`, `model_name`, `object_name`.
+- Read Strategy: Auto-fallback to single property read on batch read failure; Read/Transport timeout increased (typically 10s) coupled with 30s cooldown auto-recovery mechanism.
+- Port Strategy: Respects device I-Am source port for subsequent unicast communication, falls back to standard port 47808 on abnormality.
+- Gateway pushes latest values to frontend via WebSocket in real-time, list shows Quality tags (Good/Bad) and timestamp.
+- When running Gateway and Simulator on the same machine, if 47808 port conflict occurs, please bind Gateway to a specific NIC IP (e.g., `192.168.3.106:47808`) instead of `0.0.0.0:47808`.
 
-### 4. OPC UA 服务端指南 (OPC UA Server Guide)
+### 4. OPC UA Server Guide
 
-网关内置高性能 OPC UA 服务端，支持标准 OPC UA 客户端（如 UaExpert, Prosys）直接连接，实现数据监控与云端反控。
+The gateway features a built-in high-performance OPC UA Server, supporting direct connection from standard OPC UA Clients (e.g., UaExpert, Prosys) for data monitoring and cloud control.
 
-- **安全连接 (Security)**:
-  - 默认启用 `Basic256Sha256` (SignAndEncrypt) 安全策略。
-  - **证书管理**: 自动生成有效期 10 年的自签名证书。首次连接时若提示证书不可信，请在客户端信任网关证书。
-  - **用户认证**: 支持 `admin` / `admin` (默认) 登录，也支持匿名访问（可配置）。
+- **Security**:
+  - `Basic256Sha256` (SignAndEncrypt) security policy enabled by default.
+  - **Certificate Management**: Automatically generates self-signed certificates valid for 10 years. If prompted as untrusted on first connection, please trust the gateway certificate in the client.
+  - **User Authentication**: Supports `admin` / `admin` (default) login, also supports Anonymous access (configurable).
 
-- **双向互通 (Bi-directional)**:
-  - **数据上报**: 所有南向通道采集的数据自动映射到 OPC UA 地址空间 (`Objects/Gateway/Channels/...`)。
-  - **反向控制**: 支持客户端直接修改点位值（Write Attribute），网关自动透传写入指令至底层设备（如 Modbus 寄存器），实现远程控制。
+- **Bi-directional Communication**:
+  - **Data Reporting**: All data collected from Southbound channels is automatically mapped to OPC UA address space (`Objects/Gateway/Channels/...`).
+  - **Reverse Control**: Supports clients directly modifying point values (Write Attribute), gateway automatically forwards write commands to underlying devices (e.g., Modbus registers) to achieve remote control.
 
-- **客户端连接示例 (UaExpert)**:
-  1. 添加服务器 URL: `opc.tcp://<Gateway_IP>:4840`
-  2. 选择安全策略 `Basic256Sha256 - Sign & Encrypt`。
-  3. 认证方式选择 `User & Password`，输入 `admin` / `admin`。
-  4. 连接并浏览 `Objects` -> `Gateway` -> `Channels` 查看实时数据。
+- **Client Connection Example (UaExpert)**:
+  1. Add Server URL: `opc.tcp://<Gateway_IP>:4840`
+  2. Select Security Policy `Basic256Sha256 - Sign & Encrypt`.
+  3. Authentication: Select `User & Password`, enter `admin` / `admin`.
+  4. Connect and browse `Objects` -> `Gateway` -> `Channels` to view real-time data.
 
 
-## 📡 API 概览
-- 所有 API 需要携带认证头：`Authorization: Bearer <token>`（默认账号见 `conf/users.yaml`）。
-- 扫描通道设备（多网口广播 + 单播回退）  
+## 📡 API Overview
+- All APIs require Authentication Header: `Authorization: Bearer <token>` (Default account in `conf/users.yaml`).
+- Scan Channel Devices (Multi-interface broadcast + Unicast fallback)
   POST `/api/channels/:channelId/scan`
-- 扫描设备对象（设备级，对 BACnet 注入 `device_id`/`ip`）  
+- Scan Device Objects (Device level, injects `device_id`/`ip` for BACnet)
   POST `/api/channels/:channelId/devices/:deviceId/scan`
-- 设备点位管理  
-  GET `/api/channels/:channelId/devices/:deviceId/points`  
-  POST `/api/channels/:channelId/devices/:deviceId/points`  
-  PUT `/api/channels/:channelId/devices/:deviceId/points/:pointId`  
+- Device Point Management
+  GET `/api/channels/:channelId/devices/:deviceId/points`
+  POST `/api/channels/:channelId/devices/:deviceId/points`
+  PUT `/api/channels/:channelId/devices/:deviceId/points/:pointId`
   DELETE `/api/channels/:channelId/devices/:deviceId/points/:pointId`
-- 实时数据订阅（WebSocket）  
+- Real-time Data Subscription (WebSocket)
   GET `/api/ws/values`
-- 边缘计算日志与导出  
-  GET `/api/edge/logs`  
+- Edge Computing Logs & Export
+  GET `/api/edge/logs`
   GET `/api/edge/logs/export`
 
-## ⚙️ 配置结构
+## ⚙️ Configuration Structure
 
-配置文件已拆分为模块化 YAML 文件，位于 `conf/` 目录：
+Configuration files are split into modular YAML files, located in `conf/` directory:
 
-*   `server.yaml`: HTTP 服务器端口、静态资源路径
-*   `channels.yaml`: 南向通道及设备配置
-*   `northbound.yaml`: 北向 MQTT/SparkplugB 配置
-*   `edge_rules.yaml`: 边缘计算规则配置
-*   `system.yaml`: 系统级网络配置
-*   `users.yaml`: 用户账号管理
-*   `storage.yaml`: 数据库路径配置
+*   `server.yaml`: HTTP Server port, static resource path
+*   `channels.yaml`: Southbound channel and device configuration
+*   `northbound.yaml`: Northbound MQTT/SparkplugB configuration
+*   `edge_rules.yaml`: Edge computing rule configuration
+*   `system.yaml`: System-level network configuration
+*   `users.yaml`: User account management
+*   `storage.yaml`: Database path configuration
 
-示例（BACnet 通道片段）：
+Example (BACnet Channel Fragment):
 
 ```yaml
 id: bac-test-1
@@ -226,92 +230,92 @@ devices:
 
 ## 📅 TODO / Roadmap
 
-### 核心驱动完善
-- [x] **OPC UAClient**: 对接 `gopcua/opcua` 实现真实读写。
-- [ ] **Siemens S7**: 实现 S7 协议的真实 TCP 通信。
-- [ ] **EtherNet/IP**: 实现 CIP/EIP 协议栈。
-- [ ] **其他驱动**: 逐步替换 Mitsubishi, Omron, DL/T645 的开发实现。
+### Core Driver Completion
+- [x] **OPC UA Client**: Implement real read/write via `gopcua/opcua`.
+- [ ] **Siemens S7**: Implement real TCP communication for S7 protocol.
+- [ ] **EtherNet/IP**: Implement CIP/EIP protocol stack.
+- [ ] **Other Drivers**: Gradually replace development implementation for Mitsubishi, Omron, DL/T645.
 
-### 北向增强
-- [x] **OPC UAServer**: 实现基于 `awcullen/opcua` 的服务端，支持多重认证（匿名/用户名/证书）与运行监控。
-- [ ] **HTTP Push**: 支持通过 HTTP POST 推送数据到第三方 HTTP 服务器。
+### Northbound Enhancement
+- [x] **OPC UA Server**: Implement server based on `awcullen/opcua`, support multiple auth (Anonymous/User/Cert) and runtime monitoring.
+- [ ] **HTTP Push**: Support pushing data to third-party HTTP servers via HTTP POST.
 
-### 系统功能
-- [ ] **真实系统监控**: 替换 Dashboard 中的模拟 CPU/内存数据为真实系统调用 (如 `gopsutil`)。
-- [ ] **日志持久化**: 提供基于文件的日志查看和下载功能。
-- [ ] **数据存储**: 增强时序数据存储能力（目前仅存储配置和少量状态）。
+### System Features
+- [ ] **Real System Monitor**: Replace simulated CPU/Memory data in Dashboard with real system calls (e.g., `gopsutil`).
+- [ ] **Log Persistence**: Provide file-based log viewing and download functions.
+- [ ] **Data Storage**: Enhance time-series data storage capabilities (currently only stores config and minimal state).
 
-## 📸 界面预览 (Gallery)
+## 📸 Gallery
 
-### 📊 概览与系统
+### 📊 Overview & System
 
-#### 登录页
-![登录页](./industrial-edge-gateway/docs/img/登录页.png)
+#### Login Page
+![Login Page](./industrial-edge-gateway/docs/img/登录页.png)
 
-#### 首页监控
-![首页监控](./industrial-edge-gateway/docs/img/首页监控.png)
+#### Dashboard
+![Dashboard](./industrial-edge-gateway/docs/img/首页监控.png)
 
-#### 系统设置
-![系统设置相关](./industrial-edge-gateway/docs/img/系统设置相关.png)
+#### System Settings
+![System Settings](./industrial-edge-gateway/docs/img/系统设置相关.png)
 
-### 🔌 南向采集 (BACnet / OPC UA)
+### 🔌 Southbound Acquisition (BACnet / OPC UA)
 
-#### 通道列表
-![南向通道采集](./industrial-edge-gateway/docs/img/南向通道采集.png)
+#### Channel List
+![Channel List](./industrial-edge-gateway/docs/img/南向通道采集.png)
 
-#### BACnet 设备发现
-![BACnet设备发现扫描](./industrial-edge-gateway/docs/img/BACnet设备发现扫描.png)
+#### BACnet Device Discovery
+![BACnet Device Discovery](./industrial-edge-gateway/docs/img/BACnet设备发现扫描.png)
 
-#### BACnet 设备发现结果
-![BACnet设备发现扫描结果](./industrial-edge-gateway/docs/img/BACnet设备发现扫描结果.png)
+#### BACnet Discovery Results
+![BACnet Discovery Results](./industrial-edge-gateway/docs/img/BACnet设备发现扫描结果.png)
 
-#### BACnet 点位扫描
-![BAC点位对象扫描发现](./industrial-edge-gateway/docs/img/BAC点位对象扫描发现.png)
+#### BACnet Point Scan
+![BACnet Point Scan](./industrial-edge-gateway/docs/img/BAC点位对象扫描发现.png)
 
-#### OPC UA模型扫描
-![OPC UA设备模型扫描](./industrial-edge-gateway/docs/img/OPC_UA_设备模型扫描.png)
+#### OPC UA Model Scan
+![OPC UA Model Scan](./industrial-edge-gateway/docs/img/OPC_UA_设备模型扫描.png)
 
-#### OPC UA模型扫描结果
-![OPC UA设备模型扫描结果](./industrial-edge-gateway/docs/img/OPC_UA_设备模型扫描结果.png)
+#### OPC UA Scan Results
+![OPC UA Scan Results](./industrial-edge-gateway/docs/img/OPC_UA_设备模型扫描结果.png)
 
-#### OPC UA数据订阅
-![OPC UA设备数据订阅](./industrial-edge-gateway/docs/img/OPC_UA_设备数据订阅.png)
+#### OPC UA Data Subscription
+![OPC UA Data Subscription](./industrial-edge-gateway/docs/img/OPC_UA_设备数据订阅.png)
 
-#### OPC UA数据转换
-![OPC UA设备数据转换](./industrial-edge-gateway/docs/img/OPC_UA_设备数据转换.png)
+#### OPC UA Data Transformation
+![OPC UA Data Transformation](./industrial-edge-gateway/docs/img/OPC_UA_设备数据转换.png)
 
-### 🧠 边缘计算
+### 🧠 Edge Computing
 
-#### 计算监控
-![边缘计算监控](./industrial-edge-gateway/docs/img/边缘计算监控.png)
+#### Computation Monitor
+![Edge Computing Monitor](./industrial-edge-gateway/docs/img/边缘计算监控.png)
 
-#### 规则配置
-![边缘计算规则配置](./industrial-edge-gateway/docs/img/边缘计算规则配置.png)
+#### Rule Configuration
+![Rule Configuration](./industrial-edge-gateway/docs/img/边缘计算规则配置.png)
 
-#### 边缘计算规则支持类型
-![边缘计算规则支持类型](./industrial-edge-gateway/docs/img/边缘计算规则支持类型.png)
+#### Supported Rule Types
+![Supported Rule Types](./industrial-edge-gateway/docs/img/边缘计算规则支持类型.png)
 
-#### 边缘计算规则支持动作类型
-![边缘计算规则支持动作类型](./industrial-edge-gateway/docs/img/边缘计算规则支持动作类型.png)
+#### Supported Action Types
+![Supported Action Types](./industrial-edge-gateway/docs/img/边缘计算规则支持动作类型.png)
 
 
 
-#### 规则帮助手册
-![边缘计算规则帮助手册](./industrial-edge-gateway/docs/img/边缘计算规则配置帮助文档.png)
+#### Rule Manual
+![Rule Manual](./industrial-edge-gateway/docs/img/边缘计算规则配置帮助文档.png)
 
-#### 规则日志
-![边缘计算规则运行日志查询导出](./industrial-edge-gateway/docs/img/边缘计算规则运行日志查询导出.png)
+#### Rule Logs
+![Rule Logs](./industrial-edge-gateway/docs/img/边缘计算规则运行日志查询导出.png)
 
-### ☁️ 北向数据
+### ☁️ Northbound Data
 
-#### 北向总览
-![北向数据共享总览页面](./industrial-edge-gateway/docs/img/北向数据共享总览页面.png)
+#### Northbound Overview
+![Northbound Overview](./industrial-edge-gateway/docs/img/北向数据共享总览页面.png)
 
-#### MQTT 监控
-![北向数据共享MQTT 运行监控](./industrial-edge-gateway/docs/img/北向数据共享MQTT运行监控.png)
+#### MQTT Monitor
+![MQTT Monitor](./industrial-edge-gateway/docs/img/北向数据共享MQTT运行监控.png)
 
-#### MQTT 手册
-![北向数据共享MQTT 帮助手册](./industrial-edge-gateway/docs/img/北向数据共享MQTT帮助手册.png)
+#### MQTT Manual
+![MQTT Manual](./industrial-edge-gateway/docs/img/北向数据共享MQTT帮助手册.png)
 
 ## 📄 License
 
