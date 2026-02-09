@@ -201,9 +201,19 @@ func (d *PointDecoder) reverseScaleOffset(point model.Point, value any) any {
 	switch v := value.(type) {
 	case float64:
 		fVal = v
+	case float32:
+		fVal = float64(v)
 	case int:
 		fVal = float64(v)
 	case int64:
+		fVal = float64(v)
+	case int32:
+		fVal = float64(v)
+	case uint32:
+		fVal = float64(v)
+	case int16:
+		fVal = float64(v)
+	case uint16:
 		fVal = float64(v)
 	case string:
 		fVal, _ = strconv.ParseFloat(v, 64)
@@ -229,6 +239,10 @@ func (d *PointDecoder) encodeRaw(point model.Point, value any) ([]uint16, error)
 			intVal = uint16(v)
 		case int64:
 			intVal = uint16(v)
+		case int32:
+			intVal = uint16(v)
+		case uint32:
+			intVal = uint16(v)
 		case int16:
 			intVal = uint16(v)
 		case uint16:
@@ -249,6 +263,10 @@ func (d *PointDecoder) encodeRaw(point model.Point, value any) ([]uint16, error)
 		case float32:
 			fVal = v
 		case int:
+			fVal = float32(v)
+		case int32:
+			fVal = float32(v)
+		case uint32:
 			fVal = float32(v)
 		case int64:
 			fVal = float32(v)

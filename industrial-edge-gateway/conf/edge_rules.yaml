@@ -1,7 +1,7 @@
 - id: 5700b238-4cf3-4f3b-b175-b29c585e860f
   name: TMPW
   type: state
-  enable: true
+  enable: false
   priority: 0
   check_interval: 5s
   trigger_mode: always
@@ -48,10 +48,6 @@
               point_id: dev2_pressure
               point_name: Pressure
               value: "2"
-            - channel_id: modbus-tcp-1
-              device_id: "3"
-              point_id: S3-1
-              value: "3"
   window:
     type: sliding
     size: 10s

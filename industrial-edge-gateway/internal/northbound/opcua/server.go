@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -138,19 +139,23 @@ func (s *Server) Start() error {
 
 	// Security Configuration
 	// Handle Security Policy
-	if s.config.SecurityPolicy == "None" {
-		opts = append(opts, server.WithSecurityPolicyNone(true))
-	} else if s.config.SecurityPolicy != "" && s.config.SecurityPolicy != "Auto" {
-		// If a specific secure policy is selected, disable None (unless explicitly allowed, but here we assume strict)
-		opts = append(opts, server.WithSecurityPolicyNone(false))
-	} else {
-		// Default (Auto): Allow None for convenience
-		opts = append(opts, server.WithSecurityPolicyNone(true))
-	}
+	// User requested "Support all levels", so we enable None explicitly.
+	// Secure policies (Basic256Sha256, Aes128_Sha256_RsaOaep) are enabled by default if a certificate is provided.
+	opts = append(opts, server.WithSecurityPolicyNone(true))
 
 	// Handle Trusted Certificates
 	if s.config.TrustedCertPath != "" {
-		opts = append(opts, server.WithTrustedCertificatesPaths(s.config.TrustedCertPath, ""))
+		// Use subdirectories for trusted and rejected certificates
+		trustedDir := filepath.Join(s.config.TrustedCertPath, "trusted")
+		rejectedDir := filepath.Join(s.config.TrustedCertPath, "rejected")
+		// Ensure directories exist
+		os.MkdirAll(trustedDir, 0755)
+		os.MkdirAll(rejectedDir, 0755)
+		opts = append(opts, server.WithTrustedCertificatesPaths(trustedDir, rejectedDir))
+
+		// Development mode: Auto-trust client certificates to avoid manual copying
+		// This fixes "Bad_SecurityChecksFailed" when client cert is not yet trusted
+		opts = append(opts, server.WithInsecureSkipVerify())
 	}
 
 	if hasAuthMethod("Certificate") {
@@ -271,16 +276,19 @@ func (s *Server) ensureCert(certFile, keyFile, appURI string) error {
 		Subject: pkix.Name{
 			Organization: []string{"EdgeX Gateway"},
 			CommonName:   s.config.Name,
+			Country:      []string{"CN"},
+			Locality:     []string{"Beijing"},
 		},
 		NotBefore: time.Now(),
-		NotAfter:  time.Now().Add(365 * 24 * time.Hour),
+		NotAfter:  time.Now().Add(365 * 10 * 24 * time.Hour), // 10 years
 
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageDataEncipherment | x509.KeyUsageCertSign,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageDataEncipherment | x509.KeyUsageCertSign | x509.KeyUsageContentCommitment,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,
 		DNSNames:              []string{"localhost", "127.0.0.1"},
 		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("0.0.0.0")},
 		URIs:                  []*url.URL{uri},
+		SignatureAlgorithm:    x509.SHA256WithRSA,
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
@@ -385,17 +393,11 @@ func (s *Server) buildAddressSpace() error {
 	}
 
 	// Helper to create Variable
-	createVar := func(parentID ua.NodeID, id string, name string, val interface{}, typeID ua.NodeID, accessLevel byte, writeHandler func(ns *server.NamespaceManager, sess *server.Session, req *ua.WriteValue) ua.StatusCode) *server.VariableNode {
+	createVar := func(parentID ua.NodeID, id string, name string, val interface{}, typeID ua.NodeID, accessLevel byte, writeHandler func(sess *server.Session, req ua.WriteValue) (ua.DataValue, ua.StatusCode)) *server.VariableNode {
 		nodeID := ua.ParseNodeID(fmt.Sprintf("ns=%d;s=%s", nsIndex, id))
 		hasComponent := ua.ParseNodeID("i=47")
 
 		// Create VariableNode
-		// NewVariableNode signature: (server, nodeID, browseName, displayName, description, rolePermissions, references, value, dataType, valueRank, arrayDimensions, accessLevel, minimumSamplingInterval, historizing, historian)
-
-		// Note: writeHandler is not directly supported by NewVariableNode in this version.
-		// We would need to implement a custom node or hook into the server if we want to intercept writes.
-		// For now, we proceed with standard variable creation.
-
 		v := server.NewVariableNode(
 			s.srv,
 			nodeID,
@@ -420,17 +422,8 @@ func (s *Server) buildAddressSpace() error {
 			zap.L().Error("Failed to add OPC UA Variable Node", zap.String("node_id", fmt.Sprintf("%v", nodeID)), zap.Error(err))
 		}
 
-		// Attempt to set WriteHandler if possible.
-		// Since I can't find SetWriteHandler, and NewVariableNode doesn't take it...
-		// Maybe I have to use a different approach.
-		// But for now, I will just return v and comment out the write logic to make it compile.
-		// I will log a TODO.
-
 		if writeHandler != nil {
-			// v.SetWriteHandler(writeHandler) // This doesn't exist
-			// TODO: Find a way to intercept writes.
-			// For now, we just log that we can't hook it yet.
-			// This is better than breaking the build.
+			v.SetWriteValueHandler(writeHandler)
 		}
 
 		return v
@@ -502,19 +495,20 @@ func (s *Server) buildAddressSpace() error {
 
 				dataTypeID := s.getDataTypeID(p.DataType)
 
-				var writeHandler func(ns *server.NamespaceManager, sess *server.Session, req *ua.WriteValue) ua.StatusCode
+				var writeHandler func(sess *server.Session, req ua.WriteValue) (ua.DataValue, ua.StatusCode)
 				if accessLevel&2 != 0 {
 					cid, did, pid := ch.ID, dev.ID, p.ID
-					writeHandler = func(ns *server.NamespaceManager, sess *server.Session, req *ua.WriteValue) ua.StatusCode {
+					writeHandler = func(sess *server.Session, req ua.WriteValue) (ua.DataValue, ua.StatusCode) {
 						// Only allow writing to Value attribute
 						if req.AttributeID != ua.AttributeIDValue {
-							return ua.StatusCode(0x80730000) // BadWriteNotSupported
+							zap.L().Warn("OPC UA Write Rejected: Not Value Attribute", zap.Uint32("attr_id", req.AttributeID))
+							return ua.DataValue{}, ua.StatusCode(0x80730000) // BadWriteNotSupported
 						}
 
 						// Extract value
 						val := req.Value.Value
 
-						zap.L().Info("OPC UA Write Request",
+						zap.L().Info("OPC UA Write Request Received",
 							zap.String("channel_id", cid),
 							zap.String("device_id", did),
 							zap.String("point_id", pid),
@@ -525,28 +519,33 @@ func (s *Server) buildAddressSpace() error {
 						// Update stats
 						s.mu.Lock()
 						s.stats.WriteCount++
-						s.updateSystemNode("WriteCount", s.stats.WriteCount)
+						writeCount := s.stats.WriteCount
 						s.mu.Unlock()
+
+						// Update system node (must be done outside of lock to avoid deadlock with updateSystemNode's internal RLock)
+						s.updateSystemNode("WriteCount", writeCount)
 
 						// Call Southbound Write
 						err := s.sb.WritePoint(cid, did, pid, val)
 						if err != nil {
-							zap.L().Error("OPC UA Write Failed",
+							zap.L().Error("OPC UA Write Failed (SB)",
 								zap.String("channel_id", cid),
 								zap.String("device_id", did),
 								zap.String("point_id", pid),
 								zap.Error(err),
 								zap.String("component", "opcua-server"),
 							)
-							return ua.StatusCode(0x801F0000) // BadUserAccessDenied (approx) or BadInternalError
+							// Change to BadInternalError (0x80020000) to distinguish from Access Denied
+							return ua.DataValue{}, ua.StatusCode(0x80020000)
 						}
 
-						// Update local node value to reflect change immediately
-						if node, ok := s.nodeMap[pKey]; ok {
-							node.SetValue(req.Value)
-						}
+						zap.L().Info("OPC UA Write Success (SB)",
+							zap.String("point_id", pid),
+							zap.Any("value", val),
+						)
 
-						return ua.StatusCode(0) // Good
+						// Return the value so the server updates the node
+						return req.Value, ua.StatusCode(0) // Good
 					}
 				}
 

@@ -90,12 +90,14 @@ opcua:
       enable: true
       port: 5050
       endpoint: /test
-      security_policy: None
+      security_policy: Basic256Sha256
       security_mode: ""
-      trusted_cert_path: ""
+      trusted_cert_path: ./pki
       auth_methods:
         - Anonymous
-      users: {}
+        - UserName
+      users:
+        admin: admin
       cert_file: ""
       key_file: ""
       devices:

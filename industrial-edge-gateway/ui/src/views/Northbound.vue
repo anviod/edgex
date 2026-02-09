@@ -215,10 +215,53 @@
                                 </v-card-text>
                             </v-card>
 
-                            <div class="text-subtitle-2 mb-2 font-weight-bold">安全策略 (Security Policies)</div>
-                            <v-alert density="compact" type="info" variant="tonal" class="mb-4 text-caption">
-                                网关默认支持以下安全策略。建议生产环境使用加密连接。
+                            <div class="text-subtitle-2 mb-2 font-weight-bold">最佳实践 (Best Practices)</div>
+                            <v-alert density="compact" type="success" variant="tonal" class="mb-4 text-caption border-start border-success border-opacity-100" style="border-left-width: 4px !important;">
+                                <div class="font-weight-bold mb-1">推荐连接方式：</div>
+                                <ol class="pl-4">
+                                    <li>安全策略选择：<strong>Basic256Sha256 - SignAndEncrypt</strong></li>
+                                    <li>证书信任：首次连接时，如果客户端提示服务端证书不可信，请选择 <strong>"Trust" (信任)</strong>。</li>
+                                </ol>
                             </v-alert>
+
+                            <div class="text-subtitle-2 mb-2 font-weight-bold">客户端指南 (Client Guides)</div>
+                            
+                            <v-expansion-panels variant="accordion" class="mb-4">
+                                <v-expansion-panel title="Prosys OPC UA Browser (推荐)">
+                                    <v-expansion-panel-text class="text-caption">
+                                        <p class="mb-2">功能强大的跨平台 OPC UA 客户端工具。</p>
+                                        <div class="d-flex align-center mb-2">
+                                            <v-icon icon="mdi-download" size="small" class="mr-1" color="primary"></v-icon>
+                                            <a href="https://downloads.prosysopc.com/opc-ua-browser-downloads.php" target="_blank" class="text-decoration-none text-primary">下载地址 (Download)</a>
+                                        </div>
+                                        <div class="bg-grey-lighten-4 pa-2 rounded mb-2">
+                                            <strong>连接步骤：</strong>
+                                            <ol class="pl-4 mt-1">
+                                                <li>输入 Endpoint URL (上文复制)。</li>
+                                                <li>Security Mode 选择 <strong>SignAndEncrypt</strong>。</li>
+                                                <li>Security Policy 选择 <strong>Basic256Sha256</strong>。</li>
+                                                <li>点击 Connect，在弹出的证书警告中勾选 "Accept Permanently" 并确认。</li>
+                                            </ol>
+                                        </div>
+                                    </v-expansion-panel-text>
+                                </v-expansion-panel>
+
+                                <v-expansion-panel title="Unified Automation UaExpert">
+                                    <v-expansion-panel-text class="text-caption">
+                                        <p class="mb-2">专业的 OPC UA 客户端。</p>
+                                        <div class="bg-grey-lighten-4 pa-2 rounded">
+                                            <strong>连接步骤：</strong>
+                                            <ol class="pl-4 mt-1">
+                                                <li>添加 Server，双击 Custom Discovery 下的 URL。</li>
+                                                <li>选择 <strong>Basic256Sha256 - SignAndEncrypt</strong> 策略。</li>
+                                                <li>连接时点击 "Trust Server Certificate"。</li>
+                                            </ol>
+                                        </div>
+                                    </v-expansion-panel-text>
+                                </v-expansion-panel>
+                            </v-expansion-panels>
+
+                            <div class="text-subtitle-2 mb-2 font-weight-bold">安全策略 (Security Policies)</div>
                             <v-list density="compact" class="bg-grey-lighten-4 rounded border">
                                 <v-list-item title="None" subtitle="不加密 (仅用于调试)"></v-list-item>
                                 <v-list-item title="Basic256Sha256" subtitle="签名并加密 (推荐)"></v-list-item>
