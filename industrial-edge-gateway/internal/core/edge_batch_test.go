@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"industrial-edge-gateway/internal/model"
 	"testing"
 )
@@ -52,7 +53,7 @@ func TestEdgeAction_BatchBitExtraction(t *testing.T) {
 		},
 	}
 
-	err := em.executeSingleAction("rule_batch", action, val, env)
+	err := em.executeSingleAction(context.Background(), "rule1", action, val, env)
 	if err != nil {
 		t.Fatalf("Execution failed: %v", err)
 	}

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"industrial-edge-gateway/internal/model"
 	"testing"
 )
@@ -47,12 +48,12 @@ func TestEdgeAction_BitValueLogic(t *testing.T) {
 	}
 
 	// Execute Action 1
-	if err := em.executeSingleAction("rule_bit_std", action1, val, env); err != nil {
+	if err := em.executeSingleAction(context.Background(), "rule_bit_std", action1, val, env); err != nil {
 		t.Fatalf("Action 1 failed: %v", err)
 	}
 
 	// Execute Action 2
-	if err := em.executeSingleAction("rule_bit_shift", action2, val, env); err != nil {
+	if err := em.executeSingleAction(context.Background(), "rule_bit_shift", action2, val, env); err != nil {
 		t.Fatalf("Action 2 failed: %v", err)
 	}
 

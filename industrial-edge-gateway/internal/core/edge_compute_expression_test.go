@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"industrial-edge-gateway/internal/model"
 	"math"
@@ -146,7 +147,7 @@ func TestEdgeActionExpression(t *testing.T) {
 			}
 
 			// Execute Action directly
-			err := em.executeSingleAction("test_rule", action, val, env)
+			err := em.executeSingleAction(context.Background(), "test_rule", action, val, env)
 
 			// Verify Error
 			if err != nil {

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"industrial-edge-gateway/internal/model"
 	"testing"
 	"time"
@@ -41,7 +42,7 @@ func TestEdgeAction_DirectWrite(t *testing.T) {
 	val := model.Value{Value: 10}
 	env := map[string]any{"v": 10}
 
-	err := em.executeSingleAction("rule1", action, val, env)
+	err := em.executeSingleAction(context.Background(), "rule1", action, val, env)
 	if err != nil {
 		t.Fatalf("Execution failed: %v", err)
 	}
@@ -72,7 +73,7 @@ func TestEdgeAction_DirectWrite_Fallback(t *testing.T) {
 	val := model.Value{Value: 999}
 	env := map[string]any{"v": 999}
 
-	err := em.executeSingleAction("rule1", action, val, env)
+	err := em.executeSingleAction(context.Background(), "rule1", action, val, env)
 	if err != nil {
 		t.Fatalf("Execution failed: %v", err)
 	}

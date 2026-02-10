@@ -1087,7 +1087,14 @@ func (em *EdgeComputeManager) calculateRMW(cid, did, pid string, bitIdx int, bit
 	}
 }
 
-func (em *EdgeComputeManager) executeSingleAction(ctx context.Context, ruleID string, action model.RuleAction, val model.Value, env map[string]any) error {
+func (em *EdgeComputeManager) executeSingleAction(ctx context.Context, ruleID string, action model.RuleAction, val model.Value, env map[string]any) (err error) {
+	// Test Hook
+	defer func() {
+		if em.actionHook != nil {
+			em.actionHook(ruleID, action, val, env, err)
+		}
+	}()
+
 	// Check context cancellation
 	select {
 	case <-ctx.Done():
