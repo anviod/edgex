@@ -146,9 +146,16 @@ type DriverConfig struct {
 // NorthboundConfig defines configuration for northbound data reporting
 type NorthboundConfig struct {
 	MQTT       []MQTTConfig       `json:"mqtt" yaml:"mqtt"`
+	HTTP       []HTTPConfig       `json:"http" yaml:"http"`
 	OPCUA      []OPCUAConfig      `json:"opcua" yaml:"opcua"`
 	SparkplugB []SparkplugBConfig `json:"sparkplug_b" yaml:"sparkplug_b"`
 	Status     map[string]int     `json:"status,omitempty" yaml:"-"`
+}
+
+type DataCacheConfig struct {
+	Enable        bool   `json:"enable" yaml:"enable"`
+	MaxCount      int    `json:"max_count" yaml:"max_count"`           // Default 1000
+	FlushInterval string `json:"flush_interval" yaml:"flush_interval"` // e.g. "1m"
 }
 
 type MQTTConfig struct {
@@ -160,18 +167,40 @@ type MQTTConfig struct {
 	Topic          string `json:"topic" yaml:"topic"`
 	SubscribeTopic string `json:"subscribe_topic" yaml:"subscribe_topic"` // New: Subscribe topic for write requests
 
-	StatusTopic       string `json:"status_topic" yaml:"status_topic"`               // Online/Offline status topic
-	LwtTopic          string `json:"lwt_topic" yaml:"lwt_topic"`                     // LWT topic (if different from StatusTopic)
-	OnlinePayload     string `json:"online_payload" yaml:"online_payload"`           // Payload for online status
-	OfflinePayload    string `json:"offline_payload" yaml:"offline_payload"`         // Payload for offline status (graceful disconnect)
-	LwtPayload        string `json:"lwt_payload" yaml:"lwt_payload"`                 // Payload for LWT (ungraceful disconnect)
-	IgnoreOfflineData bool   `json:"ignore_offline_data" yaml:"ignore_offline_data"` // If true, do not report data when device is offline
+	StatusTopic          string `json:"status_topic" yaml:"status_topic"`                     // Online/Offline status topic
+	LwtTopic             string `json:"lwt_topic" yaml:"lwt_topic"`                           // LWT topic (if different from StatusTopic)
+	DeviceStatusTopic    string `json:"device_status_topic" yaml:"device_status_topic"`       // Sub-device Online/Offline topic
+	DeviceLifecycleTopic string `json:"device_lifecycle_topic" yaml:"device_lifecycle_topic"` // Sub-device Add/Remove topic
+	OnlinePayload        string `json:"online_payload" yaml:"online_payload"`                 // Payload for online status
+	OfflinePayload       string `json:"offline_payload" yaml:"offline_payload"`               // Payload for offline status (graceful disconnect)
+	LwtPayload           string `json:"lwt_payload" yaml:"lwt_payload"`                       // Payload for LWT (ungraceful disconnect)
+	IgnoreOfflineData    bool   `json:"ignore_offline_data" yaml:"ignore_offline_data"`       // If true, do not report data when device is offline
 
 	WriteResponseTopic string `json:"write_response_topic" yaml:"write_response_topic"` // Topic for write responses
 
 	Username string                         `json:"username" yaml:"username"`
 	Password string                         `json:"password" yaml:"password"`
+	Cache    DataCacheConfig                `json:"cache" yaml:"cache"`
 	Devices  map[string]DevicePublishConfig `json:"devices" yaml:"devices"`
+}
+
+type HTTPConfig struct {
+	ID                  string            `json:"id" yaml:"id"`
+	Name                string            `json:"name" yaml:"name"`
+	Enable              bool              `json:"enable" yaml:"enable"`
+	URL                 string            `json:"url" yaml:"url"`       // Base URL
+	Method              string            `json:"method" yaml:"method"` // POST/PUT
+	Headers             map[string]string `json:"headers" yaml:"headers"`
+	AuthType            string            `json:"auth_type" yaml:"auth_type"` // None, Basic, Bearer, APIKey
+	Username            string            `json:"username" yaml:"username"`
+	Password            string            `json:"password" yaml:"password"`
+	Token               string            `json:"token" yaml:"token"`
+	APIKeyName          string            `json:"api_key_name" yaml:"api_key_name"`
+	APIKeyValue         string            `json:"api_key_value" yaml:"api_key_value"`
+	DataEndpoint        string            `json:"data_endpoint" yaml:"data_endpoint"`                 // Relative path for data
+	DeviceEventEndpoint string            `json:"device_event_endpoint" yaml:"device_event_endpoint"` // Relative path for events
+	Cache               DataCacheConfig   `json:"cache" yaml:"cache"`
+	Devices             map[string]bool   `json:"devices" yaml:"devices"` // Key: DeviceID, Value: Enable
 }
 
 type DevicePublishConfig struct {

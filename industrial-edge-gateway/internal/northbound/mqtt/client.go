@@ -47,6 +47,9 @@ type Client struct {
 	// Southbound Manager for writing
 	sb model.SouthboundManager
 
+	// Storage for offline caching
+	storage *storage.Storage
+
 	// Stats counters (using atomic int64)
 	successCount    int64
 	failCount       int64
@@ -76,10 +79,11 @@ type periodicItem struct {
 	stop      chan struct{}
 }
 
-func NewClient(cfg model.MQTTConfig, sb model.SouthboundManager) *Client {
+func NewClient(cfg model.MQTTConfig, sb model.SouthboundManager, s *storage.Storage) *Client {
 	c := &Client{
 		config:   cfg,
 		sb:       sb,
+		storage:  s,
 		stopChan: make(chan struct{}),
 		buffers:  make(map[string]*bufferItem),
 		periodic: make(map[string]*periodicItem),
@@ -137,6 +141,7 @@ func (c *Client) UpdateConfig(cfg model.MQTTConfig) error {
 func (c *Client) Start() error {
 	// Start connection in background to support custom retry logic
 	go c.connectLoop()
+	go c.retryLoop()
 	c.updatePeriodicTasks()
 	return nil
 }
@@ -267,12 +272,36 @@ func (c *Client) flushPeriodic(deviceID string, item *periodicItem) {
 
 // PublishRaw publishes raw data to a specific topic
 func (c *Client) PublishRaw(topic string, payload []byte) error {
-	if c.client == nil || !c.client.IsConnected() {
+	connected := c.client != nil && c.client.IsConnected()
+
+	if !connected {
+		// Cache logic
+		c.configMu.RLock()
+		cacheCfg := c.config.Cache
+		configID := c.config.ID
+		c.configMu.RUnlock()
+
+		if cacheCfg.Enable && c.storage != nil {
+			if err := c.storage.SaveOfflineMessage(configID, payload, cacheCfg.MaxCount); err != nil {
+				return err
+			}
+			return nil // Queued successfully
+		}
 		return mqtt.ErrNotConnected
 	}
 
 	token := c.client.Publish(topic, 0, false, payload)
 	if token.Wait() && token.Error() != nil {
+		// Cache logic on failure
+		c.configMu.RLock()
+		cacheCfg := c.config.Cache
+		configID := c.config.ID
+		c.configMu.RUnlock()
+
+		if cacheCfg.Enable && c.storage != nil {
+			c.storage.SaveOfflineMessage(configID, payload, cacheCfg.MaxCount)
+			return nil // Queued
+		}
 		return token.Error()
 	}
 	return nil

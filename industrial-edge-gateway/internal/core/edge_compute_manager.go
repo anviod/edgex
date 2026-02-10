@@ -1376,11 +1376,22 @@ func (em *EdgeComputeManager) executeMqtt(ctx context.Context, ruleID string, ac
 		return fmt.Errorf("NorthboundManager not available")
 	}
 	topic, _ := action.Config["topic"].(string)
-	if topic == "" {
-		return nil // Skip if no topic
-	}
 	clientID, _ := action.Config["client_id"].(string)
+	configID, _ := action.Config["mqtt_config_id"].(string) // New reference
 	strategy, _ := action.Config["send_strategy"].(string)
+
+	// If using Config Reference, topic might be optional (use default)?
+	// But usually Rule overrides topic.
+	// If topic is empty, use default from config?
+	// PublishMQTTClient uses client.PublishRaw which requires topic.
+	// If topic is empty here, we should probably fetch it from config or error.
+	// But PublishRaw just sends.
+	// Let's assume topic is required in Rule Action OR we fetch from config.
+	// We don't have easy access to config here.
+	// Let's require topic in Rule Action for now, or if empty, pass empty and let client decide (client.PublishRaw might fail).
+	// Actually, NorthboundManager's PublishMQTTClient calls client.PublishRaw.
+	// client.PublishRaw checks topic? No, paho does.
+	// Let's keep topic required if overrides are needed.
 
 	var payload []byte
 	var err error
@@ -1414,6 +1425,22 @@ func (em *EdgeComputeManager) executeMqtt(ctx context.Context, ruleID string, ac
 		payload = []byte(resolvedMsg)
 	}
 
+	if configID != "" {
+		if topic == "" {
+			// Try to use default topic?
+			// We can't access config here.
+			// Let's assume Rule must provide topic if it wants to override,
+			// OR we change PublishMQTTClient to accept empty topic and use default.
+			// Let's update PublishMQTTClient in NorthboundManager?
+			// No, let's just pass it.
+		}
+		return em.nbm.PublishMQTTClient(configID, topic, payload)
+	}
+
+	if topic == "" {
+		return nil
+	}
+
 	return em.nbm.PublishMQTT(clientID, topic, payload)
 }
 
@@ -1437,16 +1464,7 @@ func (em *EdgeComputeManager) executeDatabase(ctx context.Context, ruleID string
 }
 
 func (em *EdgeComputeManager) executeHttp(ctx context.Context, ruleID string, action model.RuleAction, val model.Value, env map[string]any) error {
-	url, _ := action.Config["url"].(string)
-	if url == "" {
-		return nil
-	}
-	method, _ := action.Config["method"].(string)
-	if method == "" {
-		method = "POST"
-	}
 	strategy, _ := action.Config["send_strategy"].(string)
-
 	var payload []byte
 	var err error
 
@@ -1477,6 +1495,25 @@ func (em *EdgeComputeManager) executeHttp(ctx context.Context, ruleID string, ac
 			return ""
 		})
 		payload = []byte(resolvedMsg)
+	}
+
+	// Check for Northbound Config Reference
+	configID, _ := action.Config["http_config_id"].(string)
+	if configID != "" {
+		if em.nbm == nil {
+			return fmt.Errorf("NorthboundManager not available")
+		}
+		return em.nbm.PublishHTTP(configID, payload)
+	}
+
+	// Legacy Inline HTTP
+	url, _ := action.Config["url"].(string)
+	if url == "" {
+		return nil
+	}
+	method, _ := action.Config["method"].(string)
+	if method == "" {
+		method = "POST"
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(payload))

@@ -6,11 +6,11 @@ mqtt:
       client_id: industrial_gateway_001
       topic: things/{client_id}/up
       subscribe_topic: things/{client_id}/down/req
-      status_topic: things/{client_id}/status
-      lwt_topic: ""
+      status_topic: things/{client_id}/{device_id}/status
+      lwt_topic: things/{client_id}/lwt
       online_payload: '{"status":"online","device_id":"%device_id%","timestamp":"%timestamp%"}'
       offline_payload: '{"status":"offline","device_id":"%device_id%","timestamp":"%timestamp%"}'
-      lwt_payload: ""
+      lwt_payload: '{"status":"lwt","device_id":"%device_id%","timestamp":"%timestamp%"}'
       ignore_offline_data: true
       write_response_topic: things/{client_id}/down/resp
       username: ""

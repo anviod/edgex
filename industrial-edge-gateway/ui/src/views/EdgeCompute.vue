@@ -858,7 +858,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, provide } from 'vue'
 import { useRoute } from 'vue-router'
 import request from '@/utils/request'
 import { base64ToUint8Array, uint8ArrayToHex, detectFileType, downloadBytes } from '@/utils/decode'
@@ -930,6 +930,25 @@ const windowDialog = ref(false)
 const windowData = ref([])
 const currentWindowRuleName = ref('')
 let timer = null
+
+// Northbound Config for Actions
+const northboundConfig = ref({ mqtt: [], http: [] })
+provide('northboundConfig', northboundConfig)
+
+const fetchNorthboundConfig = async () => {
+    try {
+        const data = await request.get('/api/northbound/config')
+        if (data) {
+            northboundConfig.value = {
+                mqtt: data.mqtt || [],
+                http: data.http || [],
+                // opcua/sparkplug ignored for now as they are servers
+            }
+        }
+    } catch (e) {
+        console.error("Failed to fetch northbound config", e)
+    }
+}
 
 // Details Dialog
 const detailsDialog = ref(false)
@@ -1328,6 +1347,7 @@ onMounted(async () => {
     await fetchRules()
     fetchChannels()
     fetchRuleStates()
+    fetchNorthboundConfig()
     // Poll status every 5 seconds
     timer = setInterval(fetchRuleStates, 5000)
 

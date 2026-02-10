@@ -246,14 +246,28 @@
         <!-- 6. MQTT -->
         <div v-if="action.type === 'mqtt'" class="pl-2">
             <v-row density="compact">
-                <v-col cols="12" md="6">
-                    <v-text-field v-model="action.config.topic" label="Topic" density="compact" variant="outlined"></v-text-field>
+                <v-col cols="12" md="4">
+                    <v-select
+                        v-model="action.config.mqtt_config_id"
+                        :items="northboundConfig.mqtt"
+                        item-title="name"
+                        item-value="id"
+                        label="北向通道"
+                        density="compact"
+                        variant="outlined"
+                        clearable
+                        placeholder="选择北向 MQTT 配置"
+                        hide-details
+                    ></v-select>
                 </v-col>
-                <v-col cols="12" md="6">
-                    <v-select v-model="action.config.send_strategy" :items="['single', 'batch']" label="发送策略" density="compact" variant="outlined"></v-select>
+                <v-col cols="12" md="4">
+                    <v-text-field v-model="action.config.topic" label="Topic" density="compact" variant="outlined" placeholder="可选 (默认使用配置Topic)" hide-details></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                    <v-select v-model="action.config.send_strategy" :items="['single', 'batch']" label="发送策略" density="compact" variant="outlined" hide-details></v-select>
                 </v-col>
                 <v-col cols="12">
-                    <v-textarea v-model="action.config.message" label="消息内容 (Message Template)" rows="2" density="compact" variant="outlined" placeholder="留空则发送默认 JSON"></v-textarea>
+                    <v-textarea v-model="action.config.message" label="消息内容 (Message Template)" rows="2" density="compact" variant="outlined" placeholder="留空则发送默认 JSON" hide-details></v-textarea>
                 </v-col>
             </v-row>
         </div>
@@ -261,10 +275,26 @@
         <!-- 7. HTTP -->
         <div v-if="action.type === 'http'" class="pl-2">
             <v-row density="compact">
-                <v-col cols="12" md="2">
+                <v-col cols="12" md="12">
+                    <v-select
+                        v-model="action.config.http_config_id"
+                        :items="northboundConfig.http"
+                        item-title="name"
+                        item-value="id"
+                        label="北向通道 (Northbound Channel)"
+                        density="compact"
+                        variant="outlined"
+                        clearable
+                        placeholder="选择北向 HTTP 配置"
+                    ></v-select>
+                </v-col>
+                <!-- Only show inline config if no channel selected (or allow override?) -->
+                <!-- User requested "HTTP Push is also created by Northbound", implying preference for channel. -->
+                <!-- We'll keep them visible but optional/overridable or fallback -->
+                <v-col cols="12" md="2" v-if="!action.config.http_config_id">
                     <v-select v-model="action.config.method" :items="['POST', 'PUT', 'GET']" label="Method" density="compact" variant="outlined"></v-select>
                 </v-col>
-                <v-col cols="12" md="10">
+                <v-col cols="12" md="10" v-if="!action.config.http_config_id">
                     <v-text-field v-model="action.config.url" label="URL" density="compact" variant="outlined"></v-text-field>
                 </v-col>
                 <v-col cols="12">
@@ -284,7 +314,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, computed } from 'vue'
+import { ref, watch, onMounted, computed, inject } from 'vue'
 import request from '@/utils/request'
 // Recursive component self-reference
 import ActionEditor from './ActionEditor.vue'
@@ -306,6 +336,9 @@ const emit = defineEmits(['update:modelValue', 'remove'])
 const action = ref(props.modelValue)
 const deviceList = ref([])
 const pointList = ref([])
+
+// Inject Northbound Config
+const northboundConfig = inject('northboundConfig', ref({ mqtt: [], http: [] }))
 
 // Sync props to local state
 watch(() => props.modelValue, (val) => {

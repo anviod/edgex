@@ -242,6 +242,8 @@ func (s *Server) setupRoutes() {
 	// 北向数据上报配置
 	api.Get("/northbound/config", s.getNorthboundConfig)
 	api.Post("/northbound/mqtt", s.updateMQTTConfig)
+	api.Post("/northbound/http", s.updateHTTPConfig) // New HTTP Config
+	api.Delete("/northbound/http/:id", s.deleteHTTPConfig) // New HTTP Delete
 	api.Post("/northbound/opcua", s.updateOPCUAConfig)
 	api.Get("/northbound/opcua/:id/stats", s.getOPCUAStats)
 	api.Get("/northbound/mqtt/:id/stats", s.getMQTTStats)

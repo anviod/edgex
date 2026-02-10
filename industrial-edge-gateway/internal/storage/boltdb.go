@@ -14,11 +14,17 @@ type Storage struct {
 }
 
 const (
-	BucketValues    = "values"
-	BucketRuleState = "RuleState"
-	BucketDataCache = "DataCache"
-	BucketWindow    = "WindowData"
+	BucketValues          = "values"
+	BucketRuleState       = "RuleState"
+	BucketDataCache       = "DataCache"
+	BucketWindow          = "WindowData"
+	BucketNorthboundCache = "NorthboundCache"
 )
+
+type OfflineMessage struct {
+	Key  string
+	Data []byte
+}
 
 func NewStorage(path string) (*Storage, error) {
 	db, err := bbolt.Open(path, 0600, &bbolt.Options{Timeout: 5 * time.Second})
@@ -28,7 +34,7 @@ func NewStorage(path string) (*Storage, error) {
 
 	// Init buckets
 	err = db.Update(func(tx *bbolt.Tx) error {
-		buckets := []string{BucketValues, BucketRuleState, BucketDataCache, BucketWindow}
+		buckets := []string{BucketValues, BucketRuleState, BucketDataCache, BucketWindow, BucketNorthboundCache}
 		for _, bucket := range buckets {
 			if _, err := tx.CreateBucketIfNotExists([]byte(bucket)); err != nil {
 				return err

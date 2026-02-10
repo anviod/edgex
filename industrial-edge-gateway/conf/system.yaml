@@ -1,0 +1,204 @@
+time:
+    mode: manual
+    manual:
+        datetime: ""
+        timezone: Asia/Shanghai
+        syncrtc: false
+    ntp:
+        servers: []
+        interval: 0
+        enabled: false
+network:
+    - name: cfw-tap
+      mac: 00:ff:5c:a7:7d:52
+      status: DOWN
+      interfacemetric: 0
+      ipconfigs:
+        - address: fe80::13da:5158:f4c8:61c0
+          prefix: 64
+          version: IPv6
+          source: Static
+          enabled: true
+        - address: 10.0.0.1
+          prefix: 24
+          version: IPv4
+          source: Static
+          enabled: true
+        - address: 169.254.57.244
+          prefix: 16
+          version: IPv4
+          source: Static
+          enabled: true
+      gateways: []
+      enabled: true
+    - name: 以太网 2
+      mac: 30:43:d7:ed:14:55
+      status: DOWN
+      interfacemetric: 0
+      ipconfigs:
+        - address: fe80::c1dc:5512:56b8:5505
+          prefix: 64
+          version: IPv6
+          source: Static
+          enabled: true
+        - address: 169.254.22.31
+          prefix: 16
+          version: IPv4
+          source: Static
+          enabled: true
+      gateways: []
+      enabled: true
+    - name: 以太网 5
+      mac: 6c:1f:f7:25:b1:f1
+      status: DOWN
+      interfacemetric: 0
+      ipconfigs:
+        - address: fe80::2eef:ce9a:7648:3253
+          prefix: 64
+          version: IPv6
+          source: Static
+          enabled: true
+        - address: 10.168.1.120
+          prefix: 24
+          version: IPv4
+          source: Static
+          enabled: true
+        - address: 169.254.241.102
+          prefix: 16
+          version: IPv4
+          source: Static
+          enabled: true
+        - address: 172.168.10.120
+          prefix: 16
+          version: IPv4
+          source: Static
+          enabled: true
+        - address: 192.168.1.120
+          prefix: 24
+          version: IPv4
+          source: Static
+          enabled: true
+      gateways: []
+      enabled: true
+    - name: Tailscale
+      mac: ""
+      status: UP
+      interfacemetric: 0
+      ipconfigs:
+        - address: fe80::d8ff:5060:f230:9168
+          prefix: 64
+          version: IPv6
+          source: Static
+          enabled: true
+        - address: 169.254.83.107
+          prefix: 16
+          version: IPv4
+          source: Static
+          enabled: true
+      gateways: []
+      enabled: true
+    - name: 本地连接
+      mac: 00:ff:7a:ec:8e:1c
+      status: DOWN
+      interfacemetric: 100
+      ipconfigs: []
+      gateways: []
+      enabled: true
+    - name: 本地连接* 11
+      mac: c8:5e:a9:f4:88:5b
+      status: DOWN
+      interfacemetric: 100
+      ipconfigs: []
+      gateways: []
+      enabled: true
+    - name: 本地连接* 12
+      mac: ca:5e:a9:f4:88:5a
+      status: DOWN
+      interfacemetric: 100
+      ipconfigs: []
+      gateways: []
+      enabled: true
+    - name: WLAN
+      mac: c8:5e:a9:f4:88:5a
+      status: UP
+      interfacemetric: 0
+      ipconfigs:
+        - address: fe80::b609:36f9:a799:9ba
+          prefix: 64
+          version: IPv6
+          source: Static
+          enabled: true
+        - address: 192.168.3.106
+          prefix: 24
+          version: IPv4
+          source: Static
+          enabled: true
+      gateways: []
+      enabled: true
+    - name: 蓝牙网络连接 2
+      mac: c8:5e:a9:f4:88:5e
+      status: DOWN
+      interfacemetric: 100
+      ipconfigs: []
+      gateways: []
+      enabled: true
+    - name: Loopback Pseudo-Interface 1
+      mac: ""
+      status: UP
+      interfacemetric: 0
+      ipconfigs:
+        - address: ::1
+          prefix: 128
+          version: IPv6
+          source: Static
+          enabled: true
+        - address: 127.0.0.1
+          prefix: 8
+          version: IPv4
+          source: Static
+          enabled: true
+      gateways: []
+      enabled: true
+    - name: vEthernet (Default Switch)
+      mac: 00:15:5d:b7:da:31
+      status: UP
+      interfacemetric: 0
+      ipconfigs:
+        - address: fe80::1ac6:c6f3:dd54:86eb
+          prefix: 64
+          version: IPv6
+          source: Static
+          enabled: true
+        - address: 172.30.128.1
+          prefix: 20
+          version: IPv4
+          source: Static
+          enabled: true
+      gateways: []
+      enabled: true
+routes: []
+ha:
+    role: ""
+    heartbeattype: ""
+    interval: 0
+    timeout: 0
+    retries: 0
+hostname:
+    name: edge-gateway
+    enablemdns: false
+    enablebare: false
+    httpport: 8082
+    httpsport: 443
+    interfaces: []
+ldap:
+    enabled: false
+    server: ""
+    port: 0
+    basedn: ""
+    binddn: admin
+    bindpassword: passwd@123
+    userfilter: ""
+    attributes: ""
+    usessl: false
+    skipverify: false
+connectivitytargets: []

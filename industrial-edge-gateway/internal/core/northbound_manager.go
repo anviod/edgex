@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"industrial-edge-gateway/internal/model"
+	"industrial-edge-gateway/internal/northbound/http"
 	"industrial-edge-gateway/internal/northbound/mqtt"
 	"industrial-edge-gateway/internal/northbound/opcua"
 	"industrial-edge-gateway/internal/northbound/sparkplugb"
+	"industrial-edge-gateway/internal/storage"
 	"log"
 	"sync"
 )
@@ -21,25 +23,29 @@ type NorthboundStatus struct {
 type NorthboundManager struct {
 	config           model.NorthboundConfig
 	mqttClients      map[string]*mqtt.Client
+	httpClients      map[string]*http.Client
 	opcuaServers     map[string]*opcua.Server
 	sparkplugClients map[string]*sparkplugb.Client
 	pipeline         *DataPipeline
 	sb               model.SouthboundManager
+	storage          *storage.Storage
 	ctx              context.Context
 	cancel           context.CancelFunc
 	saveFunc         func(model.NorthboundConfig) error
 	mu               sync.RWMutex
 }
 
-func NewNorthboundManager(cfg model.NorthboundConfig, pipeline *DataPipeline, sb model.SouthboundManager, saveFunc func(model.NorthboundConfig) error) *NorthboundManager {
+func NewNorthboundManager(cfg model.NorthboundConfig, pipeline *DataPipeline, sb model.SouthboundManager, s *storage.Storage, saveFunc func(model.NorthboundConfig) error) *NorthboundManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &NorthboundManager{
 		config:           cfg,
 		mqttClients:      make(map[string]*mqtt.Client),
+		httpClients:      make(map[string]*http.Client),
 		opcuaServers:     make(map[string]*opcua.Server),
 		sparkplugClients: make(map[string]*sparkplugb.Client),
 		pipeline:         pipeline,
 		sb:               sb,
+		storage:          s,
 		ctx:              ctx,
 		cancel:           cancel,
 		saveFunc:         saveFunc,
@@ -110,13 +116,23 @@ func (nm *NorthboundManager) Start() {
 	// Start MQTT Clients
 	for _, cfg := range nm.config.MQTT {
 		if cfg.Enable {
-			client := mqtt.NewClient(cfg, nm.sb)
+			client := mqtt.NewClient(cfg, nm.sb, nm.storage)
 			if err := client.Start(); err != nil {
 				log.Printf("Failed to start MQTT client [%s]: %v", cfg.Name, err)
 			} else {
 				log.Printf("Northbound MQTT client [%s] started", cfg.Name)
 				nm.mqttClients[cfg.ID] = client
 			}
+		}
+	}
+
+	// Start HTTP Clients
+	for _, cfg := range nm.config.HTTP {
+		if cfg.Enable {
+			client := http.NewClient(cfg, nm.storage)
+			client.Start()
+			nm.httpClients[cfg.ID] = client
+			log.Printf("Northbound HTTP client [%s] started", cfg.Name)
 		}
 	}
 
@@ -173,6 +189,9 @@ func (nm *NorthboundManager) OnDeviceStatusChange(deviceID string, status int) {
 	for _, client := range nm.mqttClients {
 		client.PublishDeviceStatus(deviceID, status)
 	}
+	for _, client := range nm.httpClients {
+		client.PublishDeviceStatus(deviceID, status)
+	}
 }
 
 // PublishMQTT publishes a message to a specific MQTT client or all if clientID is empty
@@ -223,6 +242,9 @@ func (nm *NorthboundManager) Stop() {
 	for _, client := range nm.mqttClients {
 		client.Stop()
 	}
+	for _, client := range nm.httpClients {
+		client.Stop()
+	}
 	for _, server := range nm.opcuaServers {
 		server.Stop()
 	}
@@ -250,52 +272,8 @@ func (nm *NorthboundManager) GetConfig() model.NorthboundConfig {
 	return cfg
 }
 
-// MQTT Operations
-
-func (nm *NorthboundManager) UpsertMQTTConfig(cfg model.MQTTConfig) error {
-	nm.mu.Lock()
-	defer nm.mu.Unlock()
-
-	// Update config list
-	found := false
-	for i, c := range nm.config.MQTT {
-		if c.ID == cfg.ID {
-			nm.config.MQTT[i] = cfg
-			found = true
-			break
-		}
-	}
-	if !found {
-		nm.config.MQTT = append(nm.config.MQTT, cfg)
-	}
-
-	if err := nm.saveConfig(); err != nil {
-		return err
-	}
-
-	// Manage runtime
-	client, exists := nm.mqttClients[cfg.ID]
-
-	if !cfg.Enable {
-		if exists {
-			client.Stop()
-			delete(nm.mqttClients, cfg.ID)
-		}
-		return nil
-	}
-
-	if !exists {
-		newClient := mqtt.NewClient(cfg, nm.sb)
-		if err := newClient.Start(); err != nil {
-			return err
-		}
-		nm.mqttClients[cfg.ID] = newClient
-	} else {
-		return client.UpdateConfig(cfg)
-	}
-
-	return nil
-}
+// MQTT Operations (Moved to northbound_manager_ext.go)
+// func (nm *NorthboundManager) UpsertMQTTConfig(cfg model.MQTTConfig) error ...
 
 func (nm *NorthboundManager) DeleteMQTTConfig(id string) error {
 	nm.mu.Lock()

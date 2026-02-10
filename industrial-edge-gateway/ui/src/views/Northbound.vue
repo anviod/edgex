@@ -379,8 +379,12 @@
                         <v-switch v-model="mqttDialog.config.ignore_offline_data" label="设备离线时不主动上报数据" color="primary" hide-details class="mb-2" hint="当设备离线（所有点位采集失败）时，停止上报周期数据" persistent-hint></v-switch>
                         
                         <v-divider class="my-4"></v-divider>
-                        <div class="text-subtitle-1 mb-2 font-weight-bold">状态上报配置 (Status)</div>
-                        <v-text-field v-model="mqttDialog.config.status_topic" label="状态主题 (在线)" placeholder="默认: 发布主题/status" persistent-placeholder variant="outlined" density="compact" class="mb-2"></v-text-field>
+                        <div class="text-subtitle-1 mb-2 font-weight-bold">子设备事件上报 (Device Events)</div>
+                        <v-text-field v-model="mqttDialog.config.device_lifecycle_topic" label="子设备生命周期主题 (Add/Remove)" placeholder="默认: things/{client_id}/{device_id}/lifecycle" persistent-placeholder variant="outlined" density="compact" class="mb-2" hint="子设备添加、删除事件将发布到此主题"></v-text-field>
+                        
+                        <v-divider class="my-4"></v-divider>
+                        <div class="text-subtitle-1 mb-2 font-weight-bold">子设备状态上报 (Device Status)</div>
+                        <v-text-field v-model="mqttDialog.config.status_topic" label="状态主题 (在线/离线)" placeholder="默认: things/{client_id}/{device_id}/status" persistent-placeholder variant="outlined" density="compact" class="mb-2" hint="支持 {client_id} 和 {device_id} 变量"></v-text-field>
                         <v-row>
                             <v-col cols="12" md="6">
                                 <v-textarea v-model="mqttDialog.config.online_payload" label="上线消息内容 (JSON)" placeholder='{"status":"online"}' rows="3" variant="outlined" density="compact"></v-textarea>
@@ -1111,7 +1115,8 @@ const autoFillTopics = () => {
     mqttDialog.config.subscribe_topic = `${root}/down/req`
     mqttDialog.config.write_response_topic = `${root}/down/resp`
     
-    mqttDialog.config.status_topic = `${root}/status`
+    mqttDialog.config.status_topic = `${root}/{device_id}/status`
+    mqttDialog.config.device_lifecycle_topic = `${root}/{device_id}/lifecycle`
     mqttDialog.config.lwt_topic = `${root}/lwt`
     
     mqttDialog.config.online_payload = JSON.stringify({
@@ -1219,6 +1224,7 @@ const openMqttSettings = async (item) => {
             subscribe_topic: '/neuron/+/write/req',
             write_response_topic: '',
             status_topic: '',
+            device_lifecycle_topic: '',
             online_payload: '',
             offline_payload: '',
             devices: {}

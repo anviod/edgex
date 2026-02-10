@@ -71,3 +71,20 @@
 
 *   **URL**: `/edge/shared-sources`
 *   **Method**: `GET`
+
+## 动作配置指南 (Action Configuration)
+
+在定义规则动作时，建议通过 ID 引用已创建的北向配置，以复用连接和缓存策略。
+
+### MQTT 推送 (mqtt)
+*   **type**: `mqtt`
+*   **config**:
+    *   `mqtt_config_id`: **(推荐)** 引用北向 MQTT 配置的 ID。
+    *   `topic`: 推送主题 (可选)。
+    *   `send_strategy`: `batch` (批量) 或 `single` (单点)。
+
+### HTTP 推送 (http)
+*   **type**: `http`
+*   **config**:
+    *   `http_config_id`: **(推荐)** 引用北向 HTTP 配置的 ID。
+    *   `body`: 消息体模板 (支持 `${var}` 替换)。
