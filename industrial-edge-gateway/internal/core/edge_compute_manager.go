@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"industrial-edge-gateway/internal/model"
@@ -65,6 +66,10 @@ type EdgeComputeManager struct {
 
 	// Dependency Injection for Testing
 	writer DeviceIO
+
+	// Context for cancellation
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 type DeviceIO interface {
@@ -84,7 +89,10 @@ type EdgeComputeMetrics struct {
 }
 
 func NewEdgeComputeManager(pipeline *DataPipeline, store *storage.Storage, saveFunc func([]model.EdgeRule) error) *EdgeComputeManager {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &EdgeComputeManager{
+		ctx:         ctx,
+		cancel:      cancel,
 		rules:       make(map[string]model.EdgeRule),
 		pipeline:    pipeline,
 		store:       store,
@@ -201,6 +209,7 @@ func (em *EdgeComputeManager) Start() {
 
 func (em *EdgeComputeManager) Stop() {
 	em.stopOnce.Do(func() {
+		em.cancel() // Cancel context
 		close(em.workerPool)
 		em.wg.Wait()
 	})
@@ -1012,7 +1021,8 @@ func (em *EdgeComputeManager) executeActions(ruleID string, actions []model.Rule
 		}
 
 		go func(act model.RuleAction) {
-			err := em.executeSingleAction(ruleID, act, val, env)
+			// Use manager context or create a per-action context with timeout if needed
+			err := em.executeSingleAction(em.ctx, ruleID, act, val, env)
 			if em.actionHook != nil {
 				em.actionHook(ruleID, act, val, env, err)
 			}
@@ -1077,303 +1087,34 @@ func (em *EdgeComputeManager) calculateRMW(cid, did, pid string, bitIdx int, bit
 	}
 }
 
-func (em *EdgeComputeManager) executeSingleAction(ruleID string, action model.RuleAction, val model.Value, env map[string]any) error {
-	switch action.Type {
-	case "database":
-		if em.store == nil {
-			return fmt.Errorf("storage not available")
-		}
-		bucket, _ := action.Config["bucket"].(string)
-		if bucket == "" {
-			bucket = "rule_events"
-		}
-		// Use timestamp as key if not provided
-		key := fmt.Sprintf("%s_%d", ruleID, time.Now().UnixNano())
-
-		data := map[string]interface{}{
-			"rule_id": ruleID,
-			"value":   val,
-			"time":    time.Now(),
-		}
-
-		return em.store.SaveData(bucket, key, data)
-	case "log":
-		log.Printf("[EdgeAction] LOG: Rule triggered for %s, Value: %v", val.PointID, val.Value)
-		return nil
-	case "mqtt":
-		if em.nbm == nil {
-			return fmt.Errorf("NorthboundManager not available")
-		}
-		topic, _ := action.Config["topic"].(string)
-		if topic == "" {
-			return nil // Skip if no topic
-		}
-		clientID, _ := action.Config["client_id"].(string)
-		strategy, _ := action.Config["send_strategy"].(string)
-
-		var payload []byte
-		var err error
-
-		if strategy == "batch" {
-			// Send all source values from env
-			// Filter out "value" which is a duplicate of one source
-			batchData := make(map[string]any)
-			for k, v := range env {
-				if k != "value" {
-					batchData[k] = v
-				}
-			}
-			// If env only had "value" (no aliases), use val
-			if len(batchData) == 0 {
-				payload, err = json.Marshal(val)
-			} else {
-				payload, err = json.Marshal(batchData)
-			}
-		} else {
-			// Default: Send triggering value
-			payload, err = json.Marshal(val)
-		}
-		if err != nil {
-			return err
-		}
-
-		// If message is provided in config, use it (Template overrides payload)
-		if msg, ok := action.Config["message"].(string); ok && msg != "" {
-			// Resolve templates
-			resolvedMsg := os.Expand(msg, func(k string) string {
-				if v, ok := env[k]; ok {
-					return fmt.Sprintf("%v", v)
-				}
-				return ""
-			})
-			payload = []byte(resolvedMsg)
-		}
-
-		return em.nbm.PublishMQTT(clientID, topic, payload)
-	case "device_control":
-		if em.writer == nil {
-			return fmt.Errorf("DeviceWriter not available")
-		}
-
-		// Check for multiple targets
-		if targets, ok := action.Config["targets"].([]interface{}); ok && len(targets) > 0 {
-			var errs []error
-			for _, t := range targets {
-				targetMap, ok := t.(map[string]interface{})
-				if !ok {
-					continue
-				}
-				cid, _ := targetMap["channel_id"].(string)
-				did, _ := targetMap["device_id"].(string)
-				pid, _ := targetMap["point_id"].(string)
-				valToWrite := targetMap["value"]
-				expression, _ := targetMap["expression"].(string)
-
-				if cid != "" && did != "" && pid != "" {
-					// Flag to track if expression logic handled the value
-					expressionHandled := false
-
-					// 0. Safety check for empty expression with RMW intent
-					// If the user provided a value but meant to use RMW (implied by context or missing expression),
-					// we can't guess, but we can log.
-					if expression == "" {
-						log.Printf("[EdgeAction] Info: Empty expression for %s/%s/%s, using direct value write", cid, did, pid)
-					}
-
-					// 1. Resolve expression if present
-					if expression != "" {
-						// Prepare Env for Expression
-						calcEnv := make(map[string]any)
-						for k, v := range env {
-							calcEnv[k] = v
-						}
-						// Ensure 'v' is available in env (alias for value)
-						// If value is numeric, use float64, otherwise original
-						if fVal, ok := toFloat(val.Value); ok {
-							calcEnv["v"] = fVal
-						} else {
-							calcEnv["v"] = val.Value
-						}
-
-						// Check for Bit Mapping (Read-Modify-Write)
-						preprocessed := preprocessExpression(expression)
-
-						// Case 1: bitget(v, N) - Copy bit from value
-						matches := bitMapRegex.FindStringSubmatch(preprocessed)
-						if len(matches) == 2 {
-							bitIdx, _ := strconv.Atoi(matches[1])
-							// Evaluate to get the bit value (0 or 1)
-							res, err := evaluateCalculation(expression, calcEnv)
-							if err == nil {
-								if newVal, err := em.calculateRMW(cid, did, pid, bitIdx, res, expression); err == nil {
-									valToWrite = newVal
-									expressionHandled = true
-								}
-							} else {
-								log.Printf("[EdgeAction] Failed to evaluate expression '%s': %v", expression, err)
-							}
-						} else {
-							// Case 2: bitset(N, val) - Set constant bit value
-							matchesSet := bitSetRegex.FindStringSubmatch(expression)
-							matchesSetValue := bitSetValueRegex.FindStringSubmatch(expression)
-
-							if len(matchesSetValue) == 2 {
-								// bitset(N, value) - Use target's "value" field
-								n, _ := strconv.Atoi(matchesSetValue[1])
-								bitIdx := n - 1
-								if bitIdx < 0 {
-									bitIdx = 0
-								}
-
-								// Resolve target value
-								var resolvedVal int64
-								// 1. Resolve template if it's a string
-								rawVal := valToWrite
-								if rawVal != nil {
-									rawVal = em.resolveValueTemplate(rawVal, env)
-								}
-								// 2. Convert to int
-								if fVal, ok := toFloat(rawVal); ok {
-									resolvedVal = int64(fVal)
-								} else {
-									// Try string parse
-									if sVal, ok := rawVal.(string); ok {
-										if f, err := strconv.ParseFloat(sVal, 64); err == nil {
-											resolvedVal = int64(f)
-										}
-									}
-								}
-
-								if newVal, err := em.calculateRMW(cid, did, pid, bitIdx, resolvedVal, expression); err == nil {
-									valToWrite = newVal
-									expressionHandled = true
-								}
-
-							} else if len(matchesSet) == 3 {
-								// bitset(N, val) where N is 1-based, val is constant literal
-								n, _ := strconv.Atoi(matchesSet[1])
-								val, _ := strconv.Atoi(matchesSet[2])
-								bitIdx := n - 1
-								if bitIdx < 0 {
-									bitIdx = 0
-								}
-
-								// Direct RMW with constant value
-								if newVal, err := em.calculateRMW(cid, did, pid, bitIdx, int64(val), expression); err == nil {
-									valToWrite = newVal
-									expressionHandled = true
-								}
-							} else {
-								// Case 3: Standard expression
-								res, err := evaluateCalculation(expression, calcEnv)
-								if err == nil {
-									valToWrite = res
-									expressionHandled = true
-								} else {
-									log.Printf("[EdgeAction] Failed to evaluate expression '%s': %v", expression, err)
-								}
-							}
-						}
-					}
-
-					// 2. Resolve value template if string (and no expression success or expression result is string)
-					// Only resolve if expression NOT handled
-					if !expressionHandled {
-						if valToWrite != nil {
-							valToWrite = em.resolveValueTemplate(valToWrite, env)
-						} else {
-							valToWrite = val.Value
-						}
-					}
-
-					if err := em.writer.WritePoint(cid, did, pid, valToWrite); err != nil {
-						errs = append(errs, fmt.Errorf("failed to write %s/%s/%s: %v", cid, did, pid, err))
-					}
-				}
-			}
-			if len(errs) > 0 {
-				return fmt.Errorf("batch control errors: %v", errs)
-			}
-			return nil
-		}
-
-		// Single target (Legacy)
-		channelID, _ := action.Config["channel_id"].(string)
-		deviceID, _ := action.Config["device_id"].(string)
-		pointID, _ := action.Config["point_id"].(string)
-		valToWrite := action.Config["value"]
-
-		if channelID == "" || deviceID == "" || pointID == "" {
-			return fmt.Errorf("missing channel_id, device_id or point_id")
-		}
-
-		// Resolve value if it is a string template or nil
-		if valToWrite == nil {
-			valToWrite = val.Value
-		} else {
-			// Try to resolve template if valToWrite is string
-			valToWrite = em.resolveValueTemplate(valToWrite, env)
-		}
-
-		return em.writer.WritePoint(channelID, deviceID, pointID, valToWrite)
-	case "http":
-		url, _ := action.Config["url"].(string)
-		if url == "" {
-			return nil
-		}
-		method, _ := action.Config["method"].(string)
-		if method == "" {
-			method = "POST"
-		}
-		strategy, _ := action.Config["send_strategy"].(string)
-
-		var payload []byte
-		var err error
-
-		if strategy == "batch" {
-			batchData := make(map[string]any)
-			for k, v := range env {
-				if k != "value" {
-					batchData[k] = v
-				}
-			}
-			if len(batchData) == 0 {
-				payload, err = json.Marshal(val)
-			} else {
-				payload, err = json.Marshal(batchData)
-			}
-		} else {
-			payload, err = json.Marshal(val)
-		}
-		if err != nil {
-			return err
-		}
-
-		if msg, ok := action.Config["body"].(string); ok && msg != "" {
-			// Resolve templates
-			resolvedMsg := os.Expand(msg, func(k string) string {
-				if v, ok := env[k]; ok {
-					return fmt.Sprintf("%v", v)
-				}
-				return ""
-			})
-			payload = []byte(resolvedMsg)
-		}
-
-		req, err := http.NewRequest(method, url, bytes.NewBuffer(payload))
-		if err != nil {
-			return err
-		}
-		req.Header.Set("Content-Type", "application/json")
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		return nil
+func (em *EdgeComputeManager) executeSingleAction(ctx context.Context, ruleID string, action model.RuleAction, val model.Value, env map[string]any) error {
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
 	}
-	return nil
+
+	switch action.Type {
+	case "sequence":
+		return em.executeSequence(ctx, ruleID, action, val, env)
+	case "delay":
+		return em.executeDelay(ctx, action)
+	case "check":
+		return em.executeCheck(ctx, ruleID, action, val, env)
+	case "log":
+		return em.executeLog(ctx, ruleID, action, val)
+	case "device_control":
+		return em.executeDeviceControl(ctx, ruleID, action, val, env)
+	case "mqtt":
+		return em.executeMqtt(ctx, ruleID, action, val, env)
+	case "database":
+		return em.executeDatabase(ctx, ruleID, action, val, env)
+	case "http":
+		return em.executeHttp(ctx, ruleID, action, val, env)
+	default:
+		return fmt.Errorf("unsupported action type: %s", action.Type)
+	}
 }
 
 func (em *EdgeComputeManager) saveFailedAction(ruleID string, action model.RuleAction, val model.Value, env map[string]any, errStr string) {
@@ -1419,7 +1160,8 @@ func (em *EdgeComputeManager) processFailedActions() {
 		}
 
 		// Retry logic
-		err := em.executeSingleAction(fa.RuleID, fa.Action, fa.Value, fa.Env)
+		// Use manager context
+		err := em.executeSingleAction(em.ctx, fa.RuleID, fa.Action, fa.Value, fa.Env)
 		if err == nil {
 			// Success, remove
 			em.store.DeleteData("DataCache", fa.ID)
@@ -1452,6 +1194,435 @@ func (em *EdgeComputeManager) GetFailedActions() []model.FailedAction {
 		return nil
 	})
 	return result
+}
+
+// Extended Workflow Actions
+
+func (em *EdgeComputeManager) executeSequence(ctx context.Context, ruleID string, action model.RuleAction, val model.Value, env map[string]any) error {
+	stepsInterface, ok := action.Config["steps"].([]interface{})
+	if !ok {
+		return fmt.Errorf("invalid steps format in sequence")
+	}
+	steps, err := em.convertToRuleActions(stepsInterface)
+	if err != nil {
+		return err
+	}
+
+	for _, step := range steps {
+		if err := em.executeSingleAction(ctx, ruleID, step, val, env); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (em *EdgeComputeManager) executeDelay(ctx context.Context, action model.RuleAction) error {
+	durationStr, ok := action.Config["duration"].(string)
+	if !ok {
+		return fmt.Errorf("missing duration in delay")
+	}
+	duration, err := time.ParseDuration(durationStr)
+	if err != nil {
+		return err
+	}
+	select {
+	case <-time.After(duration):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (em *EdgeComputeManager) executeCheck(ctx context.Context, ruleID string, action model.RuleAction, val model.Value, env map[string]any) error {
+	cid, _ := action.Config["channel_id"].(string)
+	did, _ := action.Config["device_id"].(string)
+	pid, _ := action.Config["point_id"].(string)
+	exprStr, _ := action.Config["expression"].(string)
+
+	retry := 1
+	if r, ok := action.Config["retry"].(float64); ok {
+		retry = int(r)
+	} else if r, ok := action.Config["retry"].(int); ok {
+		retry = r
+	}
+	if retry < 1 {
+		retry = 1
+	}
+
+	interval := time.Second
+	if iStr, ok := action.Config["interval"].(string); ok {
+		if d, err := time.ParseDuration(iStr); err == nil {
+			interval = d
+		}
+	}
+
+	timeout := 0 * time.Second
+	if tStr, ok := action.Config["timeout"].(string); ok {
+		if d, err := time.ParseDuration(tStr); err == nil {
+			timeout = d
+		}
+	}
+
+	var checkErr error
+	success := false
+
+	startTime := time.Now()
+	for i := 0; i < retry; i++ {
+		if timeout > 0 && time.Since(startTime) > timeout {
+			checkErr = fmt.Errorf("check timeout")
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		currentVal, err := em.writer.ReadPoint(cid, did, pid)
+		if err != nil {
+			checkErr = fmt.Errorf("read failed: %v", err)
+		} else {
+			checkEnv := map[string]any{"v": currentVal.Value}
+			for k, v := range env {
+				checkEnv[k] = v
+			}
+
+			res, err := evaluateCalculation(exprStr, checkEnv)
+			if err != nil {
+				checkErr = fmt.Errorf("eval failed: %v", err)
+			} else {
+				if b, ok := res.(bool); ok && b {
+					success = true
+					break
+				}
+				checkErr = fmt.Errorf("condition false")
+			}
+		}
+
+		if i < retry-1 {
+			select {
+			case <-time.After(interval):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+
+	if success {
+		return nil
+	}
+
+	if onFailInterface, ok := action.Config["on_fail"].([]interface{}); ok {
+		log.Printf("[EdgeAction] Check failed (%v), executing rollback...", checkErr)
+		rollbackSteps, err := em.convertToRuleActions(onFailInterface)
+		if err == nil {
+			for _, step := range rollbackSteps {
+				_ = em.executeSingleAction(ctx, ruleID, step, val, env)
+			}
+		}
+	}
+
+	return fmt.Errorf("check failed: %v", checkErr)
+}
+
+func (em *EdgeComputeManager) executeLog(ctx context.Context, ruleID string, action model.RuleAction, val model.Value) error {
+	level, _ := action.Config["level"].(string)
+	msg, _ := action.Config["message"].(string)
+	if msg == "" {
+		msg = fmt.Sprintf("Rule %s triggered", ruleID)
+	}
+	prefix := "[EdgeAction]"
+	switch strings.ToLower(level) {
+	case "warn":
+		log.Printf("%s [WARN] %s", prefix, msg)
+	case "error":
+		log.Printf("%s [ERROR] %s", prefix, msg)
+	default:
+		log.Printf("%s [INFO] %s", prefix, msg)
+	}
+	return nil
+}
+
+func (em *EdgeComputeManager) convertToRuleActions(input []interface{}) ([]model.RuleAction, error) {
+	var actions []model.RuleAction
+	for _, item := range input {
+		mapItem, ok := item.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("invalid action format")
+		}
+		act := model.RuleAction{}
+		if t, ok := mapItem["type"].(string); ok {
+			act.Type = t
+		}
+		if c, ok := mapItem["config"].(map[string]interface{}); ok {
+			act.Config = c
+		} else {
+			act.Config = make(map[string]any)
+		}
+		actions = append(actions, act)
+	}
+	return actions, nil
+}
+
+func (em *EdgeComputeManager) executeMqtt(ctx context.Context, ruleID string, action model.RuleAction, val model.Value, env map[string]any) error {
+	if em.nbm == nil {
+		return fmt.Errorf("NorthboundManager not available")
+	}
+	topic, _ := action.Config["topic"].(string)
+	if topic == "" {
+		return nil // Skip if no topic
+	}
+	clientID, _ := action.Config["client_id"].(string)
+	strategy, _ := action.Config["send_strategy"].(string)
+
+	var payload []byte
+	var err error
+
+	if strategy == "batch" {
+		batchData := make(map[string]any)
+		for k, v := range env {
+			if k != "value" {
+				batchData[k] = v
+			}
+		}
+		if len(batchData) == 0 {
+			payload, err = json.Marshal(val)
+		} else {
+			payload, err = json.Marshal(batchData)
+		}
+	} else {
+		payload, err = json.Marshal(val)
+	}
+	if err != nil {
+		return err
+	}
+
+	if msg, ok := action.Config["message"].(string); ok && msg != "" {
+		resolvedMsg := os.Expand(msg, func(k string) string {
+			if v, ok := env[k]; ok {
+				return fmt.Sprintf("%v", v)
+			}
+			return ""
+		})
+		payload = []byte(resolvedMsg)
+	}
+
+	return em.nbm.PublishMQTT(clientID, topic, payload)
+}
+
+func (em *EdgeComputeManager) executeDatabase(ctx context.Context, ruleID string, action model.RuleAction, val model.Value, env map[string]any) error {
+	if em.store == nil {
+		return fmt.Errorf("storage not available")
+	}
+	bucket, _ := action.Config["bucket"].(string)
+	if bucket == "" {
+		bucket = "rule_events"
+	}
+	key := fmt.Sprintf("%s_%d", ruleID, time.Now().UnixNano())
+
+	data := map[string]interface{}{
+		"rule_id": ruleID,
+		"value":   val,
+		"time":    time.Now(),
+	}
+
+	return em.store.SaveData(bucket, key, data)
+}
+
+func (em *EdgeComputeManager) executeHttp(ctx context.Context, ruleID string, action model.RuleAction, val model.Value, env map[string]any) error {
+	url, _ := action.Config["url"].(string)
+	if url == "" {
+		return nil
+	}
+	method, _ := action.Config["method"].(string)
+	if method == "" {
+		method = "POST"
+	}
+	strategy, _ := action.Config["send_strategy"].(string)
+
+	var payload []byte
+	var err error
+
+	if strategy == "batch" {
+		batchData := make(map[string]any)
+		for k, v := range env {
+			if k != "value" {
+				batchData[k] = v
+			}
+		}
+		if len(batchData) == 0 {
+			payload, err = json.Marshal(val)
+		} else {
+			payload, err = json.Marshal(batchData)
+		}
+	} else {
+		payload, err = json.Marshal(val)
+	}
+	if err != nil {
+		return err
+	}
+
+	if msg, ok := action.Config["body"].(string); ok && msg != "" {
+		resolvedMsg := os.Expand(msg, func(k string) string {
+			if v, ok := env[k]; ok {
+				return fmt.Sprintf("%v", v)
+			}
+			return ""
+		})
+		payload = []byte(resolvedMsg)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(payload))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
+func (em *EdgeComputeManager) executeDeviceControl(ctx context.Context, ruleID string, action model.RuleAction, val model.Value, env map[string]any) error {
+	if em.writer == nil {
+		return fmt.Errorf("DeviceWriter not available")
+	}
+
+	if targets, ok := action.Config["targets"].([]interface{}); ok && len(targets) > 0 {
+		var errs []error
+		for _, t := range targets {
+			targetMap, ok := t.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			cid, _ := targetMap["channel_id"].(string)
+			did, _ := targetMap["device_id"].(string)
+			pid, _ := targetMap["point_id"].(string)
+			valToWrite := targetMap["value"]
+			expression, _ := targetMap["expression"].(string)
+
+			if cid != "" && did != "" && pid != "" {
+				expressionHandled := false
+				if expression == "" {
+					log.Printf("[EdgeAction] Info: Empty expression for %s/%s/%s, using direct value write", cid, did, pid)
+				}
+
+				if expression != "" {
+					calcEnv := make(map[string]any)
+					for k, v := range env {
+						calcEnv[k] = v
+					}
+					if fVal, ok := toFloat(val.Value); ok {
+						calcEnv["v"] = fVal
+					} else {
+						calcEnv["v"] = val.Value
+					}
+
+					preprocessed := preprocessExpression(expression)
+					matches := bitMapRegex.FindStringSubmatch(preprocessed)
+					if len(matches) == 2 {
+						bitIdx, _ := strconv.Atoi(matches[1])
+						res, err := evaluateCalculation(expression, calcEnv)
+						if err == nil {
+							if newVal, err := em.calculateRMW(cid, did, pid, bitIdx, res, expression); err == nil {
+								valToWrite = newVal
+								expressionHandled = true
+							}
+						} else {
+							log.Printf("[EdgeAction] Failed to evaluate expression '%s': %v", expression, err)
+						}
+					} else {
+						matchesSet := bitSetRegex.FindStringSubmatch(expression)
+						matchesSetValue := bitSetValueRegex.FindStringSubmatch(expression)
+
+						if len(matchesSetValue) == 2 {
+							n, _ := strconv.Atoi(matchesSetValue[1])
+							bitIdx := n - 1
+							if bitIdx < 0 {
+								bitIdx = 0
+							}
+
+							var resolvedVal int64
+							rawVal := valToWrite
+							if rawVal != nil {
+								rawVal = em.resolveValueTemplate(rawVal, env)
+							}
+							if fVal, ok := toFloat(rawVal); ok {
+								resolvedVal = int64(fVal)
+							} else {
+								if sVal, ok := rawVal.(string); ok {
+									if f, err := strconv.ParseFloat(sVal, 64); err == nil {
+										resolvedVal = int64(f)
+									}
+								}
+							}
+
+							if newVal, err := em.calculateRMW(cid, did, pid, bitIdx, resolvedVal, expression); err == nil {
+								valToWrite = newVal
+								expressionHandled = true
+							}
+						} else if len(matchesSet) == 3 {
+							n, _ := strconv.Atoi(matchesSet[1])
+							val, _ := strconv.Atoi(matchesSet[2])
+							bitIdx := n - 1
+							if bitIdx < 0 {
+								bitIdx = 0
+							}
+
+							if newVal, err := em.calculateRMW(cid, did, pid, bitIdx, int64(val), expression); err == nil {
+								valToWrite = newVal
+								expressionHandled = true
+							}
+						} else {
+							res, err := evaluateCalculation(expression, calcEnv)
+							if err == nil {
+								valToWrite = res
+								expressionHandled = true
+							} else {
+								log.Printf("[EdgeAction] Failed to evaluate expression '%s': %v", expression, err)
+							}
+						}
+					}
+				}
+
+				if !expressionHandled {
+					if valToWrite != nil {
+						valToWrite = em.resolveValueTemplate(valToWrite, env)
+					} else {
+						valToWrite = val.Value
+					}
+				}
+
+				if err := em.writer.WritePoint(cid, did, pid, valToWrite); err != nil {
+					errs = append(errs, fmt.Errorf("failed to write %s/%s/%s: %v", cid, did, pid, err))
+				}
+			}
+		}
+		if len(errs) > 0 {
+			return fmt.Errorf("batch control errors: %v", errs)
+		}
+		return nil
+	}
+
+	channelID, _ := action.Config["channel_id"].(string)
+	deviceID, _ := action.Config["device_id"].(string)
+	pointID, _ := action.Config["point_id"].(string)
+	valToWrite := action.Config["value"]
+
+	if channelID == "" || deviceID == "" || pointID == "" {
+		return fmt.Errorf("missing channel_id, device_id or point_id")
+	}
+
+	if valToWrite == nil {
+		valToWrite = val.Value
+	} else {
+		valToWrite = em.resolveValueTemplate(valToWrite, env)
+	}
+
+	return em.writer.WritePoint(channelID, deviceID, pointID, valToWrite)
 }
 
 // CRUD Operations

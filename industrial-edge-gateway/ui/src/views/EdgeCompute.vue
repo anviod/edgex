@@ -265,7 +265,18 @@
         <!-- Rule Dialog -->
         <v-dialog v-model="dialog" max-width="80%">
             <v-card>
-                <v-card-title>{{ editingRule ? '编辑规则' : '添加规则' }}</v-card-title>
+                <v-card-title class="d-flex align-center">
+                    {{ editingRule ? '编辑规则' : '添加规则' }}
+                    <v-spacer></v-spacer>
+                    <v-btn
+                        color="info"
+                        variant="text"
+                        prepend-icon="mdi-help-circle-outline"
+                        @click="openHelpDialog"
+                    >
+                        帮助文档
+                    </v-btn>
+                </v-card-title>
                 <v-card-text>
                     <v-form ref="form">
                         <v-row>
@@ -458,248 +469,22 @@
                             <!-- Actions -->
                             <v-col cols="12">
                                 <div class="d-flex align-center mb-2">
-                                    <div class="text-subtitle-1">动作列表</div>
+                                    <div class="text-subtitle-1">动作列表 (Actions)</div>
                                     <v-spacer></v-spacer>
                                     <v-btn size="small" prepend-icon="mdi-plus" variant="text" @click="addAction">添加动作</v-btn>
                                 </div>
-                                <v-card v-for="(action, index) in currentRule.actions" :key="index" variant="outlined" class="mb-2 pa-2">
-                                    <v-row density="compact">
-                                        <v-col cols="12" md="3">
-                                            <v-select
-                                                v-model="action.type"
-                                                :items="[
-                                                    {title: 'Log (日志记录)', value: 'log'},
-                                                    {title: 'MQTT (消息推送)', value: 'mqtt'},
-                                                    {title: 'HTTP (Web请求)', value: 'http'},
-                                                    {title: 'Device Control (设备控制)', value: 'device_control'},
-                                                    {title: 'Database (数据存储)', value: 'database'}
-                                                ]"
-                                                label="动作类型"
-                                                density="compact"
-                                                hide-details
-                                            ></v-select>
-                                        </v-col>
-                                        <v-col cols="12" md="3">
-                                            <v-text-field
-                                                v-model="action.config.interval"
-                                                label="频率限制 (Interval)"
-                                                placeholder="e.g. 1s"
-                                                density="compact"
-                                                hide-details
-                                                title="最小执行间隔 (Optional)"
-                                            ></v-text-field>
-                                        </v-col>
-                                        <v-col cols="12" md="5" class="d-flex align-center">
-                                            <template v-if="action.type === 'device_control'">
-                                                <v-checkbox
-                                                    v-model="action._batchMode"
-                                                    label="Batch Control (批量控制)"
-                                                    density="compact"
-                                                    hide-details
-                                                    class="mr-4 flex-grow-0"
-                                                    @update:model-value="toggleBatchMode(action)"
-                                                ></v-checkbox>
-                                                <v-btn
-                                                    v-if="action._batchMode"
-                                                    size="small"
-                                                    variant="text"
-                                                    prepend-icon="mdi-plus"
-                                                    @click="addTarget(action)"
-                                                >添加目标 (Add Target)</v-btn>
-                                            </template>
-                                        </v-col>
-                                        <v-col cols="12" md="1" class="d-flex justify-end">
-                                            <v-btn icon="mdi-delete" size="x-small" color="error" variant="text" @click="removeAction(index)"></v-btn>
-                                        </v-col>
-                                        <v-col cols="12">
-                                            <!-- MQTT Config -->
-                                            <div
-                                                v-if="action.type === 'mqtt'"
-                                                class="d-flex gap-2 align-center"
-                                                style="width: 100%"
-                                            >
-                                                <v-text-field
-                                                    v-model="action.config.topic"
-                                                    label="Topic (主题)"
-                                                    density="compact"
-                                                    hide-details
-                                                    class="mr-2"
-                                                    style="white-space: nowrap"
-                                                ></v-text-field>
-                                                <v-select
-                                                    v-model="action.config.send_strategy"
-                                                    :items="[
-                                                        { title: '单条发送 Single', value: 'single' },
-                                                        { title: '批量发送 Batch', value: 'batch' }
-                                                    ]"
-                                                    label="发送策略 (Send Strategy)"
-                                                    density="compact"
-                                                    hide-details
-                                                    style="max-width: 150px; white-space: nowrap"
-                                                ></v-select>
-                                                <v-text-field
-                                                    v-model="action.config.message"
-                                                    label="Message 消息内容 (可选)"
-                                                    density="compact"
-                                                    hide-details
-                                                    style="white-space: nowrap"
-                                                ></v-text-field>
-                                            </div>
-                                            <!-- HTTP Config -->
-                                            <div v-if="action.type === 'http'" class="d-flex flex-column gap-2">
-                                                <div class="d-flex gap-2">
-                                                    <v-text-field v-model="action.config.url" label="URL (地址)" density="compact" hide-details class="mr-2"></v-text-field>
-                                                    <v-select v-model="action.config.method" :items="['POST', 'GET', 'PUT']" label="Method (方法)" density="compact" hide-details style="max-width: 150px"></v-select>
-                                                    <v-select v-model="action.config.send_strategy" :items="[{title:'单条发送', value:'single'}, {title:'批量发送', value:'batch'}]" label="发送策略 (Send Strategy)" density="compact" hide-details style="max-width: 200px"></v-select>
-                                                </div>
-                                            </div>
-                                            <!-- Device Control Config -->
-                                            <div v-if="action.type === 'device_control'" class="d-flex flex-column gap-2">
-                                                
-                                                <!-- Single Mode -->
-                                                <div
-                                                    v-if="!action._batchMode"
-                                                    class="d-flex gap-2 align-center"
-                                                    style="width: 100%"
-                                                >
-                                                    <v-select
-                                                        v-model="action.config.channel_id"
-                                                        :items="channels"
-                                                        item-title="name"
-                                                        item-value="id"
-                                                        label="Channel (通道)"
-                                                        density="compact"
-                                                        hide-details
-                                                        class="mr-2"
-                                                        style="min-width: 120px; white-space: nowrap; flex: 1;"
-                                                        @update:model-value="() => onActionChannelChange(action.config)"
-                                                    ></v-select>
-                                                    <v-select
-                                                        v-model="action.config.device_id"
-                                                        :items="action.config._deviceList || []"
-                                                        item-title="name"
-                                                        item-value="id"
-                                                        label="Device (设备)"
-                                                        density="compact"
-                                                        hide-details
-                                                        class="mr-2"
-                                                        style="min-width: 120px; white-space: nowrap; flex: 1;"
-                                                        :disabled="!action.config.channel_id"
-                                                        @update:model-value="() => onActionDeviceChange(action.config)"
-                                                        @click="() => loadActionDevices(action.config)"
-                                                    ></v-select>
-                                                    <v-combobox
-                                                        v-model="action.config.point_id"
-                                                        :items="action.config._pointList || []"
-                                                        item-title="name"
-                                                        item-value="id"
-                                                        label="Point (点位)"
-                                                        density="compact"
-                                                        hide-details
-                                                        class="mr-2"
-                                                        style="min-width: 120px; white-space: nowrap; flex: 1;"
-                                                        :disabled="!action.config.device_id"
-                                                        @click="() => loadActionPoints(action.config)"
-                                                        :return-object="false"
-                                                    ></v-combobox>
-                                                    <v-text-field
-                                                        v-model="action.config.value"
-                                                        label="Value (值)"
-                                                        density="compact"
-                                                        hide-details
-                                                        style="width: 120px; white-space: nowrap"
-                                                    ></v-text-field>
-                                                </div>
-                                                
-                                                <!-- Batch Mode -->
-                                                <div v-else>
-                                                    <template v-for="(target, tIdx) in action.config.targets" :key="tIdx">
-                                                        <v-card variant="outlined" class="mb-2 pa-2">
-                                                            <v-row density="compact" align="center">
-                                                                <v-col cols="12" md="2">
-                                                                    <v-select
-                                                                        v-model="target.channel_id"
-                                                                        :items="channels"
-                                                                        item-title="name"
-                                                                        item-value="id"
-                                                                        label="Channel (通道)"
-                                                                        density="compact"
-                                                                        hide-details
-                                                                        @update:model-value="() => onActionChannelChange(target)"
-                                                                    ></v-select>
-                                                                </v-col>
-                                                                <v-col cols="12" md="2">
-                                                                    <v-select
-                                                                        v-model="target.device_id"
-                                                                        :items="target._deviceList || []"
-                                                                        item-title="name"
-                                                                        item-value="id"
-                                                                        label="Device (设备)"
-                                                                        density="compact"
-                                                                        hide-details
-                                                                        :disabled="!target.channel_id"
-                                                                        @update:model-value="() => onActionDeviceChange(target)"
-                                                                        @click="() => loadActionDevices(target)"
-                                                                    ></v-select>
-                                                                </v-col>
-                                                                <v-col cols="12" md="2">
-                                                                    <v-combobox
-                                                                        v-model="target.point_id"
-                                                                        :items="target._pointList || []"
-                                                                        item-title="name"
-                                                                        item-value="id"
-                                                                        label="Point (点位)"
-                                                                        density="compact"
-                                                                        hide-details
-                                                                        :disabled="!target.device_id"
-                                                                        @click="() => loadActionPoints(target)"
-                                                                        :return-object="false"
-                                                                    ></v-combobox>
-                                                                </v-col>
-                                                                <v-col cols="12" md="3">
-                                                                     <v-text-field
-                                                                        v-model="target.expression"
-                                                                        label="Expr (公式)"
-                                                                        density="compact"
-                                                                        hide-details
-                                                                        placeholder="v+1 or bitand(v,1)"
-                                                                    >
-                                                                         <template v-slot:append-inner>
-                                                                            <v-btn color="primary" variant="tonal" class="rounded-0 h-100" style="margin-top: -6px; margin-bottom: -6px; margin-right: -12px; min-width: 32px; padding: 0 4px;" @click="openHelper(target.expression, (v) => target.expression = v)">
-                                                                                <v-icon icon="mdi-calculator" size="small"></v-icon>
-                                                                            </v-btn>
-                                                                        </template>
-                                                                     </v-text-field>
-                                                                </v-col>
-                                                                <v-col cols="12" md="2">
-                                                                    <v-text-field
-                                                                        v-model="target.value"
-                                                                        label="Value (值)"
-                                                                        density="compact"
-                                                                        hide-details
-                                                                    ></v-text-field>
-                                                                </v-col>
-                                                                <v-col cols="12" md="1" class="d-flex justify-end">
-                                                                     <v-btn
-                                                                        icon="mdi-delete"
-                                                                        size="x-small"
-                                                                        color="error"
-                                                                        variant="text"
-                                                                        @click="removeTarget(action, tIdx)"
-                                                                    ></v-btn>
-                                                                </v-col>
-                                                            </v-row>
-                                                        </v-card>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                            <!-- Database Config -->
-                                            <div v-if="action.type === 'database'" class="d-flex gap-2">
-                                                <v-text-field v-model="action.config.bucket" label="Bucket Name (桶名)" placeholder="rule_events" density="compact" hide-details></v-text-field>
-                                            </div>
-                                        </v-col>
-                                    </v-row>
-                                </v-card>
+                                <div v-if="!currentRule.actions || currentRule.actions.length === 0" class="text-center text-grey py-4 border-dashed rounded mb-2" style="border: 1px dashed #ccc;">
+                                    暂无动作 (No Actions)
+                                </div>
+                                <div v-else>
+                                    <div v-for="(action, index) in currentRule.actions" :key="index">
+                                        <ActionEditor 
+                                            v-model="currentRule.actions[index]" 
+                                            :channels="channels" 
+                                            @remove="removeAction(index)" 
+                                        />
+                                    </div>
+                                </div>
                             </v-col>
                         </v-row>
                     </v-form>
@@ -708,6 +493,182 @@
                     <v-spacer></v-spacer>
                     <v-btn color="grey" variant="text" @click="dialog = false">取消</v-btn>
                     <v-btn color="primary" @click="saveRule">保存</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
+
+        <!-- Help Dialog -->
+        <v-dialog v-model="helpDialog" max-width="800px" scrollable>
+            <v-card>
+                <v-card-title class="bg-primary text-white">
+                    <v-icon start>mdi-school</v-icon>
+                    边缘计算规则配置指南
+                </v-card-title>
+                <v-card-text class="pa-4" style="max-height: 600px; overflow-y: auto;">
+                    
+                    <div class="text-h6 mb-2">1. 基础概念</div>
+                    <v-alert type="info" variant="tonal" class="mb-4" density="compact">
+                        <ul>
+                            <li><strong>数据源 (Sources)</strong>: 规则的输入变量。请为每个源设置简短的 <code>别名 (Alias)</code> (如 t1, p1)，以便在表达式中引用。</li>
+                            <li><strong>触发条件 (Condition)</strong>: 返回 true/false 的布尔表达式。仅当条件满足时触发动作。</li>
+                            <li><strong>动作 (Actions)</strong>: 规则触发后执行的一系列操作。</li>
+                        </ul>
+                    </v-alert>
+
+                    <div class="text-h6 mb-2">2. 常见场景最佳实践</div>
+                    
+                    <v-expansion-panels variant="accordion" class="mb-4">
+                        <v-expansion-panel>
+                            <v-expansion-panel-title>场景 A: 简单越限报警 (Threshold)</v-expansion-panel-title>
+                            <v-expansion-panel-text>
+                                <p><strong>目标</strong>: 当温度 (t1) 超过 50 度时，记录日志并发送 MQTT 告警。</p>
+                                <ul class="pl-4 mt-2">
+                                    <li><strong>类型</strong>: Threshold</li>
+                                    <li><strong>数据源</strong>: 添加温度点位，别名设为 <code>t1</code></li>
+                                    <li><strong>触发条件</strong>: <code>t1 > 50</code></li>
+                                    <li><strong>动作</strong>: 
+                                        <ol class="pl-4">
+                                            <li>Log: 级别 Warn, 内容 "温度过高: ${t1}"</li>
+                                            <li>MQTT: Topic "alarm/temp", 内容 "温度异常: ${t1}"</li>
+                                        </ol>
+                                    </li>
+                                </ul>
+                            </v-expansion-panel-text>
+                        </v-expansion-panel>
+
+                        <v-expansion-panel>
+                            <v-expansion-panel-title>场景 B: 顺序联动控制 (Sequence Workflow)</v-expansion-panel-title>
+                            <v-expansion-panel-text>
+                                <p><strong>目标</strong>: 启动设备 A，等待 30秒，确认 A 已启动后再启动设备 B。如果 A 启动失败，则回退关闭 A。</p>
+                                <ul class="pl-4 mt-2">
+                                    <li><strong>类型</strong>: Threshold (或 State)</li>
+                                    <li><strong>触发条件</strong>: <code>start_signal == 1</code> (启动信号)</li>
+                                    <li><strong>动作</strong>: 选择 <strong>Sequence</strong> 类型，添加以下步骤：
+                                        <ol class="pl-4 mt-1">
+                                            <li><strong>Device Control</strong>: 开启设备 A (Value: 1)</li>
+                                            <li><strong>Delay</strong>: 30s</li>
+                                            <li><strong>Check</strong>: 
+                                                <ul class="pl-4">
+                                                    <li>选择设备 A 的状态点位</li>
+                                                    <li>表达式: <code>v == 1</code> (确认运行中)</li>
+                                                    <li>重试: 3次, 间隔: 2s</li>
+                                                    <li><strong>On Fail (失败回退)</strong>: 添加 Device Control 动作 -> 关闭设备 A (Value: 0)</li>
+                                                </ul>
+                                            </li>
+                                            <li><strong>Device Control</strong>: 开启设备 B (Value: 1)</li>
+                                        </ol>
+                                    </li>
+                                </ul>
+                                <v-alert type="warning" variant="tonal" density="compact" class="mt-2">
+                                    <strong>注意:</strong> Sequence 中的 Check 动作如果失败且未在 On Fail 中成功处理异常（通常用于记录日志或回退），整个 Sequence 将会终止，后续步骤（如开启设备 B）不会执行。这是实现安全联动逻辑的关键。
+                                </v-alert>
+                            </v-expansion-panel-text>
+                        </v-expansion-panel>
+
+                        <v-expansion-panel>
+                            <v-expansion-panel-title>场景 C: 批量设备控制 (Batch Control)</v-expansion-panel-title>
+                            <v-expansion-panel-text>
+                                <p><strong>目标</strong>: 一键关闭所有相关设备 (A, B, C)。</p>
+                                <ul class="pl-4 mt-2">
+                                    <li><strong>动作</strong>: 选择 <strong>Device Control</strong> 类型</li>
+                                    <li><strong>配置</strong>: 开启 <strong>Batch Control (批量控制)</strong> 开关</li>
+                                    <li><strong>目标列表</strong>:
+                                        <ul class="pl-4">
+                                            <li>目标 1: 设备 A, 开关点位, 值 0</li>
+                                            <li>目标 2: 设备 B, 开关点位, 值 0</li>
+                                            <li>目标 3: 设备 C, 开关点位, 值 0</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                                <p class="mt-2 text-caption">优势: 批量控制会并行发送写入请求，相比连续的单点控制动作，响应速度更快。</p>
+                            </v-expansion-panel-text>
+                        </v-expansion-panel>
+
+                        <v-expansion-panel>
+                            <v-expansion-panel-title>场景 D: 位运算与状态字控制 (Bitwise)</v-expansion-panel-title>
+                            <v-expansion-panel-text>
+                                <p><strong>目标</strong>: 仅修改状态字的第 4 位 (置 1)，保持其他位不变。</p>
+                                <ul class="pl-4 mt-2">
+                                    <li><strong>动作</strong>: Device Control</li>
+                                    <li><strong>Expr (公式)</strong>: <code>bitset(v, 4)</code> 或 <code>v | 8</code> (0-based index)</li>
+                                    <li><strong>说明</strong>: 系统会自动读取当前值 -> 计算新值 -> 写入 (Read-Modify-Write 机制)。</li>
+                                </ul>
+                                <v-alert type="success" variant="tonal" density="compact" class="mt-2">
+                                    <strong>RMW 机制:</strong> 网关会自动处理并发冲突，确保在修改某一位时，不会覆盖其他位在同一时刻发生的变化（仅针对支持原子操作或网关级锁定的场景）。
+                                </v-alert>
+                            </v-expansion-panel-text>
+                        </v-expansion-panel>
+                    </v-expansion-panels>
+
+                    <div class="text-h6 mb-2">3. 表达式语法参考</div>
+                    <v-table density="compact" class="border">
+                        <thead>
+                            <tr>
+                                <th>语法</th>
+                                <th>说明</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>v</code> / <code>value</code></td><td>当前点位的实时值</td></tr>
+                            <tr><td><code>t1</code>, <code>p1</code></td><td>数据源别名引用</td></tr>
+                            <tr><td><code>bitget(v, n)</code></td><td>获取第 n 位 (0/1)</td></tr>
+                            <tr><td><code>bitset(v, n)</code></td><td>将第 n 位置 1</td></tr>
+                            <tr><td><code>bitclr(v, n)</code></td><td>将第 n 位置 0</td></tr>
+                        </tbody>
+                    </v-table>
+                    
+                    <div class="text-h6 mb-2 mt-4">4. 动作类型详解</div>
+                    <v-expansion-panels variant="accordion">
+                        <v-expansion-panel>
+                            <v-expansion-panel-title>Log (日志)</v-expansion-panel-title>
+                            <v-expansion-panel-text>
+                                记录规则触发信息到系统日志。
+                                <ul>
+                                    <li><strong>Level</strong>: 日志级别 (Info/Warn/Error)。</li>
+                                    <li><strong>Message</strong>: 支持 <code>${v}</code> 或 <code>${alias}</code> 模板变量。</li>
+                                </ul>
+                            </v-expansion-panel-text>
+                        </v-expansion-panel>
+                        <v-expansion-panel>
+                            <v-expansion-panel-title>Device Control (设备控制)</v-expansion-panel-title>
+                            <v-expansion-panel-text>
+                                向设备写入值。
+                                <ul>
+                                    <li><strong>单点模式</strong>: 直接控制一个点位。</li>
+                                    <li><strong>批量模式</strong>: 同时控制多个点位。</li>
+                                    <li><strong>Expression</strong>: 可选。用于计算写入值（支持位操作）。</li>
+                                </ul>
+                            </v-expansion-panel-text>
+                        </v-expansion-panel>
+                        <v-expansion-panel>
+                            <v-expansion-panel-title>Sequence (顺序执行)</v-expansion-panel-title>
+                            <v-expansion-panel-text>
+                                严格按顺序执行子动作。如果任一步骤失败（如 Check 失败且未处理），整个序列终止。
+                            </v-expansion-panel-text>
+                        </v-expansion-panel>
+                        <v-expansion-panel>
+                            <v-expansion-panel-title>Check (校验)</v-expansion-panel-title>
+                            <v-expansion-panel-text>
+                                读取点位并校验条件。
+                                <ul>
+                                    <li><strong>Expression</strong>: 校验公式 (如 <code>v == 1</code>)。</li>
+                                    <li><strong>Retry</strong>: 失败重试次数。</li>
+                                    <li><strong>On Fail</strong>: 校验最终失败后执行的回退动作序列。</li>
+                                </ul>
+                            </v-expansion-panel-text>
+                        </v-expansion-panel>
+                        <v-expansion-panel>
+                            <v-expansion-panel-title>Delay (延时)</v-expansion-panel-title>
+                            <v-expansion-panel-text>
+                                暂停执行指定时长 (如 <code>30s</code>, <code>1m</code>)。阻塞当前序列。
+                            </v-expansion-panel-text>
+                        </v-expansion-panel>
+                    </v-expansion-panels>
+
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn color="primary" @click="helpDialog = false">关闭</v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
@@ -959,7 +920,10 @@ const tab = ref('metrics')
 const rules = ref([])
 const ruleStates = ref([])
 const dialog = ref(false)
+const helpDialog = ref(false)
 const editingRule = ref(false)
+import ActionEditor from '@/components/ActionEditor.vue'
+
 const channels = ref([])
 const devices = ref([])
 const windowDialog = ref(false)
@@ -1259,6 +1223,10 @@ const openDialog = () => {
     dialog.value = true
 }
 
+const openHelpDialog = () => {
+    helpDialog.value = true
+}
+
 const editRule = async (rule) => {
     editingRule.value = true
     // Deep copy
@@ -1278,13 +1246,6 @@ const editRule = async (rule) => {
     }
     
     if (!currentRule.actions) currentRule.actions = []
-    // Initialize batch mode for actions
-    currentRule.actions.forEach(action => {
-        if (!action.config) action.config = {}
-        if (action.type === 'device_control' && action.config && action.config.targets && action.config.targets.length > 0) {
-            action._batchMode = true
-        }
-    })
 
     if (!currentRule.window) currentRule.window = { type: 'sliding', size: '10s', aggr_func: 'avg' }
     if (!currentRule.state) currentRule.state = { duration: '0s', count: 0 }
@@ -1295,31 +1256,6 @@ const editRule = async (rule) => {
             src._deviceList = await fetchDevices(src.channel_id)
             if (src.device_id) {
                 updateSourcePointList(src)
-            }
-        }
-    }
-
-    // Load metadata for actions (device_control)
-    for (const action of currentRule.actions) {
-        if (action.type === 'device_control') {
-            // Check batch mode
-            if (action._batchMode && action.config && action.config.targets) {
-                for (const target of action.config.targets) {
-                    if (target.channel_id) {
-                        target._deviceList = await fetchDevices(target.channel_id)
-                        if (target.device_id) {
-                            updateActionPointList(target)
-                        }
-                    }
-                }
-            } else if (action.config) {
-                // Single mode
-                if (action.config.channel_id) {
-                    action.config._deviceList = await fetchDevices(action.config.channel_id)
-                    if (action.config.device_id) {
-                        updateActionPointList(action.config)
-                    }
-                }
             }
         }
     }
@@ -1386,85 +1322,7 @@ const fetchDevices = async (channelId) => {
     return []
 }
 
-// Action Helper Functions
-const onActionChannelChange = async (target) => {
-    target.device_id = ''
-    target.point_id = ''
-    target._deviceList = []
-    target._pointList = []
-    
-    if (target.channel_id) {
-        target._deviceList = await fetchDevices(target.channel_id)
-    }
-}
-
-const onActionDeviceChange = (target) => {
-    target.point_id = ''
-    target._pointList = []
-    updateActionPointList(target)
-}
-
-const updateActionPointList = (target) => {
-    if (!target.device_id || !target._deviceList) return
-    const dev = target._deviceList.find(d => d.id === target.device_id)
-    if (dev && dev.points) {
-        // Filter points: keep only ReadWrite (RW) or WriteOnly (W)
-        // 'R' is ReadOnly
-        target._pointList = dev.points.filter(p => p.readwrite !== 'R')
-    } else {
-        target._pointList = []
-    }
-}
-
-const loadActionDevices = async (target) => {
-    if (!target.channel_id || (target._deviceList && target._deviceList.length > 0)) return
-    await onActionChannelChange(target)
-}
-
-const loadActionPoints = (target) => {
-    if (!target._pointList || target._pointList.length === 0) {
-        updateActionPointList(target)
-    }
-}
-
-const toggleBatchMode = (action) => {
-    if (action._batchMode) {
-        // Init targets if needed
-        if (!action.config.targets) action.config.targets = []
-        // If single mode had values, migrate them to first target
-        if (action.config.channel_id) {
-            action.config.targets.push({
-                channel_id: action.config.channel_id,
-                device_id: action.config.device_id,
-                point_id: action.config.point_id,
-                value: action.config.value,
-                _deviceList: action.config._deviceList,
-                _pointList: action.config._pointList
-            })
-            // Clear single config
-            action.config.channel_id = ''
-            action.config.device_id = ''
-            action.config.point_id = ''
-            action.config.value = ''
-        }
-    }
-}
-
-const addTarget = (action) => {
-    if (!action.config.targets) action.config.targets = []
-    action.config.targets.push({
-        channel_id: '',
-        device_id: '',
-        point_id: '',
-        value: ''
-    })
-}
-
-const removeTarget = (action, index) => {
-    if (action.config.targets) {
-        action.config.targets.splice(index, 1)
-    }
-}
+// Action Helper Functions removed - moved to ActionEditor component
 
 onMounted(async () => {
     await fetchRules()

@@ -94,6 +94,17 @@ Supports triggering actions on multiple devices with a single rule:
 *   **Expression Test**: Rule editor includes a "Calculator" icon for real-time expression result testing.
 *   **Function Docs**: Click "View Function Documentation" to browse the complete list of supported functions and examples.
 
+### 5. Workflow Engine
+
+The rule engine supports advanced workflow orchestration, allowing the definition of complex sequential control logic:
+
+*   **Sequence**: Execute a series of actions in order.
+    *   **Feature**: If a step fails (e.g., a Check action is not met), the entire sequence terminates immediately, and subsequent steps are not executed. This is key for implementing safe linkage logic.
+*   **Delay**: Insert a wait time between actions (e.g., `1s`, `500ms`).
+*   **Check**: Verify if a condition is met (e.g., `v > 50`).
+    *   **On Fail**: If the check fails, a specific "Fail Action" can be configured (typically for logging or rollback operations).
+    *   **Rollback**: A special action type, usually used to restore system state when a Check fails (e.g., closing an opened valve).
+
 ## 🛠️ Tech Stack
 
 *   **Backend**: Go 1.25+
