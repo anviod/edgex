@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"industrial-edge-gateway/internal/model"
-	"log"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/simonvetter/modbus"
+	"go.uber.org/zap"
 )
 
 // Transport 接口定义
@@ -135,7 +135,9 @@ func (t *ModbusTransport) startHeartbeatLoop() {
 				_, err := t.ReadRegisters(ctx, "HOLDING_REGISTER", *t.heartbeatAddr, 1)
 				cancel()
 				if err != nil {
-					log.Printf("Heartbeat failed: %v", err)
+					zap.L().Warn("[Modbus] Heartbeat failed, closing TCP connection to force clean reconnect",
+						zap.Error(err),
+					)
 					// Force disconnect to trigger reconnect on next operation?
 					// Or just let the next operation fail.
 					// If we want proactive reconnect, we might need to handle it here.
@@ -151,12 +153,15 @@ func (t *ModbusTransport) Connect(ctx context.Context) error {
 	defer t.mu.Unlock()
 
 	if t.connected.Load() {
+		zap.L().Debug("[Modbus] Connect skipped: already connected")
 		return nil
 	}
 
 	// Ensure previous client is closed
 	if t.client != nil {
+		zap.L().Info("[Modbus] Closing existing TCP client before reconnect")
 		_ = t.client.Close()
+		t.client = nil
 	}
 
 	// Build URL
@@ -203,15 +208,27 @@ func (t *ModbusTransport) Connect(ctx context.Context) error {
 		}
 	}
 
+	zap.L().Info("[Modbus] Establishing TCP connection",
+		zap.String("url", url),
+		zap.Duration("timeout", t.timeout),
+	)
 	client, err := modbus.NewClient(&modbus.ClientConfiguration{
 		URL:     url,
 		Timeout: t.timeout,
 	})
 	if err != nil {
+		zap.L().Error("[Modbus] Create client failed",
+			zap.String("url", url),
+			zap.Error(err),
+		)
 		return err
 	}
 
 	if err := client.Open(); err != nil {
+		zap.L().Error("[Modbus] Open TCP connection failed",
+			zap.String("url", url),
+			zap.Error(err),
+		)
 		return err
 	}
 
@@ -234,6 +251,9 @@ func (t *ModbusTransport) Connect(ctx context.Context) error {
 	}
 
 	t.connected.Store(true)
+	zap.L().Info("[Modbus] TCP connection established",
+		zap.String("url", url),
+	)
 	t.startHeartbeatLoop()
 	return nil
 }
@@ -243,7 +263,9 @@ func (t *ModbusTransport) Disconnect() error {
 	defer t.mu.Unlock()
 
 	if t.client != nil {
+		zap.L().Info("[Modbus] Closing TCP connection")
 		_ = t.client.Close()
+		t.client = nil
 	}
 
 	if t.heartbeatTimer != nil {
@@ -256,6 +278,7 @@ func (t *ModbusTransport) Disconnect() error {
 	}
 
 	t.connected.Store(false)
+	zap.L().Info("[Modbus] Disconnected")
 	return nil
 }
 
@@ -296,7 +319,11 @@ func (t *ModbusTransport) withRetry(ctx context.Context, fn func() (any, error))
 		}
 
 		lastErr = err
-		log.Printf("Modbus operation failed (attempt %d/%d): %v", i+1, t.maxRetries+1, err)
+		zap.L().Warn("[Modbus] Operation failed",
+			zap.Int("attempt", i+1),
+			zap.Int("max_attempts", t.maxRetries+1),
+			zap.Error(err),
+		)
 
 		// Only disconnect on network/IO errors, not protocol errors
 		// Protocol errors: "illegal", "exception", "busy"
@@ -312,6 +339,9 @@ func (t *ModbusTransport) withRetry(ctx context.Context, fn func() (any, error))
 
 		if !isProtocolError {
 			// Force disconnect to trigger reconnect on next attempt
+			zap.L().Warn("[Modbus] Network/IO error detected, forcing disconnect to ensure clean session before reconnect",
+				zap.String("error", errMsg),
+			)
 			t.Disconnect()
 		}
 	}

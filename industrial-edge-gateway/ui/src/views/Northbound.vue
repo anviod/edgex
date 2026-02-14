@@ -14,7 +14,7 @@
             <v-progress-circular indeterminate color="white" size="64"></v-progress-circular>
         </div>
 
-        <div v-else-if="(!config.mqtt || config.mqtt.length === 0) && (!config.opcua || config.opcua.length === 0) && (!config.sparkplug_b || config.sparkplug_b.length === 0)" class="text-center pa-12 text-grey">
+        <div v-else-if="(!config.mqtt || config.mqtt.length === 0) && (!config.http || config.http.length === 0) && (!config.opcua || config.opcua.length === 0) && (!config.sparkplug_b || config.sparkplug_b.length === 0)" class="text-center pa-12 text-grey">
             <v-icon icon="mdi-cloud-upload-off-outline" size="64" class="mb-4"></v-icon>
             <div class="text-h6">暂无已启用的上行通道</div>
             <div class="text-body-2 mt-2">点击右上角"添加上行通道"进行配置</div>
@@ -58,6 +58,38 @@
                             </v-list-item>
                             <v-list-item v-if="item.subscribe_topic" title="订阅主题" :subtitle="item.subscribe_topic">
                                 <template v-slot:prepend><v-icon icon="mdi-download-network" color="grey"></v-icon></template>
+                            </v-list-item>
+                        </v-list>
+                    </v-card-text>
+                </v-card>
+            </v-col>
+
+            <!-- HTTP Push Cards -->
+            <v-col cols="12" md="6" v-for="item in config.http" :key="item.id">
+                <v-card class="glass-card h-100">
+                    <v-card-title class="d-flex align-center border-b py-4">
+                        <v-icon icon="mdi-cloud-upload" color="primary" class="mr-3"></v-icon>
+                        HTTP: {{ item.name || item.id }}
+                        <v-spacer></v-spacer>
+                        <v-btn icon="mdi-cog" variant="text" size="small" color="primary" @click="openHttpSettings(item)"></v-btn>
+                        <v-btn icon="mdi-delete" variant="text" size="small" color="error" @click="deleteProtocol('http', item.id)"></v-btn>
+                        <v-chip :color="item.enable ? 'success' : 'grey'" size="small" class="ml-2">
+                            {{ item.enable ? '启用' : '禁用' }}
+                        </v-chip>
+                    </v-card-title>
+                    <v-card-text class="pt-4">
+                        <v-list density="compact" bg-color="transparent">
+                            <v-list-item title="服务器地址" :subtitle="item.url">
+                                <template v-slot:prepend><v-icon icon="mdi-server-network" color="grey"></v-icon></template>
+                                <template v-slot:append>
+                                    <v-btn icon="mdi-content-copy" size="x-small" variant="text" color="grey" @click="copyToClipboard(item.url)" title="复制"></v-btn>
+                                </template>
+                            </v-list-item>
+                            <v-list-item title="请求方法" :subtitle="item.method || 'POST'">
+                                <template v-slot:prepend><v-icon icon="mdi-file-send" color="grey"></v-icon></template>
+                            </v-list-item>
+                            <v-list-item v-if="item.data_endpoint" title="数据端点" :subtitle="item.data_endpoint">
+                                <template v-slot:prepend><v-icon icon="mdi-api" color="grey"></v-icon></template>
                             </v-list-item>
                         </v-list>
                     </v-card-text>
@@ -148,6 +180,12 @@
                         title="MQTT 客户端" 
                         subtitle="通用 MQTT 协议，支持自定义 Payload"
                         prepend-icon="mdi-access-point-network"
+                    ></v-list-item>
+                    <v-list-item 
+                        @click="addProtocol('http')" 
+                        title="HTTP 推送" 
+                        subtitle="通过 HTTP POST/PUT 推送数据到服务器"
+                        prepend-icon="mdi-cloud-upload"
                     ></v-list-item>
                     <v-list-item 
                         @click="addProtocol('sparkplug_b')" 
@@ -380,7 +418,7 @@
                         
                         <v-divider class="my-4"></v-divider>
                         <div class="text-subtitle-1 mb-2 font-weight-bold">子设备事件上报 (Device Events)</div>
-                        <v-text-field v-model="mqttDialog.config.device_lifecycle_topic" label="子设备生命周期主题 (Add/Remove)" placeholder="默认: things/{client_id}/{device_id}/lifecycle" persistent-placeholder variant="outlined" density="compact" class="mb-2" hint="子设备添加、删除事件将发布到此主题"></v-text-field>
+                        <v-text-field v-model="mqttDialog.config.device_lifecycle_topic" label="子设备生命周期主题 (Add/Remove)" placeholder="默认: things/{client_id}/lifecycle" persistent-placeholder variant="outlined" density="compact" class="mb-2" hint="子设备添加、删除事件将发布到此主题"></v-text-field>
                         
                         <v-divider class="my-4"></v-divider>
                         <div class="text-subtitle-1 mb-2 font-weight-bold">子设备状态上报 (Device Status)</div>
@@ -741,6 +779,167 @@
                     <v-spacer></v-spacer>
                     <v-btn variant="text" @click="sparkplugbDialog.visible = false">取消</v-btn>
                     <v-btn color="primary" variant="elevated" @click="saveSparkplugBConfig" :loading="loading">保存配置</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
+
+        <!-- HTTP Settings Dialog -->
+        <v-dialog v-model="httpDialog.visible" max-width="1024px">
+            <v-card>
+                <v-card-title class="text-h5 pa-4">HTTP 推送配置</v-card-title>
+                <v-tabs v-model="httpDialog.activeTab" bg-color="primary">
+                    <v-tab value="basic">基本配置</v-tab>
+                    <v-tab value="auth">认证配置</v-tab>
+                    <v-tab value="endpoints">端点配置</v-tab>
+                    <v-tab value="devices">设备映射</v-tab>
+                </v-tabs>
+                <v-card-text style="height: 500px; overflow-y: auto;">
+                    <v-form>
+                        <!-- Basic Configuration -->
+                        <v-window v-model="httpDialog.activeTab">
+                            <v-window-item value="basic">
+                                <v-row class="mt-2">
+                                    <v-col cols="12" md="6">
+                                        <v-text-field v-model="httpDialog.config.id" label="配置ID" variant="outlined" density="compact" readonly></v-text-field>
+                                    </v-col>
+                                    <v-col cols="12" md="6">
+                                        <v-text-field v-model="httpDialog.config.name" label="配置名称" variant="outlined" density="compact"></v-text-field>
+                                    </v-col>
+                                </v-row>
+                                <v-row>
+                                    <v-col cols="12">
+                                        <v-switch v-model="httpDialog.config.enable" label="启用 HTTP 推送" color="primary" inset hide-details></v-switch>
+                                    </v-col>
+                                </v-row>
+                                <v-row>
+                                    <v-col cols="12">
+                                        <v-text-field v-model="httpDialog.config.url" label="服务器地址 (Base URL)" hint="例: http://192.168.1.100:8080/api" persistent-hint variant="outlined" density="compact"></v-text-field>
+                                    </v-col>
+                                </v-row>
+                                <v-row>
+                                    <v-col cols="12" md="6">
+                                        <v-select v-model="httpDialog.config.method" label="请求方法" :items="['POST', 'PUT']" variant="outlined" density="compact"></v-select>
+                                    </v-col>
+                                </v-row>
+                                <v-row>
+                                    <v-col cols="12">
+                                        <v-text-field v-model="httpDialog.config.headers" label="自定义 Headers (JSON)" variant="outlined" density="compact" hint='例: {"Content-Type": "application/json"}'></v-text-field>
+                                    </v-col>
+                                </v-row>
+                            </v-window-item>
+
+                            <!-- Authentication Configuration -->
+                            <v-window-item value="auth">
+                                <v-row class="mt-2">
+                                    <v-col cols="12">
+                                        <v-select v-model="httpDialog.config.auth_type" label="认证方式" :items="['None', 'Basic', 'Bearer', 'APIKey']" variant="outlined" density="compact"></v-select>
+                                    </v-col>
+                                </v-row>
+                                <v-row v-if="httpDialog.config.auth_type === 'Basic'">
+                                    <v-col cols="12" md="6">
+                                        <v-text-field v-model="httpDialog.config.username" label="用户名" variant="outlined" density="compact"></v-text-field>
+                                    </v-col>
+                                    <v-col cols="12" md="6">
+                                        <v-text-field v-model="httpDialog.config.password" label="密码" type="password" variant="outlined" density="compact"></v-text-field>
+                                    </v-col>
+                                </v-row>
+                                <v-row v-if="httpDialog.config.auth_type === 'Bearer'">
+                                    <v-col cols="12">
+                                        <v-text-field v-model="httpDialog.config.token" label="Bearer Token" variant="outlined" density="compact"></v-text-field>
+                                    </v-col>
+                                </v-row>
+                                <v-row v-if="httpDialog.config.auth_type === 'APIKey'">
+                                    <v-col cols="12" md="6">
+                                        <v-text-field v-model="httpDialog.config.api_key_name" label="API Key 名称" hint="例: X-API-Key" persistent-hint variant="outlined" density="compact"></v-text-field>
+                                    </v-col>
+                                    <v-col cols="12" md="6">
+                                        <v-text-field v-model="httpDialog.config.api_key_value" label="API Key 值" type="password" variant="outlined" density="compact"></v-text-field>
+                                    </v-col>
+                                </v-row>
+                            </v-window-item>
+
+                            <!-- Endpoints Configuration -->
+                            <v-window-item value="endpoints">
+                                <v-row class="mt-2">
+                                    <v-col cols="12">
+                                        <v-text-field v-model="httpDialog.config.data_endpoint" label="数据端点" hint="相对路径，例: /data 会组合为 http://server/data" persistent-hint variant="outlined" density="compact"></v-text-field>
+                                    </v-col>
+                                </v-row>
+                                <v-row>
+                                    <v-col cols="12">
+                                        <v-text-field v-model="httpDialog.config.device_event_endpoint" label="设备事件端点" hint="设备上下线和生命周期事件，例: /events" persistent-hint variant="outlined" density="compact"></v-text-field>
+                                    </v-col>
+                                </v-row>
+                                <v-row>
+                                    <v-col cols="12">
+                                        <v-divider class="my-2"></v-divider>
+                                        <div class="text-caption text-grey">缓存配置</div>
+                                    </v-col>
+                                </v-row>
+                                <v-row>
+                                    <v-col cols="12" md="6">
+                                        <v-switch v-model="httpDialog.config.cache.enable" label="启用离线缓存" color="primary" inset hide-details></v-switch>
+                                    </v-col>
+                                </v-row>
+                                <v-row v-if="httpDialog.config.cache.enable">
+                                    <v-col cols="12" md="6">
+                                        <v-text-field v-model.number="httpDialog.config.cache.max_count" label="最大缓存消息数" type="number" hint="默认 1000" persistent-hint variant="outlined" density="compact"></v-text-field>
+                                    </v-col>
+                                    <v-col cols="12" md="6">
+                                        <v-text-field v-model="httpDialog.config.cache.flush_interval" label="重试间隔" hint="例: 1m, 30s" persistent-hint variant="outlined" density="compact"></v-text-field>
+                                    </v-col>
+                                </v-row>
+                            </v-window-item>
+
+                            <!-- Device Mapping -->
+                            <v-window-item value="devices">
+                                <v-row class="mt-2">
+                                    <v-col cols="12">
+                                        <div class="text-subtitle-1 mb-2 font-weight-bold">设备映射设置</div>
+                                        <div v-if="allDevices.length === 0" class="text-grey text-caption">暂无设备</div>
+                                        <v-table density="compact" class="border rounded" v-else>
+                                            <thead>
+                                                <tr>
+                                                    <th>设备名称</th>
+                                                    <th style="width: 120px;">启用</th>
+                                                    <th style="width: 160px;">上报策略</th>
+                                                    <th style="width: 120px;">间隔</th>
+                                                    <th>通道</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="dev in allDevices" :key="dev.id">
+                                                    <td>{{ dev.name }} ({{ dev.id }})</td>
+                                                    <td>
+                                                        <v-checkbox-btn v-model="httpDialog.config.devices[dev.id].enable" color="primary"></v-checkbox-btn>
+                                                    </td>
+                                                    <td>
+                                                        <v-select
+                                                            v-model="httpDialog.config.devices[dev.id].strategy"
+                                                            :items="[{ title: '实时', value: 'realtime' }, { title: '定期', value: 'periodic' }]"
+                                                            item-title="title"
+                                                            item-value="value"
+                                                            density="compact"
+                                                            variant="outlined"
+                                                        ></v-select>
+                                                    </td>
+                                                    <td>
+                                                        <v-text-field v-model="httpDialog.config.devices[dev.id].interval" density="compact" variant="outlined" placeholder="10s"></v-text-field>
+                                                    </td>
+                                                    <td>{{ dev.channelName }}</td>
+                                                </tr>
+                                            </tbody>
+                                        </v-table>
+                                    </v-col>
+                                </v-row>
+                            </v-window-item>
+                        </v-window>
+                    </v-form>
+                </v-card-text>
+                <v-card-actions class="pa-4">
+                    <v-spacer></v-spacer>
+                    <v-btn variant="text" @click="httpDialog.visible = false">取消</v-btn>
+                    <v-btn color="primary" variant="elevated" @click="saveHttpSettings" :loading="httpDialog.loading">保存配置</v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
@@ -1116,7 +1315,7 @@ const autoFillTopics = () => {
     mqttDialog.config.write_response_topic = `${root}/down/resp`
     
     mqttDialog.config.status_topic = `${root}/{device_id}/status`
-    mqttDialog.config.device_lifecycle_topic = `${root}/{device_id}/lifecycle`
+    mqttDialog.config.device_lifecycle_topic = `${root}/lifecycle`
     mqttDialog.config.lwt_topic = `${root}/lwt`
     
     mqttDialog.config.online_payload = JSON.stringify({
@@ -1137,6 +1336,34 @@ const autoFillTopics = () => {
     
     showMessage('已自动生成推荐的主题配置', 'success')
 }
+
+const httpDialog = reactive({
+    visible: false,
+    loading: false,
+    activeTab: 'basic',
+    config: {
+        id: '',
+        name: '',
+        enable: true,
+        url: '',
+        method: 'POST',
+        headers: {},
+        auth_type: 'None',
+        username: '',
+        password: '',
+        token: '',
+        api_key_name: '',
+        api_key_value: '',
+        data_endpoint: '',
+        device_event_endpoint: '',
+        cache: {
+            enable: true,
+            max_count: 1000,
+            flush_interval: '1m'
+        },
+        devices: {}
+    }
+})
 
 const opcuaDialog = reactive({
     visible: false,
@@ -1161,6 +1388,8 @@ const addProtocol = (type) => {
     addDialog.visible = false
     if (type === 'mqtt') {
         openMqttSettings(null)
+    } else if (type === 'http') {
+        openHttpSettings(null)
     } else if (type === 'sparkplug_b') {
         openSparkplugBSettings(null)
     } else if (type === 'opcua') {
@@ -1179,6 +1408,7 @@ const fetchConfig = async () => {
         
         config.value = {
             mqtt: data.mqtt || [],
+            http: data.http || [],
             opcua: data.opcua || [],
             sparkplug_b: data.sparkplug_b || [],
             status: data.status || {}
@@ -1258,6 +1488,91 @@ const saveMqttSettings = async () => {
         showMessage('保存失败: ' + e.message, 'error')
     } finally {
         mqttDialog.loading = false
+    }
+}
+
+// HTTP Logic
+const openHttpSettings = async (item) => {
+    await fetchAllDevices()
+    if (item) {
+        httpDialog.config = JSON.parse(JSON.stringify(item))
+    } else {
+        // New config
+        httpDialog.config = {
+            id: 'http_' + Date.now(),
+            enable: true,
+            name: 'New HTTP',
+            url: 'http://localhost:8080',
+            method: 'POST',
+            headers: {},
+            auth_type: 'None',
+            username: '',
+            password: '',
+            token: '',
+            api_key_name: '',
+            api_key_value: '',
+            data_endpoint: '/api/data',
+            device_event_endpoint: '/api/events',
+            cache: {
+                enable: true,
+                max_count: 1000,
+                flush_interval: '1m'
+            },
+            devices: {}
+        }
+    }
+    
+    if (!httpDialog.config.devices) httpDialog.config.devices = {}
+    
+    // Initialize defaults for all devices (use object like MQTT to show more details in UI)
+    allDevices.value.forEach(dev => {
+        const current = httpDialog.config.devices[dev.id]
+        if (current === undefined || current === null) {
+            httpDialog.config.devices[dev.id] = {
+                enable: false,
+                strategy: 'periodic',
+                interval: '10s'
+            }
+        } else if (typeof current === 'boolean') {
+            httpDialog.config.devices[dev.id] = {
+                enable: current,
+                strategy: 'periodic',
+                interval: '10s'
+            }
+        } else if (typeof current === 'object') {
+            if (current.enable === undefined) current.enable = !!current
+            if (!current.strategy) current.strategy = 'periodic'
+            if (!current.interval) current.interval = '10s'
+        }
+    })
+    
+    httpDialog.visible = true
+}
+
+const saveHttpSettings = async () => {
+    httpDialog.loading = true
+    try {
+        // Prepare payload: convert device objects back to booleans (enable) for backward compatibility
+        const payload = JSON.parse(JSON.stringify(httpDialog.config))
+        if (payload.devices && typeof payload.devices === 'object') {
+            for (const k of Object.keys(payload.devices)) {
+                const v = payload.devices[k]
+                if (v && typeof v === 'object') {
+                    payload.devices[k] = !!v.enable
+                } else {
+                    payload.devices[k] = !!v
+                }
+            }
+        }
+
+        await request.post('/api/northbound/http', payload)
+        showMessage('HTTP 配置已保存', 'success')
+        httpDialog.visible = false
+        fetchConfig()
+    } catch (e) {
+        showMessage('保存失败: ' + e.message, 'error')
+    } finally {
+        httpDialog.loading = false
     }
 }
 

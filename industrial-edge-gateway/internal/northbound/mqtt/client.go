@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"industrial-edge-gateway/internal/model"
+	"industrial-edge-gateway/internal/storage"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -523,7 +524,15 @@ func (c *Client) handleWriteRequest(client mqtt.Client, msg mqtt.Message) {
 		respTopic := c.config.WriteResponseTopic
 		c.configMu.RUnlock()
 		if respTopic == "" {
-			respTopic = msg.Topic() + "/resp"
+			// Derive response topic from request topic: replace trailing "req" with "resp" when present
+			t := msg.Topic()
+			parts := strings.Split(t, "/")
+			if len(parts) > 0 && parts[len(parts)-1] == "req" {
+				parts[len(parts)-1] = "resp"
+				respTopic = strings.Join(parts, "/")
+			} else {
+				respTopic = t + "/resp"
+			}
 		} else {
 			respTopic = c.replaceGlobalVars(respTopic)
 		}
@@ -544,7 +553,19 @@ func (c *Client) handleWriteRequest(client mqtt.Client, msg mqtt.Message) {
 		}
 
 		data, _ := json.Marshal(resp)
-		c.PublishRaw(respTopic, data)
+		if err := c.PublishRaw(respTopic, data); err != nil {
+			zap.L().Error("Failed to publish write response",
+				zap.String("topic", respTopic),
+				zap.Error(err),
+				zap.String("component", "mqtt-client"),
+			)
+		} else {
+			zap.L().Debug("Published write response",
+				zap.String("topic", respTopic),
+				zap.String("payload", string(data)),
+				zap.String("component", "mqtt-client"),
+			)
+		}
 	}
 }
 
@@ -559,11 +580,20 @@ func (c *Client) reconnectLogic() {
 		}
 
 		c.setStatus(StatusReconnecting)
+		zap.L().Info("MQTT reconnect attempt",
+			zap.Int("attempt", retryCount+1),
+			zap.String("broker", func() string { c.configMu.RLock(); defer c.configMu.RUnlock(); return c.config.Broker }()),
+			zap.String("component", "mqtt-client"),
+		)
 
 		token := c.client.Connect()
 		if token.Wait() && token.Error() == nil {
 			// Connected successfully
 			atomic.AddInt64(&c.reconnectCount, 1)
+			zap.L().Info("MQTT reconnected",
+				zap.String("broker", func() string { c.configMu.RLock(); defer c.configMu.RUnlock(); return c.config.Broker }()),
+				zap.String("component", "mqtt-client"),
+			)
 			return
 		}
 
@@ -571,9 +601,19 @@ func (c *Client) reconnectLogic() {
 
 		// Logic: 3s interval for 10 times, then 60s wait
 		if retryCount <= 10 {
+			zap.L().Warn("MQTT reconnect failed, retrying shortly",
+				zap.Int("attempt", retryCount),
+				zap.Duration("next_retry_in", 3*time.Second),
+				zap.String("component", "mqtt-client"),
+			)
 			time.Sleep(3 * time.Second)
 		} else {
 			c.setStatus(StatusError) // Failed after 10 retries
+			zap.L().Error("MQTT reconnect failed repeatedly, backing off",
+				zap.Int("attempts", retryCount),
+				zap.Duration("backoff", 60*time.Second),
+				zap.String("component", "mqtt-client"),
+			)
 			time.Sleep(60 * time.Second)
 			retryCount = 0 // Reset to try again
 		}

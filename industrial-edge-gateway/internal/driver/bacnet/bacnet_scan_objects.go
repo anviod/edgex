@@ -18,6 +18,17 @@ func (d *BACnetDriver) ScanObjects(ctx context.Context, config map[string]any) (
 		return nil, fmt.Errorf("device_id is required")
 	}
 
-	// scanDeviceObjects returns (any, error) which is []ObjectResult
-	return d.scanDeviceObjects(nil, deviceID)
+	deep := false
+	if v, ok := config["mode"]; ok {
+		if s, ok := v.(string); ok && (s == "deep" || s == "full") {
+			deep = true
+		}
+	}
+	if v, ok := config["deep"]; ok {
+		if b, ok := v.(bool); ok && b {
+			deep = true
+		}
+	}
+
+	return d.scanDeviceObjects(nil, deviceID, deep)
 }

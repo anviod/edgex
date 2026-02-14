@@ -26,10 +26,10 @@ type ChannelStatus struct {
 
 // ChannelManager 管理所有采集通道及其下的设备
 type ChannelManager struct {
-	channels     map[string]*model.Channel // channel.id -> channel
-	drivers      map[string]drv.Driver     // channel.id -> driver
-	driverMus    map[string]*sync.Mutex    // channel.id -> mutex for driver access
-	pipeline     *DataPipeline
+	channels      map[string]*model.Channel // channel.id -> channel
+	drivers       map[string]drv.Driver     // channel.id -> driver
+	driverMus     map[string]*sync.Mutex    // channel.id -> mutex for driver access
+	pipeline      *DataPipeline
 	stateManager  *CommunicationManageTemplate
 	mu            sync.RWMutex
 	ctx           context.Context
@@ -112,6 +112,11 @@ func (cm *ChannelManager) AddChannel(ch *model.Channel) error {
 	// 格式化所有设备配置
 	for i := range ch.Devices {
 		sanitizeDeviceConfig(ch.Devices[i].Config)
+		if (ch.Protocol == "modbus-tcp" || ch.Protocol == "modbus-rtu" || ch.Protocol == "modbus-rtu-over-tcp") && ch.Devices[i].Config != nil {
+			if _, ok := ch.Devices[i].Config["auto_points_range"]; ok {
+				cm.autoGenerateModbusPointsFromConfig(&ch.Devices[i])
+			}
+		}
 	}
 
 	// 初始化驱动
@@ -500,7 +505,13 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 	}
 
 	// 读取点位数据
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	timeout := 5 * time.Second
+	node := cm.stateManager.GetNode(devID)
+	if node != nil && node.Runtime.State != NodeStateOnline {
+		timeout = 200 * time.Millisecond
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	results, err := d.ReadPoints(ctx, pointsCopy)
@@ -561,6 +572,14 @@ func (cm *ChannelManager) deviceLoop(dev *model.Device, d drv.Driver, ch *model.
 		return
 	}
 
+	var offset time.Duration
+	for i := range ch.Devices {
+		if ch.Devices[i].ID == dev.ID {
+			offset = time.Duration(i) * 12 * time.Millisecond
+			break
+		}
+	}
+
 	for {
 		select {
 		case <-cm.ctx.Done():
@@ -568,6 +587,7 @@ func (cm *ChannelManager) deviceLoop(dev *model.Device, d drv.Driver, ch *model.
 		case <-dev.StopChan:
 			return
 		case <-ticker.C:
+			time.Sleep(offset)
 			if !cm.stateManager.ShouldCollect(node) {
 				zap.L().Debug("Device skipped collection",
 					zap.String("device", dev.Name),
@@ -699,7 +719,14 @@ func (cm *ChannelManager) collectDevice(dev *model.Device, d drv.Driver, ch *mod
 		)
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	zap.L().Info("PollStart", zap.String("device", dev.Name), zap.Time("ts", time.Now()))
+
+	timeout := 5 * time.Second
+	if node.Runtime.State != NodeStateOnline {
+		timeout = 200 * time.Millisecond
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	// 获取驱动互斥锁
@@ -1069,6 +1096,12 @@ func (cm *ChannelManager) AddDevice(channelID string, dev *model.Device) error {
 			if okNew && okOld && newID == oldID {
 				return fmt.Errorf("BACnet device with Instance ID %d already exists", newID)
 			}
+		}
+	}
+
+	if (ch.Protocol == "modbus-tcp" || ch.Protocol == "modbus-rtu" || ch.Protocol == "modbus-rtu-over-tcp") && dev.Config != nil {
+		if _, ok := dev.Config["auto_points_range"]; ok {
+			cm.autoGenerateModbusPointsFromConfig(dev)
 		}
 	}
 
@@ -1504,4 +1537,42 @@ func sanitizeDeviceConfig(config map[string]any) {
 			config["network_number"] = int(v)
 		}
 	}
+}
+
+func (cm *ChannelManager) autoGenerateModbusPointsFromConfig(dev *model.Device) {
+	rng := fmt.Sprintf("%v", dev.Config["auto_points_range"])
+	parts := strings.Split(rng, "-")
+	if len(parts) != 2 {
+		return
+	}
+	start, err1 := strconv.Atoi(strings.TrimSpace(parts[0]))
+	end, err2 := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err1 != nil || err2 != nil {
+		return
+	}
+	if end < start {
+		start, end = end, start
+	}
+	dt := "int16"
+	if v, ok := dev.Config["auto_points_datatype"]; ok {
+		dt = fmt.Sprintf("%v", v)
+	}
+	rw := "RW"
+	if v, ok := dev.Config["auto_points_readwrite"]; ok {
+		rw = fmt.Sprintf("%v", v)
+	}
+	points := make([]model.Point, 0, end-start+1)
+	for addr := start; addr <= end; addr++ {
+		points = append(points, model.Point{
+			Name:      fmt.Sprintf("HR %d", addr),
+			ID:        fmt.Sprintf("hr_%d", addr),
+			Address:   strconv.Itoa(addr),
+			DataType:  dt,
+			ReadWrite: rw,
+			Scale:     1,
+			Offset:    0,
+			Unit:      "",
+		})
+	}
+	dev.Points = points
 }

@@ -343,57 +343,12 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 	if err != nil {
 		// Auto-Correction: If read failed on non-standard port, try standard BACnet port (47808)
 		// This handles simulators that respond from ephemeral ports but listen on 47808.
-		currentPort := int(devCtx.Device.Addr.Mac[4])<<8 | int(devCtx.Device.Addr.Mac[5])
+		currentPort := devCtx.Config.Port
+		if len(devCtx.Device.Addr.Mac) >= 6 {
+			currentPort = int(devCtx.Device.Addr.Mac[4])<<8 | int(devCtx.Device.Addr.Mac[5])
+		}
 		if currentPort != 47808 {
-			zap.L().Warn("ReadPoints failed on port, trying fallback", zap.Int("port", currentPort), zap.Int("device_id", targetID))
-
-			// Create a temporary device copy with port 47808
-			tempDevice := devCtx.Device
-			tempDevice.Addr.Mac[4] = uint8(47808 >> 8)
-			tempDevice.Addr.Mac[5] = uint8(47808 & 0xFF)
-
-			// Try immediate read with this device (bypassing scheduler for quick check)
-			// We need a helper for direct read or just try to create a temp scheduler?
-			// Let's try to just update the context if we are confident, or test first.
-			// Testing first is safer.
-			// We can use d.client.ReadProperty to test connectivity.
-			// Pick the first point to test.
-			if len(points) > 0 {
-				// Construct minimal PropertyData
-				// Map point address to object type/instance...
-				// This is complex to do manually here.
-				// Easier strategy: Update the device context speculatively and retry via Scheduler?
-				// But Scheduler needs to be recreated.
-
-				zap.L().Info("Speculatively updating device to port 47808", zap.Int("device_id", targetID))
-
-				// Update Device Address
-				devCtx.Device.Addr.Mac[4] = uint8(47808 >> 8)
-				devCtx.Device.Addr.Mac[5] = uint8(47808 & 0xFF)
-
-				// Update Config
-				devCtx.Config.Port = 47808
-
-				// Recreate Scheduler
-				devCtx.Scheduler = NewPointScheduler(d.client, devCtx.Device, 20, 10*time.Millisecond, 10*time.Second)
-
-				// Retry Read
-				zap.L().Info("Retrying ReadPoints with port 47808")
-				var err2 error
-				results, err2 = devCtx.Scheduler.Read(ctx, points)
-				if err2 == nil {
-					zap.L().Info("Fallback to port 47808 worked", zap.Int("device_id", targetID))
-					err = nil // Clear error
-				} else {
-					zap.L().Warn("Fallback to port 47808 also failed", zap.Error(err2))
-					// Revert (optional, but good practice if we want to be correct)
-					// Actually, if both failed, maybe 47808 is better anyway?
-					// Or maybe the device is just offline.
-					// Let's leave it as 47808 because it's the standard.
-					// If it failed, checkRecovery will trigger later.
-					err = err2
-				}
-			}
+			zap.L().Warn("ReadPoints failed on port, detected non-standard port", zap.Int("port", currentPort), zap.Int("device_id", targetID))
 		}
 
 		if err != nil {
@@ -685,6 +640,17 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 			devID = int(val)
 		}
 
+		deep := false
+		if v, ok := params["mode"]; ok {
+			if s, ok := v.(string); ok && (s == "deep" || s == "full") {
+				deep = true
+			}
+		}
+		if v, ok := params["deep"]; ok {
+			if b, ok := v.(bool); ok && b {
+				deep = true
+			}
+		}
 		// For object scan, we use the default client or a specific one if requested
 		// This part is kept simple to preserve existing behavior
 		scanClient := defaultClient
@@ -703,7 +669,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 				}
 			}
 		}
-		return d.scanDeviceObjects(scanClient, devID)
+		return d.scanDeviceObjects(scanClient, devID, deep)
 	}
 
 	// 2. Device Discovery Mode
@@ -1106,7 +1072,7 @@ func (d *BACnetDriver) readDevicePropStr(dev btypes.Device, propID btypes.Proper
 	return ""
 }
 
-func (d *BACnetDriver) scanDeviceObjects(client Client, devID int) (any, error) {
+func (d *BACnetDriver) scanDeviceObjects(client Client, devID int, deep bool) (any, error) {
 	var dev btypes.Device
 
 	// Optimization: If we are already connected to this device, use the cached address
@@ -1226,161 +1192,229 @@ func (d *BACnetDriver) scanDeviceObjects(client Client, devID int) (any, error) 
 		return []any{}, nil
 	}
 
-	// Optimization: Batch read Object Names
-	// Split list into chunks to avoid APDU overflow
-	chunkSize := 5 // Reduced for more properties
+	// 优化：快速模式扫描（默认开启）
+	// - 只读取轻量属性：ObjectName、Description、Units
+	// - 并发批量 ReadMultiProperty，限制总时长 10s(Fast) / 30s(Deep)
+	// - 过滤常用对象类型（AI/AO/AV/BI/BO/BV），减少无关对象的扫描开销
+	start := time.Now()
+	timeout := 10 * time.Second
+	if deep {
+		timeout = 30 * time.Second
+	}
+	deadline := start.Add(timeout)
 
+	// 过滤对象类型
+	filtered := make([]btypes.ObjectID, 0, len(objectIDs))
+	allow := map[btypes.ObjectType]bool{
+		btypes.AnalogInput:  true,
+		btypes.AnalogOutput: true,
+		btypes.AnalogValue:  true,
+		btypes.BinaryInput:  true,
+		btypes.BinaryOutput: true,
+		btypes.BinaryValue:  true,
+	}
+	for _, oid := range objectIDs {
+		if allow[oid.Type] {
+			filtered = append(filtered, oid)
+		}
+	}
+	objectIDs = filtered
+
+	// 并发与分片
+	chunkSize := 10
+	concurrency := 6
+	sem := make(chan struct{}, concurrency)
+
+	var muRes sync.Mutex
+	results = make([]ObjectResult, 0, len(objectIDs))
+
+	// 历史缓存：已有对象直接复用名称与单位，减少读取次数
+	d.mu.Lock()
+	var hist map[string]ObjectResult
+	if d.historicalObjects != nil {
+		hist = d.historicalObjects[devID]
+	}
+	d.mu.Unlock()
+
+	type job struct {
+		Chunk []btypes.ObjectID
+		Idx   int
+	}
+	jobs := make([]job, 0, (len(objectIDs)+chunkSize-1)/chunkSize)
 	for i := 0; i < len(objectIDs); i += chunkSize {
 		end := i + chunkSize
 		if end > len(objectIDs) {
 			end = len(objectIDs)
 		}
-		chunk := objectIDs[i:end]
+		jobs = append(jobs, job{Chunk: objectIDs[i:end], Idx: i})
+	}
 
-		// Build RPM request
-		mpd := btypes.MultiplePropertyData{
-			Objects: make([]btypes.Object, len(chunk)),
+	var wg sync.WaitGroup
+RespLoop:
+	for _, jb := range jobs {
+		// 超时保护
+		if time.Now().After(deadline) {
+			zap.L().Warn("scanDeviceObjects: time budget reached, early return", zap.Int("device_id", devID))
+			break
 		}
-
-		for j, oid := range chunk {
-			mpd.Objects[j] = btypes.Object{
-				ID: oid,
-				Properties: []btypes.Property{
+		sem <- struct{}{}
+		wg.Add(1)
+		go func(jb job) {
+			defer func() { <-sem; wg.Done() }()
+			// 构建批量读取
+			mpd := btypes.MultiplePropertyData{Objects: make([]btypes.Object, len(jb.Chunk))}
+			for j, oid := range jb.Chunk {
+				obj := btypes.Object{
+					ID: oid,
+				}
+				props := []btypes.Property{
 					{Type: btypes.PropObjectName, ArrayIndex: btypes.ArrayAll},
 					{Type: btypes.PropDescription, ArrayIndex: btypes.ArrayAll},
 					{Type: btypes.PropUnits, ArrayIndex: btypes.ArrayAll},
-					{Type: btypes.PropPresentValue, ArrayIndex: btypes.ArrayAll},
-					{Type: btypes.PropStatusFlags, ArrayIndex: btypes.ArrayAll},
-					{Type: btypes.PropReliability, ArrayIndex: btypes.ArrayAll},
-				},
-			}
-		}
-
-		// Send Request
-		resp, err := client.ReadMultiProperty(dev, mpd)
-
-		// Map response for easy lookup
-		respMap := make(map[string]*btypes.Object)
-		if err == nil {
-			for i := range resp.Objects {
-				obj := &resp.Objects[i]
-				key := fmt.Sprintf("%d:%d", obj.ID.Type, obj.ID.Instance)
-				respMap[key] = obj
-			}
-		} else {
-			zap.L().Warn("Failed to read batch properties, falling back", zap.Int("chunk", i), zap.Error(err))
-			// Fallback: Read individually
-			for _, oid := range chunk {
-				// Create a dummy object to hold results
-				obj := &btypes.Object{
-					ID:         oid,
-					Properties: []btypes.Property{},
 				}
-
-				// Define properties we want to read
-				propsToRead := []btypes.PropertyType{
-					btypes.PropObjectName,
-					btypes.PropDescription,
-					btypes.PropUnits,
-					btypes.PropPresentValue,
-					btypes.PropStatusFlags,
-					btypes.PropReliability,
+				if deep {
+					props = append(props,
+						btypes.Property{Type: btypes.PropPresentValue, ArrayIndex: btypes.ArrayAll},
+						btypes.Property{Type: btypes.PropStatusFlags, ArrayIndex: btypes.ArrayAll},
+						btypes.Property{Type: btypes.PropReliability, ArrayIndex: btypes.ArrayAll},
+					)
 				}
+				obj.Properties = props
+				mpd.Objects[j] = obj
+			}
 
-				for _, pType := range propsToRead {
+			// 若历史有缓存且足够，则跳过请求
+			if hist != nil {
+				allCached := true
+				for _, oid := range jb.Chunk {
+					key := fmt.Sprintf("%s:%d", oid.Type.String(), oid.Instance)
+					if _, ok := hist[key]; !ok {
+						allCached = false
+						break
+					}
+				}
+				if allCached {
+					tmp := make([]ObjectResult, 0, len(jb.Chunk))
+					for _, oid := range jb.Chunk {
+						key := fmt.Sprintf("%s:%d", oid.Type.String(), oid.Instance)
+						hr := hist[key]
+						tmp = append(tmp, ObjectResult{
+							Type:        oid.Type.String(),
+							Instance:    int(oid.Instance),
+							Name:        hr.Name,
+							Description: hr.Description,
+							Units:       hr.Units,
+						})
+					}
+					muRes.Lock()
+					results = append(results, tmp...)
+					muRes.Unlock()
+					return
+				}
+			}
+
+			resp, err := client.ReadMultiProperty(dev, mpd)
+			respMap := make(map[string]*btypes.Object)
+			if err == nil {
+				for i := range resp.Objects {
+					obj := &resp.Objects[i]
+					key := fmt.Sprintf("%d:%d", obj.ID.Type, obj.ID.Instance)
+					respMap[key] = obj
+				}
+			} else {
+				// 降级：逐个对象快速读取名称（优先 ObjectName），减少额外属性
+				for _, oid := range jb.Chunk {
+					obj := &btypes.Object{ID: oid}
 					pd := btypes.PropertyData{
 						Object: btypes.Object{
 							ID: oid,
 							Properties: []btypes.Property{
-								{Type: pType, ArrayIndex: btypes.ArrayAll},
+								{Type: btypes.PropObjectName, ArrayIndex: btypes.ArrayAll},
 							},
 						},
 					}
-					// Use ReadProperty (single)
 					if resProp, errProp := client.ReadProperty(dev, pd); errProp == nil && len(resProp.Object.Properties) > 0 {
 						obj.Properties = append(obj.Properties, resProp.Object.Properties[0])
 					}
+					key := fmt.Sprintf("%d:%d", oid.Type, oid.Instance)
+					respMap[key] = obj
 				}
+			}
 
+			tmp := make([]ObjectResult, 0, len(jb.Chunk))
+			for _, oid := range jb.Chunk {
+				res := ObjectResult{
+					Type:     oid.Type.String(),
+					Instance: int(oid.Instance),
+				}
 				key := fmt.Sprintf("%d:%d", oid.Type, oid.Instance)
-				respMap[key] = obj
-			}
-		}
-
-		// Add to results
-		for _, oid := range chunk {
-			res := ObjectResult{
-				Type:     oid.Type.String(),
-				Instance: int(oid.Instance),
-			}
-
-			key := fmt.Sprintf("%d:%d", oid.Type, oid.Instance)
-			if obj, found := respMap[key]; found {
-				for _, prop := range obj.Properties {
-					switch prop.Type {
-					case btypes.PropObjectName:
-						if v, ok := prop.Data.(string); ok {
-							res.Name = v
-						}
-					case btypes.PropDescription:
-						if v, ok := prop.Data.(string); ok {
-							res.Description = v
-						}
-					case btypes.PropUnits:
-						var u units.Unit
-						found := false
-						if v, ok := prop.Data.(btypes.Enumerated); ok {
-							u = units.Unit(v)
-							found = true
-						} else if v, ok := prop.Data.(uint); ok {
-							u = units.Unit(v)
-							found = true
-						} else if v, ok := prop.Data.(uint32); ok {
-							u = units.Unit(v)
-							found = true
-						} else if v, ok := prop.Data.(uint16); ok {
-							u = units.Unit(v)
-							found = true
-						} else if v, ok := prop.Data.(int); ok {
-							u = units.Unit(v)
-							found = true
-						} else if v, ok := prop.Data.(float64); ok {
-							u = units.Unit(v)
-							found = true
-						}
-
-						if found {
-							switch u {
-							case units.DegreesCelsius:
-								res.Units = "℃"
-							case units.DegreesFahrenheit:
-								res.Units = "℉"
-							case units.NoUnits:
-								res.Units = ""
-							default:
-								res.Units = u.String()
+				if obj, found := respMap[key]; found {
+					for _, prop := range obj.Properties {
+						switch prop.Type {
+						case btypes.PropObjectName:
+							if v, ok := prop.Data.(string); ok {
+								res.Name = v
 							}
-						} else {
-							res.Units = fmt.Sprintf("%v", prop.Data)
+						case btypes.PropDescription:
+							if v, ok := prop.Data.(string); ok {
+								res.Description = v
+							}
+						case btypes.PropUnits:
+							var u units.Unit
+							okU := false
+							if v, ok := prop.Data.(btypes.Enumerated); ok {
+								u = units.Unit(v)
+								okU = true
+							} else if v, ok := prop.Data.(uint); ok {
+								u = units.Unit(v)
+								okU = true
+							} else if v, ok := prop.Data.(uint32); ok {
+								u = units.Unit(v)
+								okU = true
+							} else if v, ok := prop.Data.(uint16); ok {
+								u = units.Unit(v)
+								okU = true
+							} else if v, ok := prop.Data.(int); ok {
+								u = units.Unit(v)
+								okU = true
+							} else if v, ok := prop.Data.(float64); ok {
+								u = units.Unit(v)
+								okU = true
+							}
+							if okU {
+								res.Units = u.String()
+							} else {
+								res.Units = fmt.Sprintf("%v", prop.Data)
+							}
+						case btypes.PropPresentValue:
+							res.PresentValue = prop.Data
+						case btypes.PropStatusFlags:
+							if v, ok := prop.Data.(btypes.BitString); ok {
+								res.StatusFlags = v.String()
+							} else if v, ok := prop.Data.(string); ok {
+								res.StatusFlags = v
+							} else {
+								res.StatusFlags = fmt.Sprintf("%v", prop.Data)
+							}
+						case btypes.PropReliability:
+							res.Reliability = fmt.Sprintf("%v", prop.Data)
 						}
-					case btypes.PropPresentValue:
-						res.PresentValue = prop.Data
-					case btypes.PropStatusFlags:
-						if v, ok := prop.Data.(btypes.BitString); ok {
-							res.StatusFlags = v.String()
-						} else if v, ok := prop.Data.(string); ok {
-							res.StatusFlags = v
-						} else {
-							res.StatusFlags = fmt.Sprintf("%v", prop.Data)
-						}
-					case btypes.PropReliability:
-						res.Reliability = fmt.Sprintf("%v", prop.Data)
 					}
 				}
+				tmp = append(tmp, res)
 			}
-			results = append(results, res)
+			muRes.Lock()
+			results = append(results, tmp...)
+			muRes.Unlock()
+		}(jb)
+
+		// 时间保护：避免提交过多任务导致超过 5s
+		if time.Now().Add(250 * time.Millisecond).After(deadline) {
+			// 留一点时间给已派发任务完成
+			break RespLoop
 		}
 	}
+	wg.Wait()
 
 	// --- Diff Logic: New / Existing / Removed ---
 	d.mu.Lock()

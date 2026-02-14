@@ -3,7 +3,7 @@
   type: state
   enable: false
   priority: 0
-  check_interval: 5s
+  check_interval: ""
   trigger_mode: always
   source:
     alias: ""

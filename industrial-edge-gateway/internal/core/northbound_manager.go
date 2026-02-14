@@ -28,6 +28,7 @@ type NorthboundManager struct {
 	sparkplugClients map[string]*sparkplugb.Client
 	pipeline         *DataPipeline
 	sb               model.SouthboundManager
+	cm               *ChannelManager // Reference to ChannelManager for device lookups
 	storage          *storage.Storage
 	ctx              context.Context
 	cancel           context.CancelFunc
@@ -45,6 +46,7 @@ func NewNorthboundManager(cfg model.NorthboundConfig, pipeline *DataPipeline, sb
 		sparkplugClients: make(map[string]*sparkplugb.Client),
 		pipeline:         pipeline,
 		sb:               sb,
+		cm:               nil, // Set via SetChannelManager
 		storage:          s,
 		ctx:              ctx,
 		cancel:           cancel,
@@ -182,15 +184,33 @@ func (nm *NorthboundManager) handleValue(v model.Value) {
 }
 
 // OnDeviceStatusChange handles device status changes and notifies northbound clients
+// It publishes status to all configured endpoints that have this device mapped
 func (nm *NorthboundManager) OnDeviceStatusChange(deviceID string, status int) {
 	nm.mu.RLock()
 	defer nm.mu.RUnlock()
 
-	for _, client := range nm.mqttClients {
-		client.PublishDeviceStatus(deviceID, status)
+	// Filter by device mapping
+	for _, cfg := range nm.config.MQTT {
+		if client, ok := nm.mqttClients[cfg.ID]; ok {
+			// Check if device is mapped to this config
+			if cfg.Devices == nil || len(cfg.Devices) == 0 {
+				// Empty mapping means all devices
+				client.PublishDeviceStatus(deviceID, status)
+			} else if devCfg, exists := cfg.Devices[deviceID]; exists && devCfg.Enable {
+				client.PublishDeviceStatus(deviceID, status)
+			}
+		}
 	}
-	for _, client := range nm.httpClients {
-		client.PublishDeviceStatus(deviceID, status)
+
+	for _, cfg := range nm.config.HTTP {
+		if client, ok := nm.httpClients[cfg.ID]; ok {
+			// Check if device is mapped to this config
+			if cfg.Devices == nil || len(cfg.Devices) == 0 {
+				client.PublishDeviceStatus(deviceID, status)
+			} else if enabled, exists := cfg.Devices[deviceID]; exists && enabled {
+				client.PublishDeviceStatus(deviceID, status)
+			}
+		}
 	}
 }
 
@@ -272,8 +292,10 @@ func (nm *NorthboundManager) GetConfig() model.NorthboundConfig {
 	return cfg
 }
 
-// MQTT Operations (Moved to northbound_manager_ext.go)
-// func (nm *NorthboundManager) UpsertMQTTConfig(cfg model.MQTTConfig) error ...
+// MQTT Operations (Implemented in northbound_manager_ext.go)
+
+// UpsertMQTTConfig updates or inserts MQTT configuration and handles device lifecycle events
+// See northbound_manager_ext.go for implementation
 
 func (nm *NorthboundManager) DeleteMQTTConfig(id string) error {
 	nm.mu.Lock()

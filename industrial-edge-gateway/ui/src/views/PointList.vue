@@ -434,12 +434,16 @@
                 </v-card-title>
                 <v-card-text class="pa-4">
                     <v-row class="mb-2" align="center">
-                        <v-col cols="12" sm="8">
+                        <v-col cols="12" sm="4">
                             <div class="text-caption text-grey-darken-1">
                                 正在扫描设备 (ID: {{ deviceInfo?.config?.device_id }}) 的对象列表...
                             </div>
                         </v-col>
-                        <v-col cols="12" sm="4" class="d-flex align-center justify-end">
+                        <v-col cols="12" sm="9" class="d-flex align-center justify-end scan-toolbar">
+                            <v-btn-toggle v-model="scanDialog.mode" color="primary" density="compact" class="mr-3" mandatory>
+                                <v-btn value="fast" variant="tonal" size="small" title="结构 + 元数据">快速扫描</v-btn>
+                                <v-btn value="deep" variant="tonal" size="small" title="含实时值">深度扫描</v-btn>
+                            </v-btn-toggle>
                             <v-btn color="primary" :loading="scanDialog.loading" prepend-icon="mdi-radar" @click="scanPoints">
                                 开始扫描
                             </v-btn>
@@ -928,7 +932,8 @@ const scanDialog = reactive({
     results: [],
     selected: [],
     selectAll: false,
-    varsOnly: true
+    varsOnly: true,
+    mode: 'fast'
 })
 
 const existingAddresses = computed(() => {
@@ -1074,8 +1079,8 @@ const scanPoints = async () => {
         
         // Call device-specific scan endpoint
         const res = await request.post(`/api/channels/${channelId}/devices/${deviceId}/scan`, {
-            // device_id is injected by backend based on device config
-        }, { timeout: 60000 }) // Increase timeout for slow BACnet/OPC UA scans
+            mode: scanDialog.mode
+        }, { timeout: 60000 })
         
         if (Array.isArray(res)) {
             if (channelProtocol.value === 'opc-ua') {
@@ -1353,3 +1358,26 @@ const normalizeWriteValue = () => {
     return writeDialog.valueStr || writeDialog.valueNum
 }
 </script>
+
+<style scoped>
+.scan-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow-x: hidden;
+  min-width: 0;
+}
+.scan-toolbar :deep(.v-btn-group) {
+  flex: 0 0 auto;
+}
+.scan-toolbar :deep(.v-btn) {
+  flex: 0 0 auto;
+  min-width: auto;
+}
+.scan-toolbar :deep(.v-switch) {
+  flex: 0 0 auto;
+}
+</style>

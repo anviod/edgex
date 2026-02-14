@@ -88,10 +88,11 @@ func main() {
 	})
 
 	// 5. Init Northbound Manager
-	nbm := core.NewNorthboundManager(cfg.Northbound, pipeline, cm, func(nbCfg model.NorthboundConfig) error {
+	nbm := core.NewNorthboundManager(cfg.Northbound, pipeline, cm, store, func(nbCfg model.NorthboundConfig) error {
 		cfg.Northbound = nbCfg
 		return config.SaveConfig(*confDir, cfg)
 	})
+	nbm.SetChannelManager(cm)
 	cm.SetStatusHandler(func(deviceID string, status int) {
 		nbm.OnDeviceStatusChange(deviceID, status)
 	})

@@ -37,16 +37,19 @@ type DashboardSummary struct {
 }
 
 type Server struct {
-	app            *fiber.App
-	cm             *core.ChannelManager
-	storage        *storage.Storage
-	hub            *Hub
-	pipeline       *core.DataPipeline
-	nbm            *core.NorthboundManager
-	ecm            *core.EdgeComputeManager
-	sm             *core.SystemManager
-	dsm            *core.DeviceStorageManager
-	logBroadcaster *logger.LogBroadcaster
+	app                *fiber.App
+	cm                 *core.ChannelManager
+	storage            *storage.Storage
+	hub                *Hub
+	pipeline           *core.DataPipeline
+	nbm                *core.NorthboundManager
+	ecm                *core.EdgeComputeManager
+	sm                 *core.SystemManager
+	dsm                *core.DeviceStorageManager
+	logBroadcaster     *logger.LogBroadcaster
+	randomWriteMu      sync.Mutex
+	randomWriteStop    chan struct{}
+	randomWriteRunning bool
 }
 
 func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeline, nbm *core.NorthboundManager, ecm *core.EdgeComputeManager, sm *core.SystemManager, dsm *core.DeviceStorageManager, logBroadcaster *logger.LogBroadcaster) *Server {
@@ -242,7 +245,7 @@ func (s *Server) setupRoutes() {
 	// 北向数据上报配置
 	api.Get("/northbound/config", s.getNorthboundConfig)
 	api.Post("/northbound/mqtt", s.updateMQTTConfig)
-	api.Post("/northbound/http", s.updateHTTPConfig) // New HTTP Config
+	api.Post("/northbound/http", s.updateHTTPConfig)       // New HTTP Config
 	api.Delete("/northbound/http/:id", s.deleteHTTPConfig) // New HTTP Delete
 	api.Post("/northbound/opcua", s.updateOPCUAConfig)
 	api.Get("/northbound/opcua/:id/stats", s.getOPCUAStats)
@@ -259,6 +262,10 @@ func (s *Server) setupRoutes() {
 	api.Get("/edge/metrics", s.getEdgeMetrics)
 	api.Get("/edge/shared-sources", s.getEdgeSharedSources)
 	api.Get("/edge/logs", s.handleGetEdgeLogs)
+
+	tools := api.Group("/tools")
+	tools.Post("/random-write/start", s.startRandomWrite)
+	tools.Post("/random-write/stop", s.stopRandomWrite)
 
 	// ===== WebSocket =====
 	api.Get("/ws/values", websocket.New(s.handleWebSocket))
@@ -1026,4 +1033,114 @@ func (s *Server) getMQTTStats(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(stats)
+}
+
+type randomWriteRequest struct {
+	ChannelID       string   `json:"channel_id"`
+	DeviceIDs       []string `json:"device_ids"`
+	QPS             int      `json:"qps"`
+	DurationSeconds int      `json:"duration_seconds"`
+	Min             int      `json:"min"`
+	Max             int      `json:"max"`
+}
+
+func (s *Server) startRandomWrite(c *fiber.Ctx) error {
+	var req randomWriteRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid request"})
+	}
+	if req.ChannelID == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "channel_id required"})
+	}
+	if req.QPS <= 0 {
+		req.QPS = 5
+	}
+	if req.Min == 0 && req.Max == 0 {
+		req.Min = 0
+		req.Max = 1000
+	}
+	if req.Max < req.Min {
+		req.Min, req.Max = req.Max, req.Min
+	}
+
+	s.randomWriteMu.Lock()
+	if s.randomWriteRunning {
+		s.randomWriteMu.Unlock()
+		return c.Status(409).JSON(fiber.Map{"error": "random writer already running"})
+	}
+	stop := make(chan struct{})
+	s.randomWriteStop = stop
+	s.randomWriteRunning = true
+	s.randomWriteMu.Unlock()
+
+	devices := req.DeviceIDs
+	if len(devices) == 0 {
+		list := s.cm.GetChannelDevices(req.ChannelID)
+		for _, d := range list {
+			if d.Enable {
+				devices = append(devices, d.ID)
+			}
+		}
+	}
+	if len(devices) == 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "no devices to write"})
+	}
+
+	interval := time.Second / time.Duration(req.QPS)
+	var endTime time.Time
+	if req.DurationSeconds > 0 {
+		endTime = time.Now().Add(time.Duration(req.DurationSeconds) * time.Second)
+	}
+
+	go func() {
+		defer func() {
+			s.randomWriteMu.Lock()
+			s.randomWriteRunning = false
+			close(stop)
+			s.randomWriteMu.Unlock()
+		}()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+
+			if !endTime.IsZero() && time.Now().After(endTime) {
+				return
+			}
+
+			di := rand.IntN(len(devices))
+			devID := devices[di]
+			dev := s.cm.GetDevice(req.ChannelID, devID)
+			if dev == nil || len(dev.Points) == 0 {
+				time.Sleep(interval)
+				continue
+			}
+			pi := rand.IntN(len(dev.Points))
+			pointID := dev.Points[pi].ID
+			val := req.Min
+			if req.Max > req.Min {
+				val = req.Min + rand.IntN(req.Max-req.Min+1)
+			}
+			_ = s.cm.WritePoint(req.ChannelID, devID, pointID, val)
+			time.Sleep(interval)
+		}
+	}()
+
+	return c.JSON(fiber.Map{"status": "started"})
+}
+
+func (s *Server) stopRandomWrite(c *fiber.Ctx) error {
+	s.randomWriteMu.Lock()
+	defer s.randomWriteMu.Unlock()
+	if !s.randomWriteRunning || s.randomWriteStop == nil {
+		return c.Status(409).JSON(fiber.Map{"error": "random writer not running"})
+	}
+	select {
+	case s.randomWriteStop <- struct{}{}:
+	default:
+	}
+	s.randomWriteRunning = false
+	return c.JSON(fiber.Map{"status": "stopping"})
 }

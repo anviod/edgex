@@ -1,4 +1,3 @@
-
 package core
 
 import (
@@ -81,14 +80,39 @@ func (nm *NorthboundManager) UpsertHTTPConfig(cfg model.HTTPConfig) error {
 	if targetClient != nil {
 		for _, dID := range addedDevices {
 			if dev := nm.findDevice(dID); dev != nil {
-				targetClient.PublishDeviceLifecycle("add", *dev)
+				targetClient.PublishDeviceLifecycle("add", *dev.(*model.Device))
 			}
 		}
 		for _, dID := range removedDevices {
 			if dev := nm.findDevice(dID); dev != nil {
-				targetClient.PublishDeviceLifecycle("remove", *dev)
+				targetClient.PublishDeviceLifecycle("remove", *dev.(*model.Device))
 			} else {
 				targetClient.PublishDeviceLifecycle("remove", model.Device{ID: dID})
+			}
+		}
+	}
+	return nil
+}
+
+// SetChannelManager sets the ChannelManager reference for device lookups
+func (nm *NorthboundManager) SetChannelManager(cm *ChannelManager) {
+	nm.cm = cm
+}
+
+// findDevice retrieves a device by ID from all channels via ChannelManager
+func (nm *NorthboundManager) findDevice(dID string) any {
+	if nm.cm == nil {
+		return nil
+	}
+
+	nm.cm.mu.RLock()
+	defer nm.cm.mu.RUnlock()
+
+	// Search through all channels to find the device
+	for _, ch := range nm.cm.channels {
+		for i, dev := range ch.Devices {
+			if dev.ID == dID {
+				return &ch.Devices[i]
 			}
 		}
 	}
@@ -135,4 +159,94 @@ func (nm *NorthboundManager) PublishMQTTClient(clientID string, topic string, pa
 		return client.PublishRaw(topic, payload)
 	}
 	return fmt.Errorf("MQTT client %s not found", clientID)
+}
+
+func (nm *NorthboundManager) UpsertMQTTConfig(cfg model.MQTTConfig) error {
+	nm.mu.Lock()
+	defer nm.mu.Unlock()
+
+	var oldCfg model.MQTTConfig
+	found := false
+	for i, c := range nm.config.MQTT {
+		if c.ID == cfg.ID {
+			oldCfg = c
+			nm.config.MQTT[i] = cfg
+			found = true
+			break
+		}
+	}
+	if !found {
+		nm.config.MQTT = append(nm.config.MQTT, cfg)
+	}
+
+	// Diff Logic - detect added and removed devices
+	addedDevices := []string{}
+	removedDevices := []string{}
+
+	if found {
+		for dID, devCfg := range cfg.Devices {
+			if devCfg.Enable {
+				if oldDevCfg, ok := oldCfg.Devices[dID]; !ok || !oldDevCfg.Enable {
+					addedDevices = append(addedDevices, dID)
+				}
+			}
+		}
+		for dID, devCfg := range oldCfg.Devices {
+			if devCfg.Enable {
+				if newDevCfg, ok := cfg.Devices[dID]; !ok || !newDevCfg.Enable {
+					removedDevices = append(removedDevices, dID)
+				}
+			}
+		}
+	} else {
+		// New config - all enabled devices are "added"
+		for dID, devCfg := range cfg.Devices {
+			if devCfg.Enable {
+				addedDevices = append(addedDevices, dID)
+			}
+		}
+	}
+
+	if err := nm.saveConfig(); err != nil {
+		return err
+	}
+
+	client, exists := nm.mqttClients[cfg.ID]
+	if !cfg.Enable {
+		if exists {
+			client.Stop()
+			delete(nm.mqttClients, cfg.ID)
+		}
+		return nil
+	}
+
+	var targetClient *mqtt.Client
+	if !exists {
+		newClient := mqtt.NewClient(cfg, nm.sb, nm.storage)
+		if err := newClient.Start(); err != nil {
+			return fmt.Errorf("failed to start MQTT client: %w", err)
+		}
+		nm.mqttClients[cfg.ID] = newClient
+		targetClient = newClient
+	} else {
+		client.UpdateConfig(cfg)
+		targetClient = client
+	}
+
+	// Fire device lifecycle events
+	if targetClient != nil {
+		for _, dID := range addedDevices {
+			if dev := nm.findDevice(dID); dev != nil {
+				targetClient.PublishDeviceLifecycle("add", *dev.(*model.Device))
+			}
+		}
+		for _, dID := range removedDevices {
+			if dev := nm.findDevice(dID); dev != nil {
+				targetClient.PublishDeviceLifecycle("remove", *dev.(*model.Device))
+			} else {
+				targetClient.PublishDeviceLifecycle("remove", model.Device{ID: dID})
+			}
+		}
+	}
+	return nil
 }

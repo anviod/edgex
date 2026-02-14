@@ -8,13 +8,19 @@ mqtt:
       subscribe_topic: things/{client_id}/down/req
       status_topic: things/{client_id}/{device_id}/status
       lwt_topic: things/{client_id}/lwt
+      device_status_topic: ""
+      device_lifecycle_topic: things/{client_id}/lifecycle
       online_payload: '{"status":"online","device_id":"%device_id%","timestamp":"%timestamp%"}'
       offline_payload: '{"status":"offline","device_id":"%device_id%","timestamp":"%timestamp%"}'
       lwt_payload: '{"status":"lwt","device_id":"%device_id%","timestamp":"%timestamp%"}'
-      ignore_offline_data: true
+      ignore_offline_data: false
       write_response_topic: things/{client_id}/down/resp
       username: ""
       password: ""
+      cache:
+        enable: false
+        max_count: 0
+        flush_interval: ""
       devices:
         "3":
             enable: true
@@ -29,7 +35,7 @@ mqtt:
             strategy: periodic
             interval: 10s
         Room_FC_2014_2228318:
-            enable: false
+            enable: true
             strategy: periodic
             interval: 10s
         Room_FC_2014_2228319:
@@ -37,7 +43,7 @@ mqtt:
             strategy: periodic
             interval: 10s
         Room_FC_2014_2228320:
-            enable: false
+            enable: true
             strategy: periodic
             interval: 10s
         bacnet-2228316:
@@ -84,20 +90,20 @@ mqtt:
             enable: true
             strategy: periodic
             interval: 30s
+http: []
 opcua:
     - id: opcua-1
       name: Default OPC UA
       enable: true
       port: 5050
       endpoint: /test
-      security_policy: Basic256Sha256
+      security_policy: Auto
       security_mode: ""
-      trusted_cert_path: ./pki
+      trusted_cert_path: ""
       auth_methods:
         - Anonymous
         - UserName
-      users:
-        admin: admin
+      users: {}
       cert_file: ""
       key_file: ""
       devices:

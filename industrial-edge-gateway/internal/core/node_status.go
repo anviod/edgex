@@ -152,7 +152,7 @@ func (c *CommunicationManageTemplate) onCollectFail(node *DeviceNodeTemplate) {
 
 	// 根据失败次数调整节点状态
 	switch {
-	case node.Runtime.FailCount >= 3 && node.Runtime.FailCount < 10:
+	case node.Runtime.FailCount >= 1 && node.Runtime.FailCount < 10:
 		node.Runtime.State = NodeStateUnstable
 
 	case node.Runtime.FailCount >= 10:

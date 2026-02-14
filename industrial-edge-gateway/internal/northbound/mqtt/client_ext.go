@@ -1,3 +1,13 @@
+package mqtt
+
+import (
+	"encoding/json"
+	"industrial-edge-gateway/internal/model"
+	"sync/atomic"
+	"time"
+
+	"go.uber.org/zap"
+)
 
 func (c *Client) retryLoop() {
 	// Parse flush interval
@@ -85,7 +95,7 @@ func (c *Client) PublishDeviceLifecycle(event string, device model.Device) {
 	c.configMu.RLock()
 	topic := c.config.DeviceLifecycleTopic
 	baseTopic := c.config.Topic
-	clientID := c.config.ClientID
+	//clientID := c.config.ClientID
 	c.configMu.RUnlock()
 
 	if topic == "" {
