@@ -45,6 +45,11 @@ service.interceptors.response.use(
     return response.data
   },
   error => {
+    // Allow silent errors for background/non-blocking requests
+    const silent = error?.config && (error.config.silent === true)
+    if (silent) {
+      return Promise.reject(error)
+    }
     const status = error.response && error.response.status
     if (status === 401) {
       try {

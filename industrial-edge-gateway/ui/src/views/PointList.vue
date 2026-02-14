@@ -126,12 +126,110 @@
                             </td>
                         </tr>
                         <tr v-if="!loading && points.length === 0">
-                            <td colspan="6" class="text-center pa-8 text-grey">暂无点位数据</td>
+                            <td colspan="6" class="text-center pa-8 text-grey">
+                                暂无点位数据
+                                <v-btn color="primary" variant="text" class="ml-2" @click="openCloneDialog" prepend-icon="mdi-content-copy">
+                                    复制其它设备点位
+                                </v-btn>
+                            </td>
                         </tr>
                     </tbody>
                 </v-table>
             </v-card-text>
         </v-card>
+
+        <v-dialog v-model="cloneDialog.visible" max-width="900px" persistent>
+            <v-card class="rounded-xl">
+                <v-card-title class="text-h6 d-flex align-center">
+                    <v-icon icon="mdi-content-copy" class="mr-2"></v-icon>
+                    克隆其它设备点位
+                </v-card-title>
+                <v-card-text>
+                    <v-row>
+                        <v-col cols="12" sm="6">
+                            <v-select
+                                v-model="cloneDialog.selectedChannel"
+                                :items="cloneDialog.channels"
+                                item-title="name"
+                                item-value="id"
+                                label="选择通道"
+                                variant="outlined"
+                                density="compact"
+                                :loading="cloneDialog.loading"
+                                @update:model-value="onCloneChannelChange"
+                            ></v-select>
+                        </v-col>
+                        <v-col cols="12" sm="6">
+                            <v-select
+                                v-model="cloneDialog.selectedDevice"
+                                :items="cloneDialog.devices"
+                                item-title="name"
+                                item-value="id"
+                                label="选择设备"
+                                variant="outlined"
+                                density="compact"
+                                :loading="cloneDialog.loading"
+                                @update:model-value="onCloneDeviceChange"
+                            ></v-select>
+                        </v-col>
+                    </v-row>
+                    <v-row class="mb-2" align="center" v-if="cloneDialog.points && cloneDialog.points.length > 0">
+                        <v-col cols="12" class="d-flex align-center">
+                            <v-checkbox
+                                v-model="cloneDialog.selectAll"
+                                density="compact"
+                                hide-details
+                                label="全选"
+                                class="mr-4"
+                                @change="toggleCloneSelectAll"
+                            />
+                            <div class="text-caption text-grey-darken-1">
+                                已选择 {{ cloneDialog.selected.length }} / {{ cloneDialog.points.length }}
+                            </div>
+                        </v-col>
+                    </v-row>
+                    <v-table fixed-header height="360">
+                        <thead>
+                            <tr>
+                                <th class="text-left" style="width:40px"></th>
+                                <th class="text-left">名称</th>
+                                <th class="text-left">地址</th>
+                                <th class="text-left">数据类型</th>
+                                <th class="text-left">单位</th>
+                                <th class="text-left">读写</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="p in cloneDialog.points" :key="p.id">
+                                <td>
+                                    <v-checkbox
+                                        v-model="cloneDialog.selected"
+                                        :value="p"
+                                        density="compact"
+                                        hide-details
+                                    />
+                                </td>
+                                <td>{{ p.name }}</td>
+                                <td class="text-no-wrap">{{ p.address }}</td>
+                                <td>{{ p.datatype }}</td>
+                                <td>{{ p.unit }}</td>
+                                <td>{{ p.readwrite }}</td>
+                            </tr>
+                            <tr v-if="!cloneDialog.loading && cloneDialog.points.length === 0">
+                                <td colspan="6" class="text-center pa-6 text-grey">请选择通道与设备以加载点位</td>
+                            </tr>
+                        </tbody>
+                    </v-table>
+                </v-card-text>
+                <v-card-actions class="pa-4">
+                    <v-spacer></v-spacer>
+                    <v-btn variant="text" @click="cloneDialog.visible = false">取消</v-btn>
+                    <v-btn color="primary" :loading="cloneDialog.loading" :disabled="cloneDialog.selected.length === 0" @click="executeClone">
+                        克隆所选点位
+                    </v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
 
         <!-- Point Config Dialog (Add/Edit) -->
         <v-dialog v-model="pointDialog.visible" max-width="80%" persistent>
@@ -901,10 +999,123 @@ const executeDelete = async () => {
     }
 }
 
+const cloneDialog = reactive({
+    visible: false,
+    loading: false,
+    channels: [],
+    selectedChannel: null,
+    devices: [],
+    selectedDevice: null,
+    points: [],
+    selected: [],
+    selectAll: false
+})
+
+const openCloneDialog = async () => {
+    cloneDialog.visible = true
+    cloneDialog.loading = true
+    cloneDialog.channels = []
+    cloneDialog.devices = []
+    cloneDialog.points = []
+    cloneDialog.selected = []
+    cloneDialog.selectAll = false
+    try {
+        const chs = await request.get('/api/channels', { timeout: 10000, silent: true })
+        const same = (chs || []).filter(ch => ch.protocol === channelProtocol.value)
+        cloneDialog.channels = same
+        if (same.length === 1) {
+            cloneDialog.selectedChannel = same[0].id
+            await onCloneChannelChange(same[0].id)
+        }
+    } catch (e) {
+    } finally {
+        cloneDialog.loading = false
+    }
+}
+
+const onCloneChannelChange = async (cid) => {
+    cloneDialog.loading = true
+    cloneDialog.devices = []
+    cloneDialog.points = []
+    cloneDialog.selected = []
+    cloneDialog.selectAll = false
+    try {
+        if (!cid) return
+        const devs = await request.get(`/api/channels/${cid}/devices`, { timeout: 10000, silent: true })
+        cloneDialog.devices = devs || []
+    } catch (e) {
+    } finally {
+        cloneDialog.loading = false
+    }
+}
+
+const onCloneDeviceChange = async (did) => {
+    cloneDialog.loading = true
+    cloneDialog.points = []
+    cloneDialog.selected = []
+    cloneDialog.selectAll = false
+    try {
+        const cid = cloneDialog.selectedChannel
+        if (!cid || !did) return
+        const pts = await request.get(`/api/channels/${cid}/devices/${did}/points`, { timeout: 8000, silent: true })
+        cloneDialog.points = (pts || []).map(p => ({
+            id: p.id,
+            name: p.name,
+            address: p.address,
+            datatype: p.datatype,
+            unit: p.unit || '',
+            readwrite: p.readwrite || 'R'
+        }))
+    } catch (e) {
+    } finally {
+        cloneDialog.loading = false
+    }
+}
+
+const toggleCloneSelectAll = () => {
+    if (cloneDialog.selectAll) {
+        cloneDialog.selected = [...cloneDialog.points]
+    } else {
+        cloneDialog.selected = []
+    }
+}
+
+const executeClone = async () => {
+    if (!cloneDialog.selected || cloneDialog.selected.length === 0) return
+    cloneDialog.loading = true
+    let ok = 0
+    let fail = 0
+    try {
+        for (const p of cloneDialog.selected) {
+            const payload = {
+                id: p.id,
+                name: p.name,
+                address: p.address,
+                datatype: p.datatype,
+                unit: p.unit || '',
+                readwrite: p.readwrite || 'R',
+                scale: 1.0,
+                offset: 0.0
+            }
+            try {
+                await request.post(`/api/channels/${channelId}/devices/${deviceId}/points`, payload, { timeout: 5000, silent: true })
+                ok++
+            } catch (e) {
+                fail++
+            }
+        }
+        showMessage(`克隆完成：成功 ${ok} 个${fail > 0 ? `，失败 ${fail} 个` : ''}`, fail > 0 ? 'warning' : 'success')
+        cloneDialog.visible = false
+        await fetchPoints()
+    } finally {
+        cloneDialog.loading = false
+    }
+}
+
 const fetchPoints = async () => {
     loading.value = true
     try {
-        // Fetch device info first
+        // 1) 优先获取设备信息（包含点位配置），快速首屏渲染
         if (!deviceInfo.value) {
             try {
                 const dev = await request.get(`/api/channels/${channelId}/devices/${deviceId}`)
@@ -917,11 +1128,58 @@ const fetchPoints = async () => {
             }
         }
 
-        const pts = await request.get(`/api/channels/${channelId}/devices/${deviceId}/points`)
-        points.value = pts || []
+        // 用设备配置中的点位生成基础列表（无阻塞首屏）
+        if (deviceInfo.value && Array.isArray(deviceInfo.value.points)) {
+            const now = new Date()
+            points.value = deviceInfo.value.points.map(p => ({
+                id: p.id,
+                name: p.name,
+                address: p.address,
+                datatype: p.datatype,
+                unit: p.unit || '',
+                readwrite: p.readwrite || 'R',
+                value: null,
+                quality: 'Bad',
+                timestamp: now
+            }))
+        } else {
+            points.value = []
+        }
+
+        // 2) 合并实时缓存（快速填充值）
+        try {
+            const realtime = await request.get('/api/values/realtime')
+            if (realtime && typeof realtime === 'object') {
+                for (let i = 0; i < points.value.length; i++) {
+                    const pid = points.value[i].id
+                    const v = realtime[pid]
+                    if (v) {
+                        points.value[i].value = v.value
+                        points.value[i].quality = v.quality || 'Good'
+                        if (v.ts) points.value[i].timestamp = v.ts
+                    }
+                }
+            }
+        } catch (e) {
+            // 实时缓存失败不阻塞 UI
+            console.warn('Fetch realtime values failed', e)
+        }
+
+        // 3) 后台拉取最新实时值（超时短，不阻塞页面交互）
+        // 成功则用返回结果覆盖；失败/超时忽略，等待 WebSocket 或下次刷新
+        request.get(`/api/channels/${channelId}/devices/${deviceId}/points`, { timeout: 2500, silent: true })
+            .then(pts => {
+                if (Array.isArray(pts) && pts.length > 0) {
+                    points.value = pts
+                }
+            })
+            .catch(() => {
+                // ignore
+            })
     } catch (e) {
         showMessage('获取点位失败: ' + e.message, 'error')
     } finally {
+        // 不等待后台拉取完成，首屏已就绪
         loading.value = false
     }
 }

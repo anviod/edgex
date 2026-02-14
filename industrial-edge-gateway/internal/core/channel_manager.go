@@ -478,6 +478,8 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 
 	slaveIDVal := foundDev.Config["slave_id"]
 	devID := foundDev.ID
+	// 获取节点以便后续根据读取结果更新状态
+	node := cm.stateManager.GetNode(devID)
 
 	cm.mu.RUnlock() // 释放 ChannelManager 锁
 
@@ -506,7 +508,6 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 
 	// 读取点位数据
 	timeout := 5 * time.Second
-	node := cm.stateManager.GetNode(devID)
 	if node != nil && node.Runtime.State != NodeStateOnline {
 		timeout = 200 * time.Millisecond
 	}
@@ -533,6 +534,8 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 	}
 
 	// 按配置顺序返回点位数据
+	successCount := 0
+	failCount := 0
 	for _, point := range pointsCopy {
 		pd := model.PointData{
 			ID:        point.ID,
@@ -553,9 +556,27 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 			if !result.TS.IsZero() {
 				pd.Timestamp = result.TS
 			}
+			if pd.Quality == "Good" {
+				successCount++
+			} else {
+				failCount++
+			}
+		} else {
+			// 未返回视为失败一次
+			failCount++
 		}
 
 		points = append(points, pd)
+	}
+
+	// 根据读点结果立即修正设备状态：一次成功即可恢复 Online
+	if node != nil {
+		collectCtx := &CollectContext{
+			TotalCmd:   successCount + failCount,
+			SuccessCmd: successCount,
+			FailCmd:    failCount,
+		}
+		cm.stateManager.FinalizeCollect(node, collectCtx)
 	}
 
 	return points, nil

@@ -1,3 +1,15 @@
+- id: s7-test-1
+  name: S7 Test Channel
+  protocol: s7
+  enable: true
+  config:
+    ip: 192.168.1.100
+    plcType: S7-1200
+    port: 102
+    rack: 0
+    slot: 2
+    startup: warm
+  devices: []
 - id: modbus-rtu-1
   name: Modbus RTU Channel (本地网关)
   protocol: modbus-rtu
@@ -58,17 +70,6 @@
         - id: Temperature.Water
           name: Glycol Water Temperature
           address: AnalogInput:1
-          datatype: float32
-          scale: 1
-          offset: 0
-          unit: ℃
-          readwrite: R
-          group: ""
-          report_mode: ""
-          threshold: null
-        - id: Temperature.Outdoor
-          name: Outdoor Temperature
-          address: AnalogInput:2
           datatype: float32
           scale: 1
           offset: 0
@@ -162,6 +163,17 @@
           offset: 0
           unit: ""
           readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: Temperature.Outdoor
+          name: AnalogInput 2
+          address: AnalogInput:2
+          datatype: float32
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: R
           group: ""
           report_mode: ""
           threshold: null
@@ -7798,6 +7810,2218 @@
           group: ""
           report_mode: ""
           threshold: null
+    - id: slave-4
+      name: slave-4
+      enable: true
+      interval: 10s
+      config:
+        slave_id: 4
+      storage:
+        enable: false
+        strategy: interval
+        interval: 1
+        max_records: 1000
+      points:
+        - id: hr_40000
+          name: HR 40000
+          address: "40000"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40001
+          name: HR 40001
+          address: "40001"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40002
+          name: HR 40002
+          address: "40002"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40003
+          name: HR 40003
+          address: "40003"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40004
+          name: HR 40004
+          address: "40004"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40005
+          name: HR 40005
+          address: "40005"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40006
+          name: HR 40006
+          address: "40006"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40007
+          name: HR 40007
+          address: "40007"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40008
+          name: HR 40008
+          address: "40008"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40009
+          name: HR 40009
+          address: "40009"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40010
+          name: HR 40010
+          address: "40010"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40011
+          name: HR 40011
+          address: "40011"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40012
+          name: HR 40012
+          address: "40012"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40013
+          name: HR 40013
+          address: "40013"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40014
+          name: HR 40014
+          address: "40014"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40015
+          name: HR 40015
+          address: "40015"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40016
+          name: HR 40016
+          address: "40016"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40017
+          name: HR 40017
+          address: "40017"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40018
+          name: HR 40018
+          address: "40018"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40019
+          name: HR 40019
+          address: "40019"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40020
+          name: HR 40020
+          address: "40020"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40021
+          name: HR 40021
+          address: "40021"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40022
+          name: HR 40022
+          address: "40022"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40023
+          name: HR 40023
+          address: "40023"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40024
+          name: HR 40024
+          address: "40024"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40025
+          name: HR 40025
+          address: "40025"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40026
+          name: HR 40026
+          address: "40026"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40027
+          name: HR 40027
+          address: "40027"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40028
+          name: HR 40028
+          address: "40028"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40029
+          name: HR 40029
+          address: "40029"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40030
+          name: HR 40030
+          address: "40030"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40031
+          name: HR 40031
+          address: "40031"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40032
+          name: HR 40032
+          address: "40032"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40033
+          name: HR 40033
+          address: "40033"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40034
+          name: HR 40034
+          address: "40034"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40035
+          name: HR 40035
+          address: "40035"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40036
+          name: HR 40036
+          address: "40036"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40037
+          name: HR 40037
+          address: "40037"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40038
+          name: HR 40038
+          address: "40038"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40039
+          name: HR 40039
+          address: "40039"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40040
+          name: HR 40040
+          address: "40040"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40041
+          name: HR 40041
+          address: "40041"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40042
+          name: HR 40042
+          address: "40042"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40043
+          name: HR 40043
+          address: "40043"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40044
+          name: HR 40044
+          address: "40044"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40045
+          name: HR 40045
+          address: "40045"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40046
+          name: HR 40046
+          address: "40046"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40047
+          name: HR 40047
+          address: "40047"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40048
+          name: HR 40048
+          address: "40048"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40049
+          name: HR 40049
+          address: "40049"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40050
+          name: HR 40050
+          address: "40050"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40051
+          name: HR 40051
+          address: "40051"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40052
+          name: HR 40052
+          address: "40052"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40053
+          name: HR 40053
+          address: "40053"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40054
+          name: HR 40054
+          address: "40054"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40055
+          name: HR 40055
+          address: "40055"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40056
+          name: HR 40056
+          address: "40056"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40057
+          name: HR 40057
+          address: "40057"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40058
+          name: HR 40058
+          address: "40058"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40059
+          name: HR 40059
+          address: "40059"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40060
+          name: HR 40060
+          address: "40060"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40061
+          name: HR 40061
+          address: "40061"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40062
+          name: HR 40062
+          address: "40062"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40063
+          name: HR 40063
+          address: "40063"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40064
+          name: HR 40064
+          address: "40064"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40065
+          name: HR 40065
+          address: "40065"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40066
+          name: HR 40066
+          address: "40066"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40067
+          name: HR 40067
+          address: "40067"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40068
+          name: HR 40068
+          address: "40068"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40069
+          name: HR 40069
+          address: "40069"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40070
+          name: HR 40070
+          address: "40070"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40071
+          name: HR 40071
+          address: "40071"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40072
+          name: HR 40072
+          address: "40072"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40073
+          name: HR 40073
+          address: "40073"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40074
+          name: HR 40074
+          address: "40074"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40075
+          name: HR 40075
+          address: "40075"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40076
+          name: HR 40076
+          address: "40076"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40077
+          name: HR 40077
+          address: "40077"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40078
+          name: HR 40078
+          address: "40078"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40079
+          name: HR 40079
+          address: "40079"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40080
+          name: HR 40080
+          address: "40080"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40081
+          name: HR 40081
+          address: "40081"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40082
+          name: HR 40082
+          address: "40082"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40083
+          name: HR 40083
+          address: "40083"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40084
+          name: HR 40084
+          address: "40084"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40085
+          name: HR 40085
+          address: "40085"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40086
+          name: HR 40086
+          address: "40086"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40087
+          name: HR 40087
+          address: "40087"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40088
+          name: HR 40088
+          address: "40088"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40089
+          name: HR 40089
+          address: "40089"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40090
+          name: HR 40090
+          address: "40090"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40091
+          name: HR 40091
+          address: "40091"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40092
+          name: HR 40092
+          address: "40092"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40093
+          name: HR 40093
+          address: "40093"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40094
+          name: HR 40094
+          address: "40094"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40095
+          name: HR 40095
+          address: "40095"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40096
+          name: HR 40096
+          address: "40096"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40097
+          name: HR 40097
+          address: "40097"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40098
+          name: HR 40098
+          address: "40098"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40099
+          name: HR 40099
+          address: "40099"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40100
+          name: HR 40100
+          address: "40100"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40101
+          name: HR 40101
+          address: "40101"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40102
+          name: HR 40102
+          address: "40102"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40103
+          name: HR 40103
+          address: "40103"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40104
+          name: HR 40104
+          address: "40104"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40105
+          name: HR 40105
+          address: "40105"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40106
+          name: HR 40106
+          address: "40106"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40107
+          name: HR 40107
+          address: "40107"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40108
+          name: HR 40108
+          address: "40108"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40109
+          name: HR 40109
+          address: "40109"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40110
+          name: HR 40110
+          address: "40110"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40111
+          name: HR 40111
+          address: "40111"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40112
+          name: HR 40112
+          address: "40112"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40113
+          name: HR 40113
+          address: "40113"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40114
+          name: HR 40114
+          address: "40114"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40115
+          name: HR 40115
+          address: "40115"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40116
+          name: HR 40116
+          address: "40116"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40117
+          name: HR 40117
+          address: "40117"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40118
+          name: HR 40118
+          address: "40118"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40119
+          name: HR 40119
+          address: "40119"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40120
+          name: HR 40120
+          address: "40120"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40121
+          name: HR 40121
+          address: "40121"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40122
+          name: HR 40122
+          address: "40122"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40123
+          name: HR 40123
+          address: "40123"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40124
+          name: HR 40124
+          address: "40124"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40125
+          name: HR 40125
+          address: "40125"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40126
+          name: HR 40126
+          address: "40126"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40127
+          name: HR 40127
+          address: "40127"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40128
+          name: HR 40128
+          address: "40128"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40129
+          name: HR 40129
+          address: "40129"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40130
+          name: HR 40130
+          address: "40130"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40131
+          name: HR 40131
+          address: "40131"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40132
+          name: HR 40132
+          address: "40132"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40133
+          name: HR 40133
+          address: "40133"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40134
+          name: HR 40134
+          address: "40134"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40135
+          name: HR 40135
+          address: "40135"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40136
+          name: HR 40136
+          address: "40136"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40137
+          name: HR 40137
+          address: "40137"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40138
+          name: HR 40138
+          address: "40138"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40139
+          name: HR 40139
+          address: "40139"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40140
+          name: HR 40140
+          address: "40140"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40141
+          name: HR 40141
+          address: "40141"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40142
+          name: HR 40142
+          address: "40142"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40143
+          name: HR 40143
+          address: "40143"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40144
+          name: HR 40144
+          address: "40144"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40145
+          name: HR 40145
+          address: "40145"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40146
+          name: HR 40146
+          address: "40146"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40147
+          name: HR 40147
+          address: "40147"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40148
+          name: HR 40148
+          address: "40148"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40149
+          name: HR 40149
+          address: "40149"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40150
+          name: HR 40150
+          address: "40150"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40151
+          name: HR 40151
+          address: "40151"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40152
+          name: HR 40152
+          address: "40152"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40153
+          name: HR 40153
+          address: "40153"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40154
+          name: HR 40154
+          address: "40154"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40155
+          name: HR 40155
+          address: "40155"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40156
+          name: HR 40156
+          address: "40156"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40157
+          name: HR 40157
+          address: "40157"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40158
+          name: HR 40158
+          address: "40158"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40159
+          name: HR 40159
+          address: "40159"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40160
+          name: HR 40160
+          address: "40160"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40161
+          name: HR 40161
+          address: "40161"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40162
+          name: HR 40162
+          address: "40162"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40163
+          name: HR 40163
+          address: "40163"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40164
+          name: HR 40164
+          address: "40164"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40165
+          name: HR 40165
+          address: "40165"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40166
+          name: HR 40166
+          address: "40166"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40167
+          name: HR 40167
+          address: "40167"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40168
+          name: HR 40168
+          address: "40168"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40169
+          name: HR 40169
+          address: "40169"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40170
+          name: HR 40170
+          address: "40170"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40171
+          name: HR 40171
+          address: "40171"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40172
+          name: HR 40172
+          address: "40172"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40173
+          name: HR 40173
+          address: "40173"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40174
+          name: HR 40174
+          address: "40174"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40175
+          name: HR 40175
+          address: "40175"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40176
+          name: HR 40176
+          address: "40176"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40177
+          name: HR 40177
+          address: "40177"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40178
+          name: HR 40178
+          address: "40178"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40179
+          name: HR 40179
+          address: "40179"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40180
+          name: HR 40180
+          address: "40180"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40181
+          name: HR 40181
+          address: "40181"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40182
+          name: HR 40182
+          address: "40182"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40183
+          name: HR 40183
+          address: "40183"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40184
+          name: HR 40184
+          address: "40184"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40185
+          name: HR 40185
+          address: "40185"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40186
+          name: HR 40186
+          address: "40186"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40187
+          name: HR 40187
+          address: "40187"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40188
+          name: HR 40188
+          address: "40188"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40189
+          name: HR 40189
+          address: "40189"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40190
+          name: HR 40190
+          address: "40190"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40191
+          name: HR 40191
+          address: "40191"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40192
+          name: HR 40192
+          address: "40192"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40193
+          name: HR 40193
+          address: "40193"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40194
+          name: HR 40194
+          address: "40194"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40195
+          name: HR 40195
+          address: "40195"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40196
+          name: HR 40196
+          address: "40196"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40197
+          name: HR 40197
+          address: "40197"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40198
+          name: HR 40198
+          address: "40198"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
+        - id: hr_40199
+          name: HR 40199
+          address: "40199"
+          datatype: int16
+          scale: 1
+          offset: 0
+          unit: ""
+          readwrite: RW
+          group: ""
+          report_mode: ""
+          threshold: null
 - id: opcua-test-1
   name: OPC UA Local
   protocol: opc-ua
@@ -8931,15 +11155,3 @@
           group: ""
           report_mode: ""
           threshold: null
-- id: s7-test-1
-  name: S7 Test Channel
-  protocol: s7
-  enable: true
-  config:
-    ip: 192.168.1.100
-    plcType: S7-1200
-    port: 102
-    rack: 0
-    slot: 2
-    startup: warm
-  devices: []
