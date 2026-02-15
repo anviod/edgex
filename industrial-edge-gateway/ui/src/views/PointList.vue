@@ -138,15 +138,15 @@
             </v-card-text>
         </v-card>
 
-        <v-dialog v-model="cloneDialog.visible" max-width="900px" persistent>
+        <v-dialog v-model="cloneDialog.visible" width="100%" max-width="100%" persistent class="clone-dialog-full">
             <v-card class="rounded-xl">
                 <v-card-title class="text-h6 d-flex align-center">
                     <v-icon icon="mdi-content-copy" class="mr-2"></v-icon>
                     克隆其它设备点位
                 </v-card-title>
-                <v-card-text>
-                    <v-row>
-                        <v-col cols="12" sm="6">
+                <v-card-text class="pt-3 pb-2">
+                    <v-row class="mb-2" align="center">
+                        <v-col cols="12" md="4" class="pb-2 pb-md-0 pr-md-2">
                             <v-select
                                 v-model="cloneDialog.selectedChannel"
                                 :items="cloneDialog.channels"
@@ -159,7 +159,7 @@
                                 @update:model-value="onCloneChannelChange"
                             ></v-select>
                         </v-col>
-                        <v-col cols="12" sm="6">
+                        <v-col cols="12" md="4" class="pb-2 pb-md-0 pr-md-2">
                             <v-select
                                 v-model="cloneDialog.selectedDevice"
                                 :items="cloneDialog.devices"
@@ -171,6 +171,17 @@
                                 :loading="cloneDialog.loading"
                                 @update:model-value="onCloneDeviceChange"
                             ></v-select>
+                        </v-col>
+                        <v-col cols="12" md="4">
+                            <v-text-field
+                                v-model="cloneDialog.search"
+                                label="按名称或地址过滤"
+                                variant="outlined"
+                                density="compact"
+                                prepend-inner-icon="mdi-magnify"
+                                clearable
+                                hide-details="auto"
+                            ></v-text-field>
                         </v-col>
                     </v-row>
                     <v-row class="mb-2" align="center" v-if="cloneDialog.points && cloneDialog.points.length > 0">
@@ -200,7 +211,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="p in cloneDialog.points" :key="p.id">
+                            <tr v-for="p in filteredClonePoints" :key="p.id">
                                 <td>
                                     <v-checkbox
                                         v-model="cloneDialog.selected"
@@ -1008,7 +1019,8 @@ const cloneDialog = reactive({
     selectedDevice: null,
     points: [],
     selected: [],
-    selectAll: false
+    selectAll: false,
+    search: ''
 })
 
 const openCloneDialog = async () => {
@@ -1042,7 +1054,8 @@ const onCloneChannelChange = async (cid) => {
     try {
         if (!cid) return
         const devs = await request.get(`/api/channels/${cid}/devices`, { timeout: 10000, silent: true })
-        cloneDialog.devices = devs || []
+        const list = devs || []
+        cloneDialog.devices = list.filter(d => !(cid === channelId && d.id === deviceId))
     } catch (e) {
     } finally {
         cloneDialog.loading = false
@@ -1080,31 +1093,34 @@ const toggleCloneSelectAll = () => {
     }
 }
 
+const filteredClonePoints = computed(() => {
+    const list = cloneDialog.points || []
+    const key = (cloneDialog.search || '').trim().toLowerCase()
+    if (!key) return list
+    return list.filter(p => {
+        const name = (p.name || '').toLowerCase()
+        const addr = (p.address || '').toLowerCase()
+        return name.includes(key) || addr.includes(key)
+    })
+})
+
 const executeClone = async () => {
     if (!cloneDialog.selected || cloneDialog.selected.length === 0) return
     cloneDialog.loading = true
-    let ok = 0
-    let fail = 0
     try {
-        for (const p of cloneDialog.selected) {
-            const payload = {
-                id: p.id,
-                name: p.name,
-                address: p.address,
-                datatype: p.datatype,
-                unit: p.unit || '',
-                readwrite: p.readwrite || 'R',
-                scale: 1.0,
-                offset: 0.0
-            }
-            try {
-                await request.post(`/api/channels/${channelId}/devices/${deviceId}/points`, payload, { timeout: 5000, silent: true })
-                ok++
-            } catch (e) {
-                fail++
-            }
-        }
-        showMessage(`克隆完成：成功 ${ok} 个${fail > 0 ? `，失败 ${fail} 个` : ''}`, fail > 0 ? 'warning' : 'success')
+        const payload = cloneDialog.selected.map(p => ({
+            id: p.id,
+            name: p.name,
+            address: p.address,
+            datatype: p.datatype,
+            unit: p.unit || '',
+            readwrite: p.readwrite || 'R',
+            scale: 1.0,
+            offset: 0.0
+        }))
+
+        await request.post(`/api/channels/${channelId}/devices/${deviceId}/points`, payload, { timeout: 10000, silent: true })
+        showMessage(`克隆完成：成功 ${payload.length} 个`, 'success')
         cloneDialog.visible = false
         await fetchPoints()
     } finally {
@@ -1146,9 +1162,9 @@ const fetchPoints = async () => {
             points.value = []
         }
 
-        // 2) 合并实时缓存（快速填充值）
+        // 2) 合并实时缓存（快速填充值，仅当前设备）
         try {
-            const realtime = await request.get('/api/values/realtime')
+            const realtime = await request.get(`/api/values/realtime?channel_id=${channelId}&device_id=${deviceId}`)
             if (realtime && typeof realtime === 'object') {
                 for (let i = 0; i < points.value.length; i++) {
                     const pid = points.value[i].id
@@ -1637,5 +1653,8 @@ const normalizeWriteValue = () => {
 }
 .scan-toolbar :deep(.v-switch) {
   flex: 0 0 auto;
+}
+.clone-dialog-full {
+  align-items: stretch;
 }
 </style>

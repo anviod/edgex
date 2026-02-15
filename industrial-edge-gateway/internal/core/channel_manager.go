@@ -1246,6 +1246,56 @@ func (cm *ChannelManager) AddPoint(channelID, deviceID string, point *model.Poin
 	return cm.restartDeviceLocked(ch, idx)
 }
 
+// AddPoints 批量添加点位到设备（单次重启）
+func (cm *ChannelManager) AddPoints(channelID, deviceID string, points []model.Point) error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	ch, ok := cm.channels[channelID]
+	if !ok {
+		return fmt.Errorf("channel not found")
+	}
+
+	idx := -1
+	for i, d := range ch.Devices {
+		if d.ID == deviceID {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return fmt.Errorf("device not found")
+	}
+
+	dev := &ch.Devices[idx]
+
+	// 预检查：ID 冲突 & 校验
+	for i := range points {
+		// 填充缺省 ID
+		if points[i].ID == "" {
+			points[i].ID = points[i].Name
+		}
+
+		// ID 冲突检测
+		for _, existing := range dev.Points {
+			if existing.ID == points[i].ID {
+				return fmt.Errorf("point %s already exists", points[i].ID)
+			}
+		}
+
+		// 协议级校验
+		if err := cm.validatePoint(ch, &points[i]); err != nil {
+			return err
+		}
+	}
+
+	// 追加到设备点位列表
+	dev.Points = append(dev.Points, points...)
+
+	// 单次重启设备应用变更
+	return cm.restartDeviceLocked(ch, idx)
+}
+
 // UpdatePoint 更新设备点位
 func (cm *ChannelManager) UpdatePoint(channelID, deviceID string, point *model.Point) error {
 	cm.mu.Lock()

@@ -701,19 +701,32 @@ func (s *Server) addPoint(c *fiber.Ctx) error {
 	channelId := c.Params("channelId")
 	deviceId := c.Params("deviceId")
 
-	var point model.Point
-	if err := c.BodyParser(&point); err != nil {
+	// 允许单个或批量
+	var single model.Point
+	if err := c.BodyParser(&single); err == nil && single.ID != "" || single.Name != "" {
+		if single.ID == "" {
+			single.ID = single.Name
+		}
+		if err := s.cm.AddPoint(channelId, deviceId, &single); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(single)
+	}
+
+	// 尝试按批量解析
+	var batch []model.Point
+	if err := c.BodyParser(&batch); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	if point.ID == "" {
-		point.ID = point.Name // Fallback
+	if len(batch) == 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "empty points"})
 	}
 
-	if err := s.cm.AddPoint(channelId, deviceId, &point); err != nil {
+	if err := s.cm.AddPoints(channelId, deviceId, batch); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.JSON(point)
+	return c.JSON(batch)
 }
 
 // updatePoint 更新点位
@@ -759,7 +772,27 @@ func (s *Server) getRealtimeValues(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.JSON(vals)
+
+	channelID := c.Query("channel_id")
+	deviceID := c.Query("device_id")
+
+	// 未指定过滤条件时，保持兼容：返回全部
+	if channelID == "" && deviceID == "" {
+		return c.JSON(vals)
+	}
+
+	// 按 ChannelID/DeviceID 过滤
+	filtered := make(map[string]model.Value)
+	for k, v := range vals {
+		if channelID != "" && v.ChannelID != channelID {
+			continue
+		}
+		if deviceID != "" && v.DeviceID != deviceID {
+			continue
+		}
+		filtered[k] = v
+	}
+	return c.JSON(filtered)
 }
 
 // writePoint 写入点位值
