@@ -47,15 +47,6 @@ func (d *ModbusDriver) Init(config model.DriverConfig) error {
 		}
 	}
 
-	startAddress := 0
-	if v, ok := config.Config["startAddress"]; ok {
-		if f, ok := v.(float64); ok {
-			startAddress = int(f)
-		} else if i, ok := v.(int); ok {
-			startAddress = i
-		}
-	}
-
 	byteOrder4 := "ABCD"
 	if v, ok := config.Config["byteOrder"]; ok {
 		byteOrder4 = v.(string)
@@ -67,6 +58,34 @@ func (d *ModbusDriver) Init(config model.DriverConfig) error {
 			batchSize = int(f)
 		} else if i, ok := v.(int); ok {
 			batchSize = i
+		}
+	}
+
+	startAddress := 0
+	if v, ok := config.Config["startAddress"]; ok {
+		if f, ok := v.(float64); ok {
+			startAddress = int(f)
+		} else if i, ok := v.(int); ok {
+			startAddress = i
+		}
+	}
+
+	addressBase := uint16(0) // Default to 0-based
+	// First check start_address (new parameter)
+	if v, ok := config.Config["start_address"]; ok {
+		switch val := v.(type) {
+		case int:
+			addressBase = uint16(val)
+		case float64:
+			addressBase = uint16(val)
+		}
+	} else if v, ok := config.Config["address_base"]; ok {
+		// Fallback to address_base (old parameter)
+		switch val := v.(type) {
+		case int:
+			addressBase = uint16(val)
+		case float64:
+			addressBase = uint16(val)
 		}
 	}
 
@@ -90,7 +109,7 @@ func (d *ModbusDriver) Init(config model.DriverConfig) error {
 	// 设置初始从机 ID
 	d.transport.SetUnitID(d.slaveID)
 
-	decoder := NewPointDecoder(byteOrder4, startAddress)
+	decoder := NewPointDecoder(byteOrder4, startAddress, addressBase)
 
 	if v, ok := config.Config["use_dataformat_decoder"]; ok {
 		switch val := v.(type) {
@@ -106,6 +125,7 @@ func (d *ModbusDriver) Init(config model.DriverConfig) error {
 	// Max packet size for Modbus TCP/RTU is typically around 250 bytes (120 registers)
 	// We use 120 registers (240 bytes) as safe limit
 	d.scheduler = NewPointScheduler(d.transport, decoder, 120, uint16(batchSize), instructionInterval)
+	d.scheduler.SetSlaveID(d.slaveID)
 
 	// Initialize smart probing engine if enabled
 	enableSmartProbe := false
@@ -243,6 +263,9 @@ func (d *ModbusDriver) WritePoint(ctx context.Context, point model.Point, value 
 func (d *ModbusDriver) SetSlaveID(slaveID uint8) error {
 	d.slaveID = slaveID
 	d.transport.SetUnitID(slaveID)
+	if d.scheduler != nil {
+		d.scheduler.SetSlaveID(slaveID)
+	}
 	log.Printf("ModbusDriver SetSlaveID: changed to %d", slaveID)
 	return nil
 }
@@ -250,7 +273,77 @@ func (d *ModbusDriver) SetSlaveID(slaveID uint8) error {
 // SetDeviceConfig updates connection parameters dynamically
 // This is required by the Driver interface but Modbus might not use it heavily if URL is fixed
 func (d *ModbusDriver) SetDeviceConfig(config map[string]any) error {
-	// Not implemented for Modbus yet, as config is usually set at Init
+	// Update slave ID if provided
+	if v, ok := config["slave_id"]; ok {
+		switch val := v.(type) {
+		case int:
+			d.slaveID = uint8(val)
+		case float64:
+			d.slaveID = uint8(val)
+		}
+		d.transport.SetUnitID(d.slaveID)
+	}
+
+	// Determine address base with inheritance
+	addressBase := uint16(0) // Default to 0-based
+
+	// First check if device has start_address (overrides channel)
+	if v, ok := config["start_address"]; ok {
+		switch val := v.(type) {
+		case int:
+			addressBase = uint16(val)
+		case float64:
+			addressBase = uint16(val)
+		}
+	} else if v, ok := config["address_base"]; ok {
+		// Fallback to address_base (old parameter)
+		switch val := v.(type) {
+		case int:
+			addressBase = uint16(val)
+		case float64:
+			addressBase = uint16(val)
+		}
+	} else {
+		// Inherit from channel config
+		if v, ok := d.config.Config["start_address"]; ok {
+			switch val := v.(type) {
+			case int:
+				addressBase = uint16(val)
+			case float64:
+				addressBase = uint16(val)
+			}
+		} else if v, ok := d.config.Config["address_base"]; ok {
+			// Fallback to address_base in channel config
+			switch val := v.(type) {
+			case int:
+				addressBase = uint16(val)
+			case float64:
+				addressBase = uint16(val)
+			}
+		}
+	}
+
+	// Recreate decoder with resolved address base
+	byteOrder4 := "ABCD"
+	if v, ok := d.config.Config["byteOrder"]; ok {
+		byteOrder4 = v.(string)
+	}
+	startAddress := 0
+	if v, ok := d.config.Config["startAddress"]; ok {
+		if f, ok := v.(float64); ok {
+			startAddress = int(f)
+		} else if i, ok := v.(int); ok {
+			startAddress = i
+		}
+	}
+	decoder := NewPointDecoder(byteOrder4, startAddress, addressBase)
+	// Update scheduler with new decoder
+	d.scheduler = NewPointScheduler(d.transport, decoder, 120, uint16(50), 10*time.Millisecond)
+	d.scheduler.SetSlaveID(d.slaveID)
+	if d.addressMap != nil {
+		d.scheduler.SetAddressMap(d.addressMap)
+	}
+
 	return nil
 }
 

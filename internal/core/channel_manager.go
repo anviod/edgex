@@ -526,6 +526,24 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 
 	slaveIDVal := foundDev.Config["slave_id"]
 	devID := foundDev.ID
+	// 提前复制 slave_id 值，避免释放锁后指针无效
+	slaveID := uint8(0)
+	if slaveIDVal != nil {
+		switch val := slaveIDVal.(type) {
+		case float64:
+			slaveID = uint8(val)
+		case int:
+			slaveID = uint8(val)
+		case int64:
+			slaveID = uint8(val)
+		case uint8:
+			slaveID = val
+		case string:
+			if i, err := strconv.Atoi(val); err == nil {
+				slaveID = uint8(i)
+			}
+		}
+	}
 	// 获取节点以便后续根据读取结果更新状态
 	node := cm.stateManager.GetNode(devID)
 
@@ -588,7 +606,8 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 		pd := model.PointData{
 			ID:           point.ID,
 			Name:         point.Name,
-			RegisterType: string(point.RegisterType),
+			SlaveID:      slaveID,
+			RegisterType: point.RegisterType.String(),
 			FunctionCode: point.FunctionCode,
 			Address:      point.Address,
 			DataType:     point.DataType,

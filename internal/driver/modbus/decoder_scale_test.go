@@ -6,7 +6,7 @@ import (
 )
 
 func TestReverseScaleOffset_Int32(t *testing.T) {
-	d := NewPointDecoder("ABCD", 0)
+	d := NewPointDecoder("ABCD", 0, 0)
 
 	// Case 1: Point with Scale, input int32
 	// Expectation: int32 should be converted to float, scaled, then encoded.
@@ -17,7 +17,7 @@ func TestReverseScaleOffset_Int32(t *testing.T) {
 	point := model.Point{
 		ID:       "test-point",
 		DataType: "uint16",
-		Address:  "40001",
+		Address:  "0",
 		Scale:    0.1,
 		Offset:   0,
 	}
@@ -39,12 +39,12 @@ func TestReverseScaleOffset_Int32(t *testing.T) {
 }
 
 func TestReverseScaleOffset_UInt32(t *testing.T) {
-	d := NewPointDecoder("ABCD", 0)
+	d := NewPointDecoder("ABCD", 0, 0)
 
 	point := model.Point{
 		ID:       "test-point",
 		DataType: "uint16",
-		Address:  "40001",
+		Address:  "0",
 		Scale:    0.1,
 		Offset:   0,
 	}
@@ -62,12 +62,12 @@ func TestReverseScaleOffset_UInt32(t *testing.T) {
 }
 
 func TestReverseScaleOffset_NoScale_Int32(t *testing.T) {
-	d := NewPointDecoder("ABCD", 0)
+	d := NewPointDecoder("ABCD", 0, 0)
 
 	point := model.Point{
 		ID:       "test-point",
 		DataType: "uint16",
-		Address:  "40001",
+		Address:  "0",
 		Scale:    0,
 		Offset:   0,
 	}

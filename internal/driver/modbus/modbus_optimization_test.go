@@ -14,16 +14,16 @@ import (
 // TestGroupPoints 测试点位分组功能
 func TestGroupPoints(t *testing.T) {
 	// Initialize components
-	decoder := NewPointDecoder("ABCD", 0)
+	decoder := NewPointDecoder("ABCD", 0, 0)
 	// mock transport can be nil for grouping test
 	// maxPacketSize=125 registers, groupThreshold=50
 	scheduler := NewPointScheduler(nil, decoder, 125, 50, 0)
 
 	// 测试场景1：连续的点位应该分组
 	points := []model.Point{
-		{ID: "point1", Address: "40001", DataType: "int16"},
-		{ID: "point2", Address: "40002", DataType: "int16"},
-		{ID: "point3", Address: "40003", DataType: "int16"},
+		{ID: "point1", Address: "0", DataType: "int16"},
+		{ID: "point2", Address: "1", DataType: "int16"},
+		{ID: "point3", Address: "2", DataType: "int16"},
 	}
 
 	groups, err := scheduler.groupPoints(points)
@@ -41,8 +41,8 @@ func TestGroupPoints(t *testing.T) {
 
 	// 测试场景2：地址间隔大的点位应该分组
 	points = []model.Point{
-		{ID: "point1", Address: "40001", DataType: "int16"},
-		{ID: "point2", Address: "40100", DataType: "int16"}, // 间隔99，超过阈值50
+		{ID: "point1", Address: "0", DataType: "int16"},
+		{ID: "point2", Address: "99", DataType: "int16"}, // 间隔99，超过阈值50
 	}
 
 	groups, err = scheduler.groupPoints(points)
@@ -56,8 +56,8 @@ func TestGroupPoints(t *testing.T) {
 
 	// 测试场景3：不同寄存器类型应该分组
 	points = []model.Point{
-		{ID: "point1", Address: "40001", DataType: "int16"}, // HOLDING_REGISTER
-		{ID: "point2", Address: "30001", DataType: "int16"}, // INPUT_REGISTER
+		{ID: "point1", Address: "0", DataType: "int16", RegisterType: model.RegHolding}, // HOLDING_REGISTER
+		{ID: "point2", Address: "0", DataType: "int16", RegisterType: model.RegInput}, // INPUT_REGISTER
 	}
 
 	groups, err = scheduler.groupPoints(points)
@@ -71,8 +71,8 @@ func TestGroupPoints(t *testing.T) {
 
 	// 测试场景4：32位数据类型占用2个寄存器
 	points = []model.Point{
-		{ID: "point1", Address: "40001", DataType: "float32"}, // 占用2个寄存器
-		{ID: "point2", Address: "40003", DataType: "int16"},   // 占用1个寄存器
+		{ID: "point1", Address: "0", DataType: "float32"}, // 占用2个寄存器
+		{ID: "point2", Address: "2", DataType: "int16"},   // 占用1个寄存器
 	}
 
 	groups, err = scheduler.groupPoints(points)
@@ -92,7 +92,7 @@ func TestGroupPoints(t *testing.T) {
 
 // TestRegisterCount 测试寄存器数量计算
 func TestRegisterCount(t *testing.T) {
-	decoder := NewPointDecoder("ABCD", 0)
+	decoder := NewPointDecoder("ABCD", 0, 0)
 
 	tests := []struct {
 		dataType string
@@ -221,17 +221,17 @@ func TestModbusOptimization(t *testing.T) {
 	points := []model.Point{
 		{
 			ID:       "p1",
-			Address:  "40001", // Offset 0
+			Address:  "0", // Offset 0
 			DataType: "uint16",
 		},
 		{
 			ID:       "p2",
-			Address:  "40002", // Offset 1
+			Address:  "1", // Offset 1
 			DataType: "uint16",
 		},
 		{
 			ID:       "p3",
-			Address:  "40003", // Offset 2, float32 takes 2 regs
+			Address:  "2", // Offset 2, float32 takes 2 regs
 			DataType: "float32",
 		},
 	}
@@ -287,4 +287,59 @@ func TestModbusOptimization(t *testing.T) {
 	}
 
 	fmt.Println("TestModbusOptimization passed successfully")
+}
+
+// TestAddressBase tests the address base functionality
+func TestAddressBase(t *testing.T) {
+	// Test 0-based (default) with raw address 0
+	decoder0 := NewPointDecoder("ABCD", 0, 0)
+	regType, offset, err := decoder0.ParseAddress("0")
+	if err != nil {
+		t.Fatalf("ParseAddress failed: %v", err)
+	}
+	if regType != model.RegHolding {
+		t.Errorf("Expected RegHolding, got %v", regType)
+	}
+	if offset != 0 {
+		t.Errorf("Expected offset 0, got %d", offset)
+	}
+
+	// Test 1-based with raw address 20001 (above discrete input range 10001-20000)
+	decoder1 := NewPointDecoder("ABCD", 0, 1)
+	regType, offset, err = decoder1.ParseAddress("20001")
+	if err != nil {
+		t.Fatalf("ParseAddress failed: %v", err)
+	}
+	if regType != model.RegHolding {
+		t.Errorf("Expected RegHolding, got %v", regType)
+	}
+	if offset != 20000 {
+		t.Errorf("Expected offset 20000, got %d", offset)
+	}
+
+	// Test 1-based with address 20002 (above discrete input range)
+	regType, offset, err = decoder1.ParseAddress("20002")
+	if err != nil {
+		t.Fatalf("ParseAddress failed: %v", err)
+	}
+	if regType != model.RegHolding {
+		t.Errorf("Expected RegHolding, got %v", regType)
+	}
+	if offset != 20001 {
+		t.Errorf("Expected offset 20001, got %d", offset)
+	}
+
+	// Test that standard Modbus addresses (40001+) still work
+	regType, offset, err = decoder1.ParseAddress("40001")
+	if err != nil {
+		t.Fatalf("ParseAddress failed: %v", err)
+	}
+	if regType != model.RegHolding {
+		t.Errorf("Expected RegHolding, got %v", regType)
+	}
+	if offset != 0 {
+		t.Errorf("Expected offset 0, got %d", offset)
+	}
+
+	fmt.Println("TestAddressBase passed successfully")
 }

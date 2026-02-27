@@ -1,0 +1,57 @@
+{
+  "1:Holding Registers": {
+    "SlaveID": 1,
+    "RegType": "Holding Registers",
+    "Blocks": [
+      {
+        "Start": 0,
+        "End": 199
+      }
+    ],
+    "MaxBatchSize": 40,
+    "RTTModel": {
+      "Samples": {}
+    },
+    "LastProbeTime": "2026-02-27T09:00:36.3605456+08:00"
+  },
+  "2:Holding Registers": {
+    "SlaveID": 2,
+    "RegType": "Holding Registers",
+    "Blocks": [
+      {
+        "Start": 0,
+        "End": 41
+      }
+    ],
+    "MaxBatchSize": 40,
+    "RTTModel": {
+      "Samples": {
+        "10": [
+          92011000
+        ],
+        "20": [
+          45798200
+        ],
+        "40": [
+          46876300
+        ]
+      }
+    },
+    "LastProbeTime": "2026-02-27T11:07:30.6912228+08:00"
+  },
+  "5:Holding Registers": {
+    "SlaveID": 5,
+    "RegType": "Holding Registers",
+    "Blocks": [
+      {
+        "Start": 0,
+        "End": 4
+      }
+    ],
+    "MaxBatchSize": 40,
+    "RTTModel": {
+      "Samples": {}
+    },
+    "LastProbeTime": "2026-02-27T09:00:37.58063+08:00"
+  }
+}

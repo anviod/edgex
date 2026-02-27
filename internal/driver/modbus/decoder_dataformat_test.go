@@ -40,7 +40,7 @@ func TestResolvePointFormat_Expr32_WithWordOrder(t *testing.T) {
 }
 
 func TestPointDecoder_Decode_WithDataformat_Int16(t *testing.T) {
-	d := NewPointDecoder("ABCD", 0)
+	d := NewPointDecoder("ABCD", 0, 0)
 	d.EnableDataformatDecoder(true)
 
 	point := model.Point{
@@ -64,7 +64,7 @@ func TestPointDecoder_Decode_WithDataformat_Int16(t *testing.T) {
 }
 
 func TestPointDecoder_Decode_WithDataformat_Float32Expr(t *testing.T) {
-	d := NewPointDecoder("ABCD", 0)
+	d := NewPointDecoder("ABCD", 0, 0)
 	d.EnableDataformatDecoder(true)
 
 	point := model.Point{
@@ -84,7 +84,7 @@ func TestPointDecoder_Decode_WithDataformat_Float32Expr(t *testing.T) {
 }
 
 func TestPointDecoder_Decode_WithDataformat_Float32Order(t *testing.T) {
-	d := NewPointDecoder("CDAB", 0)
+	d := NewPointDecoder("CDAB", 0, 0)
 	d.EnableDataformatDecoder(true)
 
 	point := model.Point{
@@ -112,7 +112,7 @@ func TestPointDecoder_Decode_WithDataformat_Float32Order(t *testing.T) {
 }
 
 func TestPointDecoder_Decode_WithDataformat_Int32_CDAB(t *testing.T) {
-	d := NewPointDecoder("ABCD", 0)
+	d := NewPointDecoder("ABCD", 0, 0)
 	d.EnableDataformatDecoder(true)
 
 	point := model.Point{
@@ -140,7 +140,7 @@ func TestPointDecoder_Decode_WithDataformat_Int32_CDAB(t *testing.T) {
 }
 
 func TestPointDecoder_Encode_WithWriteFormula(t *testing.T) {
-	d := NewPointDecoder("ABCD", 0)
+	d := NewPointDecoder("ABCD", 0, 0)
 
 	point := model.Point{
 		ID:           "wf-point",

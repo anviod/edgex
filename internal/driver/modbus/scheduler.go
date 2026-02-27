@@ -212,9 +212,10 @@ func (s *PointScheduler) Write(ctx context.Context, point model.Point, value any
 
 	// Determine write method based on type
 	regType := point.RegisterType
-	_, offset, err := s.decoder.ParseAddress(point.Address)
+	offset := uint16(0)
+	_, offset, err = s.decoder.ParseAddress(point.Address)
 	if err != nil {
-		return err
+		offset = 0
 	}
 
 	switch regType {
@@ -364,9 +365,9 @@ func (s *PointScheduler) groupPoints(points []model.Point) ([]PointGroup, error)
 		// 否则，使用从地址解析出的类型
 		if regType == model.RegHolding {
 			// RegisterType为默认值，使用从地址解析出的类型
-			regType, _, err = s.decoder.ParseAddress(p.Address)
-			if err != nil {
-				regType = model.RegHolding
+			parsedType, _, err := s.decoder.ParseAddress(p.Address)
+			if err == nil && parsedType != model.RegHolding {
+				regType = parsedType
 			}
 		}
 
@@ -415,8 +416,13 @@ func (s *PointScheduler) groupPoints(points []model.Point) ([]PointGroup, error)
 		if addrMap != nil && len(infos) > 0 {
 			minAddr := infos[0].Offset
 			maxAddr := infos[len(infos)-1].Offset
-			validBlocks = addrMap.GetValidBlocks(slaveID, regType.String(), minAddr, maxAddr)
+			log.Printf("Getting valid blocks for slave %d, regType %s, range %d-%d", slaveID, regType.String(), minAddr, maxAddr)
 			addrMap.RecordAddressRange(slaveID, regType.String(), minAddr, maxAddr)
+			validBlocks = addrMap.GetValidBlocks(slaveID, regType.String(), minAddr, maxAddr)
+			log.Printf("Found %d valid blocks", len(validBlocks))
+			for _, block := range validBlocks {
+				log.Printf("Valid block: start=%d, end=%d", block.Start, block.End)
+			}
 		}
 
 		// Get optimal batch size
@@ -506,6 +512,9 @@ func (s *PointScheduler) groupPoints(points []model.Point) ([]PointGroup, error)
 
 					currentEndOffset := currentGroup.StartOffset + currentGroup.Count
 
+					// Track the last processed index
+					lastProcessedIndex := i
+
 					for j := i + 1; j < len(unprocessedInfos); j++ {
 						info := unprocessedInfos[j]
 
@@ -528,22 +537,15 @@ func (s *PointScheduler) groupPoints(points []model.Point) ([]PointGroup, error)
 						currentGroup.Count = newCount
 						currentGroup.Points = append(currentGroup.Points, info.Point)
 						currentEndOffset = info.Offset + info.RegisterCount
+						lastProcessedIndex = j
 					}
 
 					if len(currentGroup.Points) > 0 {
 						groups = append(groups, currentGroup)
 					}
 
-					newStartOffset := currentGroup.StartOffset + currentGroup.Count
-
-					for i = 0; i < len(unprocessedInfos); i++ {
-						if unprocessedInfos[i].Offset >= newStartOffset {
-							break
-						}
-					}
-					if i == len(unprocessedInfos) {
-						break
-					}
+					// Update i to the next unprocessed index
+					i = lastProcessedIndex + 1
 				}
 			}
 		} else {
@@ -565,6 +567,9 @@ func (s *PointScheduler) groupPoints(points []model.Point) ([]PointGroup, error)
 				}
 
 				currentEndOffset := currentGroup.StartOffset + currentGroup.Count
+
+				// Track the last processed index
+				lastProcessedIndex := i
 
 				for j := i + 1; j < len(infos); j++ {
 					info := infos[j]
@@ -592,22 +597,15 @@ func (s *PointScheduler) groupPoints(points []model.Point) ([]PointGroup, error)
 					currentGroup.Count = newCount
 					currentGroup.Points = append(currentGroup.Points, info.Point)
 					currentEndOffset = info.Offset + info.RegisterCount
+					lastProcessedIndex = j
 				}
 
 				if len(currentGroup.Points) > 0 {
 					groups = append(groups, currentGroup)
 				}
 
-				newStartOffset := currentGroup.StartOffset + currentGroup.Count
-
-				for i = 0; i < len(infos); i++ {
-					if infos[i].Offset >= newStartOffset {
-						break
-					}
-				}
-				if i == len(infos) {
-					break
-				}
+				// Update i to the next unprocessed index
+				i = lastProcessedIndex + 1
 			}
 		}
 	}

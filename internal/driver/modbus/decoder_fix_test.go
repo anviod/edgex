@@ -6,7 +6,7 @@ import (
 )
 
 func TestPointDecoder_Encode_Int64(t *testing.T) {
-	decoder := NewPointDecoder("ABCD", 0)
+	decoder := NewPointDecoder("ABCD", 0, 0)
 
 	tests := []struct {
 		name      string
@@ -57,7 +57,7 @@ func TestPointDecoder_Encode_Int64(t *testing.T) {
 }
 
 func TestPointDecoder_ReverseScaleOffset_Int64(t *testing.T) {
-	decoder := NewPointDecoder("ABCD", 0)
+	decoder := NewPointDecoder("ABCD", 0, 0)
 
 	// Test case where Scale/Offset are used with int64 input
 	point := model.Point{

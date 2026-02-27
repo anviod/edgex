@@ -2229,20 +2229,16 @@ const registerIndexError = ref('')
 const registerOffsetError = ref('')
 
 const getRegisterIndexMin = () => {
-    if (pointDialog.registerType === 'holding') {
-        return 0
-    }
-    return 1
+    // Get start_address from device config
+    const startAddress = deviceInfo.value?.config?.start_address || deviceInfo.value?.config?.address_base || 0
+    return startAddress
 }
 
 const getRegisterIndexMax = () => {
-    switch(pointDialog.registerType) {
-        case 'coil': return 10000
-        case 'discrete': return 20000
-        case 'input': return 40000
-        case 'holding': return 50000
-        default: return 50000
-    }
+    // Get start_address from device config
+    const startAddress = deviceInfo.value?.config?.start_address || deviceInfo.value?.config?.address_base || 0
+    // PDU address max is 65535, so UI display address max is start_address + 65535
+    return startAddress + 65535
 }
 
 const validateRegisterIndex = () => {
@@ -2272,30 +2268,25 @@ const updateAddress = () => {
     const offset = parseInt(pointDialog.registerOffset) || 0
     let address = 0
     
-    switch(pointDialog.registerType) {
-        case 'coil':
-            // Address range 1...10000, conversion formula: input value - 1 + offset
-            address = idx - 1 + offset
-            break;
-        case 'discrete':
-            // Address range 10001...20000, conversion formula: input value - 10001 + offset
-            address = idx - 10001 + offset
-            break;
-        case 'input':
-            // Address range 30001...40000, conversion formula: input value - 30001 + offset
-            address = idx - 30001 + offset
-            break;
-        case 'holding':
-            // Special case: input 0 corresponds to address 40000
-            if (idx === 0) {
-                address = 40000 + offset
-            } else {
-                // Address range 40001...50000, conversion formula: input value - 40001 + offset
-                address = idx - 40001 + offset
-            }
-            break;
+    // Get start_address from device config
+    const startAddress = deviceInfo.value?.config?.start_address || deviceInfo.value?.config?.address_base || 0
+    
+    // Validate input address
+    if (idx < startAddress) {
+        registerIndexError.value = `地址不能小于基准地址 ${startAddress}`
+        return
     }
     
+    // Calculate PDU 0-based address
+    address = idx - startAddress + offset
+    
+    // Validate PDU address range
+    if (address < 0 || address > 65535) {
+        registerIndexError.value = 'PDU地址必须在 0 到 65535 之间'
+        return
+    }
+    
+    registerIndexError.value = ''
     pointDialog.form.address = address.toString()
 }
 
@@ -2316,37 +2307,16 @@ const parseAddressToUI = (addrStr) => {
 		const addr = parseInt(addrStr)
 		if (isNaN(addr)) return
 
-		if (addr === 40000) {
-			// Special case: address 40000 corresponds to input 0 for holding registers
-			pointDialog.registerType = 'holding'
-			pointDialog.registerIndex = 0
-			pointDialog.functionCode = 3
-		} else if (addr >= 0 && addr <= 9999) {
-			// Coils (outputs) 01 Read/Write: Address range 0...9999, input value = address + 1 - offset
-			pointDialog.registerType = 'coil'
-			pointDialog.registerIndex = addr + 1 - pointDialog.registerOffset
-			pointDialog.functionCode = 1
-		} else if (addr >= 10000 && addr <= 19999) {
-			// Discrete Inputs 02 Read: Address range 10000...19999, input value = address + 10001 - offset
-			pointDialog.registerType = 'discrete'
-			pointDialog.registerIndex = addr - 10000 + 10001 - pointDialog.registerOffset
-			pointDialog.functionCode = 2
-		} else if (addr >= 30000 && addr <= 39999) {
-			// Input Registers 04 Read: Address range 30000...39999, input value = address - 30000 + 30001 - offset
-			pointDialog.registerType = 'input'
-			pointDialog.registerIndex = addr - 30000 + 30001 - pointDialog.registerOffset
-			pointDialog.functionCode = 4
-		} else if (addr >= 40001 && addr <= 49999) {
-			// Holding Registers 03 Read/Write: Address range 40001...49999, input value = address - 40001 + 40001 - offset
-			pointDialog.registerType = 'holding'
-			pointDialog.registerIndex = addr - 40001 + 40001 - pointDialog.registerOffset
-			pointDialog.functionCode = 3
-		} else {
-			// Fallback for other addresses
-			pointDialog.registerType = 'holding'
-			pointDialog.registerIndex = addr
-			pointDialog.functionCode = 3
-		}
+		// Get start_address from device config
+		const startAddress = deviceInfo.value?.config?.start_address || deviceInfo.value?.config?.address_base || 0
+		
+		// Calculate UI display address
+		const displayAddress = addr + startAddress
+		
+		// Set register type and function code
+		pointDialog.registerType = 'holding'
+		pointDialog.registerIndex = displayAddress
+		pointDialog.functionCode = 3
 	} else if (channelProtocol.value === 'bacnet-ip') {
 		const parts = addrStr.split(':')
 		if (parts.length === 2) {
@@ -2403,7 +2373,12 @@ const openAddDialog = () => {
     pointDialog.defaultValue = ''
 	
 	if (channelProtocol.value.startsWith('modbus')) {
-		pointDialog.form.address = '40001'
+		// Get start_address from device config
+		const startAddress = deviceInfo.value?.config?.start_address || deviceInfo.value?.config?.address_base || 0
+		// Set default address based on start_address
+		pointDialog.form.address = startAddress.toString()
+		// Set register index based on start_address
+		pointDialog.registerIndex = startAddress
 	} else if (channelProtocol.value === 'bacnet-ip') {
 		pointDialog.form.address = 'AnalogInput:1'
 	} else if (channelProtocol.value === 'dlt645') {

@@ -23,15 +23,17 @@ type PointDecoder struct {
 	byteOrder4    string
 	startAddress  int
 	useDataformat bool
+	addressBase   uint16
 }
 
-func NewPointDecoder(byteOrder4 string, startAddress int) *PointDecoder {
+func NewPointDecoder(byteOrder4 string, startAddress int, addressBase uint16) *PointDecoder {
 	if byteOrder4 == "" {
 		byteOrder4 = "ABCD"
 	}
 	return &PointDecoder{
 		byteOrder4:   byteOrder4,
 		startAddress: startAddress,
+		addressBase:  addressBase,
 	}
 }
 
@@ -72,15 +74,20 @@ func (d *PointDecoder) ParseAddress(addr string) (model.RegisterType, uint16, er
 		// Discrete Input (1xxxx) - Function 02
 		regType = model.RegDiscreteInput
 		offset = uint16(addrInt - 10001)
-	case addrInt >= 1 && addrInt <= 10000:
-		// Coil (0xxxx) - Function 01
+	case addrInt >= 1001 && addrInt <= 10000:
+		// Coil (0xxxx) - Function 01 (only for addresses 1001-10000)
 		regType = model.RegCoil
 		offset = uint16(addrInt - 1)
 	default:
 		// 非标地址：默认作为Holding Register处理
 		// 用户可以通过register_type字段指定其他类型
 		regType = model.RegHolding
-		offset = uint16(addrInt)
+		// Apply address base to all addresses
+		offset = uint16(addrInt) - d.addressBase
+		// Ensure offset is not negative
+		if int(offset) < 0 {
+			offset = 0
+		}
 	}
 
 	return regType, offset, nil

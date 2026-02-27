@@ -628,9 +628,9 @@ func (t *ModbusTransport) ReadRegisters(ctx context.Context, regType string, off
 		}
 
 		switch regType {
-		case "HOLDING_REGISTER", "holding", "holding_register", "HOLDING":
+		case "HOLDING_REGISTER", "holding", "holding_register", "HOLDING", "Holding Registers":
 			return t.client.ReadBytes(offset, count*2, modbus.HOLDING_REGISTER)
-		case "INPUT_REGISTER", "input", "input_register", "INPUT":
+		case "INPUT_REGISTER", "input", "input_register", "INPUT", "Input Registers":
 			return t.client.ReadBytes(offset, count*2, modbus.INPUT_REGISTER)
 		default:
 			return nil, fmt.Errorf("unsupported regType for ReadRegisters: %s", regType)

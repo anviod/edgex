@@ -224,6 +224,17 @@
                                     placeholder="1"
                                     required
                                 ></v-text-field>
+                                <v-select
+                                    v-model="form.startAddressMode"
+                                    :items="[
+                                        { title: '0-based', value: 0 },
+                                        { title: '1-based', value: 1 }
+                                    ]"
+                                    label="起始地址模式"
+                                    hide-details
+                                    density="compact"
+                                    class="mt-2"
+                                ></v-select>
                             </v-col>
                             <v-col cols="12" v-else-if="channelProtocol === 'bacnet-ip'">
                                 <v-row>
@@ -809,6 +820,7 @@ const defaultForm = {
     configStr: '{}',
     dlt645Address: '',
     modbusSlaveId: 1,
+    startAddressMode: 0,
     bacnetDeviceInstance: 0,
     bacnetIp: '',
     bacnetPort: 47808,
@@ -862,6 +874,7 @@ const openDialog = (item = null) => {
             configStr: JSON.stringify(config, null, 2),
             dlt645Address: config.station_address || config.address || '',
             modbusSlaveId: config.slave_id || 1,
+            startAddressMode: config.start_address || config.address_base || 0,
             bacnetDeviceInstance: config.device_id || 0,
             bacnetIp: config.ip || '',
             bacnetPort: config.port || 47808,
@@ -908,6 +921,7 @@ const saveDevice = async () => {
         config.address = form.value.dlt645Address 
     } else if (channelProtocol.value && channelProtocol.value.includes('modbus')) {
         config.slave_id = form.value.modbusSlaveId
+        config.start_address = form.value.startAddressMode
     } else if (channelProtocol.value === 'bacnet-ip') {
         config.device_id = form.value.bacnetDeviceInstance
         if (form.value.bacnetIp) config.ip = form.value.bacnetIp
