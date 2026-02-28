@@ -1,0 +1,15 @@
+id: LAPTOP-5E3D21EG
+name: LAPTOP-5E3D21EG
+enable: true
+interval: 10s
+config:
+    auth_method: Anonymous
+    endpoint: opc.tcp://LAPTOP-5E3D21EG:53530/OPCUA/SimulationServer
+    security_mode: None
+    security_policy: None
+storage:
+    enable: false
+    strategy: interval
+    interval: 1
+    max_records: 1000
+points: []

@@ -108,7 +108,7 @@
                                     variant="outlined"
                                     class="font-weight-bold"
                                 >
-                                    {{ device.quality_score || 0 }} ({{ device.quality_level || 'Bad' }})
+                                    {{ device.quality_score !== undefined ? device.quality_score : '-' }} ({{ getQualityLabel(device.quality_score) }})
                                 </v-chip>
                             </td>
                             <td>
@@ -824,9 +824,21 @@ const getDeviceStateText = (state) => {
 }
 
 const getQualityColor = (score) => {
-    if (!score || score < 60) return 'error'
-    if (score < 85) return 'warning'
-    return 'success'
+    if (score === undefined || score === null) return 'grey'
+    if (score === 100) return 'primary'
+    if (score >= 90) return 'success'
+    if (score >= 80) return 'light-green-darken-1' // Good
+    if (score >= 60) return 'warning'
+    return 'error'
+}
+
+const getQualityLabel = (score) => {
+    if (score === undefined || score === null) return 'Unknown'
+    if (score === 100) return 'Perfect'
+    if (score >= 90) return 'Excellent'
+    if (score >= 80) return 'Good'
+    if (score >= 60) return 'Average'
+    return 'Bad'
 }
 
 const getConfigValue = (device, field) => {

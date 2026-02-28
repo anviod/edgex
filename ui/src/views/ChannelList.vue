@@ -1278,20 +1278,21 @@ const openMetricsDialog = async (channel) => {
 
 // 质量等级 (工业标准分级)
 const getQualityLabel = (score) => {
+    if (score === undefined || score === null) return 'Unknown'
     if (score === 100) return 'Perfect'
     if (score >= 90) return 'Excellent'
     if (score >= 80) return 'Good'
-    if (score >= 30) return 'Poor'
-    return 'Critical'
+    if (score >= 60) return 'Average'
+    return 'Bad'
 }
 
 const getQualityColor = (score) => {
-    if (score === undefined || score === null || score === 0) return 'grey'
+    if (score === undefined || score === null) return 'grey'
     if (score === 100) return 'primary'    // 完美 (蓝色)
     if (score >= 90) return 'success'     // 优秀 (绿色)
-    if (score >= 80) return 'warning'     // 良好 (橙色/黄色)
-    if (score >= 30) return 'error'       // 警告 (红色)
-    return 'grey-darken-1'                // 极差 (深灰)
+    if (score >= 80) return 'light-green-darken-1' // 良好 (浅绿)
+    if (score >= 60) return 'warning'     // 一般 (橙色)
+    return 'error'                        // 差 (红色)
 }
 
 // 成功率颜色
