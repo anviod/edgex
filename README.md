@@ -10,6 +10,25 @@ Industrial Edge Gateway is a lightweight industrial edge computing gateway desig
 
 ## ✨ Key Features
 
+### 🚀 Smart Collection Optimization
+
+Adaptive collection system based on device profiling, enabling intelligent optimization of southbound communication:
+
+| Component | Description |
+| :--- | :--- |
+| **RTT Manager** | Real-time monitoring of device round-trip latency, predicting optimal timeout using EWMA algorithm, dynamically adjusting collection intervals |
+| **MTU Manager** | Auto-detecting device Maximum Transmission Unit, intelligently negotiating optimal packet size, improving batch read efficiency |
+| **Gap Optimizer** | Dynamically adjusting communication gaps based on device characteristics, balancing collection efficiency and device load |
+| **Shadow Device System** | Unified internal data model center, supporting real/virtual shadow devices, providing WAL persistence and consistency verification |
+| **Smart Profiling** | Building communication profiles for each device, automatically learning RTT, MTU, stability and other characteristic parameters |
+| **Collection Scheduler** | Optimizing collection order based on device profiles, supporting batch read optimization and dynamic interval adjustment |
+
+**Key Benefits:**
+- 🎯 **Adaptive Parameters**: No manual configuration needed, system automatically learns optimal collection parameters
+- ⚡ **Efficiency Boost**: Batch read optimization reduces communication overhead and increases throughput
+- 🛡️ **Enhanced Stability**: Intelligent heartbeat keep-alive, fast fault detection and automatic recovery
+- 📊 **Observability**: Complete device profiles and performance statistics for runtime monitoring
+
 ### 🔌 Southbound Protocols
 
 | Protocol | Status | Description |
