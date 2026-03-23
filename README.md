@@ -26,7 +26,7 @@ Adaptive collection system based on device profiling, enabling intelligent optim
 | :--- | :--- | :--- |
 | **RTT Manager** | Employs EWMA algorithm for real-time round-trip delay monitoring, dynamically calculating optimal timeout thresholds | Avoid communication failures from improper timeout settings, achieve adaptive timeout parameters |
 | **MTU Manager** | Auto-detects device MTU, intelligently negotiates single-communication packet size | Maximize data throughput while ensuring reliability, improve batch collection efficiency |
-| **Gap Optimizer** | Dynamically adjusts communication request intervals based on device load and response characteristics | Achieve optimal balance between collection efficiency and device load |
+| **Gap Optimizer** | Dynamically adjusts communication request intervals based on device load and response characteristics, supports Gap merging strategy for Modbus/PLC register reading (gap_max_hole, gap_fill_strategy, gap_dynamic_enable) | Achieve optimal balance between collection efficiency and device load, improve bus communication efficiency |
 | **Shadow Device System** | Unified internal data model, supports real/virtual shadow devices with WAL persistence | Provide data consistency verification and fast recovery capabilities |
 | **Smart Profiling** | Automatically learns device RTT, MTU, stability and other characteristic parameters | Build communication profiles for each device, support intelligent decision-making |
 | **Collection Scheduler** | Optimizes collection order based on device profiles, supports batch read optimization | Improve overall collection efficiency, reduce communication overhead |
