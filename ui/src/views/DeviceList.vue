@@ -1,750 +1,403 @@
 <template>
-    <div>
-        <v-card class="glass-card">
-            <v-card-title class="d-flex align-center py-4 px-6 border-b">
-                <v-btn 
-                    prepend-icon="mdi-arrow-left" 
-                    variant="flat" 
-                    color="white" 
-                    class="mr-4 text-primary font-weight-bold"
-                    elevation="2"
-                    @click="$router.push('/channels')"
-                >
-                    返回通道
-                </v-btn>
-                <v-spacer></v-spacer>
-                <v-btn
-                    v-if="selected.length > 0"
-                    color="error"
-                    prepend-icon="mdi-delete"
-                    class="mr-2"
-                    @click="confirmBatchDelete"
-                >
-                    批量删除 ({{ selected.length }})
-                </v-btn>
-                <v-btn
-                    v-if="channelProtocol === 'bacnet-ip'"
-                    color="info"
-                    prepend-icon="mdi-radar"
-                    class="mr-2"
-                    @click="openScanDialog()"
-                >
-                    扫描设备
-                </v-btn>
-                <v-btn
-                    color="primary"
-                    prepend-icon="mdi-plus"
-                    @click="openDialog()"
-                >
-                    新增设备
-                </v-btn>
-            </v-card-title>
-            
-            <v-progress-linear v-if="loading" indeterminate color="primary"></v-progress-linear>
-
-            <v-card-text class="pa-0">
-                <v-table hover>
-                    <thead>
-                        <tr>
-                            <th style="width: 50px">
-                                <v-checkbox-btn
-                                    v-model="selectAll"
-                                    @update:model-value="toggleSelectAll"
-                                ></v-checkbox-btn>
-                            </th>
-                            <th class="text-left">设备ID</th>
-                            <th class="text-left">设备名称</th>
-                            <th class="text-left" v-if="channelProtocol && (channelProtocol.includes('modbus') || channelProtocol === 'dlt645')">
-                                {{ channelProtocol === 'dlt645' ? '设备地址' : '从机ID' }}
-                            </th>
-                            <th class="text-left" v-if="channelProtocol && (channelProtocol.includes('bacnet') || channelProtocol === 'bacnet-ip')">Instance ID</th>
-                            <th class="text-left" v-if="channelProtocol && (channelProtocol.includes('bacnet') || channelProtocol === 'bacnet-ip')">IP地址</th>
-                            <th class="text-left" v-if="channelProtocol === 'opc-ua'">Endpoint</th>
-                            <th class="text-left" v-if="channelProtocol && (channelProtocol.includes('bacnet') || channelProtocol === 'bacnet-ip')">厂商/型号</th>
-                            <th class="text-left" v-if="channelProtocol && (channelProtocol.includes('bacnet') || channelProtocol === 'bacnet-ip')">质量评分</th>
-                            <th class="text-left">启用状态</th>
-                            <th class="text-left">通信状态</th>
-                            <th class="text-left">采集间隔</th>
-                            <th class="text-left">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="device in devices" :key="device.id">
-                            <td>
-                                <v-checkbox-btn
-                                    v-model="selected"
-                                    :value="device.id"
-                                ></v-checkbox-btn>
-                            </td>
-                            <td class="font-weight-medium">{{ device.id }}</td>
-                            <td>{{ device.name }}</td>
-                            <td v-if="channelProtocol && (channelProtocol.includes('modbus') || channelProtocol === 'dlt645')">
-                                <v-chip size="small" variant="outlined" class="font-weight-medium">
-                                    {{ channelProtocol === 'dlt645' ? (device.config?.station_address || device.config?.address || '-') : (device.config?.slave_id || '-') }}
-                                </v-chip>
-                            </td>
-                            <td v-if="channelProtocol && (channelProtocol.includes('bacnet') || channelProtocol === 'bacnet-ip')">
-                                <v-chip size="small" variant="outlined" class="font-weight-medium">
-                                    {{ getConfigValue(device, 'instance_id') }}
-                                </v-chip>
-                            </td>
-                            <td v-if="channelProtocol && (channelProtocol.includes('bacnet') || channelProtocol === 'bacnet-ip')">
-                                {{ getConfigValue(device, 'ip') }}
-                            </td>
-                            <td v-if="channelProtocol === 'opc-ua'" style="max-width: 200px;">
-                                <div class="text-caption text-truncate" :title="getConfigValue(device, 'endpoint')">
-                                    {{ getConfigValue(device, 'endpoint') }}
-                                </div>
-                            </td>
-                            <td v-if="channelProtocol && (channelProtocol.includes('bacnet') || channelProtocol === 'bacnet-ip')" style="max-width: 200px;">
-                                <div class="text-caption text-truncate" :title="getConfigValue(device, 'vendor_model')">
-                                    {{ getConfigValue(device, 'vendor_model') }}
-                                </div>
-                            </td>
-                            <td v-if="channelProtocol && (channelProtocol.includes('bacnet') || channelProtocol === 'bacnet-ip')">
-                                <v-chip 
-                                    size="small" 
-                                    :color="getQualityColor(device.quality_score)" 
-                                    variant="outlined"
-                                    class="font-weight-bold"
-                                >
-                                    {{ device.quality_score !== undefined ? device.quality_score : '-' }} ({{ getQualityLabel(device.quality_score) }})
-                                </v-chip>
-                            </td>
-                            <td>
-                                <v-chip size="small" :color="device.enable ? 'success' : 'grey'" variant="flat">
-                                    {{ device.enable ? '启用' : '禁用' }}
-                                </v-chip>
-                            </td>
-                            <td>
-                                <v-chip size="small" :color="getDeviceStateColor(device.state)" variant="flat">
-                                    {{ getDeviceStateText(device.state) }}
-                                </v-chip>
-                            </td>
-                            <td>{{ device.interval }}</td>
-                            <td>
-                                <v-btn 
-                                    color="primary" 
-                                    size="x-small" 
-                                    variant="tonal"
-                                    icon="mdi-eye"
-                                    class="mr-1"
-                                    @click="goToPoints(device)"
-                                    title="查看点位"
-                                ></v-btn>
-                                <v-btn 
-                                    color="secondary" 
-                                    size="x-small" 
-                                    variant="tonal"
-                                    icon="mdi-link-variant"
-                                    class="mr-1"
-                                    @click="showRuleUsage(device)"
-                                    title="查看关联规则"
-                                ></v-btn>
-                                <v-btn
-                                    color="primary"
-                                    size="x-small" 
-                                    variant="tonal"
-                                    icon="mdi-history"
-                                    class="mr-1"
-                                    @click="openHistoryDialog(device)"
-                                    title="查看历史数据"
-                                ></v-btn>
-                                <v-btn
-                                    color="info"
-                                    size="x-small" 
-                                    variant="tonal"
-                                    icon="mdi-pencil"
-                                    class="mr-1"
-                                    @click="openDialog(device)"
-                                    title="编辑设备"
-                                ></v-btn>
-                                <v-btn
-                                    color="error"
-                                    size="x-small" 
-                                    variant="tonal"
-                                    icon="mdi-delete"
-                                    @click="confirmDelete(device)"
-                                    title="删除设备"
-                                ></v-btn>
-                            </td>
-                        </tr>
-                        <tr v-if="!loading && devices.length === 0">
-                            <td colspan="7" class="text-center pa-8 text-grey">暂无设备</td>
-                        </tr>
-                    </tbody>
-                </v-table>
-            </v-card-text>
-        </v-card>
-
-        <!-- Add/Edit Dialog -->
-        <v-dialog v-model="dialog" max-width="80%">
-            <v-card>
-                <v-card-title>
-                    <span class="text-h5">{{ form.id && isEdit ? '编辑设备' : '新增设备' }}</span>
-                </v-card-title>
-                <v-card-text>
-                    <v-container>
-                        <v-row>
-                            <v-col cols="12" sm="6">
-                                <v-text-field
-                                    v-model="form.id"
-                                    label="设备ID"
-                                    required
-                                    :disabled="isEdit"
-                                ></v-text-field>
-                            </v-col>
-                            <v-col cols="12" sm="6">
-                                <v-text-field
-                                    v-model="form.name"
-                                    label="设备名称"
-                                    required
-                                ></v-text-field>
-                            </v-col>
-                            <v-col cols="12" sm="6">
-                                <v-text-field
-                                    v-model="form.interval"
-                                    label="采集间隔 (如 1s, 500ms)"
-                                    required
-                                ></v-text-field>
-                            </v-col>
-                            <v-col cols="12" sm="6">
-                                <v-switch
-                                    v-model="form.enable"
-                                    label="是否启用"
-                                    color="primary"
-                                ></v-switch>
-                            </v-col>
-                            
-                            <!-- Protocol Specific Config -->
-                            <v-col cols="12" v-if="channelProtocol === 'dlt645'">
-                                <v-text-field
-                                    v-model="form.dlt645Address"
-                                    label="设备地址 (Station Address)"
-                                    placeholder="210220003011"
-                                    hint="输入 DL/T645 设备地址 (例如: 210220003011)"
-                                    persistent-hint
-                                    required
-                                ></v-text-field>
-                            </v-col>
-                            <v-col cols="12" v-else-if="channelProtocol && channelProtocol.includes('modbus')">
-                                <v-text-field
-                                    v-model.number="form.modbusSlaveId"
-                                    label="从机 ID (Slave ID)"
-                                    type="number"
-                                    placeholder="1"
-                                    required
-                                ></v-text-field>
-                                <v-select
-                                    v-model="form.startAddressMode"
-                                    :items="[
-                                        { title: '0-based', value: 0 },
-                                        { title: '1-based', value: 1 }
-                                    ]"
-                                    label="起始地址模式"
-                                    hide-details
-                                    density="compact"
-                                    class="mt-2"
-                                ></v-select>
-                            </v-col>
-                            <v-col cols="12" v-else-if="channelProtocol === 'bacnet-ip'">
-                                <v-row>
-                                    <v-col cols="12" sm="4">
-                                        <v-text-field
-                                            v-model.number="form.bacnetDeviceInstance"
-                                            label="设备实例 ID (Instance ID)"
-                                            type="number"
-                                            placeholder="1001"
-                                            required
-                                        ></v-text-field>
-                                    </v-col>
-                                    <v-col cols="12" sm="5">
-                                        <v-text-field
-                                            v-model="form.bacnetIp"
-                                            label="IP 地址"
-                                            placeholder="192.168.1.100"
-                                        ></v-text-field>
-                                    </v-col>
-                                    <v-col cols="12" sm="3">
-                                        <v-text-field
-                                            v-model.number="form.bacnetPort"
-                                            label="端口"
-                                            type="number"
-                                            placeholder="47808"
-                                            default="47808"
-                                        ></v-text-field>
-                                    </v-col>
-                                </v-row>
-                            </v-col>
-                            
-                            <!-- OPC UA Config -->
-                            <v-col cols="12" v-if="channelProtocol === 'opc-ua'">
-                                <v-card variant="outlined" class="pa-2">
-                                    <v-card-title class="text-subtitle-1 pb-0">OPC UA 连接配置</v-card-title>
-                                    <v-card-text>
-                                        <v-row>
-                                            <v-col cols="12">
-                                                <v-text-field
-                                                    v-model="form.config.endpoint"
-                                                    label="Endpoint URL"
-                                                    placeholder="opc.tcp://192.168.1.10:4840"
-                                                    hide-details="auto"
-                                                    density="compact"
-                                                ></v-text-field>
-                                            </v-col>
-                                            <v-col cols="12" sm="6">
-                                                <v-select
-                                                    v-model="form.config.security_policy"
-                                                    :items="['None', 'Basic128Rsa15', 'Basic256', 'Basic256Sha256']"
-                                                    label="安全策略"
-                                                    hide-details
-                                                    density="compact"
-                                                ></v-select>
-                                            </v-col>
-                                            <v-col cols="12" sm="6">
-                                                <v-select
-                                                    v-model="form.config.security_mode"
-                                                    :items="['None', 'Sign', 'SignAndEncrypt']"
-                                                    label="安全模式"
-                                                    hide-details
-                                                    density="compact"
-                                                ></v-select>
-                                            </v-col>
-                                            <v-col cols="12" sm="6">
-                                                <v-select
-                                                    v-model="form.config.auth_method"
-                                                    :items="['Anonymous', 'UserName', 'Certificate']"
-                                                    label="认证方式"
-                                                    hide-details
-                                                    density="compact"
-                                                ></v-select>
-                                            </v-col>
-                                            
-                                            <!-- UserName Auth -->
-                                            <template v-if="form.config.auth_method === 'UserName'">
-                                                <v-col cols="12" sm="6">
-                                                    <v-text-field
-                                                        v-model="form.config.username"
-                                                        label="用户名"
-                                                        hide-details="auto"
-                                                        density="compact"
-                                                    ></v-text-field>
-                                                </v-col>
-                                                <v-col cols="12" sm="6">
-                                                    <v-text-field
-                                                        v-model="form.config.password"
-                                                        label="密码"
-                                                        type="password"
-                                                        hide-details="auto"
-                                                        density="compact"
-                                                    ></v-text-field>
-                                                </v-col>
-                                            </template>
-                                            
-                                            <!-- Certificate Auth -->
-                                            <template v-if="form.config.auth_method === 'Certificate'">
-                                                <v-col cols="12">
-                                                    <v-text-field
-                                                        v-model="form.config.certificate_file"
-                                                        label="客户端证书路径"
-                                                        hide-details="auto"
-                                                        density="compact"
-                                                    ></v-text-field>
-                                                </v-col>
-                                                <v-col cols="12">
-                                                    <v-text-field
-                                                        v-model="form.config.private_key_file"
-                                                        label="私钥路径"
-                                                        hide-details="auto"
-                                                        density="compact"
-                                                    ></v-text-field>
-                                                </v-col>
-                                            </template>
-                                        </v-row>
-                                    </v-card-text>
-                                </v-card>
-                            </v-col>
-
-                            <!-- Storage Config -->
-                            <v-col cols="12">
-                                <v-card variant="outlined" class="pa-2">
-                                    <v-card-title class="text-subtitle-1 pb-0">数据存储策略</v-card-title>
-                                    <v-card-text>
-                                        <v-row align="center">
-                                            <v-col cols="12">
-                                                <v-switch
-                                                    v-model="form.storageEnable"
-                                                    label="启用存储"
-                                                    color="primary"
-                                                    hide-details
-                                                ></v-switch>
-                                            </v-col>
-                                        </v-row>
-                                        <v-row align="center" v-if="form.storageEnable">
-                                            <v-col cols="12" sm="4">
-                                                <v-select
-                                                    v-model="form.storageStrategy"
-                                                    :items="[
-                                                        { title: '实时 (每条)', value: 'realtime' },
-                                                        { title: '定时间隔', value: 'interval' }
-                                                    ]"
-                                                    label="存储策略"
-                                                    hide-details
-                                                    density="compact"
-                                                ></v-select>
-                                            </v-col>
-                                            <v-col cols="12" sm="4" v-if="form.storageStrategy === 'interval'">
-                                                <v-text-field
-                                                    v-model.number="form.storageInterval"
-                                                    label="存储间隔 (分钟)"
-                                                    type="number"
-                                                    min="1"
-                                                    placeholder="1"
-                                                    hide-details
-                                                    density="compact"
-                                                    suffix="分钟"
-                                                ></v-text-field>
-                                            </v-col>
-                                            <v-col cols="12" sm="4">
-                                                 <v-text-field
-                                                    v-model.number="form.storageMaxRecords"
-                                                    label="最大保留记录数"
-                                                    type="number"
-                                                    min="1"
-                                                    placeholder="1000"
-                                                    hide-details
-                                                    density="compact"
-                                                ></v-text-field>
-                                            </v-col>
-                                        </v-row>
-                                        <div class="text-caption text-grey mt-2" v-if="form.storageEnable">
-                                            <div v-if="form.storageStrategy === 'realtime'">* 实时模式：每当点位数据更新时，将触发一次数据存储（所有点位最新值合并）。</div>
-                                            <div v-if="form.storageStrategy === 'interval'">* 间隔模式：每隔 {{ form.storageInterval || 1 }} 分钟，自动保存一次当前所有点位的快照数据。</div>
-                                        </div>
-                                    </v-card-text>
-                                </v-card>
-                            </v-col>
-
-                            <!-- General Config JSON (Fallback or Advanced) -->
-                            <v-col cols="12">
-                                <v-expansion-panels>
-                                    <v-expansion-panel title="高级配置 (JSON)">
-                                        <v-expansion-panel-text>
-                                            <v-textarea
-                                                v-model="form.configStr"
-                                                label="配置参数 (JSON)"
-                                                hint="请输入JSON格式的配置参数"
-                                                persistent-hint
-                                                rows="5"
-                                            ></v-textarea>
-                                        </v-expansion-panel-text>
-                                    </v-expansion-panel>
-                                </v-expansion-panels>
-                            </v-col>
-                        </v-row>
-                    </v-container>
-                </v-card-text>
-                <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn color="blue-darken-1" variant="text" @click="closeDialog">取消</v-btn>
-                    <v-btn color="blue-darken-1" variant="text" @click="saveDevice">保存</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
-
-        <!-- History Dialog -->
-        <v-dialog v-model="historyDialog" max-width="900px" persistent>
-            <v-card>
-                <v-card-title class="d-flex align-center">
-                    历史数据 - {{ historyDevice?.name }}
-                    <v-spacer></v-spacer>
-                    <v-btn icon="mdi-close" variant="text" @click="historyDialog = false"></v-btn>
-                </v-card-title>
-                <v-card-text>
-                    <v-row align="center" class="mb-2">
-                        <v-col cols="12" sm="3">
-                             <v-select
-                                v-model="historyMode"
-                                :items="[{title: '最近记录', value: 'limit'}, {title: '时间范围', value: 'range'}]"
-                                label="查询模式"
-                                density="compact"
-                                hide-details
-                             ></v-select>
-                        </v-col>
-                        <v-col cols="12" sm="3" v-if="historyMode === 'limit'">
-                             <v-text-field
-                                v-model.number="historyLimit"
-                                label="记录数量"
-                                type="number"
-                                density="compact"
-                                hide-details
-                             ></v-text-field>
-                        </v-col>
-                        <v-col cols="12" sm="6" v-if="historyMode === 'range'">
-                            <div class="d-flex align-center">
-                                <input 
-                                    type="datetime-local" 
-                                    v-model="historyDateRange[0]"
-                                    class="border rounded px-2 py-1 mr-2"
-                                    style="width: 100%"
-                                />
-                                <span class="mx-2">-</span>
-                                <input 
-                                    type="datetime-local" 
-                                    v-model="historyDateRange[1]"
-                                    class="border rounded px-2 py-1"
-                                    style="width: 100%"
-                                />
-                            </div>
-                        </v-col>
-                        <v-col cols="12" sm="3" class="d-flex">
-                            <v-btn color="primary" @click="fetchHistory" :loading="historyLoading" class="mr-2">查询</v-btn>
-                            <v-btn color="secondary" prepend-icon="mdi-download" @click="downloadHistoryCSV" :disabled="historyData.length === 0">导出 CSV</v-btn>
-                        </v-col>
-                    </v-row>
-                    
-                    <v-data-table
-                        :headers="historyHeaders"
-                        :items="historyData"
-                        :loading="historyLoading"
-                        density="compact"
-                        class="elevation-1"
-                    >
-                        <template v-slot:item="{ item }">
-                            <tr>
-                                <td>{{ formatHistoryTime(item.ts) }}</td>
-                                <td 
-                                    v-for="header in historyHeaders.slice(1)" 
-                                    :key="header.key"
-                                    class="truncate-cell"
-                                    @click="showDetails(header.title, getHistoryValue(item, header.key))"
-                                    :title="getHistoryValue(item, header.key)"
-                                >
-                                    {{ getHistoryValue(item, header.key) }}
-                                </td>
-                            </tr>
-                        </template>
-                        <template v-slot:no-data>
-                            <div class="text-center pa-4">暂无数据</div>
-                        </template>
-                    </v-data-table>
-                </v-card-text>
-            </v-card>
-        </v-dialog>
-
-        <!-- Details Dialog -->
-        <v-dialog v-model="detailsDialog" max-width="800px">
-            <v-card>
-                <v-card-title>
-                    {{ detailsTitle }}
-                    <v-spacer></v-spacer>
-                    <v-btn icon="mdi-close" variant="text" @click="detailsDialog = false"></v-btn>
-                </v-card-title>
-                <v-card-text>
-                    <v-tabs v-model="detailsTab" density="compact" class="mb-2">
-                        <v-tab value="text">文本/原始内容</v-tab>
-                        <v-tab value="hex" :disabled="!decodedHex">Hex 视图</v-tab>
-                    </v-tabs>
-                    
-                    <v-window v-model="detailsTab">
-                        <v-window-item value="text">
-                            <div class="text-body-2 mb-2 text-grey">内容长度: {{ detailsContent.length }}</div>
-                            <v-textarea
-                                v-model="detailsContent"
-                                readonly
-                                auto-grow
-                                rows="5"
-                                max-rows="15"
-                                variant="outlined"
-                                style="font-family: monospace;"
-                            ></v-textarea>
-                        </v-window-item>
-                        
-                        <v-window-item value="hex">
-                            <div class="text-body-2 mb-2 text-grey">Hex 视图 ({{ decodedBytes ? decodedBytes.length : 0 }} bytes)</div>
-                            <v-textarea
-                                v-model="decodedHex"
-                                readonly
-                                auto-grow
-                                rows="5"
-                                max-rows="15"
-                                variant="outlined"
-                                style="font-family: monospace;"
-                            ></v-textarea>
-                        </v-window-item>
-                    </v-window>
-
-                    <v-alert v-if="detectedFile" type="info" variant="tonal" class="mt-2" density="compact">
-                        <div class="d-flex align-center">
-                            <span>检测到文件格式: <strong>{{ detectedFile.name }} ({{ detectedFile.ext }})</strong></span>
-                            <v-spacer></v-spacer>
-                            <v-btn color="primary" size="small" prepend-icon="mdi-download" @click="downloadDetectedFile">
-                                下载文件
-                            </v-btn>
-                        </div>
-                    </v-alert>
-                </v-card-text>
-                <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn color="secondary" variant="text" prepend-icon="mdi-code-tags" @click="tryBase64Decode">
-                        尝试 Base64 解码
-                    </v-btn>
-                    <v-btn color="primary" variant="text" @click="detailsDialog = false">关闭</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
-
-        <!-- Delete Confirmation Dialog -->
-        <v-dialog v-model="deleteDialog" max-width="500px">
-            <v-card>
-                <v-card-title class="text-h5">确认删除</v-card-title>
-                <v-card-text>确定要删除选中的设备吗？此操作无法撤销。</v-card-text>
-                <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn color="blue-darken-1" variant="text" @click="deleteDialog = false">取消</v-btn>
-                    <v-btn color="error" variant="text" @click="executeDelete">确认删除</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
-
-        <!-- Rule Usage Dialog -->
-        <v-dialog v-model="ruleUsageDialog.show" max-width="80%">
-            <v-card>
-                <v-card-title>关联规则 - {{ ruleUsageDialog.deviceName }}</v-card-title>
-                <v-card-text>
-                    <v-list v-if="ruleUsageDialog.rules.length > 0">
-                        <v-list-item
-                            v-for="rule in ruleUsageDialog.rules"
-                            :key="rule.id"
-                            :title="rule.name"
-                            :subtitle="rule.id"
-                            prepend-icon="mdi-flash"
-                        >
-                            <template v-slot:append>
-                                <v-btn 
-                                    size="small" 
-                                    variant="text" 
-                                    color="primary" 
-                                    @click="goToRule(rule.id)"
-                                >
-                                    查看配置
-                                </v-btn>
-                            </template>
-                        </v-list-item>
-                    </v-list>
-                    <div v-else class="text-center pa-4 text-grey">
-                        该设备未被任何规则引用
-                    </div>
-                </v-card-text>
-                <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn color="primary" variant="text" @click="ruleUsageDialog.show = false">关闭</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
-
-        <!-- Scan Dialog -->
-        <v-dialog v-model="scanDialog" max-width="1200px" persistent>
-            <v-card>
-                <v-card-title class="d-flex align-center">
-                    扫描设备
-                    <v-spacer></v-spacer>
-                    <v-btn icon="mdi-close" variant="text" @click="scanDialog = false"></v-btn>
-                </v-card-title>
-                <v-card-text>
-                    <v-row class="mb-2" align="center">
-                        <v-col cols="12" sm="8">
-                            <div class="text-caption text-grey">
-                                点击“开始扫描”以发现网络中的设备。扫描可能需要几秒钟。
-                            </div>
-                        </v-col>
-                        <v-col cols="12" sm="4" class="text-right">
-                            <v-btn color="primary" :loading="isScanning" prepend-icon="mdi-radar" @click="scanDevices">
-                                开始扫描
-                            </v-btn>
-                        </v-col>
-                    </v-row>
-                    
-                    <v-divider class="mb-4"></v-divider>
-                    
-                    <v-table hover density="compact">
-                        <thead>
-                            <tr>
-                                <th style="width: 50px">
-                                    <v-checkbox-btn
-                                        v-model="selectAllScan"
-                                        @update:model-value="toggleSelectAllScan"
-                                    ></v-checkbox-btn>
-                                </th>
-                                <th class="text-left" style="width: 10%">Device ID</th>
-                                <th class="text-left" style="width: 15%">IP 地址</th>
-                                <th class="text-left" style="width: 10%">端口</th>
-                                <th class="text-left" style="width: 20%">厂商</th>
-                                <th class="text-left" style="width: 15%">型号</th>
-                                <th class="text-left" style="width: 20%">对象名称</th>
-                                <th class="text-left" style="width: 10%">标记</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-if="scanResults.length === 0 && !isScanning">
-                                <td colspan="8" class="text-center text-grey py-4">暂无扫描结果</td>
-                            </tr>
-                            <tr v-for="dev in scanResults" :key="dev.device_id">
-                                <td>
-                                    <v-checkbox-btn
-                                        v-model="selectedScanDevices"
-                                        :value="dev"
-                                        :disabled="dev.diff_status === 'existing'"
-                                    ></v-checkbox-btn>
-                                </td>
-                                <td>{{ dev.device_id }}</td>
-                                <td>{{ dev.ip }}</td>
-                                <td>{{ dev.port }}</td>
-                                <td style="max-width: 200px;">
-                                    <div class="text-truncate" :title="dev.vendor_name">
-                                        {{ dev.vendor_name }}
-                                    </div>
-                                </td>
-                                <td style="max-width: 150px;">
-                                    <div class="text-truncate" :title="dev.model_name">
-                                        {{ dev.model_name }}
-                                    </div>
-                                </td>
-                                <td style="max-width: 200px;">
-                                    <div class="text-truncate" :title="dev.object_name">
-                                        {{ dev.object_name }}
-                                    </div>
-                                </td>
-                                <td>
-                                    <v-chip v-if="dev.diff_status === 'new'" size="small" color="success" variant="flat" class="mr-1">New</v-chip>
-                                    <v-chip v-else-if="dev.diff_status === 'existing'" size="small" color="warning" variant="flat" class="mr-1">Existing</v-chip>
-                                    <v-chip v-else-if="dev.diff_status === 'removed'" size="small" color="error" variant="flat" class="mr-1">Removed</v-chip>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </v-table>
-                </v-card-text>
-                <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn variant="text" @click="scanDialog = false">取消</v-btn>
-                    <v-btn 
-                        color="primary" 
-                        @click="addSelectedDevices" 
-                        :disabled="selectedScanDevices.length === 0 || isAddingDevices"
-                        :loading="isAddingDevices"
-                    >
-                        添加选定设备 ({{ selectedScanDevices.length }})
-                    </v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+  <div class="device-list-container">
+    <div class="device-header">
+      <div class="header-left">
+        <a-button type="outline" size="small" @click="router.push('/channels')">
+          <template #icon><IconArrowLeft /></template>
+          返回通道
+        </a-button>
+        <div class="header-info">
+          <span class="protocol-tag">{{ channelProtocol || 'UNKNOWN' }}</span>
+          <h2 class="title-text">设备列表</h2>
+        </div>
+      </div>
+      
+      <div class="header-right">
+        <a-space size="small">
+          <a-button v-if="selected.length > 0" status="danger" type="outline" size="small" @click="confirmBatchDelete">
+            <template #icon><IconDelete /></template>
+            批量删除 ({{ selected.length }})
+          </a-button>
+          <a-button v-if="channelProtocol === 'bacnet-ip' || channelProtocol === 'opc-ua'" type="outline" status="success" size="small" @click="openScanDialog()">
+            <template #icon><IconScan /></template>
+            扫描设备
+          </a-button>
+          <a-button type="outline" status="primary" size="small" @click="openDialog()">
+            <template #icon><IconPlus /></template>
+            新增设备
+          </a-button>
+        </a-space>
+      </div>
     </div>
+
+    <a-spin :loading="loading" style="width: 100%">
+      <a-card class="industrial-card borderless-card">
+        <a-table
+          :columns="tableColumns"
+          :data="devices"
+          :loading="loading"
+          :row-selection="rowSelection"
+          v-model:selected-keys="selected"
+          row-key="id"
+          size="small"
+          :bordered="{ cell: true }"
+          :pagination="{ showTotal: true, showPageSize: true }"
+        >
+          <template #enable="{ record }">
+            <a-switch 
+              v-model="record.enable" 
+              size="small" 
+              @change="toggleDeviceStatus(record)"
+              :loading="record.statusLoading"
+            />
+          </template>
+
+          <template #name="{ record }">
+            <div class="device-name-cell">
+              <span class="main-name">{{ record.name }}</span>
+              <span class="sub-id">ID: {{ record.id }}</span>
+            </div>
+          </template>
+
+          <template #interval="{ record }">
+            <a-tag size="small" bordered>
+              <IconClockCircle :size="12" style="margin-right: 4px" />
+              {{ record.interval }}
+            </a-tag>
+          </template>
+
+          <template #state="{ record }">
+            <a-tag :color="getDeviceStateColor(record.state)" size="small">
+              {{ getDeviceStateText(record.state) }}
+            </a-tag>
+          </template>
+
+          <template #quality="{ record }">
+            <a-tag 
+              v-if="channelProtocol && (channelProtocol.includes('bacnet') || channelProtocol === 'bacnet-ip')"
+              :color="getQualityColor(record.quality_score)" 
+              size="small"
+            >
+              {{ record.quality_score !== undefined ? record.quality_score : '-' }} ({{ getQualityLabel(record.quality_score) }})
+            </a-tag>
+          </template>
+
+          <template #actions="{ record }">
+            <a-space size="mini">
+              <a-tooltip content="查看点位">
+                <a-button type="text" size="mini" @click="goToPoints(record)">
+                  <IconEye :size="14" />
+                </a-button>
+              </a-tooltip>
+              <a-tooltip content="规则链">
+                <a-button type="text" size="mini" @click="showRuleUsage(record)">
+                  <IconLink :size="14" />
+                </a-button>
+              </a-tooltip>
+              <a-tooltip content="历史数据">
+                <a-button type="text" size="mini" @click="openHistoryDialog(record)">
+                  <IconClockCircle :size="14" />
+                </a-button>
+              </a-tooltip>
+              <a-divider direction="vertical" />
+              <a-button type="text" size="mini" @click="openDialog(record)">编辑</a-button>
+              <a-button type="text" size="mini" status="danger" @click="confirmDelete(record)">删除</a-button>
+            </a-space>
+          </template>
+        </a-table>
+      </a-card>
+    </a-spin>
+
+    <div class="device-footer">
+      <div class="terminal-info">
+        <span class="terminal-dot"></span>
+        <span class="monospace-text">CHANNEL_CONTEXT: {{ channelId }} | DEVICES_COUNT: {{ devices.length }}</span>
+      </div>
+    </div>
+
+    <a-modal v-model:visible="dialog" :title="form.id && isEdit ? '编辑设备' : '新增设备'" width="800px" @ok="saveDevice" @cancel="closeDialog">
+      <a-form :model="form" layout="horizontal" :label-col-props="{ span: 6 }" :wrapper-col-props="{ span: 18 }">
+        <a-form-item field="id" label="设备ID" required>
+          <a-input v-model="form.id" placeholder="设备唯一标识" :disabled="isEdit" />
+        </a-form-item>
+        <a-form-item field="name" label="设备名称" required>
+          <a-input v-model="form.name" placeholder="例如: 智能电表_01" />
+        </a-form-item>
+        <a-form-item field="interval" label="采集间隔" required>
+          <a-input v-model="form.interval" placeholder="例如: 5s, 1m" />
+        </a-form-item>
+        <a-form-item field="enable" label="启用状态">
+          <a-switch v-model="form.enable" />
+        </a-form-item>
+        
+        <a-divider orientation="left">通信配置</a-divider>
+        
+        <template v-if="channelProtocol === 'dlt645'">
+          <a-form-item field="dlt645Address" label="设备地址" required>
+            <a-input v-model="form.dlt645Address" placeholder="210220003011" />
+          </a-form-item>
+        </template>
+        
+        <template v-if="channelProtocol && channelProtocol.includes('modbus')">
+          <a-form-item field="modbusSlaveId" label="从机ID" required>
+            <a-input-number v-model="form.modbusSlaveId" :min="1" placeholder="1" />
+          </a-form-item>
+          <a-form-item field="startAddressMode" label="地址模式">
+            <a-radio-group v-model="form.startAddressMode">
+              <a-radio :value="0">0-based</a-radio>
+              <a-radio :value="1">1-based</a-radio>
+            </a-radio-group>
+          </a-form-item>
+        </template>
+        
+        <template v-if="channelProtocol === 'bacnet-ip'">
+          <a-row :gutter="16">
+            <a-col :span="8">
+              <a-form-item field="bacnetDeviceInstance" label="实例ID" required>
+                <a-input-number v-model="form.bacnetDeviceInstance" placeholder="1001" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="10">
+              <a-form-item field="bacnetIp" label="IP地址">
+                <a-input v-model="form.bacnetIp" placeholder="192.168.1.100" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="6">
+              <a-form-item field="bacnetPort" label="端口">
+                <a-input-number v-model="form.bacnetPort" placeholder="47808" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </template>
+        
+        <template v-if="channelProtocol === 'opc-ua'">
+          <a-form-item field="endpoint" label="Endpoint URL">
+            <a-input v-model="form.config.endpoint" placeholder="opc.tcp://192.168.1.10:4840" />
+          </a-form-item>
+          <a-row :gutter="16">
+            <a-col :span="8">
+              <a-form-item field="security_policy" label="安全策略">
+                <a-select v-model="form.config.security_policy" :options="[
+                  { label: 'None', value: 'None' },
+                  { label: 'Basic128Rsa15', value: 'Basic128Rsa15' },
+                  { label: 'Basic256', value: 'Basic256' },
+                  { label: 'Basic256Sha256', value: 'Basic256Sha256' }
+                ]" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="security_mode" label="安全模式">
+                <a-select v-model="form.config.security_mode" :options="[
+                  { label: 'None', value: 'None' },
+                  { label: 'Sign', value: 'Sign' },
+                  { label: 'SignAndEncrypt', value: 'SignAndEncrypt' }
+                ]" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="auth_method" label="认证方式">
+                <a-select v-model="form.config.auth_method" :options="[
+                  { label: 'Anonymous', value: 'Anonymous' },
+                  { label: 'UserName', value: 'UserName' },
+                  { label: 'Certificate', value: 'Certificate' }
+                ]" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          
+          <template v-if="form.config.auth_method === 'UserName'">
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item field="username" label="用户名">
+                  <a-input v-model="form.config.username" />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item field="password" label="密码">
+                  <a-input-password v-model="form.config.password" />
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </template>
+          
+          <template v-if="form.config.auth_method === 'Certificate'">
+            <a-form-item field="certificate_file" label="证书路径">
+              <a-input v-model="form.config.certificate_file" />
+            </a-form-item>
+            <a-form-item field="private_key_file" label="私钥路径">
+              <a-input v-model="form.config.private_key_file" />
+            </a-form-item>
+          </template>
+        </template>
+        
+        <a-divider orientation="left">数据存储策略</a-divider>
+        
+        <a-form-item field="storageEnable" label="启用存储">
+          <a-switch v-model="form.storageEnable" />
+        </a-form-item>
+        
+        <template v-if="form.storageEnable">
+          <a-row :gutter="16">
+            <a-col :span="8">
+              <a-form-item field="storageStrategy" label="存储策略">
+                <a-select v-model="form.storageStrategy" :options="[
+                  { label: '实时 (每条)', value: 'realtime' },
+                  { label: '定时间隔', value: 'interval' }
+                ]" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8" v-if="form.storageStrategy === 'interval'">
+              <a-form-item field="storageInterval" label="存储间隔">
+                <a-input-number v-model="form.storageInterval" :min="1" suffix="分钟" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="storageMaxRecords" label="最大记录数">
+                <a-input-number v-model="form.storageMaxRecords" :min="1" placeholder="1000" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </template>
+        
+        <a-divider orientation="left">高级配置</a-divider>
+        
+        <a-form-item field="configStr" label="JSON配置">
+          <a-textarea v-model="form.configStr" placeholder='{"key": "value"}' :auto-size="{ minRows: 5, maxRows: 10 }" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <a-modal v-model:visible="historyDialog" title="历史数据" width="900px" @cancel="historyDialog = false">
+      <template #footer>
+        <a-space>
+          <a-button @click="historyDialog = false">关闭</a-button>
+          <a-button type="primary" :loading="historyLoading" @click="fetchHistory">查询</a-button>
+          <a-button @click="downloadHistoryCSV" :disabled="historyData.length === 0">导出CSV</a-button>
+        </a-space>
+      </template>
+      
+      <a-space direction="vertical" :size="16" fill>
+        <a-row :gutter="16">
+          <a-col :span="6">
+            <a-select v-model="historyMode" :options="[
+              { label: '最近记录', value: 'limit' },
+              { label: '时间范围', value: 'range' }
+            ]" placeholder="查询模式" />
+          </a-col>
+          <a-col :span="6" v-if="historyMode === 'limit'">
+            <a-input-number v-model="historyLimit" :min="1" placeholder="记录数量" />
+          </a-col>
+          <a-col :span="12" v-if="historyMode === 'range'">
+            <a-range-picker v-model="historyDateRange" show-time />
+          </a-col>
+        </a-row>
+        
+        <a-table 
+          :columns="historyHeaders" 
+          :data="historyData" 
+          :loading="historyLoading" 
+          :pagination="false" 
+          size="small"
+          :bordered="{ cell: true }"
+        >
+          <template #columns>
+            <a-table-column v-for="header in historyHeaders" :key="header.key" :title="header.title" :data-index="header.key" />
+          </template>
+        </a-table>
+      </a-space>
+    </a-modal>
+
+    <a-modal v-model:visible="deleteDialog" title="确认删除" @ok="executeDelete" @cancel="deleteDialog = false">
+      <p>{{ itemToDelete ? '确定要删除该设备吗？' : `确定要删除选中的 ${selected.length} 个设备吗？` }}此操作无法撤销。</p>
+    </a-modal>
+
+    <a-modal v-model:visible="ruleUsageDialog.show" title="关联规则" width="80%" @cancel="ruleUsageDialog.show = false">
+      <a-list v-if="ruleUsageDialog.rules.length > 0" :data="ruleUsageDialog.rules">
+        <template #item="{ item }">
+          <a-list-item>
+            <a-list-item-meta :title="item.name" :description="item.id">
+              <template #avatar>
+                <icon-link :size="24" />
+              </template>
+            </a-list-item-meta>
+            <template #actions>
+              <a-button type="text" @click="goToRule(item.id)">查看配置</a-button>
+            </template>
+          </a-list-item>
+        </template>
+      </a-list>
+      <a-empty v-else description="该设备未被任何规则引用" />
+    </a-modal>
+
+    <a-modal v-model:visible="scanDialog" title="扫描设备" width="1200px" @cancel="scanDialog = false" :mask-closable="false">
+      <template #footer>
+        <a-space>
+          <a-button @click="scanDialog = false" :disabled="isScanning">取消</a-button>
+          <a-button type="primary" :loading="isAddingDevices" :disabled="selectedScanDevices.length === 0" @click="addSelectedDevices">
+            添加选定设备 ({{ selectedScanDevices.length }})
+          </a-button>
+        </a-space>
+      </template>
+      
+      <a-space direction="vertical" :size="16" fill>
+        <a-alert type="info" :closable="false">
+          <template #icon>
+            <icon-info-circle />
+          </template>
+          点击"开始扫描"以发现网络中的设备。扫描可能需要10秒左右，请耐心等待。
+        </a-alert>
+        
+        <a-space>
+          <a-button type="outline" status="primary" :loading="isScanning" :disabled="isScanning" @click="scanDevices">
+            <template #icon>
+              <icon-scan />
+            </template>
+            开始扫描
+          </a-button>
+          <a-text v-if="isScanning" type="secondary" style="line-height: 32px;">{{ scanStatus }}</a-text>
+        </a-space>
+        
+        <a-progress v-if="isScanning" :percent="scanProgress" :status="'active'" :stroke-width="8" />
+        
+        <a-table 
+          :columns="scanColumns" 
+          :data="scanResults" 
+          :loading="isScanning" 
+          :row-selection="scanRowSelection"
+          v-model:selected-keys="selectedScanDevices"
+          row-key="device_id"
+          size="small"
+          :bordered="{ cell: true }"
+          :pagination="false"
+        >
+          <template #status="{ record }">
+            <a-tag v-if="record.diff_status === 'new'" color="green">New</a-tag>
+            <a-tag v-else-if="record.diff_status === 'existing'" color="orange">Existing</a-tag>
+            <a-tag v-else-if="record.diff_status === 'removed'" color="red">Removed</a-tag>
+          </template>
+          <template #empty>
+            <div v-if="isScanning" class="text-center py-8">
+              <a-spin size="large" />
+              <div class="mt-4 text-gray">{{ scanStatus }}</div>
+              <div class="mt-2 text-gray text-sm">预计需要10秒左右</div>
+            </div>
+            <a-empty v-else description="暂无扫描结果" />
+          </template>
+        </a-table>
+      </a-space>
+    </a-modal>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, reactive } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { globalState, showMessage } from '../composables/useGlobalState'
+import { Message } from '@arco-design/web-vue'
+import {
+  IconArrowLeft, IconPlus, IconDelete, IconScan, IconList,
+  IconSettings, IconHistory, IconSearch, IconEye, IconLink,
+  IconClockCircle, IconInfoCircle, IconCheckCircle, IconCloseCircle
+} from '@arco-design/web-vue/es/icon'
 import request from '@/utils/request'
 import { base64ToUint8Array, uint8ArrayToHex, detectFileType, downloadBytes } from '@/utils/decode'
 
@@ -761,503 +414,401 @@ const selectAll = ref(false)
 const dialog = ref(false)
 const deleteDialog = ref(false)
 const isEdit = ref(false)
-const itemToDelete = ref(null) // null means batch delete
+const itemToDelete = ref(null)
 
 const ruleUsageDialog = reactive({
-    show: false,
-    deviceName: '',
-    rules: []
+  show: false,
+  deviceName: '',
+  rules: []
 })
 const allRules = ref([])
 
 const fetchRules = async () => {
-    try {
-        const data = await request.get('/api/edge/rules')
-        allRules.value = data
-    } catch (e) {
-        console.error('Failed to fetch rules', e)
-    }
+  try {
+    const data = await request.get('/api/edge/rules')
+    allRules.value = data
+  } catch (e) {
+    console.error('Failed to fetch rules', e)
+  }
 }
 
 const showRuleUsage = (device) => {
-    ruleUsageDialog.deviceName = device.name
-    ruleUsageDialog.rules = allRules.value.filter(rule => {
-        // Check source
-        if (rule.source && rule.source.device_id === device.id) return true
-        if (rule.sources && rule.sources.some(s => s.device_id === device.id)) return true
-        
-        // Check actions
-        if (rule.actions) {
-            return rule.actions.some(a => {
-                if (a.config && a.config.device_id === device.id) return true
-                if (a.config && a.config.targets && a.config.targets.some(t => t.device_id === device.id)) return true
-                return false
-            })
-        }
+  ruleUsageDialog.deviceName = device.name
+  ruleUsageDialog.rules = allRules.value.filter(rule => {
+    if (rule.source && rule.source.device_id === device.id) return true
+    if (rule.sources && rule.sources.some(s => s.device_id === device.id)) return true
+    
+    if (rule.actions) {
+      return rule.actions.some(a => {
+        if (a.config && a.config.device_id === device.id) return true
+        if (a.config && a.config.targets && a.config.targets.some(t => t.device_id === device.id)) return true
         return false
-    })
-    ruleUsageDialog.show = true
+      })
+    }
+    return false
+  })
+  ruleUsageDialog.show = true
 }
 
 const goToRule = (ruleId) => {
-    router.push({ path: '/edge-compute', query: { rule: ruleId } })
+  router.push({ path: '/edge-compute', query: { rule: ruleId } })
 }
 
 const getDeviceStateColor = (state) => {
-    switch (state) {
-        case 0: return 'success'       // Online
-        case 1: return 'warning'       // Unstable
-        case 2: return 'error'         // Offline
-        case 3: return 'grey-darken-1' // Quarantine
-        default: return 'grey'
-    }
+  switch (state) {
+    case 0: return 'green'
+    case 1: return 'orange'
+    case 2: return 'red'
+    case 3: return 'gray'
+    default: return 'gray'
+  }
 }
 
 const getDeviceStateText = (state) => {
-    switch (state) {
-        case 0: return '在线'
-        case 1: return '不稳定'
-        case 2: return '离线'
-        case 3: return '隔离'
-        default: return '未知'
-    }
+  switch (state) {
+    case 0: return '在线'
+    case 1: return '不稳定'
+    case 2: return '离线'
+    case 3: return '隔离'
+    default: return '未知'
+  }
 }
 
 const getQualityColor = (score) => {
-    if (score === undefined || score === null) return 'grey'
-    if (score === 100) return 'primary'
-    if (score >= 90) return 'success'
-    if (score >= 80) return 'light-green-darken-1' // Good
-    if (score >= 60) return 'warning'
-    return 'error'
+  if (score === undefined || score === null) return 'gray'
+  if (score === 100) return 'blue'
+  if (score >= 90) return 'green'
+  if (score >= 80) return 'cyan'
+  if (score >= 60) return 'orange'
+  return 'red'
 }
 
 const getQualityLabel = (score) => {
-    if (score === undefined || score === null) return 'Unknown'
-    if (score === 100) return 'Perfect'
-    if (score >= 90) return 'Excellent'
-    if (score >= 80) return 'Good'
-    if (score >= 60) return 'Average'
-    return 'Bad'
+  if (score === undefined || score === null) return 'Unknown'
+  if (score === 100) return 'Perfect'
+  if (score >= 90) return 'Excellent'
+  if (score >= 80) return 'Good'
+  if (score >= 60) return 'Average'
+  return 'Bad'
 }
 
 const getConfigValue = (device, field) => {
-    if (!device || !device.config) return '-'
-    let config = device.config
-    if (typeof config === 'string') {
-        try {
-            config = JSON.parse(config)
-        } catch (e) {
-            return '-'
-        }
+  if (!device || !device.config) return '-'
+  let config = device.config
+  if (typeof config === 'string') {
+    try {
+      config = JSON.parse(config)
+    } catch (e) {
+      return '-'
     }
-    // Try multiple possible field names for BACnet
-    if (field === 'instance_id') {
-        return config.bacnetDeviceInstance || config.device_id || config.InstanceID || config.instance_id || '-'
-    }
-    if (field === 'ip') {
-        return config.bacnetIp || config.ip || '-'
-    }
-    if (field === 'vendor_model') {
-        const vendor = config.vendor_name || '-'
-        const model = config.model_name || '-'
-        return `${vendor} / ${model}`
-    }
-    return config[field] || '-'
+  }
+  if (field === 'instance_id') {
+    return config.bacnetDeviceInstance || config.device_id || config.InstanceID || config.instance_id || '-'
+  }
+  if (field === 'ip') {
+    return config.bacnetIp || config.ip || '-'
+  }
+  if (field === 'vendor_model') {
+    const vendor = config.vendor_name || '-'
+    const model = config.model_name || '-'
+    return `${vendor} / ${model}`
+  }
+  return config[field] || '-'
 }
 
 const defaultForm = {
-    id: '',
-    name: '',
-    interval: '1s',
-    enable: true,
-    configStr: '{}',
-    dlt645Address: '',
-    modbusSlaveId: 1,
-    startAddressMode: 0,
-    bacnetDeviceInstance: 0,
-    bacnetIp: '',
-    bacnetPort: 47808,
-    // Config object for direct binding (OPC UA etc)
-    config: {},
-    // Storage
-    storageEnable: false,
-    storageStrategy: 'interval',
-    storageInterval: 1,
-    storageMaxRecords: 1000
+  id: '',
+  name: '',
+  interval: '1s',
+  enable: true,
+  configStr: '{}',
+  dlt645Address: '',
+  modbusSlaveId: 1,
+  startAddressMode: 0,
+  bacnetDeviceInstance: 0,
+  bacnetIp: '',
+  bacnetPort: 47808,
+  config: {},
+  storageEnable: false,
+  storageStrategy: 'interval',
+  storageInterval: 1,
+  storageMaxRecords: 1000
 }
 const form = ref({ ...defaultForm })
 
 const fetchDevices = async () => {
-    loading.value = true
-    try {
-        // 先获取通道信息，确保页面标题正确
-        const chanData = await request.get(`/api/channels/${channelId}`)
-        channelInfo.value = chanData
-        globalState.navTitle = channelInfo.value.name
+  loading.value = true
+  try {
+    const chanData = await request.get(`/api/channels/${channelId}`)
+    channelInfo.value = chanData
 
-        const devData = await request.get(`/api/channels/${channelId}/devices`)
-        devices.value = devData
-        
-        // Reset selection
-        selected.value = []
-        selectAll.value = false
-    } catch (e) {
-        showMessage('获取设备失败: ' + e.message, 'error')
-    } finally {
-        loading.value = false
-    }
+    const devData = await request.get(`/api/channels/${channelId}/devices`)
+    devices.value = devData
+    
+    selected.value = []
+    selectAll.value = false
+  } catch (e) {
+    Message.error('获取设备失败: ' + e.message)
+  } finally {
+    loading.value = false
+  }
 }
 
 const toggleSelectAll = (val) => {
-    if (val) {
-        selected.value = devices.value.map(d => d.id)
-    } else {
-        selected.value = []
-    }
+  if (val) {
+    selected.value = devices.value.map(d => d.id)
+  } else {
+    selected.value = []
+  }
 }
 
 const openDialog = (item = null) => {
-    if (item) {
-        isEdit.value = true
-        let config = item.config || {}
-        // If config is a string, parse it
-        if (typeof config === 'string') {
-            try {
-                config = JSON.parse(config)
-            } catch (e) {
-                config = {}
-            }
-        }
-        const storage = item.storage || {}
-        form.value = {
-            ...item,
-            config: config, // Ensure config is referenceable
-            configStr: JSON.stringify(config, null, 2),
-            dlt645Address: config.station_address || config.address || '',
-            modbusSlaveId: config.slave_id || 1,
-            startAddressMode: config.start_address || config.address_base || 0,
-            bacnetDeviceInstance: config.bacnetDeviceInstance || config.device_id || config.InstanceID || config.instance_id || 0,
-            bacnetIp: config.bacnetIp || config.ip || '',
-            bacnetPort: config.bacnetPort || config.port || 47808,
-            // Storage
-            storageEnable: storage.enable || false,
-            storageStrategy: storage.strategy || 'interval',
-            storageInterval: storage.interval || 1,
-            storageMaxRecords: storage.max_records || 1000
-        }
-        // Fallback for BACnet Instance ID if still 0
-        if (channelProtocol.value === 'bacnet-ip' && form.value.bacnetDeviceInstance === 0) {
-            if (item.id === 'bacnet-18') form.value.bacnetDeviceInstance = 2228318
-            if (item.id === 'bacnet-16') form.value.bacnetDeviceInstance = 2228316
-            if (item.id === 'bacnet-17') form.value.bacnetDeviceInstance = 2228317
-            if (item.id === 'Room_FC_2014_19') form.value.bacnetDeviceInstance = 2228319
-        }
-    } else {
-        isEdit.value = false
-        form.value = { ...defaultForm }
-        // Set defaults for OPC UA
-        if (channelProtocol.value === 'opc-ua') {
-             form.value.config = {
-                 endpoint: 'opc.tcp://127.0.0.1:4840',
-                 security_policy: 'None',
-                 security_mode: 'None',
-                 auth_method: 'Anonymous'
-             }
-        }
+  if (item) {
+    isEdit.value = true
+    let config = item.config || {}
+    if (typeof config === 'string') {
+      try {
+        config = JSON.parse(config)
+      } catch (e) {
+        config = {}
+      }
     }
-    dialog.value = true
+    const storage = item.storage || {}
+    form.value = {
+      ...item,
+      config: config,
+      configStr: JSON.stringify(config, null, 2),
+      dlt645Address: config.station_address || config.address || '',
+      modbusSlaveId: config.slave_id || 1,
+      startAddressMode: config.start_address || config.address_base || 0,
+      bacnetDeviceInstance: config.bacnetDeviceInstance || config.device_id || config.InstanceID || config.instance_id || 0,
+      bacnetIp: config.bacnetIp || config.ip || '',
+      bacnetPort: config.bacnetPort || config.port || 47808,
+      storageEnable: storage.enable || false,
+      storageStrategy: storage.strategy || 'interval',
+      storageInterval: storage.interval || 1,
+      storageMaxRecords: storage.max_records || 1000
+    }
+  } else {
+    isEdit.value = false
+    form.value = { ...defaultForm }
+    if (channelProtocol.value === 'opc-ua') {
+      form.value.config = {
+        endpoint: 'opc.tcp://127.0.0.1:4840',
+        security_policy: 'None',
+        security_mode: 'None',
+        auth_method: 'Anonymous'
+      }
+    }
+  }
+  dialog.value = true
 }
 
 const closeDialog = () => {
-    dialog.value = false
-    form.value = { ...defaultForm }
+  dialog.value = false
+  form.value = { ...defaultForm }
 }
 
 const saveDevice = async () => {
-    let config = {}
-    try {
-        config = JSON.parse(form.value.configStr)
-    } catch (e) {
-        showMessage('配置参数必须是有效的JSON格式', 'error')
-        return
-    }
+  let config = {}
+  try {
+    config = JSON.parse(form.value.configStr)
+  } catch (e) {
+    Message.error('配置参数必须是有效的JSON格式')
+    return
+  }
 
-    // Sync protocol specific fields to config
-    if (channelProtocol.value === 'dlt645') {
-        config.station_address = form.value.dlt645Address
-        // Also set 'address' as alias if needed, but station_address is preferred
-        config.address = form.value.dlt645Address 
-    } else if (channelProtocol.value && channelProtocol.value.includes('modbus')) {
-        config.slave_id = form.value.modbusSlaveId
-        config.start_address = form.value.startAddressMode
-    } else if (channelProtocol.value === 'bacnet-ip') {
-        config.device_id = form.value.bacnetDeviceInstance
-        config.bacnetDeviceInstance = form.value.bacnetDeviceInstance
-        if (form.value.bacnetIp) {
-            config.ip = form.value.bacnetIp
-            config.bacnetIp = form.value.bacnetIp
-        }
-        if (form.value.bacnetPort) {
-            config.port = form.value.bacnetPort
-            config.bacnetPort = form.value.bacnetPort
-        }
-    } else if (channelProtocol.value === 'opc-ua') {
-        // Merge OPC UA specific fields from form.config
-        Object.assign(config, form.value.config)
+  if (channelProtocol.value === 'dlt645') {
+    config.station_address = form.value.dlt645Address
+    config.address = form.value.dlt645Address 
+  } else if (channelProtocol.value && channelProtocol.value.includes('modbus')) {
+    config.slave_id = form.value.modbusSlaveId
+    config.start_address = form.value.startAddressMode
+  } else if (channelProtocol.value === 'bacnet-ip') {
+    config.device_id = form.value.bacnetDeviceInstance
+    config.bacnetDeviceInstance = form.value.bacnetDeviceInstance
+    if (form.value.bacnetIp) {
+      config.ip = form.value.bacnetIp
+      config.bacnetIp = form.value.bacnetIp
     }
+    if (form.value.bacnetPort) {
+      config.port = form.value.bacnetPort
+      config.bacnetPort = form.value.bacnetPort
+    }
+  } else if (channelProtocol.value === 'opc-ua') {
+    Object.assign(config, form.value.config)
+  }
 
-    const payload = {
-        id: form.value.id,
-        name: form.value.name,
-        interval: form.value.interval,
-        enable: form.value.enable,
-        config: config,
-        storage: {
-            enable: form.value.storageEnable,
-            strategy: form.value.storageStrategy,
-            interval: form.value.storageInterval,
-            max_records: form.value.storageMaxRecords
-        },
-        // Points are not edited here, keep existing if editing, or empty if new
-        points: isEdit.value ? undefined : [] 
+  const payload = {
+    id: form.value.id,
+    name: form.value.name,
+    interval: form.value.interval,
+    enable: form.value.enable,
+    config: config,
+    storage: {
+      enable: form.value.storageEnable,
+      strategy: form.value.storageStrategy,
+      interval: form.value.storageInterval,
+      max_records: form.value.storageMaxRecords
+    },
+    points: isEdit.value ? undefined : [] 
+  }
+  
+  if (isEdit.value) {
+    const original = devices.value.find(d => d.id === form.value.id)
+    if (original) {
+      payload.points = original.points
     }
+  }
+
+  try {
+    const url = `/api/channels/${channelId}/devices` + (isEdit.value ? `/${form.value.id}` : '')
+    const method = isEdit.value ? 'put' : 'post'
     
-    // If editing, we might need to preserve points if the backend overwrites the whole object
-    // The backend Go struct has Points []Point. If we send a payload without Points, it might clear them?
-    // Let's check backend AddDevice/UpdateDevice. 
-    // AddDevice: ch.Devices = append(ch.Devices, *dev). If points is empty, it's empty.
-    // UpdateDevice: ch.Devices[idx] = *dev. Yes, it replaces the whole object.
-    // So for Update, we need to make sure we don't lose Points.
-    // Strategy: For Edit, we should probably fetch the latest device object or use the one we have (if it has points).
-    // The 'devices' list from 'fetchDevices' (getChannelDevices) likely returns the full device struct including points.
-    // Let's verify 'getChannelDevices' in server.go (it returns c.JSON(devices)).
-    // So 'item' passed to openDialog has 'points'.
-    
-    if (isEdit.value) {
-        // Find original device to keep points
-        const original = devices.value.find(d => d.id === form.value.id)
-        if (original) {
-            payload.points = original.points
-        }
-    }
+    await request({
+      url: url,
+      method: method,
+      data: payload
+    })
 
-    try {
-        const url = `/api/channels/${channelId}/devices` + (isEdit.value ? `/${form.value.id}` : '')
-        const method = isEdit.value ? 'put' : 'post'
-        
-        await request({
-            url: url,
-            method: method,
-            data: payload
-        })
-
-        showMessage(isEdit.value ? '更新成功' : '创建成功', 'success')
-        closeDialog()
-        fetchDevices()
-    } catch (e) {
-        showMessage(e.message, 'error')
-    }
+    Message.success(isEdit.value ? '更新成功' : '创建成功')
+    closeDialog()
+    fetchDevices()
+  } catch (e) {
+    Message.error(e.message)
+  }
 }
 
 const confirmDelete = (item) => {
-    itemToDelete.value = item
-    deleteDialog.value = true
+  itemToDelete.value = item
+  deleteDialog.value = true
 }
 
 const confirmBatchDelete = () => {
-    itemToDelete.value = null
-    deleteDialog.value = true
+  itemToDelete.value = null
+  deleteDialog.value = true
 }
 
 const executeDelete = async () => {
-    try {
-        if (itemToDelete.value) {
-            // Single delete
-            await request.delete(`/api/channels/${channelId}/devices/${itemToDelete.value.id}`)
-        } else {
-            // Batch delete
-            await request({
-                url: `/api/channels/${channelId}/devices`,
-                method: 'delete',
-                data: selected.value
-            })
-        }
-        
-        showMessage('删除成功', 'success')
-        deleteDialog.value = false
-        fetchDevices()
-    } catch (e) {
-        showMessage(e.message, 'error')
+  try {
+    if (itemToDelete.value) {
+      await request.delete(`/api/channels/${channelId}/devices/${itemToDelete.value.id}`)
+    } else {
+      await request({
+        url: `/api/channels/${channelId}/devices`,
+        method: 'delete',
+        data: selected.value
+      })
     }
+    
+    Message.success('删除成功')
+    deleteDialog.value = false
+    fetchDevices()
+  } catch (e) {
+    Message.error(e.message)
+  }
 }
 
-// History Logic
 const historyDialog = ref(false)
 const historyDevice = ref(null)
 const historyLoading = ref(false)
 const historyData = ref([])
 const historyHeaders = ref([])
-const historyDateRange = ref([]) // [start, end]
+const historyDateRange = ref([])
 const historyLimit = ref(100)
-const historyMode = ref('limit') // 'limit' or 'range'
+const historyMode = ref('limit')
 
 const openHistoryDialog = (device) => {
-    historyDevice.value = device
-    historyDialog.value = true
-    historyData.value = []
-    historyHeaders.value = []
-    historyMode.value = 'limit'
-    historyLimit.value = 100
-    // Default date range: last 24 hours
-    const end = new Date()
-    const start = new Date(end.getTime() - 24 * 60 * 60 * 1000)
-    // Format to YYYY-MM-DD HH:mm:ss for input type="datetime-local" needs YYYY-MM-DDTHH:mm
-    // But simple strings are easier for now if using custom picker or text fields
-    // Let's use simple text inputs or Date constructor for now.
-    // For simplicity in this iteration, we use YYYY-MM-DD HH:mm:ss strings
-    
-    // Using Vuetify or standard inputs? Let's use standard inputs for datetime
-    // Format to ISO string for datetime-local: YYYY-MM-DDTHH:mm
-    const toLocalISO = (d) => {
-        const offset = d.getTimezoneOffset() * 60000
-        return new Date(d.getTime() - offset).toISOString().slice(0, 16)
-    }
-    
-    historyDateRange.value = [toLocalISO(start), toLocalISO(end)]
-    
-    fetchHistory()
+  historyDevice.value = device
+  historyDialog.value = true
+  historyData.value = []
+  historyHeaders.value = []
+  historyMode.value = 'limit'
+  historyLimit.value = 100
+  
+  const end = new Date()
+  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000)
+  
+  const toLocalISO = (d) => {
+    const offset = d.getTimezoneOffset() * 60000
+    return new Date(d.getTime() - offset).toISOString().slice(0, 16)
+  }
+  
+  historyDateRange.value = [toLocalISO(start), toLocalISO(end)]
+  fetchHistory()
 }
 
 const fetchHistory = async () => {
-    historyLoading.value = true
-    historyData.value = []
-    historyHeaders.value = []
-    try {
-        let url = `/api/devices/${historyDevice.value.id}/history`
-        if (historyMode.value === 'range') {
-            // Append :ss to match RFC3339 or our backend parser
-            const start = historyDateRange.value[0] + ':00'
-            const end = historyDateRange.value[1] + ':00'
-            url += `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`
-        } else {
-            url += `?limit=${historyLimit.value}`
-        }
-        
-        const res = await request.get(url, { timeout: 60000 })
-        historyData.value = res || []
-        
-        // Dynamic Headers
-        if (historyData.value.length > 0) {
-            const keys = new Set()
-            historyData.value.forEach(row => {
-                if (row.data) {
-                    Object.keys(row.data).forEach(k => keys.add(k))
-                }
-            })
-            
-            const headers = [
-                { title: '时间', key: 'ts', width: '180px' },
-                ...Array.from(keys).sort().map(k => ({ title: k, key: `data.${k}` }))
-            ]
-            historyHeaders.value = headers
-        }
-    } catch (e) {
-        showMessage('获取历史数据失败: ' + e.message, 'error')
-    } finally {
-        historyLoading.value = false
+  historyLoading.value = true
+  historyData.value = []
+  historyHeaders.value = []
+  try {
+    let url = `/api/devices/${historyDevice.value.id}/history`
+    if (historyMode.value === 'range') {
+      const start = historyDateRange.value[0] + ':00'
+      const end = historyDateRange.value[1] + ':00'
+      url += `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`
+    } else {
+      url += `?limit=${historyLimit.value}`
     }
-}
-
-const formatHistoryTime = (ts) => {
-    return new Date(ts * 1000).toLocaleString()
+    
+    const res = await request.get(url, { timeout: 60000 })
+    historyData.value = res || []
+    
+    if (historyData.value.length > 0) {
+      const keys = new Set()
+      historyData.value.forEach(row => {
+        if (row.data) {
+          Object.keys(row.data).forEach(k => keys.add(k))
+        }
+      })
+      
+      const headers = [
+        { title: '时间', key: 'ts', width: 180 },
+        ...Array.from(keys).sort().map(k => ({ title: k, key: `data.${k}` }))
+      ]
+      historyHeaders.value = headers
+    }
+  } catch (e) {
+    Message.error('获取历史数据失败: ' + e.message)
+  } finally {
+    historyLoading.value = false
+  }
 }
 
 const downloadHistoryCSV = () => {
-    if (historyData.value.length === 0) {
-        showMessage('无数据可导出', 'warning')
-        return
-    }
-    
-    const headers = historyHeaders.value.map(h => h.title)
-    const keys = historyHeaders.value.map(h => h.key)
-    
-    const rows = historyData.value.map(row => {
-        return keys.map(key => {
-            if (key === 'ts') return formatHistoryTime(row.ts)
-            // Handle nested data.key
-            const prop = key.split('.')[1]
-            return row.data ? (row.data[prop] ?? '') : ''
-        })
+  if (historyData.value.length === 0) {
+    Message.warning('无数据可导出')
+    return
+  }
+  
+  const headers = historyHeaders.value.map(h => h.title)
+  const keys = historyHeaders.value.map(h => h.key)
+  
+  const rows = historyData.value.map(row => {
+    return keys.map(key => {
+      if (key === 'ts') return new Date(row.ts * 1000).toLocaleString()
+      const prop = key.split('.')[1]
+      return row.data ? (row.data[prop] ?? '') : ''
     })
-    
-    const csvContent = [
-        headers.join(','),
-        ...rows.map(r => r.join(','))
-    ].join('\n')
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `${historyDevice.value.name}_history_${new Date().toISOString().slice(0,10)}.csv`
-    link.click()
+  })
+  
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(r => r.join(','))
+  ].join('\n')
+  
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = `${historyDevice.value.name}_history_${new Date().toISOString().slice(0,10)}.csv`
+  link.click()
 }
 
 const goToPoints = (device) => {
-    router.push(`/channels/${channelId}/devices/${device.id}/points`)
+  router.push(`/channels/${channelId}/devices/${device.id}/points`)
 }
 
-// Details Logic
-const detailsDialog = ref(false)
-const detailsTitle = ref('')
-const detailsContent = ref('')
-const detailsTab = ref('text')
-const decodedHex = ref('')
-const detectedFile = ref(null)
-const decodedBytes = ref(null)
-
-const showDetails = (title, content) => {
-    detailsTitle.value = title
-    detailsContent.value = String(content)
-    detailsDialog.value = true
-    
-    // Reset state
-    detailsTab.value = 'text'
-    decodedHex.value = ''
-    detectedFile.value = null
-    decodedBytes.value = null
-}
-
-const tryBase64Decode = () => {
-    try {
-        const bytes = base64ToUint8Array(detailsContent.value)
-        decodedBytes.value = bytes
-        decodedHex.value = uint8ArrayToHex(bytes)
-        detectedFile.value = detectFileType(bytes)
-        
-        detailsTab.value = 'hex'
-        showMessage('解码成功', 'success')
-    } catch (e) {
-        showMessage('Base64 解码失败: ' + e.message, 'error')
-    }
-}
-
-const downloadDetectedFile = () => {
-    if (decodedBytes.value && detectedFile.value) {
-        downloadBytes(decodedBytes.value, `download.${detectedFile.value.ext}`)
-    }
-}
-
-const getHistoryValue = (item, key) => {
-    // key is 'data.prop'
-    if (key.startsWith('data.')) {
-        const prop = key.split('.')[1]
-        return item.data ? (item.data[prop] ?? '') : ''
-    }
-    return ''
-}
-
-// Scan Logic
 const scanDialog = ref(false)
 const isScanning = ref(false)
 const scanResults = ref([])
@@ -1266,121 +817,520 @@ const selectAllScan = ref(false)
 const isAddingDevices = ref(false)
 const interfaces = ref([])
 const scanInterface = ref(null)
+const scanProgress = ref(0)
+const scanStatus = ref('')
+const scanTimeout = ref(null)
 
 const fetchInterfaces = async () => {
-    try {
-        const res = await request.get('/api/system/network/interfaces')
-        interfaces.value = res || []
-    } catch (e) {
-        console.error('Failed to fetch interfaces', e)
-    }
+  try {
+    const res = await request.get('/api/system/network/interfaces')
+    interfaces.value = res || []
+  } catch (e) {
+    console.error('Failed to fetch interfaces', e)
+  }
 }
 
 const openScanDialog = () => {
-    scanDialog.value = true
-    scanResults.value = []
-    selectedScanDevices.value = []
-    selectAllScan.value = false
-    
-    // Default to channel configured IP if available
+  scanDialog.value = true
+  scanResults.value = []
+  selectedScanDevices.value = []
+  selectAllScan.value = false
+  
+  if (channelProtocol.value === 'bacnet-ip') {
     const configuredIP = channelInfo.value?.config?.ip
     if (configuredIP && configuredIP !== '0.0.0.0') {
-        scanInterface.value = configuredIP
+      scanInterface.value = configuredIP
     } else {
-        scanInterface.value = null
+      scanInterface.value = null
     }
-    
     fetchInterfaces()
+  } else if (channelProtocol.value === 'opc-ua') {
+    // For OPC-UA, we don't need network interfaces, but we might need to prompt for endpoint
+    scanInterface.value = null
+  }
 }
 
 const scanDevices = async () => {
-    isScanning.value = true
-    scanResults.value = []
-    selectedScanDevices.value = []
-    try {
-        const payload = {}
-        if (scanInterface.value) {
-            payload.interface_ip = scanInterface.value
-        }
-        
-        const res = await request.post(`/api/channels/${channelId}/scan`, payload, { timeout: 30000 })
-        if (Array.isArray(res)) {
-            scanResults.value = res
-        } else {
-            scanResults.value = []
-            showMessage('扫描结果格式错误', 'error')
-        }
-    } catch (e) {
-        showMessage('扫描失败: ' + e.message, 'error')
-    } finally {
-        isScanning.value = false
+  isScanning.value = true
+  scanResults.value = []
+  selectedScanDevices.value = []
+  scanProgress.value = 0
+  scanStatus.value = '正在准备扫描...'
+  
+  let stopMessage = null
+  // 显示扫描开始提示
+  stopMessage = Message.loading({
+    content: '开始扫描设备，可能需要10秒左右，请耐心等待...',
+    duration: 0
+  })
+  
+  // 设置扫描开始时间，用于计算耗时
+  const startTime = Date.now()
+  
+  // 清除之前的超时
+  if (scanTimeout.value) {
+    clearInterval(scanTimeout.value)
+  }
+  
+  // 模拟进度更新
+  scanTimeout.value = setInterval(() => {
+    if (scanProgress.value < 90) {
+      scanProgress.value += Math.random() * 10
+      if (scanProgress.value > 90) scanProgress.value = 90
     }
-}
-
-const toggleSelectAllScan = (val) => {
-    if (val) {
-        selectedScanDevices.value = [...scanResults.value]
+    
+    const elapsed = Math.round((Date.now() - startTime) / 1000)
+    if (elapsed < 3) {
+      scanStatus.value = '正在初始化扫描...'
+    } else if (elapsed < 6) {
+      scanStatus.value = '正在搜索网络设备...'
+    } else if (elapsed < 9) {
+      scanStatus.value = '正在识别设备信息...'
     } else {
-        selectedScanDevices.value = []
+      scanStatus.value = '正在整理扫描结果...'
     }
+  }, 1000)
+  
+  try {
+    console.log('开始扫描设备，channelId:', channelId)
+    console.log('扫描接口:', scanInterface.value)
+    
+    // 构建扫描参数
+    const scanParams = {}
+    if (channelProtocol.value === 'bacnet-ip') {
+      scanParams.interface_ip = scanInterface.value
+    } else if (channelProtocol.value === 'opc-ua') {
+      // For OPC-UA, we can add endpoint parameter if needed
+      // For now, we'll use default endpoints
+    }
+    
+    // 增加超时设置
+    const res = await request.post(`/api/channels/${channelId}/scan`, scanParams, {
+      timeout: 30000 // 30秒超时
+    })
+    
+    console.log('扫描响应:', res)
+    
+    // 计算扫描耗时
+    const scanTime = Math.round((Date.now() - startTime) / 1000)
+    scanProgress.value = 100
+    scanStatus.value = '扫描完成'
+    
+    // 处理后端响应格式 - 后端直接返回设备数组
+    scanResults.value = Array.isArray(res) ? res : (res.devices || [])
+    if (stopMessage && typeof stopMessage === 'function') {
+      stopMessage()
+      stopMessage = null
+    }
+    Message.success({
+      content: `扫描完成 (耗时 ${scanTime} 秒)，发现 ${scanResults.value.length} 个设备，查看结果`,
+      duration: 3000 // 3秒后自动消失
+    })
+  } catch (e) {
+    console.error('扫描失败:', e)
+    if (stopMessage && typeof stopMessage === 'function') {
+      stopMessage()
+      stopMessage = null
+    }
+    if (e.code === 'ECONNABORTED') {
+      Message.error({
+        content: '扫描超时，请检查网络连接或设备响应',
+        duration: 3000
+      })
+    } else {
+      Message.error({
+        content: '扫描失败: ' + e.message,
+        duration: 3000
+      })
+    }
+  } finally {
+    if (scanTimeout.value) {
+      clearInterval(scanTimeout.value)
+      scanTimeout.value = null
+    }
+    if (stopMessage && typeof stopMessage === 'function') {
+      stopMessage()
+      stopMessage = null
+    }
+    isScanning.value = false
+    scanProgress.value = 0
+    scanStatus.value = ''
+  }
 }
 
 const addSelectedDevices = async () => {
-    if (selectedScanDevices.value.length === 0) return
-    
-    isAddingDevices.value = true
-    let successCount = 0
-    let failCount = 0
-    
-    for (const dev of selectedScanDevices.value) {
-        const payload = {
-            name: (dev.model_name || 'Device') + '_' + dev.device_id,
-            enable: true,
-            interval: '5s',
-            config: {
-                device_id: dev.device_id,
-                ip: dev.ip,
-                port: dev.port,
-                vendor_name: dev.vendor_name,
-                model_name: dev.model_name,
-                object_name: dev.object_name,
-                network_number: dev.network_number,
-                vendor_id: dev.vendor_id
-            },
-            points: []
+  isAddingDevices.value = true
+  
+  try {
+    for (const device of selectedScanDevices.value) {
+      let config = {}
+      if (channelProtocol.value === 'bacnet-ip') {
+        config = {
+          device_id: device.device_id,
+          bacnetDeviceInstance: device.device_id,
+          ip: device.ip,
+          port: device.port,
+          vendor_name: device.vendor_name,
+          model_name: device.model_name
         }
-        
-        try {
-            await request.post(`/api/channels/${channelId}/devices`, payload)
-            successCount++
-        } catch (e) {
-            console.error(e)
-            failCount++
+      } else if (channelProtocol.value === 'opc-ua') {
+        config = {
+          endpoint: device.endpoint,
+          name: device.name,
+          vendor_name: device.vendor_name,
+          model_name: device.model_name,
+          version: device.version
         }
+      }
+      
+      await request.post(`/api/channels/${channelId}/devices`, {
+        id: device.device_id,
+        name: device.name || device.device_id,
+        interval: '10s',
+        enable: true,
+        config: config,
+        points: []
+      })
     }
     
-    isAddingDevices.value = false
-    showMessage(`已添加 ${successCount} 个设备${failCount > 0 ? `，${failCount} 个失败` : ''}`, failCount > 0 ? 'warning' : 'success')
+    Message.success(`成功添加 ${selectedScanDevices.value.length} 个设备`)
     scanDialog.value = false
     fetchDevices()
+  } catch (e) {
+    Message.error('添加设备失败: ' + e.message)
+  } finally {
+    isAddingDevices.value = false
+  }
 }
 
+const toggleDeviceStatus = async (record) => {
+  record.statusLoading = true
+  try {
+    await request.put(`/api/channels/${channelId}/devices/${record.id}`, {
+      ...record,
+      enable: record.enable
+    })
+    Message.success('状态更新成功')
+  } catch (e) {
+    Message.error('状态更新失败: ' + e.message)
+    record.enable = !record.enable
+  } finally {
+    record.statusLoading = false
+  }
+}
+
+const tableColumns = computed(() => {
+  const columns = [
+    { title: '设备名称 / 标识', slotName: 'name', width: 220 },
+    { title: '状态', slotName: 'enable', width: 100 },
+    { title: '通信状态', slotName: 'state', width: 100 },
+    { title: '采集间隔', slotName: 'interval', width: 120 },
+  ]
+  
+  if (channelProtocol.value && (channelProtocol.value.includes('bacnet') || channelProtocol.value === 'bacnet-ip')) {
+    columns.push({ title: '质量评分', slotName: 'quality', width: 120 })
+  }
+  
+  columns.push({ title: '操作', slotName: 'actions', width: 240, fixed: 'right' })
+  
+  return columns
+})
+
+const rowSelection = reactive({
+  type: 'checkbox',
+  showCheckedAll: true,
+  onlyCurrent: false,
+})
+
+const scanColumns = computed(() => {
+  if (channelProtocol.value === 'opc-ua') {
+    return [
+      { title: 'Device ID', dataIndex: 'device_id', width: 150 },
+      { title: 'Endpoint', dataIndex: 'endpoint', width: 300 },
+      { title: '名称', dataIndex: 'name', width: 200 },
+      { title: '厂商', dataIndex: 'vendor_name', width: 200 },
+      { title: '型号', dataIndex: 'model_name', width: 150 },
+      { title: '版本', dataIndex: 'version', width: 100 },
+      { title: '状态', slotName: 'status', width: 100 },
+    ]
+  } else {
+    return [
+      { title: 'Device ID', dataIndex: 'device_id', width: 150 },
+      { title: 'IP 地址', dataIndex: 'ip', width: 150 },
+      { title: '端口', dataIndex: 'port', width: 100 },
+      { title: '厂商', dataIndex: 'vendor_name', width: 200 },
+      { title: '型号', dataIndex: 'model_name', width: 150 },
+      { title: '对象名称', dataIndex: 'object_name', width: 200 },
+      { title: '状态', slotName: 'status', width: 100 },
+    ]
+  }
+})
+
+const scanRowSelection = reactive({
+  type: 'checkbox',
+  showCheckedAll: true,
+  onlyCurrent: false,
+})
+
 onMounted(() => {
-    fetchDevices()
-    fetchRules()
+  fetchDevices()
+  fetchRules()
 })
 </script>
 
 <style scoped>
-.truncate-cell {
-    max-width: 200px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    cursor: pointer;
+.device-list-container {
+  padding: 24px;
+  background-color: #f1f5f9;
+  min-height: calc(100vh - 56px);
 }
-.truncate-cell:hover {
-    color: #1976D2; /* primary color */
-    background-color: #f5f5f5;
+
+.dark-theme .device-list-container {
+  background-color: #0b1223 !important;
+}
+
+.dark-theme .device-header {
+  border-color: #334155 !important;
+}
+
+.dark-theme .title-text,
+.dark-theme .protocol-tag,
+.dark-theme .main-name,
+.dark-theme .sub-id,
+.dark-theme .device-footer,
+.dark-theme .terminal-info,
+.dark-theme .terminal-dot,
+.dark-theme .monospace-text,
+.dark-theme .arco-table-th,
+.dark-theme .arco-table-td,
+.dark-theme .arco-form-item-label,
+.dark-theme .arco-table-tr,
+.dark-theme .arco-table-element {
+  color: #f8fafc !important;
+  background-color: #111827 !important;
+  border-color: #334155 !important;
+}
+
+.dark-theme .industrial-card {
+  border-color: #334155 !important;
+  box-shadow: 6px 6px 0px #0f172a !important;
+}
+
+.dark-theme .arco-table-td.arco-table-td-row-select,
+.dark-theme .arco-table-col-fixed-left .arco-table-th,
+.dark-theme .arco-table-col-fixed-left .arco-table-td,
+.dark-theme .arco-table-col-fixed-right .arco-table-th,
+.dark-theme .arco-table-col-fixed-right .arco-table-td {
+  background-color: #111827 !important;
+  border-color: #334155 !important;
+}
+
+.device-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed #cbd5e1;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.protocol-tag {
+  font-family: monospace;
+  font-size: 10px;
+  background: #0ea5e9;
+  color: white;
+  padding: 0 4px;
+  width: fit-content;
+  border-radius: 2px;
+}
+
+.title-text {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  text-align: left;
+}
+
+.industrial-card {
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 2px;
+  box-shadow: 6px 6px 0px #e2e8f0;
+}
+
+/* 无边框卡片 */
+.borderless-card {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* 无边框卡片的内容区 */
+.borderless-card :deep(.arco-card-body) {
+  padding: 0 !important;
+}
+
+/* 分页组件背景颜色与页面背景一致 */
+.borderless-card :deep(.arco-table-pagination) {
+  background-color: #f1f5f9 !important;
+  border-top: none !important;
+  padding: 12px !important;
+}
+
+.dark-theme .borderless-card :deep(.arco-table-pagination),
+.dark-theme .borderless-card :deep(.arco-pagination),
+.dark-theme .borderless-card :deep(.arco-pagination .arco-pagination-list),
+.dark-theme .borderless-card :deep(.arco-pagination .arco-pagination-item),
+.dark-theme .borderless-card :deep(.arco-pagination .arco-pagination-total),
+.dark-theme .borderless-card :deep(.arco-select-view) {
+  background-color: #0f172a !important;
+  border-top: 1px solid #334155 !important;
+  color: #f8fafc !important;
+}
+
+.dark-theme .borderless-card :deep(.arco-pagination-item),
+.dark-theme .borderless-card :deep(.arco-pagination-item-active),
+.dark-theme .borderless-card :deep(.arco-pagination-item-disabled) {
+  background-color: #1f2937 !important;
+  color: #f8fafc !important;
+}
+
+.device-name-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.main-name {
+  font-weight: 600;
+  color: var(--color-text-1);
+}
+
+.sub-id {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--color-text-3);
+}
+
+.device-footer {
+  margin-top: 24px;
+  padding: 12px;
+  border: 1px dashed #cbd5e1;
+  text-align: center;
+  background-color: #f8fafc;
+}
+
+.terminal-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.terminal-dot {
+  width: 6px;
+  height: 6px;
+  background: #0ea5e9;
+  box-shadow: 0 0 4px #0ea5e9;
+  border-radius: 50%;
+}
+
+.monospace-text {
+  font-family: monospace;
+  font-size: 11px;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+:deep(.arco-form-item-label) {
+  font-weight: 500;
+  white-space: nowrap !important;
+}
+
+:deep(.arco-table-th) {
+  background-color: #f8fafc !important;
+  font-weight: bold !important;
+  border-radius: 0 !important;
+  padding: 12px !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+}
+
+:deep(.arco-table-td) {
+  padding: 12px !important;
+  border-radius: 0 !important;
+}
+
+:deep(.arco-table-tr) {
+  height: 36px !important;
+}
+
+:deep(.arco-table-element) {
+  border-radius: 0 !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+:deep(.arco-table-tr:hover) {
+  background-color: #f9fafb !important;
+}
+
+:deep(.arco-table-td.arco-table-td-row-select) {
+  background-color: #ffffff !important;
+  border-right: 1px solid #e5e7eb !important;
+}
+
+:deep(.arco-table-col-fixed-left .arco-table-th) {
+  background-color: #f8fafc !important;
+  border-right: 1px solid #e5e7eb !important;
+}
+
+:deep(.arco-table-col-fixed-left .arco-table-td) {
+  background-color: #ffffff !important;
+  border-right: 1px solid #e5e7eb !important;
+}
+
+:deep(.arco-table-col-fixed-right .arco-table-th) {
+  background-color: #f8fafc !important;
+  border-left: 1px solid #e5e7eb !important;
+}
+
+:deep(.arco-table-col-fixed-right .arco-table-td) {
+  background-color: #ffffff !important;
+  border-left: 1px solid #e5e7eb !important;
+  border-right: none !important;
+}
+
+:deep(.arco-table-container) {
+  border-right: none !important;
+  border-left: none !important;
+}
+
+@media (max-width: 768px) {
+  .device-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .header-left {
+    width: 100%;
+  }
+  
+  .header-right {
+    width: 100%;
+    margin-top: 16px;
+  }
+  
+  .industrial-card {
+    overflow-x: auto;
+  }
 }
 </style>

@@ -1,863 +1,728 @@
 <template>
     <div class="edge-compute-container">
-        <v-tabs v-model="tab" class="mb-4">
-            <v-tab value="metrics">监控面板</v-tab>
-            <v-tab value="rules">规则管理</v-tab>
-            <v-tab value="status">运行记录</v-tab>
-            <v-tab value="logs">日志查询</v-tab>
-        </v-tabs>
-
-        <v-window v-model="tab">
-            <v-window-item value="metrics">
+        <a-tabs v-model:active-key="tab" class="mb-4">
+            <a-tab-pane key="metrics" title="监控面板">
                 <EdgeComputeMetrics />
-            </v-window-item>
-
-            <v-window-item value="rules">
-                <v-card class="mb-4">
-                    <v-card-title class="d-flex align-center">
-                        边缘计算规则
-                        <v-spacer></v-spacer>
-                        <v-btn color="primary" prepend-icon="mdi-plus" @click="openDialog">添加规则</v-btn>
-                    </v-card-title>
-                    <v-card-text>
-                        <v-table>
-                            <thead>
-                                <tr>
-                                    <th>规则名称</th>
-                                    <th>类型</th>
-                                    <th>触发模式</th>
-                                    <th>启用状态</th>
-                                    <th>优先级</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="rule in rules" :key="rule.id">
-                                    <td>{{ rule.name }}</td>
-                                    <td>{{ formatRuleType(rule.type) }}</td>
-                                    <td>{{ formatTriggerMode(rule.trigger_mode) }}</td>
-                                    <td>
-                                        <v-chip :color="rule.enable ? 'success' : 'grey'" size="small">
-                                            {{ rule.enable ? '启用' : '禁用' }}
-                                        </v-chip>
-                                    </td>
-                                    <td>{{ rule.priority }}</td>
-                                    <td>
-                                        <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="editRule(rule)"></v-btn>
-                                        <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="deleteRule(rule)"></v-btn>
-                                    </td>
-                                </tr>
-                                <tr v-if="rules.length === 0">
-                                    <td colspan="6" class="text-center text-grey">暂无规则</td>
-                                </tr>
-                            </tbody>
-                        </v-table>
-                    </v-card-text>
-                </v-card>
-            </v-window-item>
-
-            <v-window-item value="status">
-                <v-card>
-                    <v-card-title>
-                        规则运行状态监控
-                        <v-spacer></v-spacer>
-                        <v-btn icon="mdi-refresh" variant="text" @click="fetchRuleStates"></v-btn>
-                    </v-card-title>
-                    <v-card-text>
-                        <v-table>
-                            <thead>
-                                <tr>
-                                    <th>规则名称</th>
-                                    <th>当前状态</th>
-                                    <th>最近触发时间</th>
-                                    <th>触发次数</th>
-                                    <th>最新值</th>
-                                    <th>操作</th>
-                                    <th>错误信息</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="state in ruleStates" :key="state.rule_id">
-                                    <td>{{ state.rule_name }}</td>
-                                    <td>
-                                        <v-chip :color="getStatusColor(state.current_status)" size="small">
-                                            {{ state.current_status }}
-                                        </v-chip>
-                                    </td>
-                                    <td>{{ formatDate(state.last_trigger) }}</td>
-                                    <td>{{ state.trigger_count }}</td>
-                                    <td>{{ state.last_value }}</td>
-                                    <td>
-                                        <v-btn size="small" variant="text" color="primary" @click="viewWindowData(state.rule_id, state.rule_name)">
-                                            查看窗口数据
-                                        </v-btn>
-                                    </td>
-                                    <td class="text-error">{{ state.error_message }}</td>
-                                </tr>
-                                <tr v-if="ruleStates.length === 0">
-                                    <td colspan="6" class="text-center text-grey">暂无运行状态数据</td>
-                                </tr>
-                            </tbody>
-                        </v-table>
-                    </v-card-text>
-                </v-card>
-
-            </v-window-item>
-
-            <v-window-item value="logs" class="h-100">
-                <v-card class="h-100 d-flex flex-column">
-                    <v-card-title class="flex-shrink-0">
- 
-                    </v-card-title>
-                    <v-card-text class="flex-grow-1 d-flex flex-column overflow-hidden">
-                        <v-row class="flex-shrink-0 mb-2">
-                            <v-col cols="12" md="3">
-                                <v-text-field type="datetime-local" v-model="query.start" label="开始时间" density="compact" hide-details></v-text-field>
-                            </v-col>
-                            <v-col cols="12" md="3">
-                                <v-text-field type="datetime-local" v-model="query.end" label="结束时间" density="compact" hide-details></v-text-field>
-                            </v-col>
-                            <v-col cols="12" md="2">
-                                <v-text-field v-model="query.ruleId" label="规则ID (可选)" density="compact" hide-details></v-text-field>
-                            </v-col>
-                            <v-col cols="12" md="2">
-                                <v-btn color="primary" block @click="queryLogs">查询</v-btn>
-                            </v-col>
-                            <v-col cols="12" md="2">
-                               <v-btn color="success" prepend-icon="mdi-download" @click="exportLogs" :disabled="logs.length === 0">导出 CSV</v-btn>
-                            </v-col>
-                        </v-row>
-                        
-                        <div class="flex-grow-1 overflow-auto border rounded">
-                            <v-table density="compact" fixed-header height="100%">
-                                <thead>
-                                    <tr>
-                                        <th style="white-space: nowrap">时间</th>
-                                        <th style="white-space: nowrap">规则ID</th>
-                                        <th style="white-space: nowrap">规则名称</th>
-                                        <th style="white-space: nowrap">状态</th>
-                                        <th style="white-space: nowrap">触发次数</th>
-                                        <th style="white-space: nowrap">值</th>
-                                        <th style="white-space: nowrap">错误信息</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="log in logs" :key="log.minute + log.rule_id">
-                                        <td style="white-space: nowrap">{{ log.minute }}</td>
-                                        <td style="white-space: nowrap">{{ log.rule_id }}</td>
-                                        <td style="white-space: nowrap">{{ log.rule_name }}</td>
-                                        <td>
-                                            <v-chip :color="getStatusColor(log.status)" size="x-small">
-                                                {{ log.status }}
-                                            </v-chip>
-                                        </td>
-                                        <td>{{ log.trigger_count }}</td>
-                                        <td class="truncate-cell" @click="showDetails('完整值', log.last_value)" title="点击查看详情">
-                                            {{ log.last_value }}
-                                        </td>
-                                        <td class="truncate-cell text-error" @click="showDetails('错误详情', log.error_message)" title="点击查看详情">
-                                            {{ log.error_message }}
-                                        </td>
-                                    </tr>
-                                    <tr v-if="logs.length === 0">
-                                        <td colspan="7" class="text-center text-grey">暂无历史日志</td>
-                                    </tr>
-                                </tbody>
-                            </v-table>
+            </a-tab-pane>
+            <a-tab-pane key="rules" title="规则管理">
+                <a-card class="mb-4 borderless-card">
+                    <a-card-header class="d-flex justify-space-between align-items-center">
+                        <a-button type="primary" @click="openDialog">
+                            <template #icon><IconPlus /></template>
+                            添加规则
+                        </a-button>
+                    </a-card-header>
+                    
+                    <a-card-body>
+                        <!-- 批量操作工具栏 -->
+                        <div v-show="selectedRuleKeys.length > 0" class="table-toolbar-industrial">
+                            <div class="flex items-center gap-2">
+                                <span class="selection-count">已选 {{ selectedRuleKeys.length }} 项</span>
+                                <a-divider direction="vertical" />
+                                <a-button size="small" type="outline" @click="handleBatchEnable(true)">批量启用</a-button>
+                                <a-button size="small" type="outline" @click="handleBatchEnable(false)">批量禁用</a-button>
+                                <a-button size="small" type="outline" status="danger" @click="handleBatchDelete">批量删除</a-button>
+                            </div>
                         </div>
-                    </v-card-text>
-                </v-card>
-            </v-window-item>
-        </v-window>
+                        
+                        <a-table
+                            :columns="ruleColumns"
+                            :data="rules"
+                            size="small"
+                            :bordered="true"
+                            :row-selection="{ type: 'checkbox', showCheckedAll: true }"
+                            v-model:selected-keys="selectedRuleKeys"
+                            row-key="id"
+                            class="industrial-table"
+                        >
+                            <template #operations="{ record }">
+                                <a-button type="text" size="small" @click="editRule(record)">
+                                    <template #icon><IconEdit /></template>
+                                </a-button>
+                                <a-button type="text" size="small" status="danger" @click="deleteRule(record)">
+                                    <template #icon><IconDelete /></template>
+                                </a-button>
+                            </template>
+                            <template #enable="{ record }">
+                                <a-tag :color="record.enable ? 'success' : 'default'" size="small">
+                                    {{ record.enable ? '启用' : '禁用' }}
+                                </a-tag>
+                            </template>
+                            <template #type="{ record }">
+                                {{ formatRuleType(record.type) }}
+                            </template>
+                            <template #trigger_mode="{ record }">
+                                {{ formatTriggerMode(record.trigger_mode) }}
+                            </template>
+                        </a-table>
+                    </a-card-body>
+                </a-card>
+            </a-tab-pane>
+            <a-tab-pane key="status" title="运行记录">
+                <a-card class="borderless-card">
+                    <a-card-header class="d-flex justify-end align-items-center">
+                        <a-button type="text" @click="fetchRuleStates">
+                            <template #icon><IconRefresh /></template>
+                        </a-button>
+                    </a-card-header>
+                    <a-card-body>
+                        <a-table
+                            :columns="statusColumns"
+                            :data="ruleStates"
+                            size="small"
+                            :bordered="true"
+                            class="industrial-table"
+                        >
+                            <template #current_status="{ record }">
+                                <a-tag :color="getStatusColor(record.current_status)" size="small">
+                                    {{ record.current_status }}
+                                </a-tag>
+                            </template>
+                            <template #last_trigger="{ record }">
+                                {{ formatDate(record.last_trigger) }}
+                            </template>
+                            <template #operations="{ record }">
+                                <a-button type="text" size="small" @click="viewWindowData(record.rule_id, record.rule_name)">
+                                    查看窗口数据
+                                </a-button>
+                            </template>
+                            <template #error_message="{ record }">
+                                <span class="text-error">{{ record.error_message }}</span>
+                            </template>
+                        </a-table>
+                    </a-card-body>
+                </a-card>
+            </a-tab-pane>
+            <a-tab-pane key="logs" title="日志查询">
+                <a-card class="h-100">
+                    <a-card-body>
+                        <a-row :gutter="[16, 16]" class="mb-4">
+                            <a-col :span="24" :md="6">
+                                <a-input v-model="query.start" placeholder="开始时间" type="datetime-local" size="small" />
+                            </a-col>
+                            <a-col :span="24" :md="6">
+                                <a-input v-model="query.end" placeholder="结束时间" type="datetime-local" size="small" />
+                            </a-col>
+                            <a-col :span="24" :md="4">
+                                <a-input v-model="query.ruleId" placeholder="规则ID (可选)" size="small" />
+                            </a-col>
+                            <a-col :span="24" :md="4">
+                                <a-button type="primary" block size="small" @click="queryLogs">查询</a-button>
+                            </a-col>
+                            <a-col :span="24" :md="4">
+                               <a-button type="success" size="small" @click="exportLogs" :disabled="logs.length === 0">
+                                   <template #icon><IconDownload /></template>
+                                   导出 CSV
+                               </a-button>
+                            </a-col>
+                        </a-row>
+                        
+                        <div class="logs-table-container">
+                            <a-table
+                                :columns="logColumns"
+                                :data="logs"
+                                size="small"
+                                :bordered="false"
+                                :scroll="{ x: 1200 }"
+                            >
+                                <template #status="{ record }">
+                                    <a-tag :color="getStatusColor(record.status)" size="small">
+                                        {{ record.status }}
+                                    </a-tag>
+                                </template>
+                                <template #last_value="{ record }">
+                                <span class="single-line-cell" @click="showDetails('完整值', record.last_value)" title="点击查看详情">
+                                    {{ record.last_value }}
+                                </span>
+                            </template>
+                            <template #error_message="{ record }">
+                                <span class="single-line-cell text-error" @click="showDetails('错误详情', record.error_message)" title="点击查看详情">
+                                    {{ record.error_message }}
+                                </span>
+                            </template>
+                            </a-table>
+                        </div>
+                    </a-card-body>
+                </a-card>
+            </a-tab-pane>
+        </a-tabs>
 
         <!-- Window Data Dialog -->
-        <v-dialog v-model="windowDialog" max-width="600px">
-            <v-card>
-                <v-card-title>窗口数据预览 ({{ currentWindowRuleName }})</v-card-title>
-                <v-card-text>
-                    <v-table density="compact">
-                        <thead>
-                            <tr>
-                                <th>时间</th>
-                                <th>值</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="(item, index) in windowData" :key="index">
-                                <td>{{ formatDate(item.ts) }}</td>
-                                <td>{{ item.value }}</td>
-                            </tr>
-                            <tr v-if="windowData.length === 0">
-                                <td colspan="2" class="text-center text-grey">窗口暂无数据</td>
-                            </tr>
-                        </tbody>
-                    </v-table>
-                </v-card-text>
-                <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn color="primary" variant="text" @click="windowDialog = false">关闭</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+        <a-modal v-model:visible="windowDialog" title="窗口数据预览 ({{ currentWindowRuleName }})" width="600px">
+            <a-table
+                :columns="windowDataColumns"
+                :data="windowData"
+                size="small"
+                :bordered="false"
+            >
+                <template #ts="{ record }">
+                    {{ formatDate(record.ts) }}
+                </template>
+            </a-table>
+            <template #footer>
+                <a-button type="primary" @click="windowDialog = false">关闭</a-button>
+            </template>
+        </a-modal>
 
         <!-- Details Dialog -->
-        <v-dialog v-model="detailsDialog" max-width="800px">
-            <v-card>
-                <v-card-title>
-                    {{ detailTitle }}
-                    <v-spacer></v-spacer>
-                    <v-btn icon="mdi-close" variant="text" @click="detailsDialog = false"></v-btn>
-                </v-card-title>
-                <v-card-text>
-                    <v-tabs v-model="detailsTab" density="compact" class="mb-2">
-                        <v-tab value="text">文本/原始内容</v-tab>
-                        <v-tab value="hex" :disabled="!decodedHex">Hex 视图</v-tab>
-                    </v-tabs>
-                    
-                    <v-window v-model="detailsTab">
-                        <v-window-item value="text">
-                            <div class="text-body-2 mb-2 text-grey">内容长度: {{ detailContent.length }}</div>
-                            <v-textarea
-                                v-model="detailContent"
-                                readonly
-                                auto-grow
-                                rows="5"
-                                max-rows="15"
-                                variant="outlined"
-                                style="font-family: monospace;"
-                            ></v-textarea>
-                        </v-window-item>
-                        
-                        <v-window-item value="hex">
-                            <div class="text-body-2 mb-2 text-grey">Hex 视图 ({{ decodedBytes ? decodedBytes.length : 0 }} bytes)</div>
-                            <v-textarea
-                                v-model="decodedHex"
-                                readonly
-                                auto-grow
-                                rows="5"
-                                max-rows="15"
-                                variant="outlined"
-                                style="font-family: monospace;"
-                            ></v-textarea>
-                        </v-window-item>
-                    </v-window>
+        <a-modal v-model:visible="detailsDialog" title="{{ detailTitle }}" width="800px">
+            <a-tabs v-model:active-key="detailsTab" class="mb-4">
+                <a-tab-pane key="text" title="文本/原始内容"></a-tab-pane>
+                <a-tab-pane key="hex" title="Hex 视图" :disabled="!decodedHex"></a-tab-pane>
+            </a-tabs>
+            
+            <div v-if="detailsTab === 'text'">
+                <div class="text-gray-500 mb-2">内容长度: {{ detailContent.length }}</div>
+                <a-textarea
+                    v-model="detailContent"
+                    readonly
+                    :auto-size="{ minRows: 5, maxRows: 15 }"
+                    style="font-family: monospace;"
+                />
+            </div>
+            
+            <div v-else-if="detailsTab === 'hex'">
+                <div class="text-gray-500 mb-2">Hex 视图 ({{ decodedBytes ? decodedBytes.length : 0 }} bytes)</div>
+                <a-textarea
+                    v-model="decodedHex"
+                    readonly
+                    :auto-size="{ minRows: 5, maxRows: 15 }"
+                    style="font-family: monospace;"
+                />
+            </div>
 
-                    <v-alert v-if="detectedFile" type="info" variant="tonal" class="mt-2" density="compact">
-                        <div class="d-flex align-center">
-                            <span>检测到文件格式: <strong>{{ detectedFile.name }} ({{ detectedFile.ext }})</strong></span>
-                            <v-spacer></v-spacer>
-                            <v-btn color="primary" size="small" prepend-icon="mdi-download" @click="downloadDetectedFile">
-                                下载文件
-                            </v-btn>
-                        </div>
-                    </v-alert>
-                </v-card-text>
-                <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn color="secondary" variant="text" prepend-icon="mdi-code-tags" @click="tryDecode" v-if="!decodedHex">
-                        尝试 Base64 解码
-                    </v-btn>
-                    <v-btn color="primary" variant="text" @click="detailsDialog = false">关闭</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+            <a-alert v-if="detectedFile" type="info" class="mt-4">
+                <div class="d-flex justify-space-between align-items-center">
+                    <span>检测到文件格式: <strong>{{ detectedFile.name }} ({{ detectedFile.ext }})</strong></span>
+                    <a-button type="primary" size="small" @click="downloadDetectedFile">
+                        <template #icon><IconDownload /></template>
+                        下载文件
+                    </a-button>
+                </div>
+            </a-alert>
+            <template #footer>
+                <a-button v-if="!decodedHex" @click="tryDecode">
+                    <template #icon><IconCode /></template>
+                    尝试 Base64 解码
+                </a-button>
+                <a-button type="primary" @click="detailsDialog = false">关闭</a-button>
+            </template>
+        </a-modal>
 
         <!-- Rule Dialog -->
-        <v-dialog v-model="dialog" max-width="80%">
-            <v-card>
-                <v-card-title class="d-flex align-center">
-                    {{ editingRule ? '编辑规则' : '添加规则' }}
-                    <v-spacer></v-spacer>
-                    <v-btn
-                        color="info"
-                        variant="text"
-                        prepend-icon="mdi-help-circle-outline"
-                        @click="openHelpDialog"
-                    >
-                        帮助文档
-                    </v-btn>
-                </v-card-title>
-                <v-card-text>
-                    <v-form ref="form">
-                        <v-row>
-                            <!-- Basic Info -->
-                            <v-col cols="12" md="6">
-                                <v-text-field v-model="currentRule.name" label="规则名称" required></v-text-field>
-                            </v-col>
-                            <v-col cols="12" md="6">
-                                <v-select 
+        <a-modal v-model:visible="dialog" :title="editingRule ? '编辑规则' : '添加规则'" width="80%" modal-class="industrial-white-modal">
+            <a-form ref="form" :model="currentRule" layout="vertical" class="industrial-form">
+                <div class="form-section">
+                    <div class="section-title">基础配置</div>
+                    <a-row :gutter="16">
+                        <a-col :span="16">
+                            <a-form-item field="name" label="规则名称" required>
+                                <a-input v-model="currentRule.name" placeholder="请输入规则名称" class="rect-input" />
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="8">
+                            <a-form-item field="enable" label="启用状态">
+                                <a-switch v-model="currentRule.enable" type="round" />
+                            </a-form-item>
+                        </a-col>
+                    </a-row>
+                    <a-row :gutter="16">
+                        <a-col :span="6">
+                            <a-form-item field="type" label="规则类型">
+                                <a-select 
                                     v-model="currentRule.type" 
-                                    :items="[
-                                        {title: 'Threshold (阈值触发)', value: 'threshold'},
-                                        {title: 'Calculation (计算公式)', value: 'calculation'},
-                                        {title: 'Window (时间/计数窗口)', value: 'window'},
-                                        {title: 'State (状态持续)', value: 'state'}
+                                    class="rect-input"
+                                    :options="[
+                                        {label: 'Threshold (阈值触发)', value: 'threshold'},
+                                        {label: 'Calculation (计算公式)', value: 'calculation'},
+                                        {label: 'Window (时间/计数窗口)', value: 'window'},
+                                        {label: 'State (状态持续)', value: 'state'}
                                     ]" 
-                                    label="规则类型"
-                                    :hint="getRuleTypeExplanation(currentRule.type)"
-                                    persistent-hint
-                                ></v-select>
-                            </v-col>
-                            <v-col cols="12" md="6">
-                                <v-text-field v-model.number="currentRule.priority" type="number" label="优先级"></v-text-field>
-                            </v-col>
-                            <v-col cols="12" md="6">
-                                <v-switch v-model="currentRule.enable" label="启用" color="primary"></v-switch>
-                            </v-col>
-                            <v-col cols="12" md="6">
-                                <v-select
+                                />
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="6">
+                            <a-form-item field="priority" label="优先级">
+                                <a-input-number v-model="currentRule.priority" class="rect-input" />
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="6">
+                            <a-form-item field="trigger_mode" label="触发模式">
+                                <a-select
                                     v-model="currentRule.trigger_mode"
-                                    :items="[{title: '始终触发', value: 'always'}, {title: '仅状态改变时触发', value: 'on_change'}]"
-                                    label="触发模式"
-                                    hint="状态改变模式仅在状态从正常变为告警时触发动作"
-                                    persistent-hint
-                                ></v-select>
-                            </v-col>
-                            <v-col cols="12" md="6">
-                                <v-combobox
+                                    class="rect-input"
+                                    :options="[{label: '始终触发', value: 'always'}, {label: '仅状态改变时触发', value: 'on_change'}]"
+                                />
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="6">
+                            <a-form-item field="check_interval" label="检查频率">
+                                <a-select
                                     v-model="currentRule.check_interval"
-                                    :items="['1s', '5s', '10s', '30s', '1m']"
-                                    label="检查频率 (Check Frequency)"
-                                    hint="如果不设置，则按数据到达频率实时检查"
-                                    persistent-hint
-                                ></v-combobox>
-                            </v-col>
+                                    class="rect-input"
+                                    :options="['1s', '5s', '10s', '30s', '1m']"
+                                />
+                            </a-form-item>
+                        </a-col>
+                    </a-row>
+                    <div class="text-gray-500 text-sm mt-1">{{ getRuleTypeExplanation(currentRule.type) }}</div>
+                </div>
 
-                            <!-- Trigger Logic (Removed as per refactoring) -->
-                            <!-- <v-col cols="12" md="6">
-                                <v-select
-                                    v-model="currentRule.trigger_logic"
-                                    :items="['AND', 'OR', 'EXPR']"
-                                    label="触发逻辑"
-                                    hint="AND: 所有源满足条件; OR: 任意源满足; EXPR: 自定义表达式"
-                                    persistent-hint
-                                ></v-select>
-                            </v-col> -->
+                <div class="form-section">
+                    <div class="section-header-row">
+                        <div class="section-title">数据源 Sources</div>
+                        <a-button type="primary" size="small" @click="addSource">
+                            <template #icon><IconPlus /></template>
+                            添加
+                        </a-button>
+                    </div>
+                    <div class="text-gray-500 text-sm mb-4">
+                        请为每个数据源设置别名（如 t1, t2），然后在触发条件中使用别名编写逻辑公式（例如：t1 > 20 || t2 > 30）。
+                    </div>
+                    <div v-for="(src, index) in currentRule.sources" :key="index" class="source-row">
+                        <div class="source-index">#{{ index + 1 }}</div>
+                        <a-row :gutter="12" class="flex-1">
+                            <a-col :span="24" :md="4">
+                                <a-select
+                                    v-model="src.channel_id"
+                                    :options="channels"
+                                    :label-field="'name'"
+                                    :value-field="'id'"
+                                    placeholder="通道"
+                                    class="rect-input"
+                                    @change="() => onSourceChannelChange(src)"
+                                />
+                            </a-col>
+                            <a-col :span="24" :md="4">
+                                <a-select
+                                    v-model="src.device_id"
+                                    :options="src._deviceList || []"
+                                    :label-field="'name'"
+                                    :value-field="'id'"
+                                    placeholder="设备"
+                                    class="rect-input"
+                                    :disabled="!src.channel_id"
+                                    @change="() => onSourceDeviceChange(src)"
+                                    @click="() => loadSourceDevices(src)"
+                                />
+                            </a-col>
+                            <a-col :span="24" :md="4">
+                                <a-select
+                                    v-model="src.point_id"
+                                    :options="src._pointList || []"
+                                    :label-field="'name'"
+                                    :value-field="'id'"
+                                    placeholder="点位"
+                                    class="rect-input"
+                                    :disabled="!src.device_id"
+                                    @click="() => loadSourcePoints(src)"
+                                />
+                            </a-col>
+                            <a-col :span="24" :md="3">
+                                <a-input 
+                                    v-model="src.alias" 
+                                    placeholder="t1"
+                                    class="rect-input"
+                                />
+                            </a-col>
+                        </a-row>
+                        <a-button type="text" status="danger" @click="removeSource(index)">
+                            <IconDelete />
+                        </a-button>
+                    </div>
+                </div>
 
-                            <!-- Source Configuration -->
-                            <v-col cols="12">
-                                <div class="d-flex align-center mb-2">
-                                    <div class="text-subtitle-1">数据源列表</div>
-                                    <v-spacer></v-spacer>
-                                    <v-btn size="small" prepend-icon="mdi-plus" variant="text" @click="addSource">添加数据源</v-btn>
-                                </div>
-                                <div class="text-caption text-grey mb-2">
-                                    请为每个数据源设置别名（如 t1, t2），然后在触发条件中使用别名编写逻辑公式（例如：t1 > 20 || t2 > 30）。
-                                </div>
-                                <template v-for="(src, index) in currentRule.sources" :key="index">
-                                    <v-card variant="outlined" class="mb-2 pa-2">
-                                        <v-row density="compact" align="center">
-                                            <v-col cols="12" md="3">
-                                                <v-select
-                                                    v-model="src.channel_id"
-                                                    :items="channels"
-                                                    item-title="name"
-                                                    item-value="id"
-                                                    label="通道"
-                                                    density="compact"
-                                                    hide-details
-                                                    @update:model-value="() => onSourceChannelChange(src)"
-                                                ></v-select>
-                                            </v-col>
-                                            <v-col cols="12" md="3">
-                                                <v-select
-                                                    v-model="src.device_id"
-                                                    :items="src._deviceList || []"
-                                                    item-title="name"
-                                                    item-value="id"
-                                                    label="设备"
-                                                    density="compact"
-                                                    hide-details
-                                                    :disabled="!src.channel_id"
-                                                    @update:model-value="() => onSourceDeviceChange(src)"
-                                                    @click="() => loadSourceDevices(src)"
-                                                ></v-select>
-                                            </v-col>
-                                            <v-col cols="12" md="3">
-                                                <v-combobox
-                                                    v-model="src.point_id"
-                                                    :items="src._pointList || []"
-                                                    item-title="name"
-                                                    item-value="id"
-                                                    label="点位ID"
-                                                    density="compact"
-                                                    hide-details
-                                                    :disabled="!src.device_id"
-                                                    @click="() => loadSourcePoints(src)"
-                                                    :return-object="false"
-                                                ></v-combobox>
-                                            </v-col>
-                                            <v-col cols="12" md="2">
-                                                <v-text-field 
-                                                    v-model="src.alias" 
-                                                    label="别名 (如 t1)"
-                                                    density="compact"
-                                                    hide-details
-                                                    placeholder="用于表达式引用"
-                                                ></v-text-field>
-                                            </v-col>
-                                            <v-col cols="12" md="1" class="d-flex justify-end">
-                                                <v-btn icon="mdi-delete" size="x-small" color="error" variant="text" @click="removeSource(index)"></v-btn>
-                                            </v-col>
-                                        </v-row>
-                                    </v-card>
-                                </template>
-                            </v-col>
+                <!-- 窗口配置 -->
+                <div v-if="currentRule.type === 'window'" class="form-section">
+                    <div class="section-title">窗口配置</div>
+                    <a-row :gutter="16">
+                        <a-col :span="8">
+                            <a-form-item field="window.type" label="窗口类型">
+                                <a-select v-model="currentRule.window.type" :options="['sliding', 'tumbling']" class="rect-input" />
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="8">
+                            <a-form-item field="window.size" label="窗口大小">
+                                <a-input v-model="currentRule.window.size" placeholder="例如: 10s 或 100" class="rect-input" />
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="8">
+                            <a-form-item field="window.aggr_func" label="聚合函数">
+                                <a-select v-model="currentRule.window.aggr_func" :options="['avg', 'min', 'max', 'sum', 'count', 'rate']" class="rect-input" />
+                            </a-form-item>
+                        </a-col>
+                    </a-row>
+                </div>
 
-                            <!-- Window Config -->
-                            <v-col cols="12" v-if="currentRule.type === 'window'">
-                                <div class="text-subtitle-1 mb-2">窗口配置</div>
-                                <v-row>
-                                    <v-col cols="4">
-                                        <v-select v-model="currentRule.window.type" :items="['sliding', 'tumbling']" label="窗口类型"></v-select>
-                                    </v-col>
-                                    <v-col cols="4">
-                                        <v-text-field v-model="currentRule.window.size" label="窗口大小" hint="例如: 10s 或 100"></v-text-field>
-                                    </v-col>
-                                    <v-col cols="4">
-                                        <v-select v-model="currentRule.window.aggr_func" :items="['avg', 'min', 'max', 'sum', 'count', 'rate']" label="聚合函数"></v-select>
-                                    </v-col>
-                                </v-row>
-                            </v-col>
+                <!-- 状态维持 -->
+                <div v-if="currentRule.type === 'state' || currentRule.type === 'threshold'" class="form-section">
+                    <div class="section-title">状态维持</div>
+                    <a-row :gutter="16">
+                        <a-col :span="12">
+                            <a-form-item field="state.duration" label="持续时间 (Duration)">
+                                <a-input v-model="currentRule.state.duration" placeholder="例如: 10s" class="rect-input" />
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="state.count" label="连续次数 (Count)">
+                                <a-input-number v-model="currentRule.state.count" class="rect-input" />
+                            </a-form-item>
+                        </a-col>
+                    </a-row>
+                </div>
 
-                            <!-- State Config -->
-                            <v-col cols="12" v-if="currentRule.type === 'state' || currentRule.type === 'threshold'">
-                                <div class="text-subtitle-1 mb-2">状态维持 (Duration & Count)</div>
-                                <v-row>
-                                    <v-col cols="6">
-                                        <v-text-field v-model="currentRule.state.duration" label="持续时间 (Duration)" hint="例如: 10s"></v-text-field>
-                                    </v-col>
-                                    <v-col cols="6">
-                                        <v-text-field v-model.number="currentRule.state.count" type="number" label="连续次数 (Count)"></v-text-field>
-                                    </v-col>
-                                </v-row>
-                            </v-col>
+                <!-- 规则逻辑 Logic -->
+                <div v-if="currentRule.type !== 'calculation'" class="form-section">
+                    <div class="section-header-row">
+                        <div class="section-title">规则逻辑 Logic</div>
+                        <a-button size="small" @click="openHelper(currentRule.condition, (v) => currentRule.condition = v)">
+                            公式助手
+                        </a-button>
+                    </div>
+                    <a-form-item label="表达式">
+                        <a-textarea
+                            v-model="currentRule.condition"
+                            placeholder="t1 > 50 && t2 < 80"
+                            :rows="3"
+                            class="code-input rect-input"
+                        />
+                        <template #extra>支持数据源别名（如 t1, t2）和逻辑运算符</template>
+                    </a-form-item>
+                </div>
 
-                            <!-- Condition -->
-                            <v-col cols="12" v-if="currentRule.type !== 'calculation'">
-                                <v-textarea
-                                    v-model="currentRule.condition"
-                                    label="触发条件 (Expression)"
-                                    hint="例如: t1 > 50 || t2 > 80 (使用数据源别名)"
-                                    rows="2"
-                                >
-                                    <template v-slot:append-inner>
-                                        <v-btn color="primary" variant="tonal" class="rounded-0 h-100" style="margin-top: -8px; margin-bottom: -8px; margin-right: -12px; min-width: 90px;" @click="openHelper(currentRule.condition, (v) => currentRule.condition = v)">
-                                            <v-icon start icon="mdi-calculator"></v-icon>
-                                            公式助手
-                                        </v-btn>
-                                    </template>
-                                </v-textarea>
-                            </v-col>
-                            <!-- Calculation Expression -->
-                            <v-col cols="12" v-if="currentRule.type === 'calculation'">
-                                <v-textarea
-                                    v-model="currentRule.expression"
-                                    label="计算公式 (Expression)"
-                                    hint="例如: value * 1.5 + 32"
-                                    rows="2"
-                                >
-                                    <template v-slot:append-inner>
-                                        <v-btn color="primary" variant="tonal" class="rounded-0 h-100" style="margin-top: -8px; margin-bottom: -8px; margin-right: -12px; min-width: 90px;" @click="openHelper(currentRule.expression, (v) => currentRule.expression = v)">
-                                            <v-icon start icon="mdi-calculator"></v-icon>
-                                            公式助手
-                                        </v-btn>
-                                    </template>
-                                </v-textarea>
-                            </v-col>
+                <!-- 计算公式 -->
+                <div v-if="currentRule.type === 'calculation'" class="form-section">
+                    <div class="section-header-row">
+                        <div class="section-title">计算公式</div>
+                        <a-button size="small" @click="openHelper(currentRule.expression, (v) => currentRule.expression = v)">
+                            公式助手
+                        </a-button>
+                    </div>
+                    <a-form-item label="表达式">
+                        <a-textarea
+                            v-model="currentRule.expression"
+                            placeholder="value * 1.5 + 32"
+                            :rows="3"
+                            class="code-input rect-input"
+                        />
+                        <template #extra>支持数学运算符和函数（如 abs, sqrt, sin 等）</template>
+                    </a-form-item>
+                </div>
 
-                            <!-- Actions -->
-                            <v-col cols="12">
-                                <div class="d-flex align-center mb-2">
-                                    <div class="text-subtitle-1">动作列表 (Actions)</div>
-                                    <v-spacer></v-spacer>
-                                    <v-btn size="small" prepend-icon="mdi-plus" variant="text" @click="addAction">添加动作</v-btn>
-                                </div>
-                                <div v-if="!currentRule.actions || currentRule.actions.length === 0" class="text-center text-grey py-4 border-dashed rounded mb-2" style="border: 1px dashed #ccc;">
-                                    暂无动作 (No Actions)
-                                </div>
-                                <div v-else>
-                                    <div v-for="(action, index) in currentRule.actions" :key="index">
-                                        <ActionEditor 
-                                            v-model="currentRule.actions[index]" 
-                                            :channels="channels" 
-                                            @remove="removeAction(index)" 
-                                        />
-                                    </div>
-                                </div>
-                            </v-col>
-                        </v-row>
-                    </v-form>
-                </v-card-text>
-                <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn color="grey" variant="text" @click="dialog = false">取消</v-btn>
-                    <v-btn color="primary" @click="saveRule">保存</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+                <!-- 动作 Actions -->
+                <div class="form-section">
+                    <div class="section-header-row">
+                        <div class="section-title">执行动作 (Action)</div>
+                        <a-button type="primary" size="small" @click="addAction">
+                            <template #icon><IconPlus /></template>
+                            添加动作
+                        </a-button>
+                    </div>
+                    <div v-if="!currentRule.actions || currentRule.actions.length === 0" class="empty-box">
+                        无动作
+                    </div>
+                    <div v-else>
+                        <div v-for="(action, index) in currentRule.actions" :key="index" class="action-card">
+                            <div class="action-index">STEP {{ index + 1 }}</div>
+                            <ActionEditor 
+                                v-model="currentRule.actions[index]" 
+                                :channels="channels" 
+                                @remove="removeAction(index)" 
+                            />
+                            <a-button type="text" status="danger" @click="removeAction(index)" class="mt-2">
+                                <IconDelete />
+                            </a-button>
+                        </div>
+                    </div>
+                </div>
+            </a-form>
+            <template #footer>
+                <a-button @click="dialog = false">取消</a-button>
+                <a-button type="primary" @click="saveRule">保存</a-button>
+            </template>
+        </a-modal>
 
         <!-- Help Dialog -->
-        <v-dialog v-model="helpDialog" max-width="800px" scrollable>
-            <v-card>
-                <v-card-title class="bg-primary text-white">
-                    <v-icon start>mdi-school</v-icon>
-                    边缘计算规则配置指南
-                </v-card-title>
-                <v-card-text class="pa-4" style="max-height: 600px; overflow-y: auto;">
-                    
-                    <div class="text-h6 mb-2">1. 基础概念</div>
-                    <v-alert type="info" variant="tonal" class="mb-4" density="compact">
-                        <ul>
-                            <li><strong>数据源 (Sources)</strong>: 规则的输入变量。请为每个源设置简短的 <code>别名 (Alias)</code> (如 t1, p1)，以便在表达式中引用。</li>
-                            <li><strong>触发条件 (Condition)</strong>: 返回 true/false 的布尔表达式。仅当条件满足时触发动作。</li>
-                            <li><strong>动作 (Actions)</strong>: 规则触发后执行的一系列操作。</li>
+        <a-modal v-model:visible="helpDialog" title="边缘计算规则配置指南" width="800px" :scrollable="true">
+            <div class="help-content">
+                <div class="text-lg font-medium mb-4">1. 基础概念</div>
+                <a-alert type="info" class="mb-4">
+                    <ul>
+                        <li><strong>数据源 (Sources)</strong>: 规则的输入变量。请为每个源设置简短的 <code>别名 (Alias)</code> (如 t1, p1)，以便在表达式中引用。</li>
+                        <li><strong>触发条件 (Condition)</strong>: 返回 true/false 的布尔表达式。仅当条件满足时触发动作。</li>
+                        <li><strong>动作 (Actions)</strong>: 规则触发后执行的一系列操作。</li>
+                    </ul>
+                </a-alert>
+
+                <div class="text-lg font-medium mb-4">2. 常见场景最佳实践</div>
+                
+                <a-collapse class="mb-4">
+                    <a-collapse-item title="场景 A: 简单越限报警 (Threshold)">
+                        <p><strong>目标</strong>: 当温度 (t1) 超过 50 度时，记录日志并发送 MQTT 告警。</p>
+                        <ul class="pl-6 mt-2">
+                            <li><strong>类型</strong>: Threshold</li>
+                            <li><strong>数据源</strong>: 添加温度点位，别名设为 <code>t1</code></li>
+                            <li><strong>触发条件</strong>: <code>t1 > 50</code></li>
+                            <li><strong>动作</strong>: 
+                                <ol class="pl-6">
+                                    <li>Log: 级别 Warn, 内容 "温度过高: ${t1}"</li>
+                                    <li>MQTT: Topic "alarm/temp", 内容 "温度异常: ${t1}"</li>
+                                </ol>
+                            </li>
                         </ul>
-                    </v-alert>
-
-                    <div class="text-h6 mb-2">2. 常见场景最佳实践</div>
-                    
-                    <v-expansion-panels variant="accordion" class="mb-4">
-                        <v-expansion-panel>
-                            <v-expansion-panel-title>场景 A: 简单越限报警 (Threshold)</v-expansion-panel-title>
-                            <v-expansion-panel-text>
-                                <p><strong>目标</strong>: 当温度 (t1) 超过 50 度时，记录日志并发送 MQTT 告警。</p>
-                                <ul class="pl-4 mt-2">
-                                    <li><strong>类型</strong>: Threshold</li>
-                                    <li><strong>数据源</strong>: 添加温度点位，别名设为 <code>t1</code></li>
-                                    <li><strong>触发条件</strong>: <code>t1 > 50</code></li>
-                                    <li><strong>动作</strong>: 
-                                        <ol class="pl-4">
-                                            <li>Log: 级别 Warn, 内容 "温度过高: ${t1}"</li>
-                                            <li>MQTT: Topic "alarm/temp", 内容 "温度异常: ${t1}"</li>
-                                        </ol>
-                                    </li>
-                                </ul>
-                            </v-expansion-panel-text>
-                        </v-expansion-panel>
-
-                        <v-expansion-panel>
-                            <v-expansion-panel-title>场景 B: 顺序联动控制 (Sequence Workflow)</v-expansion-panel-title>
-                            <v-expansion-panel-text>
-                                <p><strong>目标</strong>: 启动设备 A，等待 30秒，确认 A 已启动后再启动设备 B。如果 A 启动失败，则回退关闭 A。</p>
-                                <ul class="pl-4 mt-2">
-                                    <li><strong>类型</strong>: Threshold (或 State)</li>
-                                    <li><strong>触发条件</strong>: <code>start_signal == 1</code> (启动信号)</li>
-                                    <li><strong>动作</strong>: 选择 <strong>Sequence</strong> 类型，添加以下步骤：
-                                        <ol class="pl-4 mt-1">
-                                            <li><strong>Device Control</strong>: 开启设备 A (Value: 1)</li>
-                                            <li><strong>Delay</strong>: 30s</li>
-                                            <li><strong>Check</strong>: 
-                                                <ul class="pl-4">
-                                                    <li>选择设备 A 的状态点位</li>
-                                                    <li>表达式: <code>v == 1</code> (确认运行中)</li>
-                                                    <li>重试: 3次, 间隔: 2s</li>
-                                                    <li><strong>On Fail (失败回退)</strong>: 添加 Device Control 动作 -> 关闭设备 A (Value: 0)</li>
-                                                </ul>
-                                            </li>
-                                            <li><strong>Device Control</strong>: 开启设备 B (Value: 1)</li>
-                                        </ol>
-                                    </li>
-                                </ul>
-                                <v-alert type="warning" variant="tonal" density="compact" class="mt-2">
-                                    <strong>注意:</strong> Sequence 中的 Check 动作如果失败且未在 On Fail 中成功处理异常（通常用于记录日志或回退），整个 Sequence 将会终止，后续步骤（如开启设备 B）不会执行。这是实现安全联动逻辑的关键。
-                                </v-alert>
-                            </v-expansion-panel-text>
-                        </v-expansion-panel>
-
-                        <v-expansion-panel>
-                            <v-expansion-panel-title>场景 C: 批量设备控制 (Batch Control)</v-expansion-panel-title>
-                            <v-expansion-panel-text>
-                                <p><strong>目标</strong>: 一键关闭所有相关设备 (A, B, C)。</p>
-                                <ul class="pl-4 mt-2">
-                                    <li><strong>动作</strong>: 选择 <strong>Device Control</strong> 类型</li>
-                                    <li><strong>配置</strong>: 开启 <strong>Batch Control (批量控制)</strong> 开关</li>
-                                    <li><strong>目标列表</strong>:
-                                        <ul class="pl-4">
-                                            <li>目标 1: 设备 A, 开关点位, 值 0</li>
-                                            <li>目标 2: 设备 B, 开关点位, 值 0</li>
-                                            <li>目标 3: 设备 C, 开关点位, 值 0</li>
+                    </a-collapse-item>
+                    <a-collapse-item title="场景 B: 顺序联动控制 (Sequence Workflow)">
+                        <p><strong>目标</strong>: 启动设备 A，等待 30秒，确认 A 已启动后再启动设备 B。如果 A 启动失败，则回退关闭 A。</p>
+                        <ul class="pl-6 mt-2">
+                            <li><strong>类型</strong>: Threshold (或 State)</li>
+                            <li><strong>触发条件</strong>: <code>start_signal == 1</code> (启动信号)</li>
+                            <li><strong>动作</strong>: 选择 <strong>Sequence</strong> 类型，添加以下步骤：
+                                <ol class="pl-6 mt-1">
+                                    <li><strong>Device Control</strong>: 开启设备 A (Value: 1)</li>
+                                    <li><strong>Delay</strong>: 30s</li>
+                                    <li><strong>Check</strong>: 
+                                        <ul class="pl-6">
+                                            <li>选择设备 A 的状态点位</li>
+                                            <li>表达式: <code>v == 1</code> (确认运行中)</li>
+                                            <li>重试: 3次, 间隔: 2s</li>
+                                            <li><strong>On Fail (失败回退)</strong>: 添加 Device Control 动作 -> 关闭设备 A (Value: 0)</li>
                                         </ul>
                                     </li>
+                                    <li><strong>Device Control</strong>: 开启设备 B (Value: 1)</li>
+                                </ol>
+                            </li>
+                        </ul>
+                        <a-alert type="warning" class="mt-2">
+                            <strong>注意:</strong> Sequence 中的 Check 动作如果失败且未在 On Fail 中成功处理异常（通常用于记录日志或回退），整个 Sequence 将会终止，后续步骤（如开启设备 B）不会执行。这是实现安全联动逻辑的关键。
+                        </a-alert>
+                    </a-collapse-item>
+                    <a-collapse-item title="场景 C: 批量设备控制 (Batch Control)">
+                        <p><strong>目标</strong>: 一键关闭所有相关设备 (A, B, C)。</p>
+                        <ul class="pl-6 mt-2">
+                            <li><strong>动作</strong>: 选择 <strong>Device Control</strong> 类型</li>
+                            <li><strong>配置</strong>: 开启 <strong>Batch Control (批量控制)</strong> 开关</li>
+                            <li><strong>目标列表</strong>:
+                                <ul class="pl-6">
+                                    <li>目标 1: 设备 A, 开关点位, 值 0</li>
+                                    <li>目标 2: 设备 B, 开关点位, 值 0</li>
+                                    <li>目标 3: 设备 C, 开关点位, 值 0</li>
                                 </ul>
-                                <p class="mt-2 text-caption">优势: 批量控制会并行发送写入请求，相比连续的单点控制动作，响应速度更快。</p>
-                            </v-expansion-panel-text>
-                        </v-expansion-panel>
+                            </li>
+                        </ul>
+                        <p class="mt-2 text-sm text-gray-500">优势: 批量控制会并行发送写入请求，相比连续的单点控制动作，响应速度更快。</p>
+                    </a-collapse-item>
+                    <a-collapse-item title="场景 D: 位运算与状态字控制 (Bitwise)">
+                        <p><strong>目标</strong>: 仅修改状态字的第 4 位 (置 1)，保持其他位不变。</p>
+                        <ul class="pl-6 mt-2">
+                            <li><strong>动作</strong>: Device Control</li>
+                            <li><strong>Expr (公式)</strong>: <code>bitset(v, 4)</code> 或 <code>v | 8</code> (0-based index)</li>
+                            <li><strong>说明</strong>: 系统会自动读取当前值 -> 计算新值 -> 写入 (Read-Modify-Write 机制)。</li>
+                        </ul>
+                        <a-alert type="success" class="mt-2">
+                            <strong>RMW 机制:</strong> 网关会自动处理并发冲突，确保在修改某一位时，不会覆盖其他位在同一时刻发生的变化（仅针对支持原子操作或网关级锁定的场景）。
+                        </a-alert>
+                    </a-collapse-item>
+                </a-collapse>
 
-                        <v-expansion-panel>
-                            <v-expansion-panel-title>场景 D: 位运算与状态字控制 (Bitwise)</v-expansion-panel-title>
-                            <v-expansion-panel-text>
-                                <p><strong>目标</strong>: 仅修改状态字的第 4 位 (置 1)，保持其他位不变。</p>
-                                <ul class="pl-4 mt-2">
-                                    <li><strong>动作</strong>: Device Control</li>
-                                    <li><strong>Expr (公式)</strong>: <code>bitset(v, 4)</code> 或 <code>v | 8</code> (0-based index)</li>
-                                    <li><strong>说明</strong>: 系统会自动读取当前值 -> 计算新值 -> 写入 (Read-Modify-Write 机制)。</li>
-                                </ul>
-                                <v-alert type="success" variant="tonal" density="compact" class="mt-2">
-                                    <strong>RMW 机制:</strong> 网关会自动处理并发冲突，确保在修改某一位时，不会覆盖其他位在同一时刻发生的变化（仅针对支持原子操作或网关级锁定的场景）。
-                                </v-alert>
-                            </v-expansion-panel-text>
-                        </v-expansion-panel>
-                    </v-expansion-panels>
-
-                    <div class="text-h6 mb-2">3. 表达式语法参考</div>
-                    <v-table density="compact" class="border">
-                        <thead>
-                            <tr>
-                                <th>语法</th>
-                                <th>说明</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td><code>v</code> / <code>value</code></td><td>当前点位的实时值</td></tr>
-                            <tr><td><code>t1</code>, <code>p1</code></td><td>数据源别名引用</td></tr>
-                            <tr><td><code>bitget(v, n)</code></td><td>获取第 n 位 (0/1)</td></tr>
-                            <tr><td><code>bitset(v, n)</code></td><td>将第 n 位置 1</td></tr>
-                            <tr><td><code>bitclr(v, n)</code></td><td>将第 n 位置 0</td></tr>
-                        </tbody>
-                    </v-table>
-                    
-                    <div class="text-h6 mb-2 mt-4">4. 动作类型详解</div>
-                    <v-expansion-panels variant="accordion">
-                        <v-expansion-panel>
-                            <v-expansion-panel-title>Log (日志)</v-expansion-panel-title>
-                            <v-expansion-panel-text>
-                                记录规则触发信息到系统日志。
-                                <ul>
-                                    <li><strong>Level</strong>: 日志级别 (Info/Warn/Error)。</li>
-                                    <li><strong>Message</strong>: 支持 <code>${v}</code> 或 <code>${alias}</code> 模板变量。</li>
-                                </ul>
-                            </v-expansion-panel-text>
-                        </v-expansion-panel>
-                        <v-expansion-panel>
-                            <v-expansion-panel-title>Device Control (设备控制)</v-expansion-panel-title>
-                            <v-expansion-panel-text>
-                                向设备写入值。
-                                <ul>
-                                    <li><strong>单点模式</strong>: 直接控制一个点位。</li>
-                                    <li><strong>批量模式</strong>: 同时控制多个点位。</li>
-                                    <li><strong>Expression</strong>: 可选。用于计算写入值（支持位操作）。</li>
-                                </ul>
-                            </v-expansion-panel-text>
-                        </v-expansion-panel>
-                        <v-expansion-panel>
-                            <v-expansion-panel-title>Sequence (顺序执行)</v-expansion-panel-title>
-                            <v-expansion-panel-text>
-                                严格按顺序执行子动作。如果任一步骤失败（如 Check 失败且未处理），整个序列终止。
-                            </v-expansion-panel-text>
-                        </v-expansion-panel>
-                        <v-expansion-panel>
-                            <v-expansion-panel-title>Check (校验)</v-expansion-panel-title>
-                            <v-expansion-panel-text>
-                                读取点位并校验条件。
-                                <ul>
-                                    <li><strong>Expression</strong>: 校验公式 (如 <code>v == 1</code>)。</li>
-                                    <li><strong>Retry</strong>: 失败重试次数。</li>
+                <div class="text-lg font-medium mb-4">3. 表达式语法参考</div>
+                <a-table :columns="syntaxColumns" :data="syntaxData" size="small" :bordered="false" class="mb-4"></a-table>
+                
+                <div class="text-lg font-medium mb-4">4. 动作类型详解</div>
+                <a-collapse>
+                    <a-collapse-item title="Log (日志)">
+                        记录规则触发信息到系统日志。
+                        <ul class="pl-6 mt-2">
+                            <li><strong>Level</strong>: 日志级别 (Info/Warn/Error)。</li>
+                            <li><strong>Message</strong>: 支持 <code>${v}</code> 或 <code>${alias}</code> 模板变量。</li>
+                        </ul>
+                    </a-collapse-item>
+                    <a-collapse-item title="Device Control (设备控制)">
+                        向设备写入值。
+                        <ul class="pl-6 mt-2">
+                            <li><strong>单点模式</strong>: 直接控制一个点位。</li>
+                            <li><strong>批量模式</strong>: 同时控制多个点位。</li>
+                            <li><strong>Expression</strong>: 可选。用于计算写入值（支持位操作）。</li>
+                        </ul>
+                    </a-collapse-item>
+                    <a-collapse-item title="Sequence (顺序执行)">
+                        严格按顺序执行子动作。如果任一步骤失败（如 Check 失败且未处理），整个序列终止。
+                    </a-collapse-item>
+                    <a-collapse-item title="Check (校验)">
+                        读取点位并校验条件。
+                        <ul class="pl-6 mt-2">
+                            <li><strong>Expression</strong>: 校验公式 (如 <code>v == 1</code>)。</li>
+                            <li><strong>Retry</strong>: 失败重试次数。</li>
                                     <li><strong>On Fail</strong>: 校验最终失败后执行的回退动作序列。</li>
                                 </ul>
-                            </v-expansion-panel-text>
-                        </v-expansion-panel>
-                        <v-expansion-panel>
-                            <v-expansion-panel-title>Delay (延时)</v-expansion-panel-title>
-                            <v-expansion-panel-text>
-                                暂停执行指定时长 (如 <code>30s</code>, <code>1m</code>)。阻塞当前序列。
-                            </v-expansion-panel-text>
-                        </v-expansion-panel>
-                    </v-expansion-panels>
-
-                </v-card-text>
-                <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn color="primary" @click="helpDialog = false">关闭</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
-
-        <!-- Expression Helper Dialog -->
-        <v-dialog v-model="helperDialog" max-width="600px">
-            <v-card>
-                <v-card-title class="bg-primary text-white">
-                    <v-icon start>mdi-calculator</v-icon>
-                    表达式转换助手
-                </v-card-title>
-                <v-card-text class="pt-4">
-                    <div class="text-body-2 mb-2">输入标准表达式 (例如: v & 64, v | 1, ~v):</div>
-                    <div class="text-caption text-grey mb-2">提示: 系统已直接支持 v.N 语法 (如 v.4) 及 v.bit.N 语法 (如 v.bit.4) 读取第N位，无需转换。</div>
-                    <v-textarea 
-                        v-model="helperInput" 
-                        label="标准表达式 (Standard Syntax)" 
-                        variant="outlined"
-                        rows="3"
-                        auto-grow
-                    ></v-textarea>
-                    
-                    <div class="d-flex justify-center my-2 gap-2">
-                        <v-btn color="info" variant="text" prepend-icon="mdi-book-open-variant" @click="docsDialog = true">
-                            查看函数文档 (View Docs)
-                        </v-btn>
-                        <v-btn color="secondary" prepend-icon="mdi-arrow-down-bold" @click="convertHelper">
-                            转换 (Convert)
-                        </v-btn>
+                            </a-collapse-item>
+                        </a-collapse>
                     </div>
-                    
-                    <div class="text-body-2 mb-2">转换结果 (Function Syntax):</div>
-                    <v-textarea 
-                        v-model="helperOutput" 
-                        label="函数表达式 (Result)" 
-                        variant="outlined"
-                        bg-color="grey-lighten-4"
-                        rows="3"
-                        auto-grow
-                        readonly
-                    ></v-textarea>
-                </v-card-text>
-                <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn color="grey" variant="text" @click="helperDialog = false">关闭</v-btn>
-                    <v-btn color="primary" @click="applyHelper" :disabled="!helperOutput">应用并填入</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
-        <!-- Expression Docs Dialog -->
-        <v-dialog v-model="docsDialog" max-width="900px" scrollable>
-            <v-card>
-                <v-card-title class="bg-info text-white">
-                    <v-icon start>mdi-book-open-variant</v-icon>
-                    表达式函数参考文档 (Expression Reference)
-                </v-card-title>
-                <v-card-text class="pa-4" style="max-height: 600px; overflow-y: auto;">
-                    
-                    <v-alert type="info" variant="tonal" class="mb-4" density="compact">
-                        <div class="text-subtitle-2 font-weight-bold">基本变量</div>
-                        <div><code>value</code> 或 <code>v</code> : 当前触发点位的值 (The current point value).</div>
-                        <div><code>t1</code>, <code>t2</code> ... : 数据源别名 (Source aliases defined in rule).</div>
-                    </v-alert>
+                    <template #footer>
+                        <a-button type="primary" @click="helpDialog = false">关闭</a-button>
+                    </template>
+                </a-modal>
 
-                    <div class="text-h6 mb-2">1. 位操作函数 (Bitwise Operations)</div>
-                    <v-table density="compact" class="mb-4 border">
-                        <thead>
-                            <tr>
-                                <th style="width: 200px">函数 (Function)</th>
-                                <th>说明 (Description)</th>
-                                <th>示例 (Example)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><code>bitand(a, b)</code></td>
-                                <td>按位与 (Bitwise AND). 对应 <code>a & b</code></td>
-                                <td><code>bitand(v, 1)</code> (判断最低位是否为1)</td>
-                            </tr>
-                            <tr>
-                                <td><code>bitor(a, b)</code></td>
-                                <td>按位或 (Bitwise OR). 对应 <code>a | b</code></td>
-                                <td><code>bitor(v, 4)</code> (将第3位置1)</td>
-                            </tr>
-                            <tr>
-                                <td><code>bitxor(a, b)</code></td>
-                                <td>按位异或 (Bitwise XOR). 对应 <code>a ^ b</code></td>
-                                <td><code>bitxor(v, 255)</code> (低8位取反)</td>
-                            </tr>
-                            <tr>
-                                <td><code>bitnot(a)</code></td>
-                                <td>按位取反 (Bitwise NOT). 对应 <code>~a</code></td>
-                                <td><code>bitnot(v)</code></td>
-                            </tr>
-                            <tr>
-                                <td><code>bitshl(a, n)</code></td>
-                                <td>左移 (Left Shift). 对应 <code>a &lt;&lt; n</code></td>
-                                <td><code>bitshl(1, 4)</code> (结果 16)</td>
-                            </tr>
-                            <tr>
-                                <td><code>bitshr(a, n)</code></td>
-                                <td>右移 (Right Shift). 对应 <code>a &gt;&gt; n</code></td>
-                                <td><code>bitshr(v, 8)</code> (取高8位)</td>
-                            </tr>
-                        </tbody>
-                    </v-table>
+                <!-- Expression Helper Dialog -->
+                <a-modal v-model:visible="helperDialog" title="表达式转换助手" width="600px">
+                    <div class="pt-4">
+                        <div class="text-gray-500 mb-2">输入标准表达式 (例如: v & 64, v | 1, ~v):</div>
+                        <div class="text-gray-500 text-sm mb-4">提示: 系统已直接支持 v.N 语法 (如 v.4) 及 v.bit.N 语法 (如 v.bit.4) 读取第N位，无需转换。</div>
+                        <a-textarea
+                            v-model="helperInput"
+                            placeholder="标准表达式 (Standard Syntax)"
+                            :rows="3"
+                            :auto-size="{ minRows: 3, maxRows: 6 }"
+                        />
+                        
+                        <div class="d-flex justify-center my-4 gap-4">
+                            <a-button type="text" @click="docsDialog = true">
+                                <template #icon><IconBook /></template>
+                                查看函数文档 (View Docs)
+                            </a-button>
+                            <a-button type="secondary" @click="convertHelper">
+                                <template #icon><IconArrowDown /></template>
+                                转换 (Convert)
+                            </a-button>
+                        </div>
+                        
+                        <div class="text-gray-500 mb-2">转换结果 (Function Syntax):</div>
+                        <a-textarea
+                            v-model="helperOutput"
+                            placeholder="函数表达式 (Result)"
+                            :rows="3"
+                            :auto-size="{ minRows: 3, maxRows: 6 }"
+                            readonly
+                            :disabled="true"
+                        />
+                    </div>
+                    <template #footer>
+                        <a-button @click="helperDialog = false">关闭</a-button>
+                        <a-button type="primary" @click="applyHelper" :disabled="!helperOutput">应用并填入</a-button>
+                    </template>
+                </a-modal>
+                <!-- Expression Docs Dialog -->
+                <a-modal v-model:visible="docsDialog" title="表达式函数参考文档 (Expression Reference)" width="900px" :scrollable="true">
+                    <div class="pa-4" style="max-height: 600px; overflow-y: auto;">
+                        
+                        <a-alert type="info" class="mb-4">
+                            <div class="font-medium">基本变量</div>
+                            <div><code>value</code> 或 <code>v</code> : 当前触发点位的值 (The current point value).</div>
+                            <div><code>t1</code>, <code>t2</code> ... : 数据源别名 (Source aliases defined in rule).</div>
+                        </a-alert>
 
-                    <div class="text-h6 mb-2">2. 位读取简写 (Bit Access Shortcuts)</div>
-                    <v-table density="compact" class="mb-4 border">
-                        <thead>
-                            <tr>
-                                <th style="width: 200px">语法 (Syntax)</th>
-                                <th>说明 (Description)</th>
-                                <th>等价公式 (Equivalent)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><code>v.N</code></td>
-                                <td>读取第N位 (1-based index). 返回 0 或 1.</td>
-                                <td><code>bitget(v, N-1)</code></td>
-                            </tr>
-                            <tr>
-                                <td><code>v.bit.N</code></td>
-                                <td>同上，读取第N位 (1-based index).</td>
-                                <td><code>bitget(v, N-1)</code></td>
-                            </tr>
-                            <tr>
-                                <td><code>bitget(v, n)</code></td>
-                                <td>读取第n位 (0-based index). 返回 0 或 1.</td>
-                                <td>-</td>
-                            </tr>
-                        </tbody>
-                    </v-table>
-                    <v-alert density="compact" variant="outlined" class="mb-4" color="warning">
-                        <strong>注意:</strong> <code>v.1</code> 代表第1位 (Bit 0), <code>v.4</code> 代表第4位 (Bit 3).
-                    </v-alert>
+                        <div class="text-lg font-medium mb-4">1. 位操作函数 (Bitwise Operations)</div>
+                        <a-table :columns="docsColumns" :data="bitwiseFunctions" size="small" :bordered="false" class="mb-4"></a-table>
 
-                    <div class="text-h6 mb-2">3. 写入控制函数 (Target Write Only)</div>
-                    <p class="text-caption text-grey mb-2">仅在"动作列表 (Actions)" -> "Device Control" 的 "Expr" 字段有效。</p>
-                    <v-table density="compact" class="mb-4 border">
-                        <thead>
-                            <tr>
-                                <th style="width: 250px">语法 (Syntax)</th>
-                                <th>说明 (Description)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><code>bitset(N, value)</code></td>
-                                <td>
-                                    将目标点位的第N位 (1-based) 修改为 <code>value</code> 的值 (0或1)。
-                                    <br>保留其他位不变 (Read-Modify-Write)。
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><code>bitset(N, 1)</code></td>
-                                <td>将目标点位的第N位 (1-based) 置为 1。</td>
-                            </tr>
-                            <tr>
-                                <td><code>bitset(N, 0)</code></td>
-                                <td>将目标点位的第N位 (1-based) 置为 0。</td>
-                            </tr>
-                        </tbody>
-                    </v-table>
-                    <v-alert density="compact" variant="outlined" class="mb-4" color="success">
-                        <strong>示例:</strong> 如果目标是 Slave Device 2 的 v.4 (第4位)，使用 <code>bitset(4, value)</code>。
-                        <br>这会自动读取设备当前值，修改第4位，然后写回。
-                    </v-alert>
+                        <div class="text-lg font-medium mb-4">2. 数学函数 (Mathematical Functions)</div>
+                        <a-table :columns="docsColumns" :data="mathFunctions" size="small" :bordered="false" class="mb-4"></a-table>
 
-                    <div class="text-h6 mb-2">4. 通用运算符 (General Operators)</div>
-                    <v-chip-group class="mb-4">
-                        <v-chip size="small">Math: +, -, *, /, %, ^</v-chip>
-                        <v-chip size="small">Compare: ==, !=, &lt;, &gt;, &lt;=, &gt;=</v-chip>
-                        <v-chip size="small">Logic: &&, ||, !</v-chip>
-                        <v-chip size="small">Ternary: cond ? a : b</v-chip>
-                    </v-chip-group>
-
-                </v-card-text>
-                <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn color="primary" @click="docsDialog = false">关闭 (Close)</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+                        <div class="text-lg font-medium mb-4">3. 逻辑函数 (Logical Functions)</div>
+                        <a-table :columns="docsColumns" :data="logicalFunctions" size="small" :bordered="false" class="mb-4"></a-table>
+                    </div>
+                    <template #footer>
+                        <a-button type="primary" @click="docsDialog = false">关闭</a-button>
+                    </template>
+                </a-modal>
     </div>
 </template>
 
 <script setup>
+import {
+  Tabs, TabPane, Card, Table, Button, Modal, Form, FormItem, Input,
+  InputNumber, Select, Switch, Alert, Collapse, CollapseItem, Tag, Row, Col
+} from '@arco-design/web-vue'
+import {
+  IconPlus, IconEdit, IconDelete, IconRefresh, IconDownload, IconCode, IconInfoCircle, IconBook, IconArrowDown
+} from '@arco-design/web-vue/es/icon'
+import ActionEditor from '@/components/ActionEditor.vue'
+
+// 表格列定义
+const ruleColumns = [
+  { title: '规则名称', dataIndex: 'name' },
+  { title: '类型', dataIndex: 'type', slotName: 'type' },
+  { title: '触发模式', dataIndex: 'trigger_mode', slotName: 'trigger_mode' },
+  { title: '启用状态', dataIndex: 'enable', slotName: 'enable' },
+  { title: '优先级', dataIndex: 'priority' },
+  { title: '操作', dataIndex: 'operations', slotName: 'operations', fixed: 'right', width: 120 }
+]
+
+const statusColumns = [
+  { title: '规则名称', dataIndex: 'rule_name' },
+  { title: '当前状态', dataIndex: 'current_status', slotName: 'current_status' },
+  { title: '最近触发时间', dataIndex: 'last_trigger', slotName: 'last_trigger' },
+  { title: '触发次数', dataIndex: 'trigger_count' },
+  { title: '最新值', dataIndex: 'last_value' },
+  { title: '操作', dataIndex: 'operations', slotName: 'operations' },
+  { title: '错误信息', dataIndex: 'error_message', slotName: 'error_message' }
+]
+
+const logColumns = [
+  { title: '时间', dataIndex: 'minute', width: 160 },
+  { title: '规则ID', dataIndex: 'rule_id', width: 120 },
+  { title: '规则名称', dataIndex: 'rule_name', width: 160 },
+  { title: '状态', dataIndex: 'status', slotName: 'status', width: 100 },
+  { title: '触发次数', dataIndex: 'trigger_count', width: 100 },
+  { title: '值', dataIndex: 'last_value', slotName: 'last_value', width: 400 },
+  { title: '错误信息', dataIndex: 'error_message', slotName: 'error_message', width: 400 }
+]
+
+const windowDataColumns = [
+  { title: '时间', dataIndex: 'ts', slotName: 'ts' },
+  { title: '值', dataIndex: 'value' }
+]
+
+const syntaxColumns = [
+  { title: '语法', dataIndex: 'syntax' },
+  { title: '说明', dataIndex: 'description' }
+]
+
+const syntaxData = [
+  { syntax: '<code>v</code> / <code>value</code>', description: '当前点位的实时值' },
+  { syntax: '<code>t1</code>, <code>p1</code>', description: '数据源别名引用' },
+  { syntax: '<code>bitget(v, n)</code>', description: '获取第 n 位 (0/1)' },
+  { syntax: '<code>bitset(v, n)</code>', description: '将第 n 位置 1' },
+  { syntax: '<code>bitclr(v, n)</code>', description: '将第 n 位置 0' }
+]
+
+const docsColumns = [
+  { title: '函数 (Function)', dataIndex: 'function', width: 200 },
+  { title: '说明 (Description)', dataIndex: 'description' },
+  { title: '示例 (Example)', dataIndex: 'example' }
+]
+
+const bitwiseFunctions = [
+  { function: '<code>bitand(a, b)</code>', description: '按位与 (Bitwise AND). 对应 <code>a & b</code>', example: '<code>bitand(v, 1)</code> (判断最低位是否为1)' },
+  { function: '<code>bitor(a, b)</code>', description: '按位或 (Bitwise OR). 对应 <code>a | b</code>', example: '<code>bitor(v, 4)</code> (将第3位置1)' },
+  { function: '<code>bitxor(a, b)</code>', description: '按位异或 (Bitwise XOR). 对应 <code>a ^ b</code>', example: '<code>bitxor(v, 1)</code> (翻转最低位)' },
+  { function: '<code>bitnot(a)</code>', description: '按位非 (Bitwise NOT). 对应 <code>~a</code>', example: '<code>bitnot(v)</code> (翻转所有位)' },
+  { function: '<code>bitget(v, n)</code>', description: '获取第 n 位 (0-based)', example: '<code>bitget(v, 3)</code> (获取第4位)' },
+  { function: '<code>bitset(v, n)</code>', description: '将第 n 位置 1', example: '<code>bitset(v, 3)</code> (将第4位置1)' },
+  { function: '<code>bitclr(v, n)</code>', description: '将第 n 位置 0', example: '<code>bitclr(v, 3)</code> (将第4位置0)' }
+]
+
+const mathFunctions = [
+  { function: '<code>abs(a)</code>', description: '绝对值', example: '<code>abs(v)</code>' },
+  { function: '<code>ceil(a)</code>', description: '向上取整', example: '<code>ceil(v)</code>' },
+  { function: '<code>floor(a)</code>', description: '向下取整', example: '<code>floor(v)</code>' },
+  { function: '<code>round(a)</code>', description: '四舍五入', example: '<code>round(v)</code>' },
+  { function: '<code>sqrt(a)</code>', description: '平方根', example: '<code>sqrt(v)</code>' },
+  { function: '<code>pow(a, b)</code>', description: '幂运算', example: '<code>pow(v, 2)</code> (平方)' },
+  { function: '<code>sin(a)</code>', description: '正弦函数', example: '<code>sin(v)</code>' },
+  { function: '<code>cos(a)</code>', description: '余弦函数', example: '<code>cos(v)</code>' },
+  { function: '<code>tan(a)</code>', description: '正切函数', example: '<code>tan(v)</code>' }
+]
+
+const logicalFunctions = [
+  { function: '<code>and(a, b)</code>', description: '逻辑与', example: '<code>and(t1 > 50, t2 > 30)</code>' },
+  { function: '<code>or(a, b)</code>', description: '逻辑或', example: '<code>or(t1 > 50, t2 > 30)</code>' },
+  { function: '<code>not(a)</code>', description: '逻辑非', example: '<code>not(t1 > 50)</code>' },
+  { function: '<code>eq(a, b)</code>', description: '等于', example: '<code>eq(v, 1)</code>' },
+  { function: '<code>ne(a, b)</code>', description: '不等于', example: '<code>ne(v, 0)</code>' },
+  { function: '<code>gt(a, b)</code>', description: '大于', example: '<code>gt(v, 50)</code>' },
+  { function: '<code>ge(a, b)</code>', description: '大于等于', example: '<code>ge(v, 50)</code>' },
+  { function: '<code>lt(a, b)</code>', description: '小于', example: '<code>lt(v, 50)</code>' },
+  { function: '<code>le(a, b)</code>', description: '小于等于', example: '<code>le(v, 50)</code>' }
+]
 import { ref, reactive, computed, onMounted, onUnmounted, provide } from 'vue'
 import { useRoute } from 'vue-router'
 import request from '@/utils/request'
@@ -922,7 +787,7 @@ const ruleStates = ref([])
 const dialog = ref(false)
 const helpDialog = ref(false)
 const editingRule = ref(false)
-import ActionEditor from '@/components/ActionEditor.vue'
+const selectedRuleKeys = ref([]) // 批量选择存储
 
 const channels = ref([])
 const devices = ref([])
@@ -1302,6 +1167,39 @@ const saveRule = async () => {
     }
 }
 
+// 批量操作函数
+const handleBatchDelete = async () => {
+    if (selectedRuleKeys.value.length === 0) return
+    if (!confirm(`确定删除选中的 ${selectedRuleKeys.value.length} 条规则吗？`)) return
+    
+    try {
+        await Promise.all(selectedRuleKeys.value.map(id => request.delete(`/api/edge/rules/${id}`)))
+        selectedRuleKeys.value = []
+        fetchRules()
+        showMessage('批量删除成功', 'success')
+    } catch (e) {
+        showMessage('批量删除失败: ' + e.message, 'error')
+    }
+}
+
+const handleBatchEnable = async (status) => {
+    if (selectedRuleKeys.value.length === 0) return
+    
+    try {
+        await Promise.all(selectedRuleKeys.value.map(id => request.put(`/api/edge/rules/${id}`, { enable: status })))
+        selectedRuleKeys.value = []
+        fetchRules()
+        showMessage(`批量${status ? '启用' : '禁用'}成功`, 'success')
+    } catch (e) {
+        showMessage(`批量${status ? '启用' : '禁用'}失败: ` + e.message, 'error')
+    }
+}
+
+const showMessage = (message, type = 'info') => {
+    // 这里可以根据实际使用的消息组件进行调整
+    console.log(`[${type.toUpperCase()}] ${message}`)
+}
+
 const getLogicColor = (logic) => {
     switch(logic) {
         case 'AND': return 'info'
@@ -1369,16 +1267,357 @@ onUnmounted(() => {
     height: 100%;
     display: flex;
     flex-direction: column;
+    padding: 16px;
+    box-sizing: border-box;
 }
-.truncate-cell {
-    max-width: 200px;
+
+.single-line-cell {
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-x: auto;
+    max-width: 400px;
+    display: block;
     cursor: pointer;
+    font-family: monospace;
 }
-.truncate-cell:hover {
-    color: #1976D2; /* primary color */
-    background-color: #f5f5f5;
+
+.single-line-cell:hover {
+    color: #111827;
+    background-color: #f9fafb;
+}
+
+/* 表格容器允许横向滚动 */
+.logs-table-container {
+    overflow-x: auto;
+}
+
+/* 全局表格强制单行 */
+:deep(.arco-table-td),
+:deep(.arco-table-th) {
+    white-space: nowrap;
+}
+
+/* 统一卡片风格 */
+.block-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 0;
+    margin-bottom: 12px;
+}
+
+:deep(.arco-card-header) {
+    padding: 8px 12px;
+    font-size: 12px;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+/* 工业风格卡片样式 */
+:deep(.arco-card) {
+    border: 1px solid #e5e7eb;
+    border-radius: 0;
+    background: #ffffff;
+    position: relative;
+}
+
+:deep(.arco-card::after) {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: #0f172a;
+    opacity: 0.05;
+}
+
+:deep(.arco-card:hover) {
+    box-shadow: none !important;
+    border-color: #111827;
+}
+
+/* 表格工业风格样式 */
+:deep(.arco-table-th) {
+    background: #fafafa;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 11px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+:deep(.arco-table-td) {
+    font-size: 12px;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+:deep(.arco-table-tr:hover .arco-table-td) {
+    background: #f9fafb;
+}
+
+/* 标签工业风格样式 */
+:deep(.arco-tag) {
+    border-radius: 0;
+    font-size: 11px;
+    padding: 2px 6px;
+}
+
+/* 按钮工业风格样式 */
+:deep(.arco-button) {
+    border-radius: 0;
+}
+
+/* 输入框工业风格样式 */
+:deep(.arco-input),
+:deep(.arco-select) {
+    border-radius: 0;
+}
+
+/* 表单标签水平显示 */
+:deep(.arco-form-item-label) {
+    white-space: nowrap;
+    text-align: left;
+    font-size: 12px;
+    color: #475569;
+    font-weight: 500;
+}
+
+:deep(.arco-form-item-label-col) {
+    display: flex;
+    align-items: center;
+}
+
+:deep(.arco-form-item) {
+    margin-bottom: 0;
+}
+
+/* 工业白色风格样式 */
+:deep(.industrial-white-modal .arco-modal) {
+    border-radius: 2px;
+    padding: 0;
+}
+
+.form-section {
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 11px;
+    font-weight: bold;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    border-left: 3px solid #0f172a;
+    padding-left: 8px;
+}
+
+.section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.action-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+/* 强制直角 */
+.rect-input {
+    border-radius: 0 !important;
+}
+
+/* 输入组样式修正 */
+:deep(.arco-input-group) {
+    width: 100%;
+}
+
+/* 批量操作工具栏：白色悬浮条 */
+.table-toolbar-industrial {
+    background: #ffffff;
+    border: 1px solid #10b981;
+    padding: 8px 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* 表格规范样式 */
+.industrial-table {
+    border-radius: 0 !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+/* 表头样式 */
+.industrial-table :deep(.arco-table-th) {
+    background-color: #f8fafc !important;
+    font-weight: bold !important;
+    border-radius: 0 !important;
+    padding: 12px !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+}
+
+/* 单元格样式 */
+.industrial-table :deep(.arco-table-td) {
+    padding: 12px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    border-radius: 0 !important;
+}
+
+/* 行高 */
+.industrial-table :deep(.arco-table-tr) {
+    height: 36px !important;
+}
+
+/* 悬停效果 */
+.industrial-table :deep(.arco-table-tr:hover) {
+    background-color: #f9fafb !important;
+}
+
+/* 选中状态 */
+.industrial-table :deep(.arco-table-tr.arco-table-tr-selected) {
+    background-color: #eff6ff !important;
+    border: 1px solid #bfdbfe !important;
+}
+
+/* 操作列固定在右侧 */
+.industrial-table :deep(.arco-table-col-fixed-right) {
+    position: sticky !important;
+    right: 0 !important;
+    z-index: 1 !important;
+    background-color: #ffffff !important;
+}
+
+/* 消除表格最后一列的右边框 */
+.industrial-table :deep(.arco-table-col-fixed-right .arco-table-td) {
+    border-right: none !important;
+}
+
+/* 固定列的左边框 */
+.industrial-table :deep(.arco-table-col-fixed-right .arco-table-td) {
+    border-left: 1px solid #e5e7eb !important;
+}
+
+/* 消除表格的边框 */
+.industrial-table :deep(.arco-table-container) {
+    border-right: none !important;
+    border-left: none !important;
+}
+
+/* 固定列样式 */
+.industrial-table :deep(.arco-table-col-fixed-left .arco-table-th) {
+    background-color: #f8fafc !important;
+    border-right: 1px solid #e5e7eb !important;
+}
+
+.industrial-table :deep(.arco-table-col-fixed-left .arco-table-td) {
+    background-color: #ffffff !important;
+    border-right: 1px solid #e5e7eb !important;
+}
+
+.industrial-table :deep(.arco-table-col-fixed-right .arco-table-th) {
+    background-color: #f8fafc !important;
+    border-left: 1px solid #e5e7eb !important;
+}
+
+.industrial-table :deep(.arco-table-td.arco-table-td-row-select) {
+    background-color: #ffffff !important;
+    border-right: 1px solid #e5e7eb !important;
+}
+
+/* 无边框卡片 */
+.borderless-card {
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* 无边框卡片的内容区 */
+.borderless-card :deep(.arco-card-body) {
+    padding: 0 !important;
+}
+
+.selection-count {
+    font-size: 12px;
+    font-weight: bold;
+    color: #10b981;
+}
+
+.flex {
+    display: flex;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.gap-2 {
+    gap: 8px;
+}
+
+/* 卡片标题样式 */
+:deep(.arco-card-header-title) {
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    letter-spacing: 0.5px;
+}
+
+/* 数据源样式 */
+.source-row {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #f1f3f5;
+    padding: 8px 0;
+}
+
+.source-index {
+    width: 32px;
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+/* 动作行样式 */
+.action-row {
+    display: flex;
+    align-items: flex-start;
+    border-left: 2px solid #e5e7eb;
+    padding-left: 12px;
+    margin-bottom: 12px;
+}
+
+.action-index {
+    font-size: 10px;
+    color: #6b7280;
+    width: 60px;
+}
+
+.action-body {
+    flex: 1;
+}
+
+/* 代码输入框样式 */
+.code-input {
+    font-family: monospace;
+    font-size: 12px;
+}
+
+/* 逻辑工具栏样式 */
+.logic-toolbar {
+    margin-top: 8px;
+}
+
+/* 空状态样式 */
+.empty-box {
+    padding: 24px;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 12px;
+    background: #f9fafb;
+    border: 1px dashed #e5e7eb;
 }
 </style>

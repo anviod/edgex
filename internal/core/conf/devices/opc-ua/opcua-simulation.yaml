@@ -1,0 +1,11 @@
+config:
+    endpoint: opc.tcp://localhost:5050/test
+    model_name: SimModel
+    name: Simulation OPC UA Server
+    vendor_name: SimVendor
+    version: 2.0.0
+enable: true
+id: opcua-simulation
+interval: 10s
+name: Simulation OPC UA Server
+points: []

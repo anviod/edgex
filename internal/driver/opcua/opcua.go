@@ -168,6 +168,70 @@ func (d *OpcUaDriver) GetConnectionMetrics() (connectionSeconds int64, reconnect
 	return 0, 0, "", "", time.Time{}
 }
 
+// Scan implements Scanner interface for OPC-UA device discovery
+func (d *OpcUaDriver) Scan(ctx context.Context, params map[string]any) (any, error) {
+	// For OPC-UA, we typically scan a specific endpoint
+	// This implementation returns a list of OPC-UA endpoints that can be connected to
+
+	// Check if endpoint is provided
+	endpoint, ok := params["endpoint"].(string)
+	if !ok || endpoint == "" {
+		// If no endpoint provided, return a list of default OPC-UA endpoints
+		// This is a placeholder implementation
+		defaultEndpoints := []map[string]any{
+			{
+				"device_id":   "opcua-default",
+				"endpoint":    "opc.tcp://localhost:4840",
+				"name":        "Local OPC UA Server",
+				"description": "Default OPC UA Server on localhost",
+			},
+			{
+				"device_id":   "opcua-simulation",
+				"endpoint":    "opc.tcp://localhost:5050/test",
+				"name":        "Simulation OPC UA Server",
+				"description": "Simulation OPC UA Server",
+			},
+		}
+		return defaultEndpoints, nil
+	}
+
+	// If endpoint is provided, test connection and return device info
+	opts, err := d.buildClientOptions(params)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := opcua.NewClient(endpoint, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client: %v", err)
+	}
+
+	defer c.Close(context.Background())
+
+	if err := c.Connect(ctx); err != nil {
+		return nil, fmt.Errorf("failed to connect to endpoint: %v", err)
+	}
+
+	// Test connection by getting endpoints
+	_, err = c.GetEndpoints(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get server info: %v", err)
+	}
+
+	// Return device info
+	device := map[string]any{
+		"device_id":   endpoint,
+		"endpoint":    endpoint,
+		"name":        "OPC UA Server",
+		"description": "OPC UA Server at " + endpoint,
+		"vendor_name": "Unknown",
+		"model_name":  "OPC UA Server",
+		"version":     "Unknown",
+	}
+
+	return []map[string]any{device}, nil
+}
+
 func (d *OpcUaDriver) reconnect(w *ClientWrapper) {
 	d.mu.Lock()
 	if w.Connected {

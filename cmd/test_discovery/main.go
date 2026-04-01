@@ -22,7 +22,7 @@ func main() {
 	// Configure for local interface if needed, or default
 	config := model.DriverConfig{
 		Config: map[string]any{
-			"interface_ip":   "192.168.3.106", // Bind to specific IP to ensure source IP is correct
+			"interface_ip":   "192.168.3.112", // Bind to specific IP to ensure source IP is correct
 			"interface_port": 47808,           // Share port with simulators
 			"subnet_cidr":    24,
 		},
@@ -48,7 +48,7 @@ func main() {
 	scanParams := map[string]any{
 		"low_limit":  0,
 		"high_limit": 4194303,
-		// "interface_ip": "192.168.3.106", // Optional: test specific interface
+		// "interface_ip": "192.168.3.112", // Optional: test specific interface
 	}
 
 	log.Println("Initiating Scan (WhoIs)...")

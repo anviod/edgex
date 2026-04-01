@@ -1,3 +1,46 @@
+- id: 44amyf4grh5oquzc
+  name: ModbusTCP
+  protocol: modbus-tcp
+  enable: true
+  config:
+    baudRate: 9600
+    byte_order_4: ABCD
+    connectionType: serial
+    dataBits: 8
+    enableSmartProbe: true
+    instruction_interval: 10
+    max_retries: 3
+    parity: E
+    probeEnableMTU: true
+    probeMaxConsecutive: 20
+    probeMaxDepth: 6
+    probeTimeout: 3000
+    retry_interval: 100
+    start_address: 1
+    stopBits: 1
+    url: tcp://127.0.0.1:502
+  devices:
+    - id: slave-1
+      name: ""
+      enable: false
+      interval: 0s
+      device_file: conf/devices/modbus-tcp/slave-1.yaml
+      config: {}
+      points: []
+    - id: slave-2
+      name: ""
+      enable: false
+      interval: 0s
+      device_file: conf/devices/modbus-tcp/slave-2.yaml
+      config: {}
+      points: []
+    - id: slave-5
+      name: ""
+      enable: false
+      interval: 0s
+      device_file: conf/devices/modbus-tcp/slave-5.yaml
+      config: {}
+      points: []
 - id: jxy3kvpohmetzct0
   name: BACnet-1
   protocol: bacnet-ip
@@ -50,7 +93,7 @@
       config: {}
       points: []
 - id: 1srhjw7e35hayk76
-  name: OPCUA-1
+  name: OPCUA-10
   protocol: opc-ua
   enable: true
   config:
@@ -75,48 +118,6 @@
       name: ""
       enable: false
       interval: 0s
-      config: {}
-      points: []
-- id: 44amyf4grh5oquzc
-  name: ModbusTCP
-  protocol: modbus-tcp
-  enable: true
-  config:
-    baudRate: 9600
-    byte_order_4: ABCD
-    connectionType: serial
-    dataBits: 8
-    enableSmartProbe: true
-    instruction_interval: 10
-    max_retries: 3
-    parity: E
-    probeEnableMTU: true
-    probeMaxConsecutive: 20
-    probeMaxDepth: 6
-    probeTimeout: 3000
-    retry_interval: 100
-    start_address: 1
-    stopBits: 1
-    url: tcp://127.0.0.1:502
-  devices:
-    - id: slave-1
-      name: ""
-      enable: false
-      interval: 0s
-      device_file: conf/devices/modbus-tcp/slave-1.yaml
-      config: {}
-      points: []
-    - id: slave-2
-      name: ""
-      enable: false
-      interval: 0s
-      device_file: conf/devices/modbus-tcp/slave-2.yaml
-      config: {}
-      points: []
-    - id: slave-5
-      name: ""
-      enable: false
-      interval: 0s
-      device_file: conf/devices/modbus-tcp/slave-5.yaml
+      device_file: conf/devices/opc-ua/LAPTOP-5E3D21EG.yaml
       config: {}
       points: []

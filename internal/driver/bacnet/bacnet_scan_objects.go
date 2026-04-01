@@ -1,8 +1,9 @@
 package bacnet
+
 import (
 	"context"
-	"fmt"
 )
+
 // ScanObjects implements ObjectScanner interface
 func (d *BACnetDriver) ScanObjects(ctx context.Context, config map[string]any) (any, error) {
 	deviceID := 0
@@ -12,10 +13,6 @@ func (d *BACnetDriver) ScanObjects(ctx context.Context, config map[string]any) (
 		} else if id, ok := v.(float64); ok {
 			deviceID = int(id)
 		}
-	}
-
-	if deviceID == 0 {
-		return nil, fmt.Errorf("device_id is required")
 	}
 
 	deep := false

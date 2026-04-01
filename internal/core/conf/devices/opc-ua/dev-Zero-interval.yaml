@@ -1,0 +1,7 @@
+config:
+    endpoint: opc.tcp://localhost:4840
+enable: true
+id: dev-Zero-interval
+interval: 0s
+name: Zero interval
+points: []

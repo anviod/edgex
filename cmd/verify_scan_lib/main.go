@@ -12,7 +12,7 @@ func main() {
 
 	// Create Client
 	cb := &bacnet.ClientBuilder{
-		Ip:         "192.168.3.106",
+		Ip:         "192.168.3.112",
 		Port:       47810,
 		SubnetCIDR: 24,
 	}
@@ -42,7 +42,7 @@ func main() {
 	}
 
 	// 2. Send Unicast WhoIs
-	log.Println("Sending Unicast WhoIs to 192.168.3.106:47808...")
+	log.Println("Sending Unicast WhoIs to 192.168.3.112:47808...")
 	unicastDest := &btypes.Address{
 		Net:    0,
 		MacLen: 6,

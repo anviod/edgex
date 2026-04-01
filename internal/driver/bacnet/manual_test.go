@@ -16,13 +16,13 @@ func TestBACnet_ManualWrite(t *testing.T) {
 	// Configuration from user's environment
 	channelConfig := model.DriverConfig{
 		Config: map[string]any{
-			"ip":   "192.168.3.106",
+			"ip":   "192.168.3.112",
 			"port": 47809, // Use a different port to avoid conflict if gateway is running
 		},
 	}
 	deviceConfig := map[string]any{
 		"device_id": 2228317,
-		"ip":        "192.168.3.106",
+		"ip":        "192.168.3.112",
 		"port":      47808,
 	}
 

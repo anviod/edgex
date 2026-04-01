@@ -1,0 +1,11 @@
+config:
+    endpoint: opc.tcp://localhost:4840
+    model_name: TestModel
+    name: Local OPC UA Server
+    vendor_name: TestVendor
+    version: 1.0.0
+enable: true
+id: opcua-default
+interval: 10s
+name: Local OPC UA Server
+points: []

@@ -1,1059 +1,839 @@
 <template>
-    <div>
-        <v-card class="glass-card no-hover">
-            <v-card-title class="d-flex align-center py-4 px-6 border-b">
-                <v-btn 
-                    prepend-icon="mdi-arrow-left" 
-                    variant="flat" 
-                    color="white" 
-                    class="mr-4 text-primary font-weight-bold"
-                    elevation="2"
-                    @click="$router.back()"
-                >
+    <div class="point-list-container">
+        <div class="point-header">
+            <div class="header-left">
+                <a-button type="outline" size="small" @click="goBack">
+                    <template #icon><IconArrowLeft /></template>
                     返回设备
-                </v-btn>
-
-                <v-spacer></v-spacer>
-                
-                <!-- Point Filtering -->
-                <div class="d-flex align-center mr-4" style="max-width: 400px; width: 100%;">
-                    <v-text-field
+                </a-button>
+                <div class="header-info">
+                    <span class="protocol-tag">{{ getProtocolTransport(channelProtocol) }}</span>
+                    <h2 class="title-text">点位列表</h2>
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <a-space size="small">
+                    <a-input
                         v-model="filters.search"
-                        label="搜索点位 (ID/名称/地址)"
-                        variant="outlined"
-                        density="compact"
-                        prepend-inner-icon="mdi-magnify"
-                        hide-details
-                        class="mr-2"
-                        clearable
-                    ></v-text-field>
-                    
-                    <v-select
-                        v-model="filters.quality"
-                        :items="['Good', 'Bad']"
-                        label="质量过滤"
-                        multiple
-                        chips
-                        variant="outlined"
-                        density="compact"
-                        hide-details
-                        style="max-width: 180px;"
+                        placeholder="搜索点位 (ID/名称/地址)"
+                        size="small"
+                        allow-clear
+                        style="width: 200px;"
                     >
-                        <template v-slot:selection="{ item, index }">
-                            <v-chip v-if="index === 0" size="x-small">{{ item.title }}</v-chip>
-                            <span v-if="index === 1" class="text-grey text-caption ml-1">(+{{ filters.quality.length - 1 }})</span>
-                        </template>
-                    </v-select>
+                        <template #prefix><IconSearch /></template>
+                    </a-input>
+                    <a-select
+                        v-model="filters.quality"
+                        :options="[{ label: 'Good', value: 'Good' }, { label: 'Bad', value: 'Bad' }]"
+                        placeholder="质量过滤"
+                        mode="multiple"
+                        size="small"
+                        style="width: 120px;"
+                    />
+                    <a-button v-if="selection.selectedIds.length > 0" status="danger" type="outline" size="small" @click="confirmBatchDelete">
+                        <template #icon><IconDelete /></template>
+                        批量删除 ({{ selection.selectedIds.length }})
+                    </a-button>
+                    <a-button type="outline" status="success" size="small" @click="openAddDialog">
+                        <template #icon><IconPlus /></template>
+                        新增点位
+                    </a-button>
+                    <a-button v-if="channelProtocol === 'bacnet-ip' || channelProtocol === 'opc-ua'" type="outline" status="info" size="small" @click="openDiscoverDialog">
+                        <template #icon><IconScan /></template>
+                        扫描点位
+                    </a-button>
+                    <a-button type="primary" size="small" @click="fetchPoints" :loading="loading">
+                        <template #icon><IconRefresh /></template>
+                        刷新
+                    </a-button>
+                    <a-button type="text" size="small" class="help-trigger-btn" @click="helpVisible = true">
+                        <template #icon><IconQuestionCircle /></template>
+                        配置指引
+                    </a-button>
+                </a-space>
+            </div>
+        </div>
+
+        <a-spin :loading="loading" style="width: 100%">
+            <div class="point-list-container no-padding">
+                <div class="table-toolbar">
+                    <div class="left-title">POINT LIST</div>
                 </div>
-
-                <v-btn 
-                    v-if="selection.selectedIds.length > 0"
-                    color="error"
-                    variant="elevated"
-                    prepend-icon="mdi-delete-sweep"
-                    class="mr-2"
-                    @click="confirmBatchDelete"
+                <a-table
+                    :columns="tableColumns"
+                    :data="filteredPoints"
+                    :row-selection="rowSelection"
+                    row-key="id"
+                    class="industrial-table-fluid"
+                    :bordered="{ wrapper: true, cell: true }"
                 >
-                    批量删除 ({{ selection.selectedIds.length }})
-                </v-btn>
-
-                <v-btn 
-                    color="success" 
-                    variant="tonal" 
-                    prepend-icon="mdi-plus" 
-                    class="mr-2"
-                    @click="openAddDialog"
-                >
-                    新增点位
-                </v-btn>
-                <v-btn
-                    v-if="channelProtocol === 'bacnet-ip' || channelProtocol === 'opc-ua'"
-                    color="info"
-                    variant="tonal"
-                    prepend-icon="mdi-radar"
-                    class="mr-2"
-                    @click="openDiscoverDialog"
-                >
-                    扫描点位
-                </v-btn>
-                <v-btn 
-                    color="primary" 
-                    variant="tonal" 
-                    prepend-icon="mdi-refresh" 
-                    @click="fetchPoints"
-                    :loading="loading"
-                >
-                    刷新
-                </v-btn>
-            </v-card-title>
-
-            <v-progress-linear v-if="loading" indeterminate color="primary"></v-progress-linear>
-
-            <v-card-text class="pa-0">
-                <!-- Device Connection Metrics -->
-                <div v-if="deviceInfo" class="px-6 py-2 bg-grey-lighten-4 border-b d-flex align-center text-caption text-grey-darken-2">
-                    <template v-if="deviceInfo.state === 0 || deviceInfo.state === 1">
-                        <v-icon size="small" :icon="deviceInfo.state === 0 ? 'mdi-lan-connect' : 'mdi-lan-pending'" class="mr-2" :color="deviceInfo.state === 0 ? 'success' : 'warning'"></v-icon>
-                        <span class="mr-4">
-                            <strong>连接状态:</strong> 
-                            <v-chip size="x-small" :color="deviceInfo.state === 0 ? 'success' : 'warning'" variant="flat" class="ml-1">
-                                {{ deviceInfo.state === 0 ? '已连接' : '不稳定' }}
-                            </v-chip>
-                        </span>
-                        <span class="mr-4"><strong>协议:</strong> {{ getProtocolTransport(channelProtocol) }}</span>
-                        <span v-if="metrics.localAddr" class="mr-4"><strong>本地端口:</strong> {{ metrics.localAddr.split(':').pop() }}</span>
-                        <span v-if="metrics.remoteAddr" class="mr-4"><strong>远程地址:</strong> {{ metrics.remoteAddr }}</span>
-                        <!-- 使用 runtime.success_count 和 last_fail_time 计算更准确的连接信息 -->
-                        <span v-if="deviceInfo.runtime" class="mr-4" title="连续成功通信的次数">
-                            <strong>连续通信:</strong> 
-                            <v-chip size="x-small" color="success" variant="tonal" class="ml-1 font-weight-bold">
-                                {{ deviceInfo.runtime.success_count }} 次
-                            </v-chip>
-                        </span>
-                        <span v-if="deviceInfo.runtime?.last_fail_time && new Date(deviceInfo.runtime.last_fail_time).getFullYear() > 1" class="mr-4">
-                            <strong>最近失败:</strong> 
-                            <span class="text-grey-darken-1 ml-1">{{ formatDate(deviceInfo.runtime.last_fail_time) }}</span>
-                        </span>
-                    </template>
-                    <template v-else>
-                        <v-icon size="small" icon="mdi-lan-disconnect" class="mr-2" color="error"></v-icon>
-                        <span class="mr-4"><strong>连接状态:</strong> <v-chip size="x-small" color="error" variant="flat" class="ml-1">已断开</v-chip></span>
-                        <span class="mr-4"><strong>协议:</strong> {{ getProtocolTransport(channelProtocol) }}</span>
-                        <span v-if="deviceInfo.runtime?.last_fail_time && new Date(deviceInfo.runtime.last_fail_time).getFullYear() > 1" class="mr-4"><strong>断开时间:</strong> {{ formatDate(deviceInfo.runtime.last_fail_time) }}</span>
-                        <span v-if="deviceInfo.runtime?.last_fail_time && new Date(deviceInfo.runtime.last_fail_time).getFullYear() > 1" class="mr-4"><strong>离线时长:</strong> {{ formatDuration(Math.floor((Date.now() - new Date(deviceInfo.runtime.last_fail_time).getTime()) / 1000)) }}</span>
-                    </template>
-                    <span v-if="metrics.reconnectCount > 0" class="mr-4"><strong>重连次数:</strong> {{ metrics.reconnectCount }}</span>
-                    <span v-if="deviceInfo.quality_score !== undefined" class="mr-4"><strong>质量评分:</strong> {{ deviceInfo.quality_score }}</span>
-                </div>
-
-                <v-table hover>
-                    <thead>
-                        <tr>
-                            <th class="text-left" style="width: 40px;">
-                                <v-checkbox
-                                    v-model="selection.selectAll"
-                                    hide-details
-                                    density="compact"
-                                    @update:model-value="toggleSelectAll"
-                                ></v-checkbox>
-                            </th>
-                            <th class="text-left">点位ID</th>
-                            <th class="text-left">点位名称</th>
-                            <th class="text-left">读写权限</th>
-                            <th class="text-left">数值</th>
-                            <th class="text-left">质量</th>
-                            <th class="text-left">时间戳</th>
-                            <th class="text-left">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="point in filteredPoints" :key="point.id" :class="{'bg-blue-lighten-5': selection.selectedIds.includes(point.id)}">
-                            <td>
-                                <v-checkbox
-                                    v-model="selection.selectedIds"
-                                    :value="point.id"
-                                    hide-details
-                                    density="compact"
-                                ></v-checkbox>
-                            </td>
-                            <td class="font-weight-medium">{{ point.id }}</td>
-                            <td>{{ point.name }}</td>
-                            <td>
-                                <v-chip
-                                    size="x-small"
-                                    :color="point.readwrite === 'RW' ? 'success' : 'info'"
-                                    variant="outlined"
-                                    class="font-weight-medium"
-                                >
-                                    {{ point.readwrite }}
-                                </v-chip>
-                            </td>
-                            <td style="max-width: 260px;">
-                                <div 
-                                    class="d-flex align-center cursor-pointer"
-                                    @click="showFullValue(point)"
-                                    title="点击查看完整值"
-                                >
-                                    <span class="text-h6 font-weight-bold text-primary text-truncate d-block" style="max-width: 100%;">
-                                        {{ formatValue(point.value) }}
-                                    </span>
-                                    <span v-if="point.unit" class="text-caption ml-1 flex-shrink-0">{{ point.unit }}</span>
-                                </div>
-                                <div class="text-caption text-grey-darken-1 mt-1">
-                                    {{ getRegisterHint(point) }}
-                                </div>
-                            </td>
-                            <td>
-                                <v-chip 
-                                    size="small" 
-                                    :color="isQualityGood(point.quality) ? 'success' : 'error'" 
-                                    variant="flat"
-                                >
-                                    {{ point.quality }}
-                                </v-chip>
-                            </td>
-                            <td class="text-body-2">{{ formatDate(point.timestamp) }}</td>
-                            <td>
-                                <v-btn 
-                                    v-if="point.readwrite === 'RW' || point.readwrite === 'W'"
-                                    color="secondary" 
-                                    size="x-small" 
-                                    variant="tonal"
-                                    icon="mdi-pencil"
-                                    class="mr-1"
-                                    @click="openWriteDialog(point)"
-                                    title="写入数值"
-                                ></v-btn>
-                                <v-btn 
-                                    icon="mdi-file-edit-outline"
-                                    size="x-small"
-                                    variant="tonal"
-                                    color="primary"
-                                    class="mr-1"
-                                    @click="openEditDialog(point)"
-                                    title="编辑点位配置"
-                                ></v-btn>
-                                <v-btn 
-                                    icon="mdi-delete-outline"
-                                    size="x-small"
-                                    variant="tonal"
-                                    color="error"
-                                    @click="confirmDelete(point)"
-                                    title="删除点位"
-                                ></v-btn>
-                                <v-btn
-                                    icon="mdi-bug-outline"
-                                    size="x-small"
-                                    variant="tonal"
-                                    color="info"
-                                    class="ml-1"
-                                    @click="openDebug(point)"
-                                    title="调试点位"
-                                ></v-btn>
-                            </td>
-                        </tr>
-                        <tr v-if="!loading && filteredPoints.length === 0">
-                            <td colspan="8" class="text-center pa-8 text-grey">
-                                暂无匹配的点位数据
-                                <v-btn v-if="points.length === 0" color="primary" variant="text" class="ml-2" @click="openCloneDialog" prepend-icon="mdi-content-copy">
-                                    复制其它设备点位
-                                </v-btn>
-                                <v-btn v-else color="secondary" variant="text" class="ml-2" @click="filters.search = ''; filters.quality = []">
-                                    清除过滤器
-                                </v-btn>
-                            </td>
-                        </tr>
-                    </tbody>
-                </v-table>
-            </v-card-text>
-        </v-card>
-
-        <v-dialog v-model="cloneDialog.visible" width="100%" max-width="100%" persistent class="clone-dialog-full">
-            <v-card class="rounded-xl">
-                <v-card-title class="text-h6 d-flex align-center">
-                    <v-icon icon="mdi-content-copy" class="mr-2"></v-icon>
-                    克隆其它设备点位
-                </v-card-title>
-                <v-card-text class="pt-3 pb-2">
-                    <v-row class="mb-2" align="center">
-                        <v-col cols="12" md="4" class="pb-2 pb-md-0 pr-md-2">
-                            <v-select
-                                v-model="cloneDialog.selectedChannel"
-                                :items="cloneDialog.channels"
-                                item-title="name"
-                                item-value="id"
-                                label="选择通道"
-                                variant="outlined"
-                                density="compact"
-                                :loading="cloneDialog.loading"
-                                @update:model-value="onCloneChannelChange"
-                            ></v-select>
-                        </v-col>
-                        <v-col cols="12" md="4" class="pb-2 pb-md-0 pr-md-2">
-                            <v-select
-                                v-model="cloneDialog.selectedDevice"
-                                :items="cloneDialog.devices"
-                                item-title="name"
-                                item-value="id"
-                                label="选择设备"
-                                variant="outlined"
-                                density="compact"
-                                :loading="cloneDialog.loading"
-                                @update:model-value="onCloneDeviceChange"
-                            ></v-select>
-                        </v-col>
-                        <v-col cols="12" md="4">
-                            <v-text-field
-                                v-model="cloneDialog.search"
-                                label="按名称或地址过滤"
-                                variant="outlined"
-                                density="compact"
-                                prepend-inner-icon="mdi-magnify"
-                                clearable
-                                hide-details="auto"
-                            ></v-text-field>
-                        </v-col>
-                    </v-row>
-                    <v-row class="mb-2" align="center" v-if="cloneDialog.points && cloneDialog.points.length > 0">
-                        <v-col cols="12" class="d-flex align-center">
-                            <v-checkbox
-                                v-model="cloneDialog.selectAll"
-                                density="compact"
-                                hide-details
-                                label="全选"
-                                class="mr-4"
-                                @change="toggleCloneSelectAll"
-                            />
-                            <div class="text-caption text-grey-darken-1">
-                                已选择 {{ cloneDialog.selected.length }} / {{ cloneDialog.points.length }}
+                    <template #value="{ record }">
+                        <a-tooltip :content="`${formatValue(record.value)} ${record.unit || ''} - ${getRegisterHint(record)}`">
+                            <div @click="showFullValue(record)" class="value-cell cursor-pointer block truncate">
+                                <span class="value-text font-mono">{{ formatValue(record.value) }}</span>
+                                <span v-if="record.unit" class="value-unit">{{ record.unit }}</span>
                             </div>
-                        </v-col>
-                    </v-row>
-                    <v-table fixed-header height="360">
-                        <thead>
-                            <tr>
-                                <th class="text-left" style="width:40px"></th>
-                                <th class="text-left">名称</th>
-                                <th class="text-left">地址</th>
-                                <th class="text-left">数据类型</th>
-                                <th class="text-left">单位</th>
-                                <th class="text-left">读写</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="p in filteredClonePoints" :key="p.id">
-                                <td>
-                                    <v-checkbox
-                                        v-model="cloneDialog.selected"
-                                        :value="p"
-                                        density="compact"
-                                        hide-details
-                                    />
-                                </td>
-                                <td>{{ p.name }}</td>
-                                <td class="text-no-wrap">{{ p.address }}</td>
-                                <td>{{ p.datatype }}</td>
-                                <td>{{ p.unit }}</td>
-                                <td>{{ p.readwrite }}</td>
-                            </tr>
-                            <tr v-if="!cloneDialog.loading && cloneDialog.points.length === 0">
-                                <td colspan="6" class="text-center pa-6 text-grey">请选择通道与设备以加载点位</td>
-                            </tr>
-                        </tbody>
-                    </v-table>
-                </v-card-text>
-                <v-card-actions class="pa-4">
-                    <v-spacer></v-spacer>
-                    <v-btn variant="text" @click="cloneDialog.visible = false">取消</v-btn>
-                    <v-btn color="primary" :loading="cloneDialog.loading" :disabled="cloneDialog.selected.length === 0" @click="executeClone">
-                        克隆所选点位
-                    </v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+                        </a-tooltip>
+                    </template>
+
+                    <template #quality="{ record }">
+                        <div class="status-display flex items-center">
+                            <IconCheckCircle v-if="isQualityGood(record.quality)" class="mr-1 text-emerald-500" />
+                            <IconCloseCircle v-else class="mr-1 text-red-500" />
+                            <span class="font-mono text-xs">{{ record.quality }}</span>
+                        </div>
+                    </template>
+
+                    <template #readwrite="{ record }">
+                        <div class="status-display flex items-center">
+                            <IconCheckCircle v-if="record.readwrite === 'RW'" class="mr-1 text-emerald-500" />
+                            <IconEdit v-else class="mr-1 text-blue-500" />
+                            <span class="font-mono text-xs">{{ record.readwrite }}</span>
+                        </div>
+                    </template>
+
+                    <template #timestamp="{ record }">
+                        <span class="font-mono text-xs text-slate-500">
+                            {{ record && record.timestamp ? formatDate(record.timestamp) : 'N/A' }}
+                        </span>
+                    </template>
+
+                    <template #actions="{ record }">
+                        <div class="actions-container flex gap-1">
+                            <a-button
+                                v-if="record.readwrite === 'RW' || record.readwrite === 'W'"
+                                type="text"
+                                size="mini"
+                                class="hover:bg-slate-100"
+                                @click="openWriteDialog(record)"
+                            >
+                                写入
+                            </a-button>
+                            
+                            <a-button
+                                type="text"
+                                size="mini"
+                                class="hover:bg-slate-100"
+                                @click="openEditDialog(record)"
+                            >
+                                编辑
+                            </a-button>
+                            
+                            <a-button
+                                type="text"
+                                size="mini"
+                                status="danger"
+                                class="hover:bg-red-50"
+                                @click="confirmDelete(record)"
+                            >
+                                删除
+                            </a-button>
+                            
+                            <a-button
+                                type="text"
+                                size="mini"
+                                status="info"
+                                class="hover:bg-blue-50"
+                                @click="openDebug(record)"
+                            >
+                                调试
+                            </a-button>
+                        </div>
+                    </template>
+
+                    <template #empty>
+                        <div class="empty-state">
+                            <IconSearch size="48" class="text-slate-300" />
+                            <div class="empty-text font-mono">暂无匹配的点位数据</div>
+                            <div class="empty-actions">
+                                <a-button v-if="!points.value || points.value.length === 0" type="primary" size="small" @click="openCloneDialog">
+                                    <template #icon><IconCopy /></template>复制其它设备点位
+                                </a-button>
+                                <a-button v-else type="outline" size="small" @click="filters.search = ''; filters.quality = []">
+                                    清除过滤器
+                                </a-button>
+                            </div>
+                        </div>
+                    </template>
+                </a-table>
+            </div>
+
+            <!-- Connection Status Footer -->
+            <div v-if="deviceInfo" class="terminal-info">
+                <span class="terminal-dot"></span>
+                <span class="monospace-text">
+                    连接状态:{{ deviceInfo.state === 0 ? '已连接' : deviceInfo.state === 1 ? '不稳定' : '已断开' }} | 协议: {{ getProtocolTransport(channelProtocol) }} | 连续通信:{{ deviceInfo.runtime?.success_count || 0 }} 次 | 最近失败:{{ deviceInfo.runtime?.last_fail_time && new Date(deviceInfo.runtime.last_fail_time).getFullYear() > 1 ? formatDate(deviceInfo.runtime.last_fail_time) : '无' }} | 质量评分: {{ deviceInfo.quality_score !== undefined ? deviceInfo.quality_score : 'N/A' }}
+                </span>
+            </div>
+        </a-spin>
+
+        <a-modal v-model:visible="cloneDialog.visible" title="克隆其它设备点位" width="100%" @ok="executeClone" @cancel="cloneDialog.visible = false">
+            <a-space direction="vertical" :size="16" fill>
+                <a-row :gutter="16">
+                    <a-col :span="8">
+                        <a-select
+                            v-model="cloneDialog.selectedChannel"
+                            :options="cloneDialog.channels"
+                            placeholder="选择通道"
+                            :loading="cloneDialog.loading"
+                            @change="onCloneChannelChange"
+                        />
+                    </a-col>
+                    <a-col :span="8">
+                        <a-select
+                            v-model="cloneDialog.selectedDevice"
+                            :options="cloneDialog.devices"
+                            placeholder="选择设备"
+                            :loading="cloneDialog.loading"
+                            @change="onCloneDeviceChange"
+                        />
+                    </a-col>
+                    <a-col :span="8">
+                        <a-input
+                            v-model="cloneDialog.search"
+                            placeholder="按名称或地址过滤"
+                            allow-clear
+                        >
+                            <template #prefix><IconSearch /></template>
+                        </a-input>
+                    </a-col>
+                </a-row>
+                <a-row :gutter="16" v-if="cloneDialog.points && cloneDialog.points.length > 0">
+                    <a-col :span="24">
+                        <a-space>
+                            <a-checkbox
+                                v-model="cloneDialog.selectAll"
+                                @change="toggleCloneSelectAll"
+                            >
+                                全选
+                            </a-checkbox>
+                            <span class="text-slate-600">
+                                已选择 {{ cloneDialog.selected.length }} / {{ cloneDialog.points.length }}
+                            </span>
+                        </a-space>
+                    </a-col>
+                </a-row>
+                <a-table
+                    :columns="cloneTableColumns"
+                    :data="filteredClonePoints"
+                    :pagination="false"
+                    :scroll="{ y: 360 }"
+                >
+                    <template #checkbox="{ record }">
+                        <a-checkbox
+                            v-model="cloneDialog.selected"
+                            :value="record"
+                        />
+                    </template>
+                </a-table>
+                <a-empty v-if="!cloneDialog.loading && cloneDialog.points.length === 0" description="请选择通道与设备以加载点位" />
+            </a-space>
+        </a-modal>
 
         <!-- Point Config Dialog (Add/Edit) -->
-        <v-dialog v-model="pointDialog.visible" max-width="80%" persistent>
-            <v-card class="rounded-xl">
-                <v-card-title class="text-h5 pa-4 bg-primary text-white d-flex align-center">
-                    <div class="d-flex align-center">
-                        <v-icon :icon="pointDialog.isEdit ? 'mdi-file-edit' : 'mdi-plus-circle'" class="mr-2"></v-icon>
-                        <span>{{ pointDialog.isEdit ? '编辑点位' : '新增点位' }}</span>
-                    </div>
-                    <v-spacer></v-spacer>
-                    <v-btn
-                        v-if="recentFormatIds.length > 0"
-                        class="mr-2"
-                        color="white"
-                        variant="outlined"
-                        size="small"
-                        prepend-icon="mdi-swap-horizontal"
-                        :disabled="recentFormatIds.length < 2"
-                        @click="toggleRecentFormats"
-                        title="Toggle recent formats / 在最近两种格式间切换"
-                    >
-                        最近格式切换
-                    </v-btn>
-                    <v-btn
-                        icon="mdi-help-circle-outline"
-                        variant="text"
-                        color="white"
-                        @click="helpDialog.visible = true"
-                        title="点位公式与解码帮助"
-                    ></v-btn>
-                </v-card-title>
-                <v-card-text class="pa-4 pt-6">
-                    <v-form ref="pointForm" @submit.prevent="submitPoint">
-                        <v-row>
-                            <v-col cols="6">
-                                <v-text-field
-                                    v-model="pointDialog.form.id"
-                                    label="点位ID"
-                                    variant="outlined"
-                                    density="compact"
-                                    :readonly="pointDialog.isEdit"
-                                    hint="唯一标识符"
-                                    persistent-hint
-                                ></v-text-field>
-                            </v-col>
-                            <v-col cols="6">
-                                <v-text-field
-                                    v-model="pointDialog.form.name"
-                                    label="点位名称"
-                                    variant="outlined"
-                                    density="compact"
-                                ></v-text-field>
-                            </v-col>
+        <a-modal 
+            v-model:visible="pointDialog.visible" 
+            :width="800"
+            :mask-closable="false"
+            unmount-on-close
+            modal-class="industrial-modal"
+            title-align="start"
+            @cancel="pointDialog.visible = false"
+            @ok="submitPoint"
+        >
+            <template #title>
+                <div class="flex flex-col">
+                    <span class="text-[10px] text-slate-400 font-mono uppercase tracking-wider mb-0.5">
+                        {{ pointDialog.isEdit ? 'Update Existing Record' : 'Create New Record' }}
+                    </span>
+                    <span class="text-base font-bold text-slate-800">
+                        {{ pointDialog.isEdit ? '编辑点位' : '新增点位' }}
+                    </span>
+                </div>
+            </template>
 
-                            <!-- Modbus Specific -->
-                            <template v-if="channelProtocol.startsWith('modbus')">
-                                <v-col cols="6">
-                                    <v-select
-                                        v-model="pointDialog.registerType"
-                                        label="寄存器类型"
-                                        :items="registerTypes"
-                                        item-title="title"
-                                        item-value="value"
-                                        variant="outlined"
-                                        density="compact"
-                                        @update:model-value="updateAddress"
-                                    ></v-select>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-text-field
-                                        v-model.number="pointDialog.registerIndex"
-                                        label="寄存器索引"
-                                        type="number"
-                                        :min="getRegisterIndexMin()"
-                                        :max="getRegisterIndexMax()"
-                                        :error-messages="registerIndexError"
-                                        variant="outlined"
-                                        density="compact"
-                                        @input="validateRegisterIndex; updateAddress"
-                                    ></v-text-field>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-text-field
-                                        v-model.number="pointDialog.registerOffset"
-                                        label="起始偏移量"
-                                        type="number"
-                                        min="0"
-                                        max="9999"
-                                        :error-messages="registerOffsetError"
-                                        variant="outlined"
-                                        density="compact"
-                                        hint="数据读取起始偏移量 (默认: 0)"
-                                        persistent-hint
-                                        @input="validateRegisterOffset; updateAddress"
-                                    ></v-text-field>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-text-field
-                                        v-model="pointDialog.form.address"
-                                        label="Modbus 地址"
-                                        variant="outlined"
-                                        density="compact"
-                                        hint="自动生成 (例如: 40001)"
-                                        persistent-hint
-                                    ></v-text-field>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-text-field
-                                        v-model.number="pointDialog.functionCode"
-                                        label="功能码"
-                                        type="number"
-                                        min="1"
-                                        max="255"
-                                        variant="outlined"
-                                        density="compact"
-                                        hint="默认: 根据寄存器类型自动确定"
-                                        persistent-hint
-                                    ></v-text-field>
-                                </v-col>
-                            </template>
+            <a-form :model="pointDialog.form" layout="vertical" class="industrial-form p-2">
+                <a-row :gutter="16">
+                    <a-col :span="12">
+                        <a-form-item field="id" label="点位ID">
+                            <a-input
+                                v-model="pointDialog.form.id"
+                                placeholder="点位ID"
+                                size="small"
+                                :disabled="pointDialog.isEdit"
+                                :tooltip="{ title: '唯一标识符', placement: 'top' }"
+                            />
+                        </a-form-item>
+                    </a-col>
+                    <a-col :span="12">
+                        <a-form-item field="name" label="点位名称">
+                            <a-input
+                                v-model="pointDialog.form.name"
+                                placeholder="点位名称"
+                                size="small"
+                            ></a-input>
+                        </a-form-item>
+                    </a-col>
 
-                            <!-- BACnet Specific -->
-                            <template v-else-if="channelProtocol === 'bacnet-ip'">
-                                <v-col cols="6">
-                                    <v-select
-                                        v-model="pointDialog.bacnetType"
-                                        label="对象类型"
-                                        :items="bacnetObjectTypes"
-                                        variant="outlined"
-                                        density="compact"
-                                        @update:model-value="updateBACnetAddress"
-                                    ></v-select>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-text-field
-                                        v-model.number="pointDialog.bacnetInstance"
-                                        label="实例 ID"
-                                        type="number"
-                                        min="0"
-                                        variant="outlined"
-                                        density="compact"
-                                        @input="updateBACnetAddress"
-                                    ></v-text-field>
-                                </v-col>
-                                <v-col cols="12">
-                                    <v-text-field
-                                        v-model="pointDialog.form.address"
-                                        label="BACnet 地址"
-                                        variant="outlined"
-                                        density="compact"
-                                        readonly
-                                        hint="格式: Type:Instance"
-                                        persistent-hint
-                                    ></v-text-field>
-                                </v-col>
-                            </template>
+                    <!-- Modbus Specific -->
+                    <template v-if="channelProtocol.startsWith('modbus')">
+                        <a-col :span="12">
+                            <a-form-item field="registerType" label="寄存器类型">
+                                <a-select
+                                    v-model="pointDialog.registerType"
+                                    :options="registerTypes"
+                                    @update:value="updateAddress"
+                                ></a-select>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="registerIndex" label="寄存器索引">
+                                <a-input
+                                    v-model.number="pointDialog.registerIndex"
+                                    type="number"
+                                    :min="getRegisterIndexMin()"
+                                    :max="getRegisterIndexMax()"
+                                    :error-message="registerIndexError"
+                                    @input="validateRegisterIndex; updateAddress"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="registerOffset" label="起始偏移量">
+                                <a-input
+                                    v-model.number="pointDialog.registerOffset"
+                                    type="number"
+                                    min="0"
+                                    max="9999"
+                                    :error-message="registerOffsetError"
+                                    :tooltip="'数据读取起始偏移量 (默认: 0)'"
+                                    @input="validateRegisterOffset; updateAddress"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="address" label="Modbus 地址">
+                                <a-input
+                                    v-model="pointDialog.form.address"
+                                    :tooltip="'自动生成 (例如: 40001)'"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="functionCode" label="功能码">
+                                <a-input
+                                    v-model.number="pointDialog.functionCode"
+                                    type="number"
+                                    min="1"
+                                    max="255"
+                                    :tooltip="'默认: 根据寄存器类型自动确定'"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                    </template>
 
-                            <!-- OPC UA Specific -->
-                            <template v-else-if="channelProtocol === 'opc-ua'">
-                                <v-col cols="12">
-                                    <v-text-field
-                                        v-model="pointDialog.form.address"
-                                        label="Node ID"
-                                        placeholder="ns=2;s=Demo.Static.Scalar.Double"
-                                        variant="outlined"
-                                        density="compact"
-                                        hint="例如: ns=2;s=Demo..."
-                                        persistent-hint
-                                    ></v-text-field>
-                                </v-col>
-                            </template>
+                    <!-- BACnet Specific -->
+                    <template v-else-if="channelProtocol === 'bacnet-ip'">
+                        <a-col :span="12">
+                            <a-form-item field="bacnetType" label="对象类型">
+                                <a-select
+                                    v-model="pointDialog.bacnetType"
+                                    :options="bacnetObjectTypes"
+                                    @update:value="updateBACnetAddress"
+                                ></a-select>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="bacnetInstance" label="实例 ID">
+                                <a-input
+                                    v-model.number="pointDialog.bacnetInstance"
+                                    type="number"
+                                    min="0"
+                                    @input="updateBACnetAddress"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="24">
+                            <a-form-item field="address" label="BACnet 地址">
+                                <a-input
+                                    v-model="pointDialog.form.address"
+                                    readonly
+                                    :tooltip="'格式: Type:Instance'"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                    </template>
 
-                            <!-- S7 Specific -->
-                            <template v-else-if="channelProtocol === 's7'">
-                                <v-col cols="12">
-                                    <v-text-field
-                                        v-model="pointDialog.form.address"
-                                        label="S7 地址"
-                                        placeholder="DB1.DBD0"
-                                        variant="outlined"
-                                        density="compact"
-                                        hint="例如: DB1.DBD0, M0.0"
-                                        persistent-hint
-                                    ></v-text-field>
-                                </v-col>
-                            </template>
+                    <!-- OPC UA Specific -->
+                    <template v-else-if="channelProtocol === 'opc-ua'">
+                        <a-col :span="24">
+                            <a-form-item field="address" label="Node ID">
+                                <a-input
+                                    v-model="pointDialog.form.address"
+                                    placeholder="ns=2;s=Demo.Static.Scalar.Double"
+                                    :tooltip="'例如: ns=2;s=Demo...'"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                    </template>
 
-                            <!-- EtherNet/IP Specific -->
-                            <template v-else-if="channelProtocol === 'ethernet-ip'">
-                                <v-col cols="12">
-                                    <v-text-field
-                                        v-model="pointDialog.form.address"
-                                        label="Tag 名称"
-                                        placeholder="Program:Main.MyTag"
-                                        variant="outlined"
-                                        density="compact"
-                                        hint="例如: Program:Main.MyTag"
-                                        persistent-hint
-                                    ></v-text-field>
-                                </v-col>
-                            </template>
+                    <!-- S7 Specific -->
+                    <template v-else-if="channelProtocol === 's7'">
+                        <a-col :span="24">
+                            <a-form-item field="address" label="S7 地址">
+                                <a-input
+                                    v-model="pointDialog.form.address"
+                                    placeholder="DB1.DBD0"
+                                    :tooltip="'例如: DB1.DBD0, M0.0'"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                    </template>
 
-                            <!-- Mitsubishi Specific -->
-                            <template v-else-if="channelProtocol === 'mitsubishi-slmp'">
-                                <v-col cols="12">
-                                    <v-text-field
-                                        v-model="pointDialog.form.address"
-                                        label="地址"
-                                        placeholder="D100"
-                                        variant="outlined"
-                                        density="compact"
-                                        hint="格式: D100, M0, X0, D20.2, D100.16L"
-                                        persistent-hint
-                                    ></v-text-field>
-                                </v-col>
-                            </template>
+                    <!-- EtherNet/IP Specific -->
+                    <template v-else-if="channelProtocol === 'ethernet-ip'">
+                        <a-col :span="24">
+                            <a-form-item field="address" label="Tag 名称">
+                                <a-input
+                                    v-model="pointDialog.form.address"
+                                    placeholder="Program:Main.MyTag"
+                                    :tooltip="'例如: Program:Main.MyTag'"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                    </template>
 
-                            <!-- Omron FINS Specific -->
-                            <template v-else-if="channelProtocol === 'omron-fins'">
-                                <v-col cols="12">
-                                    <v-text-field
-                                        v-model="pointDialog.form.address"
-                                        label="地址"
-                                        placeholder="D100"
-                                        variant="outlined"
-                                        density="compact"
-                                        hint="格式: CIO1.2, D100, W3.4, EM10.100"
-                                        persistent-hint
-                                    ></v-text-field>
-                                </v-col>
-                            </template>
+                    <!-- Mitsubishi Specific -->
+                    <template v-else-if="channelProtocol === 'mitsubishi-slmp'">
+                        <a-col :span="24">
+                            <a-form-item field="address" label="地址">
+                                <a-input
+                                    v-model="pointDialog.form.address"
+                                    placeholder="D100"
+                                    :tooltip="'格式: D100, M0, X0, D20.2, D100.16L'"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                    </template>
 
-                            <!-- DL/T645 Specific -->
-                            <template v-else-if="channelProtocol === 'dlt645'">
-                                <v-col cols="6">
-                                    <v-text-field
-                                        v-model="pointDialog.dlt645DeviceAddr"
-                                        label="设备地址"
-                                        variant="outlined"
-                                        density="compact"
-                                        hint="通常与设备配置一致"
-                                        persistent-hint
-                                        @input="updateDLT645Address"
-                                    ></v-text-field>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-text-field
-                                        v-model="pointDialog.dlt645DataID"
-                                        label="数据标识 (DI)"
-                                        placeholder="02-01-01-00"
-                                        variant="outlined"
-                                        density="compact"
-                                        hint="格式: XX-XX-XX-XX"
-                                        persistent-hint
-                                        @input="updateDLT645Address"
-                                    ></v-text-field>
-                                </v-col>
-                                <v-col cols="12">
-                                    <v-text-field
-                                        v-model="pointDialog.form.address"
-                                        label="完整地址"
-                                        variant="outlined"
-                                        density="compact"
-                                        readonly
-                                        hint="格式: 设备地址#数据标识"
-                                        persistent-hint
-                                    ></v-text-field>
-                                </v-col>
-                            </template>
+                    <!-- Omron FINS Specific -->
+                    <template v-else-if="channelProtocol === 'omron-fins'">
+                        <a-col :span="24">
+                            <a-form-item field="address" label="地址">
+                                <a-input
+                                    v-model="pointDialog.form.address"
+                                    placeholder="D100"
+                                    :tooltip="'格式: CIO1.2, D100, W3.4, EM10.100'"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                    </template>
 
-                            <!-- Fallback -->
-                            <template v-else>
-                                <v-col cols="12">
-                                    <v-text-field
-                                        v-model="pointDialog.form.address"
-                                        label="地址"
-                                        variant="outlined"
-                                        density="compact"
-                                    ></v-text-field>
-                                </v-col>
-                            </template>
-                            <template v-if="channelProtocol.startsWith('modbus')">
-                                <v-col cols="12">
-                                    <v-expansion-panels>
-                                        <v-expansion-panel>
-                                            <v-expansion-panel-title>高级设置</v-expansion-panel-title>
-                                            <v-expansion-panel-text>
-                                                <v-row>
-                                                    <v-col cols="12">
-                                                        <v-select
-                                                            v-model="formatPresetSelected"
-                                                            :items="filteredFormatPresets"
-                                                            item-title="label"
-                                                            item-value="id"
-                                                            label="数据格式"
-                                                            variant="outlined"
-                                                            density="compact"
-                                                            clearable
-                                                            @update:model-value="onSelectFormatPreset"
-                                                        ></v-select>
-                                                    </v-col>
-                                                    <v-col cols="4">
-                                                        <v-select
-                                                            v-model="pointDialog.parseType"
-                                                            :items="filteredParseTypes"
-                                                            item-title="label"
-                                                            item-value="value"
-                                                            label="解析类型"
-                                                            variant="outlined"
-                                                            density="compact"
-                                                        ></v-select>
-                                                    </v-col>
-                                                    <v-col cols="6">
-                                                        <v-select
-                                                            v-model="pointDialog.form.datatype"
-                                                            label="数据类型(存储)"
-                                                            :items="datatypeOptions"
-                                                            variant="outlined"
-                                                            density="compact"
-                                                        ></v-select>
-                                                    </v-col>
-                                                    <v-col cols="6">
-                                                        <v-select
-                                                            v-model="pointDialog.form.read_formula_template"
-                                                            :items="formulaTemplates"
-                                                            item-title="label"
-                                                            item-value="expr"
-                                                            label="读公式模板"
-                                                            variant="outlined"
-                                                            density="compact"
-                                                            clearable
-                                                            @update:model-value="onSelectFormulaTemplate('read')"
-                                                        ></v-select>
-                                                    </v-col>
-                                                    <v-col cols="6">
-                                                        <v-text-field
-                                                            v-model="pointDialog.form.read_formula"
-                                                            label="读公式 (使用变量 v)"
-                                                            variant="outlined"
-                                                            density="compact"
-                                                            :error-messages="formulaErrors.read"
-                                                            @input="validateFormula('read')"
-                                                        ></v-text-field>
-                                                    </v-col>
-                                                    <v-col cols="6">
-                                                        <v-select
-                                                            v-model="pointDialog.form.readwrite"
-                                                            label="读写权限"
-                                                            :items="['R', 'RW']"
-                                                            variant="outlined"
-                                                            density="compact"
-                                                        ></v-select>
-                                                    </v-col>
-                                                    <v-col cols="6">
-                                                        <v-select
-                                                            v-model="pointDialog.form.write_formula_template"
-                                                            :items="formulaTemplates"
-                                                            item-title="label"
-                                                            item-value="expr"
-                                                            label="写公式模板"
-                                                            variant="outlined"
-                                                            density="compact"
-                                                            clearable
-                                                            @update:model-value="onSelectFormulaTemplate('write')"
-                                                        ></v-select>
-                                                    </v-col>
-                                                    <v-col cols="6">
-                                                        <v-text-field
-                                                            v-model="pointDialog.form.write_formula"
-                                                            label="写公式 (使用变量 v)"
-                                                            variant="outlined"
-                                                            density="compact"
-                                                            :error-messages="formulaErrors.write"
-                                                            @input="validateFormula('write')"
-                                                        ></v-text-field>
-                                                    </v-col>
-                                                    <v-col cols="6">
-                                                        <v-text-field
-                                                            v-model="pointDialog.form.unit"
-                                                            label="单位"
-                                                            variant="outlined"
-                                                            density="compact"
-                                                        ></v-text-field>
-                                                    </v-col>
-                                                    <v-col cols="6">
-                                                        <v-text-field
-                                                            v-model.number="pointDialog.form.scale"
-                                                            label="缩放比例"
-                                                            type="number"
-                                                            step="0.01"
-                                                            variant="outlined"
-                                                            density="compact"
-                                                            hint="默认为 1.0"
-                                                        ></v-text-field>
-                                                    </v-col>
-                                                    <v-col cols="6">
-                                                        <v-text-field
-                                                            v-model.number="pointDialog.form.offset"
-                                                            label="偏移量"
-                                                            type="number"
-                                                            step="0.01"
-                                                            variant="outlined"
-                                                            density="compact"
-                                                            hint="默认为 0"
-                                                        ></v-text-field>
-                                                    </v-col>
-                                                    <v-col cols="6">
-                                                        <v-text-field
-                                                            v-model="pointDialog.defaultValue"
-                                                            label="默认值"
-                                                            variant="outlined"
-                                                            density="compact"
-                                                        ></v-text-field>
-                                                    </v-col>
-                                                    <v-col cols="6" class="d-flex align-center">
-                                                        <v-btn
-                                                            color="primary"
-                                                            variant="tonal"
-                                                            prepend-icon="mdi-flash"
-                                                            @click="openQuickValidate"
-                                                        >
-                                                            快速验证
-                                                        </v-btn>
-                                                        <v-btn
-                                                            class="ml-2"
-                                                            color="secondary"
-                                                            variant="text"
-                                                            prepend-icon="mdi-clipboard-text"
-                                                            @click="openTemplateDialog"
-                                                        >
-                                                            协议模板
-                                                        </v-btn>
-                                                    </v-col>
-                                                </v-row>
-                                            </v-expansion-panel-text>
-                                        </v-expansion-panel>
-                                    </v-expansion-panels>
-                                </v-col>
-                            </template>
-                            <template v-else>
-                                <v-col cols="12">
-                                    <v-select
+                    <!-- DL/T645 Specific -->
+                    <template v-else-if="channelProtocol === 'dlt645'">
+                        <a-col :span="12">
+                            <a-form-item field="dlt645DeviceAddr" label="设备地址">
+                                <a-input
+                                    v-model="pointDialog.dlt645DeviceAddr"
+                                    :tooltip="'通常与设备配置一致'"
+                                    @input="updateDLT645Address"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="dlt645DataID" label="数据标识 (DI)">
+                                <a-input
+                                    v-model="pointDialog.dlt645DataID"
+                                    placeholder="02-01-01-00"
+                                    :tooltip="'格式: XX-XX-XX-XX'"
+                                    @input="updateDLT645Address"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="24">
+                            <a-form-item field="address" label="完整地址">
+                                <a-input
+                                    v-model="pointDialog.form.address"
+                                    readonly
+                                    :tooltip="'格式: 设备地址#数据标识'"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                    </template>
+
+                    <!-- Fallback -->
+                    <template v-else>
+                        <a-col :span="24">
+                            <a-form-item field="address" label="地址">
+                                <a-input
+                                    v-model="pointDialog.form.address"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                    </template>
+                    <template v-if="channelProtocol.startsWith('modbus')">
+                        <a-col :span="24">
+                            <a-collapse>
+                                <a-collapse-item title="高级设置">
+                                    <div>
+                                        <a-row :gutter="16">
+                                            <a-col :span="24">
+                                                <a-form-item field="formatPreset" label="数据格式">
+                                                    <a-select
+                                                        v-model="formatPresetSelected"
+                                                        :options="filteredFormatPresets"
+                                                        clearable
+                                                        @update:value="onSelectFormatPreset"
+                                                    ></a-select>
+                                                </a-form-item>
+                                            </a-col>
+                                            <a-col :span="8">
+                                                <a-form-item field="parseType" label="解析类型">
+                                                    <a-select
+                                                        v-model="pointDialog.parseType"
+                                                        :options="filteredParseTypes"
+                                                    ></a-select>
+                                                </a-form-item>
+                                            </a-col>
+                                            <a-col :span="12">
+                                                <a-form-item field="datatype" label="数据类型(存储)">
+                                                    <a-select
+                                                        v-model="pointDialog.form.datatype"
+                                                        :options="datatypeOptions"
+                                                    ></a-select>
+                                                </a-form-item>
+                                            </a-col>
+                                            <a-col :span="12">
+                                                <a-form-item field="read_formula_template" label="读公式模板">
+                                                    <a-select
+                                                        v-model="pointDialog.form.read_formula_template"
+                                                        :options="formulaTemplates"
+                                                        clearable
+                                                        @update:value="onSelectFormulaTemplate('read')"
+                                                    ></a-select>
+                                                </a-form-item>
+                                            </a-col>
+                                            <a-col :span="12">
+                                                <a-form-item field="read_formula" label="读公式 (使用变量 v)" :error="formulaErrors.read">
+                                                    <a-input
+                                                        v-model="pointDialog.form.read_formula"
+                                                        @input="validateFormula('read')"
+                                                    ></a-input>
+                                                </a-form-item>
+                                            </a-col>
+                                            <a-col :span="12">
+                                                <a-form-item field="readwrite" label="读写权限">
+                                                    <a-select
+                                                        v-model="pointDialog.form.readwrite"
+                                                        :options="['R', 'RW']"
+                                                    ></a-select>
+                                                </a-form-item>
+                                            </a-col>
+                                            <a-col :span="12">
+                                                <a-form-item field="write_formula_template" label="写公式模板">
+                                                    <a-select
+                                                        v-model="pointDialog.form.write_formula_template"
+                                                        :options="formulaTemplates"
+                                                        clearable
+                                                        @update:value="onSelectFormulaTemplate('write')"
+                                                    ></a-select>
+                                                </a-form-item>
+                                            </a-col>
+                                            <a-col :span="12">
+                                                <a-form-item field="write_formula" label="写公式 (使用变量 v)" :error="formulaErrors.write">
+                                                    <a-input
+                                                        v-model="pointDialog.form.write_formula"
+                                                        @input="validateFormula('write')"
+                                                    ></a-input>
+                                                </a-form-item>
+                                            </a-col>
+                                            <a-col :span="12">
+                                                <a-form-item field="unit" label="单位">
+                                                    <a-input
+                                                        v-model="pointDialog.form.unit"
+                                                    ></a-input>
+                                                </a-form-item>
+                                            </a-col>
+                                            <a-col :span="12">
+                                                <a-form-item field="scale" label="缩放比例">
+                                                    <a-input
+                                                        v-model.number="pointDialog.form.scale"
+                                                        type="number"
+                                                        step="0.01"
+                                                        :tooltip="'默认为 1.0'"
+                                                    ></a-input>
+                                                </a-form-item>
+                                            </a-col>
+                                            <a-col :span="12">
+                                                <a-form-item field="offset" label="偏移量">
+                                                    <a-input
+                                                        v-model.number="pointDialog.form.offset"
+                                                        type="number"
+                                                        step="0.01"
+                                                        :tooltip="'默认为 0'"
+                                                    ></a-input>
+                                                </a-form-item>
+                                            </a-col>
+                                            <a-col :span="12">
+                                                <a-form-item field="defaultValue" label="默认值">
+                                                    <a-input
+                                                        v-model="pointDialog.defaultValue"
+                                                    ></a-input>
+                                                </a-form-item>
+                                            </a-col>
+                                            <a-col :span="12" class="d-flex align-center">
+                                                <a-button type="primary" @click="openQuickValidate">
+                                                    <template #icon><IconThunderbolt /></template>
+                                                    快速验证
+                                                </a-button>
+                                                <a-button type="outline" class="ml-2" @click="openTemplateDialog">
+                                                    <template #icon><IconFile /></template>
+                                                    协议模板
+                                                </a-button>
+                                            </a-col>
+                                        </a-row>
+                                    </div>
+                                </a-collapse-item>
+                            </a-collapse>
+                        </a-col>
+                    </template>
+                    <template v-else>
+                        <a-col :span="24">
+                            <a-form-item field="formatPreset" label="数据格式">
+                                <a-select
                                         v-model="formatPresetSelected"
-                                        :items="filteredFormatPresets"
-                                        item-title="label"
-                                        item-value="id"
-                                        label="数据格式"
-                                        variant="outlined"
-                                        density="compact"
+                                        :options="filteredFormatPresets"
                                         clearable
-                                        @update:model-value="onSelectFormatPreset"
-                                    ></v-select>
-                                </v-col>
-                                <v-col cols="4">
-                                    <v-select
-                                        v-model="pointDialog.byteLength"
-                                        label="字节数"
-                                        :items="[1, 2, 4, 8]"
-                                        variant="outlined"
-                                        density="compact"
-                                    ></v-select>
-                                </v-col>
-                                <v-col cols="4">
-                                    <v-select
-                                        v-model="pointDialog.wordOrderOption"
-                                        :items="wordOrderOptionsForBytes"
-                                        item-title="label"
-                                        item-value="value"
-                                        label="WordOrder(字序)"
-                                        :disabled="pointDialog.byteLength === 1"
-                                        variant="outlined"
-                                        density="compact"
-                                    ></v-select>
-                                </v-col>
-                                <v-col cols="4">
-                                    <v-select
-                                        v-model="pointDialog.parseType"
-                                        :items="filteredParseTypes"
-                                        item-title="label"
-                                        item-value="value"
-                                        label="解析类型"
-                                        variant="outlined"
-                                        density="compact"
-                                    ></v-select>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-select
-                                        v-model="pointDialog.form.datatype"
-                                        label="数据类型(存储)"
-                                        :items="datatypeOptions"
-                                        variant="outlined"
-                                        density="compact"
-                                    ></v-select>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-select
-                                        v-model="pointDialog.form.read_formula_template"
-                                        :items="formulaTemplates"
-                                        item-title="label"
-                                        item-value="expr"
-                                        label="读公式模板"
-                                        variant="outlined"
-                                        density="compact"
-                                        clearable
-                                        @update:model-value="onSelectFormulaTemplate('read')"
-                                    ></v-select>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-text-field
-                                        v-model="pointDialog.form.read_formula"
-                                        label="读公式 (使用变量 v)"
-                                        variant="outlined"
-                                        density="compact"
-                                        :error-messages="formulaErrors.read"
-                                        @input="validateFormula('read')"
-                                    ></v-text-field>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-select
-                                        v-model="pointDialog.form.readwrite"
-                                        label="读写权限"
-                                        :items="['R', 'RW']"
-                                        variant="outlined"
-                                        density="compact"
-                                    ></v-select>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-select
-                                        v-model="pointDialog.form.write_formula_template"
-                                        :items="formulaTemplates"
-                                        item-title="label"
-                                        item-value="expr"
-                                        label="写公式模板"
-                                        variant="outlined"
-                                        density="compact"
-                                        clearable
-                                        @update:model-value="onSelectFormulaTemplate('write')"
-                                    ></v-select>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-text-field
-                                        v-model="pointDialog.form.write_formula"
-                                        label="写公式 (使用变量 v)"
-                                        variant="outlined"
-                                        density="compact"
-                                        :error-messages="formulaErrors.write"
-                                        @input="validateFormula('write')"
-                                    ></v-text-field>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-text-field
-                                        v-model="pointDialog.form.unit"
-                                        label="单位"
-                                        variant="outlined"
-                                        density="compact"
-                                    ></v-text-field>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-text-field
-                                        v-model.number="pointDialog.form.scale"
-                                        label="缩放比例"
-                                        type="number"
-                                        step="0.01"
-                                        variant="outlined"
-                                        density="compact"
-                                        hint="默认为 1.0"
-                                    ></v-text-field>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-text-field
-                                        v-model.number="pointDialog.form.offset"
-                                        label="偏移量"
-                                        type="number"
-                                        step="0.01"
-                                        variant="outlined"
-                                        density="compact"
-                                        hint="默认为 0"
-                                    ></v-text-field>
-                                </v-col>
-                                <v-col cols="6">
-                                    <v-text-field
-                                        v-model="pointDialog.defaultValue"
-                                        label="默认值"
-                                        variant="outlined"
-                                        density="compact"
-                                    ></v-text-field>
-                                </v-col>
-                                <v-col cols="6" class="d-flex align-center">
-                                    <v-btn
-                                        color="primary"
-                                        variant="tonal"
-                                        prepend-icon="mdi-flash"
-                                        @click="openQuickValidate"
-                                    >
-                                        快速验证
-                                    </v-btn>
-                                    <v-btn
-                                        class="ml-2"
-                                        color="secondary"
-                                        variant="text"
-                                        prepend-icon="mdi-clipboard-text"
-                                        @click="openTemplateDialog"
-                                    >
-                                        协议模板
-                                    </v-btn>
-                                </v-col>
-                            </template>
-                        </v-row>
-                    </v-form>
-                </v-card-text>
-                <v-card-actions class="pa-4 pt-0">
-                    <v-spacer></v-spacer>
-                    <v-btn color="grey-darken-1" variant="text" @click="pointDialog.visible = false">取消</v-btn>
-                    <v-btn color="primary" variant="elevated" @click="submitPoint" :loading="pointDialog.loading">保存</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+                                        @update:value="onSelectFormatPreset"
+                                    ></a-select>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="8">
+                            <a-form-item field="byteLength" label="字节数">
+                                <a-select
+                                    v-model="pointDialog.byteLength"
+                                    :options="[1, 2, 4, 8]"
+                                ></a-select>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="8">
+                            <a-form-item field="wordOrderOption" label="WordOrder(字序)">
+                                <a-select
+                                    v-model="pointDialog.wordOrderOption"
+                                    :options="wordOrderOptionsForBytes"
+                                    :disabled="pointDialog.byteLength === 1"
+                                ></a-select>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="8">
+                            <a-form-item field="parseType" label="解析类型">
+                                <a-select
+                                    v-model="pointDialog.parseType"
+                                    :options="parseTypesForBytes"
+                                ></a-select>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="datatype" label="数据类型(存储)">
+                                <a-select
+                                    v-model="pointDialog.form.datatype"
+                                    :options="datatypeOptions"
+                                ></a-select>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="read_formula_template" label="读公式模板">
+                                <a-select
+                                    v-model="pointDialog.form.read_formula_template"
+                                    :options="formulaTemplates"
+                                    clearable
+                                    @update:value="onSelectFormulaTemplate('read')"
+                                ></a-select>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="read_formula" label="读公式 (使用变量 v)" :error="formulaErrors.read">
+                                <a-input
+                                    v-model="pointDialog.form.read_formula"
+                                    @input="validateFormula('read')"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="readwrite" label="读写权限">
+                                <a-select
+                                    v-model="pointDialog.form.readwrite"
+                                    :options="['R', 'RW']"
+                                ></a-select>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="write_formula_template" label="写公式模板">
+                                <a-select
+                                    v-model="pointDialog.form.write_formula_template"
+                                    :options="formulaTemplates"
+                                    clearable
+                                    @update:value="onSelectFormulaTemplate('write')"
+                                ></a-select>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="write_formula" label="写公式 (使用变量 v)" :error="formulaErrors.write">
+                                <a-input
+                                    v-model="pointDialog.form.write_formula"
+                                    @input="validateFormula('write')"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="unit" label="单位">
+                                <a-input
+                                    v-model="pointDialog.form.unit"
+                                ></a-input>
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="scale" label="缩放比例">
+                                <a-input-number
+                                    v-model="pointDialog.form.scale"
+                                    placeholder="缩放比例"
+                                    :step="0.01"
+                                    size="small"
+                                    :tooltip="{ title: '默认为 1.0', placement: 'top' }"
+                                />
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="offset" label="偏移量">
+                                <a-input-number
+                                    v-model="pointDialog.form.offset"
+                                    placeholder="偏移量"
+                                    :step="0.01"
+                                    size="small"
+                                    :tooltip="{ title: '默认为 0', placement: 'top' }"
+                                />
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12">
+                            <a-form-item field="defaultValue" label="默认值">
+                                <a-input
+                                    v-model="pointDialog.defaultValue"
+                                    placeholder="默认值"
+                                    size="small"
+                                />
+                            </a-form-item>
+                        </a-col>
+                        <a-col :span="12" class="d-flex align-center">
+                            <a-button type="primary" size="small" @click="openQuickValidate">
+                                <template #icon><IconThunderbolt /></template>
+                                快速验证
+                            </a-button>
+                            <a-button type="outline" size="small" class="ml-2" @click="openTemplateDialog">
+                                <template #icon><IconFile /></template>
+                                协议模板
+                            </a-button>
+                        </a-col>
+                    </template>
+                </a-row>
+            </a-form>
 
-        <v-dialog v-model="quickValidate.visible" max-width="640">
-            <v-card>
-                <v-card-title class="d-flex align-center">
+            <template #footer>
+                <div class="flex justify-end border-t border-slate-200 pt-3 mt-2">
+                    <a-button type="primary" :loading="pointDialog.loading" @click="submitPoint" class="industrial-btn-primary" style="min-width: 120px; padding: 0 16px;">
+                        <template #icon><IconSave /></template>
+                        保存配置
+                    </a-button>
+                </div>
+            </template>
+        </a-modal>
+
+        <a-modal v-model="quickValidate.visible" max-width="640">
+            <a-card>
+                <a-card-title class="d-flex align-center">
                     <span class="text-h6">快速验证当前解析配置</span>
-                    <v-spacer></v-spacer>
-                    <v-chip
+                    <div style="flex: 1;"></div>
+                    <a-tag
                         v-if="quickValidate.status"
-                        :color="quickValidate.status === 'pass' ? 'green' : 'red'"
+                        :color="quickValidate.status === 'pass' ? 'success' : 'error'"
                         size="small"
                         class="mr-2"
                     >
                         {{ quickValidate.status === 'pass' ? '验证通过' : '未通过' }}
-                    </v-chip>
-                    <v-btn icon="mdi-close" variant="text" @click="quickValidate.visible = false"></v-btn>
-                </v-card-title>
-                <v-card-text>
-                    <v-row dense>
-                        <v-col cols="12">
-                            <v-text-field
+                    </a-tag>
+                    <a-button type="text" size="small" @click="quickValidate.visible = false">
+                        <template #icon><IconClose /></template>
+                    </a-button>
+
+                </a-card-title>
+                <a-card-text>
+
+                    <a-row :gutter="16" class="dense">
+                        <a-col :span="24">
+                            <a-input
                                 v-model="quickValidate.rawHex"
-                                label="原始十六进制报文"
-                                placeholder="例如: 01 0A FF 00"
-                                variant="outlined"
-                                density="compact"
-                            ></v-text-field>
-                        </v-col>
-                        <v-col cols="12">
-                            <v-text-field
+                                placeholder="原始十六进制报文 (例如: 01 0A FF 00)"
+                                size="small"
+                            />
+
+                        </a-col>
+                        <a-col :span="24">
+                            <a-input
                                 v-model="quickValidate.registerValues"
-                                label="寄存器值列表(可选, 以空格或逗号分隔, 支持0x前缀)"
-                                placeholder="例如: 0x1234 0x5678 或 4660 22136"
-                                variant="outlined"
-                                density="compact"
-                            ></v-text-field>
-                        </v-col>
-                        <v-col cols="12" sm="6">
-                            <v-text-field
+                                placeholder="寄存器值列表(可选, 以空格或逗号分隔, 支持0x前缀) 例如: 0x1234 0x5678 或 4660 22136"
+                                size="small"
+                            />
+
+                        </a-col>
+                        <a-col :span="24" :sm="12">
+                            <a-input
                                 v-model="quickValidate.registerBaseAddress"
-                                label="起始寄存器地址(仅用于标注)"
-                                placeholder="例如: 40001"
-                                variant="outlined"
-                                density="compact"
-                            ></v-text-field>
-                        </v-col>
-                        <v-col cols="12">
-                            <v-text-field
+                                placeholder="起始寄存器地址(仅用于标注) 例如: 40001"
+                                size="small"
+                            />
+
+                        </a-col>
+                        <a-col :span="24">
+                            <a-input
                                 v-model="quickValidate.expected"
-                                label="期望工程值(可选)"
-                                placeholder="例如: 230.1 或 LongABCD 11112222"
-                                variant="outlined"
-                                density="compact"
-                            ></v-text-field>
-                        </v-col>
-                        <v-col cols="12">
+                                placeholder="期望工程值(可选) 例如: 230.1 或 LongABCD 11112222"
+                                size="small"
+                            />
+
+                        </a-col>
+                        <a-col :span="24">
                             <div class="text-caption mb-1">解析结果预览</div>
                             <div class="pa-3 rounded bg-grey-lighten-4 font-mono text-body-2">
                                 <span v-html="quickValidate.previewHtml"></span>
                             </div>
-                        </v-col>
-                    </v-row>
-                </v-card-text>
-                <v-card-actions class="pa-4 pt-0">
-                    <v-spacer></v-spacer>
-                    <v-btn variant="text" @click="quickValidate.visible = false">关闭</v-btn>
-                    <v-btn color="primary" variant="elevated" @click="runQuickValidate">
+                        </a-col>
+                    </a-row>
+                </a-card-text>
+                <div class="pa-4 pt-0" style="display: flex; justify-content: flex-end; border-top: 1px solid #e8e8e8;">
+
+                    <div style="flex: 1;"></div>
+                    <a-button variant="text" @click="quickValidate.visible = false">关闭</a-button>
+                    <a-button color="primary" variant="elevated" @click="runQuickValidate">
                         立即验证
-                    </v-btn>
-                    <v-btn
+                    </a-button>
+                    <a-button
                         color="secondary"
                         variant="tonal"
                         :disabled="quickValidate.status !== 'pass'"
                         @click="saveCurrentAsTemplate"
                     >
                         保存为模板
-                    </v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+                    </a-button>
+                </div>
+            </a-card>
+        </a-modal>
 
-        <v-dialog v-model="templateDialog.visible" max-width="900">
-            <v-card>
-                <v-card-title class="d-flex align-center">
+        <a-modal v-model="templateDialog.visible" max-width="900">
+            <a-card>
+                <a-card-title class="d-flex align-center">
                     <span class="text-h6">协议模板示例</span>
-                    <v-spacer></v-spacer>
-                    <v-text-field
+                    <div style="flex: 1;"></div>
+                    <a-input
                         v-model="templateDialog.search"
                         prepend-inner-icon="mdi-magnify"
                         label="搜索模板(名称/描述)"
@@ -1061,24 +841,28 @@
                         density="compact"
                         hide-details
                         style="max-width: 260px"
-                    ></v-text-field>
-                    <v-btn icon="mdi-close" variant="text" @click="templateDialog.visible = false"></v-btn>
-                </v-card-title>
-                <v-card-text>
-                    <v-row dense>
-                        <v-col
+                    ></a-input>
+                    <a-button type="text" size="small" @click="templateDialog.visible = false">
+                        <template #icon><IconClose /></template>
+                    </a-button>
+
+                </a-card-title>
+                <a-card-text>
+
+                    <a-row :gutter="16" class="dense">
+                        <a-col
                             v-for="tpl in filteredPointTemplates"
                             :key="tpl.id"
                             cols="12"
                             md="6"
                         >
-                            <v-card variant="outlined" class="pa-3">
+                            <a-card variant="outlined" class="pa-3">
                                 <div class="d-flex align-center mb-1">
                                     <span class="font-weight-medium">{{ tpl.name }}</span>
-                                    <v-spacer></v-spacer>
-                                    <v-chip size="x-small" color="primary" class="mr-1">
+                                    <div style="flex: 1;"></div>
+                                    <a-tag size="x-small" color="primary" class="mr-1">
                                         {{ tpl.protocol }}
-                                    </v-chip>
+                                    </a-tag>
                                 </div>
                                 <div class="text-caption text-grey-darken-1 mb-2">
                                     {{ tpl.description }}
@@ -1092,7 +876,7 @@
                                     权限: {{ tpl.readwrite }}
                                 </div>
                                 <div class="mt-2 d-flex">
-                                    <v-btn
+                                    <a-button
                                         color="primary"
                                         size="small"
                                         variant="elevated"
@@ -1100,8 +884,8 @@
                                         @click="applyTemplate(tpl)"
                                     >
                                         套用模板
-                                    </v-btn>
-                                    <v-btn
+                                    </a-button>
+                                    <a-button
                                         class="ml-2"
                                         color="secondary"
                                         size="small"
@@ -1110,28 +894,34 @@
                                         @click="copyTemplate(tpl)"
                                     >
                                         复制配置
-                                    </v-btn>
+                                    </a-button>
                                 </div>
-                            </v-card>
-                        </v-col>
-                    </v-row>
-                </v-card-text>
-                <v-card-actions class="pa-4 pt-0">
-                    <v-spacer></v-spacer>
-                    <v-btn color="primary" variant="elevated" @click="templateDialog.visible = false">关闭</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+                            </a-card>
+                        </a-col>
+                    </a-row>
+                </a-card-text>
+                <div class="pa-4 pt-0" style="display: flex; justify-content: flex-end; border-top: 1px solid #e8e8e8;">
 
-        <v-dialog v-model="helpDialog.visible" max-width="900">
-            <v-card>
-                <v-card-title class="d-flex align-center">
+                    <div style="flex: 1;"></div>
+                    <a-button type="primary" size="small" @click="templateDialog.visible = false">关闭</a-button>
+
+                </div>
+            </a-card>
+        </a-modal>
+
+        <a-modal v-model="helpDialog.visible" max-width="900">
+            <a-card>
+                <a-card-title class="d-flex align-center">
                     <span class="text-h6">点位解码与公式使用帮助</span>
-                    <v-spacer></v-spacer>
-                    <v-btn icon="mdi-close" variant="text" @click="helpDialog.visible = false"></v-btn>
-                </v-card-title>
-                <v-card-text class="pt-2">
-                    <v-text-field
+                    <div style="flex: 1;"></div>
+                    <a-button type="text" size="small" @click="helpDialog.visible = false">
+                        <template #icon><IconClose /></template>
+                    </a-button>
+
+                </a-card-title>
+                <a-card-text class="pt-2">
+
+                    <a-input
                         v-model="helpDialog.search"
                         prepend-inner-icon="mdi-magnify"
                         label="搜索关键字 (协议 / 函数 / 示例)"
@@ -1139,170 +929,68 @@
                         density="compact"
                         class="mb-4"
                         clearable
-                    ></v-text-field>
-                    <v-expansion-panels multiple>
-                        <v-expansion-panel
+                    ></a-input>
+                    <a-collapse multiple>
+                        <a-collapse-item
                             v-for="section in filteredHelpSections"
                             :key="section.id"
+                            :title="section.title"
                         >
-                            <v-expansion-panel-title>
-                                {{ section.title }}
-                            </v-expansion-panel-title>
-                            <v-expansion-panel-text>
+                            <div>
                                 <div v-for="item in section.items" :key="item.title" class="mb-4">
                                     <div class="d-flex align-center mb-1">
                                         <span class="font-weight-medium">{{ item.title }}</span>
-                                        <v-spacer></v-spacer>
-                                        <v-btn
+                                        <div style="flex: 1;"></div>
+                                        <a-button
                                             v-if="item.snippet"
-                                            size="x-small"
-                                            variant="text"
-                                            color="primary"
+                                            type="text"
+                                            size="small"
                                             @click="copySnippet(item.snippet)"
                                         >
                                             复制示例
-                                        </v-btn>
+                                        </a-button>
                                     </div>
                                     <div class="text-body-2 mb-1">{{ item.desc }}</div>
                                     <div v-if="item.snippet" class="pa-2 rounded bg-grey-lighten-4 font-mono text-body-2">
                                         {{ item.snippet }}
                                     </div>
                                 </div>
-                            </v-expansion-panel-text>
-                        </v-expansion-panel>
-                    </v-expansion-panels>
-                </v-card-text>
-                <v-card-actions class="pa-4">
-                    <v-spacer></v-spacer>
-                    <v-btn color="primary" variant="elevated" @click="helpDialog.visible = false">关闭</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
-
-        <!-- Scan Dialog -->
-        <v-dialog v-model="scanDialog.visible" max-width="1200px" persistent>
-            <v-card>
-                <v-card-title class="d-flex align-center bg-info text-white">
-                    <v-icon icon="mdi-radar" class="mr-2"></v-icon>
-                    扫描点位 (对象发现)
-                    <v-spacer></v-spacer>
-                    <v-btn icon="mdi-close" variant="text" @click="scanDialog.visible = false"></v-btn>
-                </v-card-title>
-                <v-card-text class="pa-4">
-                    <v-row class="mb-2" align="center">
-                        <v-col cols="12" sm="4">
-                            <div class="text-caption text-grey-darken-1">
-                                正在扫描设备 (ID: {{ deviceInfo?.config?.device_id }}) 的对象列表...
                             </div>
-                        </v-col>
-                        <v-col cols="12" sm="9" class="d-flex align-center justify-end scan-toolbar">
-                            <v-btn-toggle v-model="scanDialog.mode" color="primary" density="compact" class="mr-3" mandatory>
-                                <v-btn value="fast" variant="tonal" size="small" title="结构 + 元数据">快速扫描</v-btn>
-                                <v-btn value="deep" variant="tonal" size="small" title="含实时值">深度扫描</v-btn>
-                            </v-btn-toggle>
-                            <v-btn color="primary" :loading="scanDialog.loading" prepend-icon="mdi-radar" @click="scanPoints">
-                                开始扫描
-                            </v-btn>
-                            <v-switch
-                                class="ml-4"
-                                hide-details
-                                color="primary"
-                                density="compact"
-                                v-model="scanDialog.varsOnly"
-                                :label="scanDialog.varsOnly ? '仅显示变量' : '显示全部'"
-                            ></v-switch>
-                        </v-col>
-                    </v-row>
-                    
-                    <v-divider class="mb-4"></v-divider>
-                    
-                    <v-table hover density="compact">
-                        <thead>
-                            <tr>
-                                <th style="width: 50px">
-                                    <v-checkbox-btn
-                                        v-model="scanDialog.selectAll"
-                                        @update:model-value="toggleSelectAllScan"
-                                        density="compact"
-                                        hide-details
-                                    ></v-checkbox-btn>
-                                </th>
-                                <th class="text-left">状态</th>
-                                <th class="text-left">对象名称/NodeID</th>
-                                <th class="text-left">类型</th>
-                                <th class="text-left" v-if="channelProtocol !== 'opc-ua'">实例</th>
-                                <th class="text-left" v-if="channelProtocol !== 'opc-ua'">当前值</th>
-                                <th class="text-left" v-if="channelProtocol !== 'opc-ua'">单位</th>
-                                <th class="text-left">描述/DataType</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-if="scanDialog.results.length === 0 && !scanDialog.loading">
-                                <td colspan="7" class="text-center text-grey py-8">
-                                    <v-icon icon="mdi-magnify" size="large" class="mb-2"></v-icon>
-                                    <div>点击"开始扫描"获取设备对象列表</div>
-                                </td>
-                            </tr>
-                            <tr v-for="obj in scanFilteredResults" :key="obj.isOpcNode ? obj.node_id : (obj.type + ':' + obj.instance)">
-                                <td>
-                                    <v-checkbox-btn
-                                        v-model="scanDialog.selected"
-                                        :value="obj"
-                                        :disabled="obj.diff_status === 'existing'"
-                                        density="compact"
-                                        hide-details
-                                    ></v-checkbox-btn>
-                                </td>
-                                <td>
-                                    <v-chip
-                                        v-if="obj.diff_status"
-                                        size="x-small"
-                                        :color="getStatusColor(obj.diff_status)"
-                                        class="font-weight-bold"
-                                    >
-                                        {{ getStatusText(obj.diff_status) }}
-                                    </v-chip>
-                                    <span v-else>-</span>
-                                </td>
-                                <!-- Object Name with Indentation for OPC UA -->
-                                <td :style="obj.isOpcNode ? { paddingLeft: (obj.level * 20 + 16) + 'px' } : {}">
-                                    <v-icon v-if="obj.isOpcNode" :icon="obj.type === 'Variable' ? 'mdi-tag-outline' : 'mdi-folder-outline'" size="small" class="mr-1"></v-icon>
-                                    {{ obj.object_name || obj.name || '-' }}
-                                    <div v-if="obj.isOpcNode" class="text-caption text-grey">{{ obj.node_id }}</div>
-                                </td>
-                                <td>{{ obj.type }}</td>
-                                <td v-if="channelProtocol !== 'opc-ua'">{{ obj.instance }}</td>
-                                <td v-if="channelProtocol !== 'opc-ua'">{{ obj.present_value }}</td>
-                                <td v-if="channelProtocol !== 'opc-ua'">{{ obj.units || '-' }}</td>
-                                <td>{{ obj.isOpcNode ? (obj.data_type || '-') : (obj.description || '-') }}</td>
-                            </tr>
-                        </tbody>
-                    </v-table>
-                </v-card-text>
-                <v-card-actions class="pa-4 border-t">
-                    <v-spacer></v-spacer>
-                    <v-btn variant="text" @click="scanDialog.visible = false">取消</v-btn>
-                    <v-btn 
-                        color="primary" 
-                        variant="elevated"
-                        @click="addSelectedPoints" 
-                        :disabled="scanDialog.selected.length === 0 || scanDialog.loading"
-                        :loading="scanDialog.loading"
-                    >
-                        添加选定点位 ({{ scanDialog.selected.length }})
-                    </v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+                        </a-collapse-item>
+                    </a-collapse>
+                </a-card-text>
+                <div class="pa-4" style="display: flex; justify-content: flex-end; border-top: 1px solid #e8e8e8;">
+
+                    <div style="flex: 1;"></div>
+                    <a-button type="primary" size="small" @click="helpDialog.visible = false">关闭</a-button>
+
+                </div>
+            </a-card>
+        </a-modal>
+
+        <!-- BACnet Scanner Dialog -->
+        <BACnetScanner
+            v-if="channelProtocol === 'bacnet-ip'"
+            :visible="scanDialogVisible"
+            :channel-id="channelId"
+            :device-id="deviceId"
+            :channel-protocol="channelProtocol"
+            :existing-addresses="existingAddresses"
+            :device-info="deviceInfo"
+            @close="scanDialogVisible = false"
+            @refresh-points="handleRefreshPoints"
+        />
+
 
         <!-- Delete Confirmation Dialog -->
-        <v-dialog v-model="deleteDialog.visible" max-width="400">
-            <v-card class="rounded-xl">
-                <v-card-title class="text-h5 bg-error text-white pa-4">
-                    <v-icon icon="mdi-alert" class="mr-2"></v-icon>
+        <a-modal v-model="deleteDialog.visible" max-width="400">
+            <a-card class="rounded-xl">
+                <a-card-title class="text-h5 bg-error text-white pa-4">
+                    <IconCloseCircle class="mr-2" />
                     确认删除
-                </v-card-title>
-                <v-card-text class="pa-6 text-center">
+                </a-card-title>
+                <a-card-text class="pa-6 text-center">
+
                     <template v-if="deleteDialog.isBatch">
                         确定要批量删除选中的 <span class="text-error font-weight-bold">{{ deleteDialog.batchCount }}</span> 个点位吗？
                     </template>
@@ -1310,212 +998,229 @@
                         确定要删除点位 <span class="text-error font-weight-bold">{{ deleteDialog.point?.name || deleteDialog.point?.id }}</span> 吗？
                     </template>
                     <div class="mt-2 text-grey text-caption">此操作不可撤销。</div>
-                </v-card-text>
-                <v-card-actions class="pa-4 pt-0">
-                    <v-spacer></v-spacer>
-                    <v-btn color="grey-darken-1" variant="text" @click="deleteDialog.visible = false">取消</v-btn>
-                    <v-btn color="error" variant="elevated" @click="executeDelete" :loading="deleteDialog.loading">确认删除</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+                </a-card-text>
+                <div class="pa-4 pt-0" style="display: flex; justify-content: flex-end; border-top: 1px solid #e8e8e8;">
+
+                    <div style="flex: 1;"></div>
+                    <a-button type="outline" size="small" @click="deleteDialog.visible = false">取消</a-button>
+                    <a-button type="primary" size="small" class="ml-2" status="danger" @click="executeDelete" :loading="deleteDialog.loading">确认删除</a-button>
+
+                </div>
+            </a-card>
+        </a-modal>
 
         <!-- Write Dialog -->
-        <v-dialog v-model="writeDialog.visible" max-width="400" persistent>
-            <v-card class="rounded-xl bg-white elevation-10">
-                <v-card-title class="text-h5 pa-4 bg-primary text-white">
-                    <v-icon icon="mdi-pencil" class="mr-2"></v-icon>
-                    写入数值
-                </v-card-title>
-                <v-card-text class="pa-4 pt-6">
-                    <v-form @submit.prevent="submitWrite">
-                        <v-text-field
-                            v-model="writeDialog.deviceID"
-                            label="设备ID"
-                            variant="outlined"
-                            readonly
-                            density="compact"
-                            prepend-inner-icon="mdi-devices"
-                            class="mb-2"
-                        ></v-text-field>
-                        <v-text-field
-                            v-model="writeDialog.pointID"
-                            label="点位ID"
-                            variant="outlined"
-                            readonly
-                            density="compact"
-                            prepend-inner-icon="mdi-tag"
-                            class="mb-2"
-                        ></v-text-field>
-                        <template v-if="isBoolType(writeDialog.dataType)">
-                            <v-switch
-                                v-model="writeDialog.valueBool"
-                                inset
-                                color="primary"
-                                class="mt-2"
-                                :label="writeDialog.valueBool ? 'TRUE' : 'FALSE'"
-                            ></v-switch>
-                        </template>
-                        <template v-else-if="isStringType(writeDialog.dataType)">
-                            <v-text-field
-                                v-model="writeDialog.valueStr"
-                                label="新数值"
-                                variant="outlined"
-                                density="comfortable"
-                                prepend-inner-icon="mdi-cog"
-                                placeholder="请输入要写入的字符串"
-                                autofocus
-                            ></v-text-field>
-                        </template>
-                        <template v-else>
-                            <v-text-field
-                                v-model.number="writeDialog.valueNum"
-                                type="number"
-                                step="0.01"
-                                label="新数值"
-                                variant="outlined"
-                                density="comfortable"
-                                prepend-inner-icon="mdi-cog"
-                                placeholder="请输入要写入的数值"
-                                autofocus
-                            ></v-text-field>
-                        </template>
-                        
-                        <!-- BACnet Priority Selection -->
-                        <v-select
-                            v-if="channelProtocol === 'bacnet-ip'"
-                            v-model.number="writeDialog.priority"
-                            :items="[
-                                { title: '1 (最高)', value: 1 },
-                                { title: '8 (手动)', value: 8 },
-                                { title: '16 (最低)', value: 16 },
-                                { title: 'NULL (释放)', value: null }
-                            ]"
-                            item-title="title"
-                            item-value="value"
-                            label="BACnet 写入优先级 (1-16)"
-                            variant="outlined"
-                            density="compact"
-                            prepend-inner-icon="mdi-order-numeric-ascending"
-                            class="mt-2"
-                            hint="优先级 1-16, NULL 表示释放该点位"
-                            persistent-hint
-                        ></v-select>
-                    </v-form>
-                </v-card-text>
-                <v-card-actions class="pa-4 pt-0">
-                    <v-spacer></v-spacer>
-                    <v-btn color="grey-darken-1" variant="text" @click="writeDialog.visible = false">取消</v-btn>
-                    <v-btn color="primary" variant="elevated" @click="submitWrite" :loading="writeDialog.loading">确认写入</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+        <a-modal 
+            v-model:visible="writeDialog.visible" 
+            :width="480"
+            :mask-closable="false"
+            unmount-on-close
+            modal-class="industrial-modal"
+            title-align="start"
+            @cancel="writeDialog.visible = false"
+            @ok="submitWrite"
+        >
+            <template #title>
+                <div class="flex flex-col">
+                    <span class="text-[10px] text-slate-400 font-mono uppercase tracking-wider mb-0.5">
+                        Write Value
+                    </span>
+                    <span class="text-base font-bold text-slate-800">
+                        写入数值
+                    </span>
+                </div>
+            </template>
+
+            <a-form :model="writeDialog" layout="vertical" class="industrial-form p-2">
+                <a-row :gutter="16">
+                    <a-col :span="12">
+                        <a-form-item field="deviceID" label="设备ID">
+                            <a-input
+                                v-model="writeDialog.deviceID"
+                                placeholder="设备ID"
+                                size="small"
+                                :disabled="true"
+                                :tooltip="{ title: '设备唯一标识符', placement: 'top' }"
+                            />
+                        </a-form-item>
+                    </a-col>
+                    <a-col :span="12">
+                        <a-form-item field="pointID" label="点位ID">
+                            <a-input
+                                v-model="writeDialog.pointID"
+                                placeholder="点位ID"
+                                size="small"
+                                :disabled="true"
+                                :tooltip="{ title: '点位唯一标识符', placement: 'top' }"
+                            />
+                        </a-form-item>
+                    </a-col>
+                </a-row>
+                
+                <a-form-item field="value" label="新数值">
+                    <template v-if="isBoolType(writeDialog.dataType)">
+                        <a-radio-group v-model="writeDialog.valueBool" type="button">
+                            <a-radio value="true">TRUE</a-radio>
+                            <a-radio value="false">FALSE</a-radio>
+                        </a-radio-group>
+                    </template>
+                    <template v-else-if="isStringType(writeDialog.dataType)">
+                        <a-input
+                            v-model="writeDialog.valueStr"
+                            placeholder="请输入要写入的字符串"
+                            size="small"
+                            autofocus
+                        />
+                    </template>
+                    <template v-else>
+                        <a-input
+                            v-model.number="writeDialog.valueNum"
+                            type="number"
+                            step="0.01"
+                            placeholder="请输入要写入的数值"
+                            size="small"
+                            autofocus
+                        />
+                    </template>
+                </a-form-item>
+                
+                <!-- BACnet Priority Selection -->
+                <a-form-item v-if="channelProtocol === 'bacnet-ip'" field="priority" label="BACnet 写入优先级">
+                    <a-select
+                        v-model.number="writeDialog.priority"
+                        :options="[
+                            { label: '1 (最高)', value: 1 },
+                            { label: '8 (手动)', value: 8 },
+                            { label: '16 (最低)', value: 16 },
+                            { label: 'NULL (释放)', value: null }
+                        ]"
+                        size="small"
+                        :tooltip="{ title: '优先级 1-16, NULL 表示释放该点位', placement: 'top' }"
+                    />
+                </a-form-item>
+            </a-form>
+
+            <template #footer>
+                <div class="flex justify-end gap-2 border-t border-slate-200 pt-3 mt-2">
+                    <a-button @click="writeDialog.visible = false" class="industrial-btn-plain">
+                        取消 (ESC)
+                    </a-button>
+                    <a-button 
+                        type="primary" 
+                        status="warning" 
+                        :loading="writeDialog.loading" 
+                        class="industrial-btn-execute" 
+                        @click="submitWrite"
+                    >
+                        <template #icon v-if="!writeDialog.loading"><IconSend /></template>
+                        立即下发 (ENTER)
+                    </a-button>
+                </div>
+            </template>
+        </a-modal>
 
         <!-- Value Detail Dialog -->
-        <v-dialog v-model="valueDialog.visible" max-width="700">
-            <v-card>
-                <v-card-title class="text-h5 bg-primary text-white">
-                    完整数值
-                </v-card-title>
-                <v-card-text class="pt-4">
-                    <v-textarea
-                        label="原始值"
+        <a-modal v-model:visible="valueDialog.visible" title="完整数值" width="700px">
+            <a-card>
+                <div class="pt-4">
+                    <a-textarea
+                        placeholder="原始值"
                         v-model="valueDialog.value"
-                        readonly
-                        auto-grow
-                        rows="3"
-                        variant="outlined"
+                        :read-only="true"
+                        :auto-size="{ minRows: 3, maxRows: 10 }"
                         class="mb-4"
-                    ></v-textarea>
+                    />
+
 
                     <div v-if="valueDialog.isBase64">
                         <div class="text-subtitle-1 mb-2 font-weight-bold">Base64 解码</div>
-                        <v-btn-toggle v-model="valueDialog.decodeType" color="primary" mandatory class="mb-4" @update:model-value="tryDecode">
-                            <v-btn value="text">Text (UTF-8)</v-btn>
-                            <v-btn value="hex">Hex</v-btn>
-                            <v-btn value="json">JSON</v-btn>
-                        </v-btn-toggle>
+                        <a-radio-group v-model="valueDialog.decodeType" @change="tryDecode" class="mb-4">
+                            <a-radio value="text">Text (UTF-8)</a-radio>
+                            <a-radio value="hex">Hex</a-radio>
+                            <a-radio value="json">JSON</a-radio>
+                        </a-radio-group>
                         
-                        <v-textarea
-                            label="解码结果"
+                        <a-textarea
+                            placeholder="解码结果"
                             v-model="valueDialog.decodedValue"
-                            readonly
-                            auto-grow
-                            rows="5"
-                            variant="outlined"
+                            :read-only="true"
+                            :auto-size="{ minRows: 5, maxRows: 10 }"
                             style="font-family: monospace;"
-                        ></v-textarea>
+                        />
                     </div>
                     <div v-else-if="numericFormats">
                         <div class="text-subtitle-1 mb-3 font-weight-bold">数值格式转换</div>
-                        <v-row class="mb-3" align="center">
-                            <v-col cols="12" sm="6">
+                        <a-row class="mb-3">
+                            <a-col :span="12" :sm="6">
                                 <div class="text-body-2 text-grey-darken-1 mb-1">字节数</div>
-                                <v-btn-toggle
-                                    v-model="valueDialog.byteLength"
-                                    color="primary"
-                                    density="compact"
-                                    divided
-                                >
-                                    <v-btn :value="1" size="small">1 字节</v-btn>
-                                    <v-btn :value="2" size="small">2 字节</v-btn>
-                                    <v-btn :value="4" size="small">4 字节</v-btn>
-                                    <v-btn :value="8" size="small">8 字节</v-btn>
-                                </v-btn-toggle>
-                            </v-col>
-                            <v-col cols="12" sm="6" v-if="valueWordOrderOptions.length">
+                                <a-button-group>
+                                    <a-button :type="valueDialog.byteLength === 1 ? 'primary' : 'outline'" size="small" @click="valueDialog.byteLength = 1">1 字节</a-button>
+                                    <a-button :type="valueDialog.byteLength === 2 ? 'primary' : 'outline'" size="small" @click="valueDialog.byteLength = 2">2 字节</a-button>
+                                    <a-button :type="valueDialog.byteLength === 4 ? 'primary' : 'outline'" size="small" @click="valueDialog.byteLength = 4">4 字节</a-button>
+                                    <a-button :type="valueDialog.byteLength === 8 ? 'primary' : 'outline'" size="small" @click="valueDialog.byteLength = 8">8 字节</a-button>
+                                </a-button-group>
+                            </a-col>
+                            <a-col :span="12" :sm="6" v-if="valueWordOrderOptions.length">
                                 <div class="text-body-2 text-grey-darken-1 mb-1">字节 / 字序</div>
-                                <v-select
+                                <a-select
                                     v-model="valueDialog.wordOrder"
-                                    :items="valueWordOrderOptions"
-                                    item-title="label"
-                                    item-value="value"
-                                    density="compact"
-                                    variant="outlined"
-                                    hide-details
-                                ></v-select>
-                            </v-col>
-                        </v-row>
-                        <v-table density="compact">
-                            <tbody>
-                                <tr>
-                                    <td class="font-weight-medium" style="width: 140px;">有符号整型</td>
-                                    <td style="font-family: monospace;">{{ numericFormats.signed }}</td>
-                                </tr>
-                                <tr>
-                                    <td class="font-weight-medium">无符号整型</td>
-                                    <td style="font-family: monospace;">{{ numericFormats.unsigned }}</td>
-                                </tr>
-                                <tr>
-                                    <td class="font-weight-medium">十六进制</td>
-                                    <td style="font-family: monospace;">{{ numericFormats.hex }}</td>
-                                </tr>
-                                <tr>
-                                    <td class="font-weight-medium">二进制</td>
-                                    <td style="font-family: monospace; word-break: break-all;">
-                                        {{ numericFormats.binary }}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </v-table>
+                                    :options="valueWordOrderOptions"
+                                    :field-names="{ label: 'label', value: 'value' }"
+                                    size="small"
+                                    style="width: 100%;"
+                                />
+                            </a-col>
+                        </a-row>
+                        <a-table :columns="valueFormatColumns" :data="valueFormatData" size="small" :bordered="true">
+                        </a-table>
                     </div>
-                </v-card-text>
-                <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn color="primary" @click="valueDialog.visible = false">关闭</v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+                </div>
+                <div class="dialog-footer" style="display: flex; justify-content: flex-end; padding: 16px; border-top: 1px solid #e8e8e8;">
+                    <a-button type="primary" @click="valueDialog.visible = false">关闭</a-button>
+                </div>
+            </a-card>
+        </a-modal>
+
+        <!-- Help Drawer -->
+        <HelpDrawer
+            v-model:visible="helpVisible"
+            :channel-protocol="channelProtocol"
+        />
+
+        <!-- OPC-UA Scanner -->
+        <OpcuaScanner
+            v-model:visible="opcuaScannerVisible"
+            :channel-id="channelId"
+            :device-id="deviceId"
+            :device-config="deviceInfo?.config || {}"
+            :existing-points="points"
+            @error="(message) => showMessage(message, 'error')"
+            @info="(message) => showMessage(message, 'info')"
+            @points-added="handlePointsAdded"
+        />
     </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { globalState, showMessage } from '../composables/useGlobalState'
 import request from '@/utils/request'
 import basePointTemplates from '@/utils/pointTemplates.json'
 import { sanitizeHtml } from '@/utils/sanitizeHtml'
+import {
+  IconArrowLeft, IconSearch, IconPlus, IconDelete, IconRefresh,
+  IconEdit, IconFile, IconBug, IconCheckCircle, IconClockCircle,
+  IconCloseCircle, IconScan, IconCopy, IconClose, IconThunderbolt,
+  IconTag, IconFolder, IconSend, IconQuestionCircle,
+} from '@arco-design/web-vue/es/icon'
+import { Message } from '@arco-design/web-vue'
+import HelpDrawer from '../components/HelpDrawer.vue'
+import OpcuaScanner from '../components/OpcuaScanner.vue'
+import BACnetScanner from '../components/BACnetScanner.vue'
+
+
 import {
     baseWordOrderOptions,
     baseParseTypeOptions,
@@ -1532,9 +1237,16 @@ const { locale } = useI18n()
 const currentLang = computed(() => (locale.value || 'zh').toString())
 
 const route = useRoute()
+const router = useRouter()
 const points = ref([])
 const deviceInfo = ref(null)
 const loading = ref(false)
+
+const goBack = () => {
+  console.log('goBack function called')
+  // 使用router.push()返回上一页，更加可靠
+  router.push(`/channels/${channelId.value}/devices`)
+}
 
 const channelId = computed(() => route.params.channelId)
 const deviceId = computed(() => route.params.deviceId)
@@ -1556,6 +1268,100 @@ const selection = reactive({
     selectedIds: [],
     selectAll: false
 })
+
+// Help Drawer State
+const helpVisible = ref(false)
+
+// OPC-UA Scanner State
+const opcuaScannerVisible = ref(false)
+
+const rowSelection = reactive({
+    type: 'checkbox',
+    showCheckedAll: true,
+    onlyCurrent: false,
+    selectedRowKeys: computed(() => selection.selectedIds),
+    onChange: (selectedRowKeys) => {
+        selection.selectedIds = selectedRowKeys
+        selection.selectAll = selectedRowKeys.length === filteredPoints.value.length
+    }
+})
+
+// Helper functions
+const formatValue = (val) => {
+    if (typeof val === 'number') return val.toFixed(2)
+    return val
+}
+
+const formatDate = (ts) => {
+    if (!ts) return 'N/A'
+    
+    try {
+        const date = new Date(ts)
+        // 检查日期是否有效
+        if (isNaN(date.getTime())) {
+            return 'N/A'
+        }
+        
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        const hours = String(date.getHours()).padStart(2, '0')
+        const minutes = String(date.getMinutes()).padStart(2, '0')
+        const seconds = String(date.getSeconds()).padStart(2, '0')
+        
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+    } catch (error) {
+        console.warn('Date formatting error:', error)
+        return 'N/A'
+    }
+}
+
+const tableColumns = [
+    {
+        title: '点位ID',
+        dataIndex: 'id',
+        width: 120,
+        ellipsis: true,
+        tooltip: true
+    },
+    {
+        title: '点位名称',
+        dataIndex: 'name',
+        width: 150,
+        ellipsis: true,
+        tooltip: true
+    },
+    {
+        title: '读写权限',
+        slotName: 'readwrite',
+        width: 100,
+        ellipsis: true
+    },
+    {
+        title: '数值',
+        slotName: 'value',
+        width: 150,
+        ellipsis: true
+    },
+    {
+        title: '质量',
+        slotName: 'quality',
+        width: 140,
+        ellipsis: true
+    },
+    {
+        title: '时间戳',
+        slotName: 'timestamp',
+        width: 180,
+        ellipsis: true,
+        tooltip: true
+    },
+    {
+        title: '操作',
+        slotName: 'actions',
+        width: 260
+    }
+]
 
 const filteredPoints = computed(() => {
     let result = points.value || []
@@ -2707,10 +2513,20 @@ const fetchPoints = async () => {
                 }
             } catch (e) {
                 console.error('Failed to fetch device info', e)
+                showMessage('获取设备信息失败: ' + e.message, 'error')
             }
         }
 
-        // 用设备配置中的点位生成基础列表（无阻塞首屏）
+        // 2) 对于 OPC-UA 设备，确保 endpoint 配置存在
+        if (channelProtocol.value === 'opc-ua' && deviceInfo.value) {
+            const endpoint = deviceInfo.value.config?.endpoint
+            if (!endpoint || typeof endpoint !== 'string' || endpoint.length === 0) {
+                showMessage('OPC UA 设备未配置 endpoint，请检查设备配置', 'warning')
+                // 仍然继续获取点位，因为可能已经配置了点位
+            }
+        }
+
+        // 3) 用设备配置中的点位生成基础列表（无阻塞首屏）
         if (deviceInfo.value && Array.isArray(deviceInfo.value.points)) {
             const now = new Date()
             points.value = deviceInfo.value.points.map(p => ({
@@ -2730,7 +2546,7 @@ const fetchPoints = async () => {
             console.warn('No points found in device info')
         }
 
-        // 2) 合并实时缓存（快速填充值，仅当前设备）
+        // 4) 合并实时缓存（快速填充值，仅当前设备）
         try {
             console.log('Fetching realtime values...')
             const realtime = await request.get(`/api/values/realtime?channel_id=${channelId.value}&device_id=${deviceId.value}`)
@@ -2743,6 +2559,7 @@ const fetchPoints = async () => {
                         points.value[i].value = v.value
                         points.value[i].quality = v.quality || 'Good'
                         if (v.ts) points.value[i].timestamp = v.ts
+                        if (v.timestamp) points.value[i].timestamp = v.timestamp
                     }
                 }
             }
@@ -2751,16 +2568,21 @@ const fetchPoints = async () => {
             console.warn('Fetch realtime values failed', e)
         }
 
-        // 3) 后台拉取最新实时值（超时短，不阻塞页面交互）
+        // 5) 后台拉取最新实时值（对于 OPC-UA 设备，增加超时时间）
         // 成功则用返回结果覆盖；失败/超时忽略，等待 WebSocket 或下次刷新
         console.log('Triggering background point fetch...')
-        request.get(`/api/channels/${channelId.value}/devices/${deviceId.value}/points`, { timeout: 2500, silent: true })
+        const timeout = channelProtocol.value === 'opc-ua' ? 10000 : 2500
+        request.get(`/api/channels/${channelId.value}/devices/${deviceId.value}/points`, { timeout: timeout, silent: true })
             .then(pts => {
                 if (Array.isArray(pts) && pts.length > 0) {
                     console.log('Background point fetch successful, updating points. Points:', pts.length)
+                    console.log('First point data:', pts[0])
                     points.value = pts
                 } else if (Array.isArray(pts) && pts.length === 0 && points.value.length === 0) {
                     console.log('Background fetch returned empty points array')
+                    if (channelProtocol.value === 'opc-ua') {
+                        showMessage('OPC-UA 设备未发现点位，请先扫描点位', 'info')
+                    }
                 }
             })
             .catch((err) => {
@@ -2770,7 +2592,18 @@ const fetchPoints = async () => {
                     console.log('Fallback: Attempting full point fetch without short timeout...')
                     request.get(`/api/channels/${channelId.value}/devices/${deviceId.value}/points`)
                         .then(pts => {
-                            if (Array.isArray(pts)) points.value = pts
+                            if (Array.isArray(pts)) {
+                                points.value = pts
+                                if (pts.length === 0 && channelProtocol.value === 'opc-ua') {
+                                    showMessage('OPC-UA 设备未发现点位，请先扫描点位', 'info')
+                                }
+                            }
+                        })
+                        .catch((fallbackErr) => {
+                            console.error('Fallback point fetch failed:', fallbackErr.message)
+                            if (channelProtocol.value === 'opc-ua') {
+                                showMessage('获取 OPC-UA 点位失败，请检查设备连接和配置', 'error')
+                            }
                         })
                 }
             })
@@ -2784,59 +2617,30 @@ const fetchPoints = async () => {
     }
 }
 
-const scanDialog = reactive({
-    visible: false,
-    loading: false,
-    results: [],
-    selected: [],
-    selectAll: false,
-    varsOnly: true,
-    mode: 'fast'
-})
+const scanDialogVisible = ref(false)
 
 const existingAddresses = computed(() => {
     const set = new Set()
-    for (const p of points.value || []) {
+    for (const p of (points.value || [])) {
         if (p && p.address) set.add(p.address)
     }
     return set
 })
 
-const scanFilteredResults = computed(() => {
-    if (!scanDialog.varsOnly) return scanDialog.results
-    const filtered = scanDialog.results.filter(r => !r.isOpcNode || r.type === 'Variable')
-    if (channelProtocol.value === 'opc-ua' && scanDialog.results.length > 0 && filtered.length === 0) {
-        return scanDialog.results
-    }
-    return filtered
-})
 
-const getStatusColor = (status) => {
-    switch (status) {
-        case 'new': return 'success'
-        case 'existing': return 'grey'
-        case 'removed': return 'error'
-        default: return 'grey'
-    }
-}
-
-const getStatusText = (status) => {
-    switch (status) {
-        case 'new': return '新增'
-        case 'existing': return '存量'
-        case 'removed': return '已删除'
-        default: return status
-    }
-}
 
 const openDiscoverDialog = () => {
-    scanDialog.visible = true
-    scanDialog.results = []
-    scanDialog.selected = []
-    scanDialog.selectAll = false
-    scanDialog.varsOnly = true
-    // 自动开始扫描，减少多余操作
-    scanPoints()
+    if (channelProtocol.value === 'opc-ua') {
+        // 使用 OPC-UA 专用扫描组件
+        opcuaScannerVisible.value = true
+    } else {
+        // 使用新的扫描对话框组件
+        scanDialogVisible.value = true
+    }
+}
+
+const handleRefreshPoints = () => {
+    fetchPoints()
 }
 
 // Value Detail Dialog Logic
@@ -2848,6 +2652,33 @@ const valueDialog = reactive({
     isBase64: false,
     byteLength: 2,
     wordOrder: 'AB'
+})
+
+const valueFormatColumns = [
+    {
+        title: '格式',
+        dataIndex: 'format',
+        key: 'format',
+        width: 140
+    },
+    {
+        title: '值',
+        dataIndex: 'value',
+        key: 'value',
+        render: (_, record) => {
+            return h('span', { style: 'font-family: monospace;' }, record.value)
+        }
+    }
+]
+
+const valueFormatData = computed(() => {
+    if (!numericFormats.value) return []
+    return [
+        { format: '有符号整型', value: numericFormats.value.signed, key: 'signed' },
+        { format: '无符号整型', value: numericFormats.value.unsigned, key: 'unsigned' },
+        { format: '十六进制', value: numericFormats.value.hex, key: 'hex' },
+        { format: '二进制', value: numericFormats.value.binary, key: 'binary' }
+    ]
 })
 
 const valueWordOrderOptions = computed(() => {
@@ -2974,214 +2805,13 @@ const tryDecode = (type) => {
     }
 }
 
-const scanPoints = async () => {
-    scanDialog.loading = true
-    scanDialog.results = []
-    try {
-        // Ensure device info is loaded
-        if (!deviceInfo.value) {
-             try {
-                 const dev = await request.get(`/api/channels/${channelId.value}/devices/${deviceId.value}`)
-                 if (dev) {
-                     deviceInfo.value = dev
-                 }
-             } catch (e) {
-                 console.error('Failed to re-fetch device info', e)
-             }
-        }
 
-        console.log('Scanning points for device:', deviceInfo.value)
-        if (!deviceInfo.value || !deviceInfo.value.config) {
-             showMessage('无法获取设备配置 (请检查设备连接或配置)', 'error')
-             return
-        }
-        // OPC UA 设备前置校验：必须存在 endpoint
-        if (channelProtocol.value === 'opc-ua') {
-            const ep = deviceInfo.value.config.endpoint
-            if (!ep || typeof ep !== 'string' || ep.length === 0) {
-                showMessage('OPC UA 设备未配置 endpoint，无法扫描', 'error')
-                return
-            }
-        }
-        
-        // Handle device_id being 0 or string "0" for BACnet
-        let targetDeviceId = null
-        if (channelProtocol.value === 'bacnet-ip') {
-            // 优先使用 instance_id，其次 device_id
-            const cfg = deviceInfo.value.config || {}
-            targetDeviceId = cfg.instance_id
-            if (targetDeviceId === undefined || targetDeviceId === null || targetDeviceId === '') {
-                targetDeviceId = cfg.device_id
-            }
 
-            if (targetDeviceId === undefined || targetDeviceId === null || targetDeviceId === '') {
-                showMessage('无法获取设备实例ID (config.instance_id 或 device_id)', 'error')
-                return
-            }
-        }
-        
-        // Call device-specific scan endpoint
-        const payload = {
-            mode: scanDialog.mode
-        }
-        // 如果提取到了 device_id (BACnet Instance ID)，则显式传递给后端
-        if (targetDeviceId !== null) {
-            payload.device_id = parseInt(targetDeviceId)
-        }
 
-        const res = await request.post(`/api/channels/${channelId.value}/devices/${deviceId.value}/scan`, payload, { timeout: 60000 })
-        
-        if (Array.isArray(res)) {
-            if (res.length === 0) {
-                showMessage('扫描结果为空', 'warning')
-            }
-            if (channelProtocol.value === 'opc-ua') {
-                // Flatten OPC UA tree for display
-                scanDialog.results = flattenOpcNodes(res)
-            } else {
-                // For BACnet (and others), process diff_status based on existing points in UI
-                // This overrides backend's "existing" status (from driver history) if the point was deleted in App
-                scanDialog.results = res.map(item => {
-                    if (channelProtocol.value === 'bacnet-ip') {
-                         const key = `${item.type}:${item.instance}`
-                         if (existingAddresses.value.has(key)) {
-                             item.diff_status = 'existing'
-                         } else {
-                             // If not in App, reset 'existing' to 'new' so it can be re-added
-                             if (item.diff_status === 'existing') {
-                                 item.diff_status = 'new'
-                             }
-                         }
-                    }
-                    return item
-                })
-            }
-        } else {
-            showMessage('扫描结果格式错误', 'error')
-        }
-    } catch (e) {
-        showMessage('扫描失败: ' + e.message, 'error')
-    } finally {
-        scanDialog.loading = false
-    }
-}
 
-const flattenOpcNodes = (nodes, level = 0) => {
-    let result = []
-    for (const node of nodes) {
-        // Add current node
-        const item = {
-            ...node,
-            level: level,
-            isOpcNode: true,
-            // Map to common fields for display
-            device_id: node.node_id, // Use NodeID as ID
-            object_name: node.name,
-            type: node.type, // "Variable" or "Folder"
-            description: node.node_id // Show NodeID in description/extra
-        }
-        // Mark existing/new for sync status
-        if (node.type === 'Variable' && node.node_id) {
-            item.diff_status = existingAddresses.value.has(node.node_id) ? 'existing' : 'new'
-        }
-        result.push(item)
-        
-        // Process children
-        if (node.children && node.children.length > 0) {
-            result = result.concat(flattenOpcNodes(node.children, level + 1))
-        }
-    }
-    return result
-}
 
-const toggleSelectAllScan = (val) => {
-    if (val) {
-        // Only select non-disabled rows
-        scanDialog.selected = scanFilteredResults.value.filter(r => !(r.diff_status === 'existing'))
-    } else {
-        scanDialog.selected = []
-    }
-}
 
-const addSelectedPoints = async () => {
-    if (scanDialog.selected.length === 0) return
-    
-    scanDialog.loading = true
-    let successCount = 0
-    let failCount = 0
-    
-    for (const obj of scanDialog.selected) {
-        let pointPayload = {}
-        
-        if (channelProtocol.value === 'opc-ua') {
-            // OPC UA Point Mapping
-            // Skip non-variable nodes if desired, or let user decide (variables only usually)
-            if (obj.type !== 'Variable') continue;
-            
-            let rw = 'R'
-            if (obj.access_level && obj.access_level.includes('CurrentWrite')) {
-                rw = 'RW'
-            }
-            
-            // Map OPC UA DataType to System DataType
-            let dt = (obj.data_type || 'Float').toLowerCase()
-            if (dt.includes('bool')) dt = 'bool'
-            else if (dt.includes('int16') || dt.includes('short')) dt = 'int16'
-            else if (dt.includes('uint16') || dt.includes('unsignedshort')) dt = 'uint16'
-            else if (dt.includes('int32') || dt.includes('int')) dt = 'int32'
-            else if (dt.includes('uint32') || dt.includes('unsignedint')) dt = 'uint32'
-            else if (dt.includes('float')) dt = 'float32'
-            else if (dt.includes('double')) dt = 'float64'
-            else if (dt.includes('string')) dt = 'string'
-            else dt = 'float32' // Default fallback
 
-            pointPayload = {
-                id: obj.node_id, // Use NodeID as ID
-                name: obj.display_name || obj.node_id,
-                address: obj.node_id,
-                datatype: dt,
-                readwrite: rw,
-                unit: '', // Units not always available in browse
-                scale: 1.0,
-                offset: 0.0
-            }
-        } else {
-            // BACnet Point Mapping
-            // Determine Datatype
-            let datatype = 'float32'
-            if (obj.type.includes('Binary') || obj.type.includes('Bit')) datatype = 'bool'
-            if (obj.type.includes('MultiState')) datatype = 'uint16'
-            
-            // Determine RW
-            let rw = 'R'
-            if (obj.type.includes('Output') || obj.type.includes('Value')) rw = 'RW'
-            
-            pointPayload = {
-                id: obj.name || `${obj.type}_${obj.instance}`.replace(/[\s:]+/g, '_'),
-                name: obj.description || `${obj.type} ${obj.instance}`,
-                address: `${obj.type}:${obj.instance}`,
-                datatype: datatype,
-                readwrite: rw,
-                unit: obj.units || '',
-                scale: 1.0,
-                offset: 0.0
-            }
-        }
-        
-        try {
-            await request.post(`/api/channels/${channelId.value}/devices/${deviceId.value}/points`, pointPayload)
-            successCount++
-        } catch (e) {
-            console.error(e)
-            failCount++
-        }
-    }
-    
-    scanDialog.loading = false
-    showMessage(`已添加 ${successCount} 个点位${failCount > 0 ? `，${failCount} 个失败` : ''}`, failCount > 0 ? 'warning' : 'success')
-    scanDialog.visible = false
-    fetchPoints()
-}
 
 // WebSocket Logic
 let ws = null
@@ -3222,9 +2852,12 @@ const bacnetObjectTypes = [
 
 const fetchChannel = async () => {
     try {
+        console.log('Fetching channel info for channelId:', channelId.value)
         const data = await request.get(`/api/channels/${channelId.value}`)
+        console.log('Channel info data:', data)
         if (data && data.protocol) {
             channelProtocol.value = data.protocol
+            console.log('Channel protocol set to:', channelProtocol.value)
         }
     } catch (e) {
         console.error('Failed to fetch channel info', e)
@@ -3285,11 +2918,7 @@ const formatDuration = (seconds) => {
     return `${s}秒`
 }
 
-const formatValue = (val) => {
-    if (typeof val === 'number') return val.toFixed(2)
-    return val
-}
-const formatDate = (ts) => new Date(ts).toLocaleString()
+
 const isQualityGood = (q) => q === 'Good' || q === 'good'
 
 const getRegisterCountForDatatype = (dt) => {
@@ -3333,7 +2962,11 @@ const openWriteDialog = (point) => {
 }
 
 const submitWrite = async () => {
-    writeDialog.loading = true
+    const closeLoading = Message.loading({
+        content: '下发指令中...',
+        duration: 0 // 手动关闭
+    })
+
     try {
         const payloadValue = normalizeWriteValue()
         
@@ -3352,16 +2985,35 @@ const submitWrite = async () => {
             point_id: writeDialog.pointID,
             value: finalValue
         })
-        showMessage('写入命令已发送', 'success')
+        
+        closeLoading.close() // 关闭加载状态
+
+        Message.success({
+            content: `成功：点位 [${writeDialog.pointID}] 已更新`,
+            duration: 2000,
+            closable: true
+        })
+        
         writeDialog.visible = false
+        fetchPoints() // 刷新列表
     } catch (e) {
-        showMessage('写入失败: ' + e.message, 'error')
+        closeLoading.close()
+        Message.error({
+            content: `错误：${e.message}`,
+            duration: 5000, // 错误信息停留更久
+            closable: true
+        })
     } finally {
         writeDialog.loading = false
     }
 }
 
 // 打开点位调试（调用后端 /api/points/:id/debug 并用浏览器提示显示）
+const handlePointsAdded = (result) => {
+    showMessage(`已添加 ${result.success} 个点位${result.fail > 0 ? `，${result.fail} 个失败` : ''}`, result.fail > 0 ? 'warning' : 'success')
+    fetchPoints()
+}
+
 const openDebug = async (point) => {
     try {
         const resp = await request.get(`/api/points/${point.id}/debug`, { timeout: 3000, silent: true })
@@ -3410,27 +3062,455 @@ const normalizeWriteValue = () => {
 </script>
 
 <style scoped>
+.point-list-container {
+  padding: 24px;
+  background: #f1f5f9;
+  min-height: calc(100vh - 56px);
+}
+
+.point-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.protocol-tag {
+  font-size: 12px;
+  color: #6c757d;
+  margin-bottom: 4px;
+}
+
+.title-text {
+  font-size: 20px;
+  font-weight: 600;
+  color: #212529;
+  margin: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.industrial-card {
+  border: 1px solid #e5e7eb !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease;
+  padding: 0 !important;
+}
+
+.industrial-card:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  border-color: #cbd5e1;
+}
+
+.value-cell {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+}
+
+.value-text {
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.value-unit {
+  font-size: 12px;
+  color: #6b7280;
+  margin-left: 4px;
+}
+
+.value-hint {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  background-color: #f9fafb;
+  border: 1px dashed #e5e7eb;
+  border-radius: 4px;
+  margin: 20px;
+}
+
+.empty-text {
+  margin: 16px 0;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.empty-actions {
+  margin-top: 24px;
+}
+
+.actions-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+/* 针对自定义插槽中可能存在的复杂结构的缩略样式 */
+.value-cell, .status-display {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 通用缩略样式 */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 直角化：全局覆盖 Arco 组件默认圆角 */
+:deep(.arco-input),
+:deep(.arco-textarea),
+:deep(.arco-select-view),
+:deep(.arco-input-number),
+:deep(.arco-button),
+:deep(.arco-card),
+:deep(.arco-table),
+:deep(.arco-modal),
+:deep(.arco-tabs-tab),
+:deep(.arco-radio-button),
+:deep(.arco-switch) {
+  border-radius: 0 !important;
+}
+
+/* 所有 a-input 通过 .mono-input 类强制切换为等宽字体 */
+.mono-input :deep(.arco-input), 
+.mono-input :deep(.arco-input-inner),
+.mono-input :deep(.arco-select-view) {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+  font-size: 12px;
+  background-color: #fcfcfc;
+  border-color: #e5e7eb;
+}
+
+/* 图标尺寸统一 */
+:deep(.arco-icon) {
+  font-size: 18px !important;
+}
+
+.title-spec :deep(.arco-icon) {
+  font-size: 22px !important;
+}
+
+/* 协议标签样式 */
+.protocol-tag {
+  background-color: #0ea5e9;
+  color: white;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 10px;
+  padding: 0 4px;
+  border-radius: 2px;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+
 .scan-toolbar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 8px;
   flex-wrap: nowrap;
   white-space: nowrap;
   overflow-x: hidden;
   min-width: 0;
 }
-.scan-toolbar :deep(.v-btn-group) {
-  flex: 0 0 auto;
-}
-.scan-toolbar :deep(.v-btn) {
-  flex: 0 0 auto;
-  min-width: auto;
-}
-.scan-toolbar :deep(.v-switch) {
-  flex: 0 0 auto;
-}
+
 .clone-dialog-full {
   align-items: stretch;
+}
+
+/* White Industrial Minimalist Style Connection Status */
+.terminal-info {
+  background: #ffffff;
+  border: 1px dashed #e5e7eb;
+  border-radius: 4px;
+  padding: 10px 16px;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.terminal-dot {
+  width: 6px;
+  height: 6px;
+  background: #10b981;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+  flex-shrink: 0;
+}
+
+.monospace-text {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  color: #374151;
+  letter-spacing: 0.3px;
+  line-height: 1.4;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+/* --- 极简线构弹窗样式 (Industrial Modal) --- */
+
+/* 1. 移除整体圆角，添加 1px 锐利边框和深色阴影 */
+.industrial-modal {
+  border-radius: 0 !important;
+  border: 1px solid #94a3b8 !important; /* Slate-400 */
+  box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.05) !important; /* 工业风硬阴影 */
+}
+
+/* 2. 头部底边框线 */
+.industrial-modal .arco-modal-header {
+  border-bottom: 1px solid #e2e8f0; /* Slate-200 */
+  padding: 16px 20px;
+}
+
+/* 3. 关闭按钮重置：去掉默认的圆形灰色背景，改为直角悬浮 */
+.industrial-modal .arco-modal-close-btn {
+  border-radius: 0;
+  transition: all 0.2s;
+}
+.industrial-modal .arco-modal-close-btn:hover {
+  background-color: #fee2e2; /* Red-100 */
+  color: #dc2626; /* Red-600 */
+}
+
+/* 4. 底部顶边框线（如果在 template 中手写了，这里可隐藏默认的） */
+.industrial-modal .arco-modal-footer {
+  border-top: none;
+  padding: 12px 20px 20px;
+}
+
+/* --- 表单控件硬核化 --- */
+
+/* 输入框、按钮、单选按钮组一律去掉圆角 */
+.industrial-form .arco-input-wrapper,
+.industrial-form .arco-select-view-single,
+.industrial-form .arco-radio-button {
+  border-radius: 0 !important;
+  border-color: #cbd5e1; /* Slate-300 */
+}
+
+.industrial-form .arco-input-wrapper:focus-within,
+.industrial-form .arco-select-view-single.arco-select-view-focus {
+  border-color: #0f172a !important; /* Slate-900 聚焦时的高对比度边缘 */
+  box-shadow: none !important;
+}
+
+/* 表单布局规范 */
+.industrial-form .arco-form-item {
+  margin-bottom: 16px; /* 表单项间距 */
+}
+
+.industrial-form .arco-form-item-label {
+  white-space: nowrap; /* 标签文字不换行 */
+  text-overflow: ellipsis; /* 长标签使用省略号 */
+  margin-right: 12px; /* 标签与输入框间距 */
+}
+
+/* 按钮直角化 */
+.industrial-btn-plain,
+.industrial-btn-primary {
+  border-radius: 0 !important;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-left: 8px !important;
+}
+
+.industrial-btn-plain:first-child {
+  margin-left: 0 !important;
+}
+
+.industrial-btn-primary {
+  background-color: #0f172a !important; /* Slate-900 */
+  border: 1px solid #0f172a !important;
+}
+.industrial-btn-primary:hover {
+  background-color: #334155 !important; /* Slate-700 */
+}
+
+/* 外层容器：去掉边框，确保宽度 100% */
+.point-list-container.no-padding {
+  padding: 0;
+  border: none;
+  background-color: transparent;
+}
+
+/* 核心：表格 100% 融合样式 */
+.industrial-table-fluid {
+  border-radius: 0 !important; /* 彻底去掉圆角 */
+}
+
+/* 1. 移除 Arco 默认的最外层包裹边框（如果外层 div 已经有边框）
+   或者：保留这个边框，但确保它紧贴浏览器边缘 */
+:deep(.arco-table-container) {
+  border-radius: 0 !important;
+  border: 1px solid #e5e7eb; /* Slate-200: 统一的线构颜色 */
+  /* 如果不需要最外圈线，可以设为 border: none; */
+}
+
+/* 2. 移除表格头部的额外背景和圆角，使其看起来像一个平面的切片 */
+:deep(.arco-table-th) {
+  background-color: #f8fafc; /* 浅灰色背景 */
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 0 !important;
+  padding: 12px; /* 规范要求的单元格内边距 */
+  font-size: 12px;
+  font-weight: 600; /* 表头文字加粗 */
+  white-space: nowrap; /* 表头文字不得缩略 */
+}
+
+/* 3. 单元格 (td) 样式：强制单行缩略 + 1px 细线 */
+:deep(.arco-table-td) {
+  border-bottom: 1px solid #f1f5f9;
+  border-right: 1px solid #f1f5f9;
+  white-space: nowrap; /* 强制不换行 */
+  height: 36px; /* 规范要求的行高 */
+  padding: 12px; /* 规范要求的单元格内边距 */
+  font-size: 12px;
+}
+
+/* 4. 消除表格最后一列的右边框，防止出现多余的线条 */
+:deep(.arco-table-tr .arco-table-td:last-child),
+:deep(.arco-table-tr .arco-table-th:last-child) {
+  border-right: none;
+}
+
+/* 表格工具栏样式 */
+.table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-bottom: none; /* 关键：去掉底边，与表格顶边融合 */
+}
+
+.left-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* 直角按钮样式 */
+.rect-btn {
+  border-radius: 0 !important; /* 彻底直角 */
+  font-weight: 500;
+  height: 32px; /* 主要按钮高度 */
+}
+
+.rect-btn.arco-btn-primary {
+  background-color: #0f172a !important; /* 深色工业风 */
+  border: 1px solid #0f172a !important;
+}
+
+/* 次要按钮样式 */
+.rect-btn.arco-btn-outline {
+  height: 28px; /* 次要按钮高度 */
+}
+
+/* 图标按钮样式 */
+.rect-btn.arco-btn-icon {
+  width: 28px; /* 图标按钮宽度 */
+  height: 28px; /* 图标按钮高度 */
+  padding: 0;
+}
+
+/* 工业风执行按钮 */
+.industrial-btn-execute {
+  border-radius: 0 !important; /* 彻底直角 */
+  background-color: #f59e0b !important; /* 工业警示橙色，代表“写操作”有风险 */
+  border: 1px solid #d97706 !important;
+  text-transform: uppercase;
+  font-weight: bold;
+  height: 32px; /* 主要按钮高度 */
+}
+
+/* --- 工业风全局提示 (Industrial Message) --- */
+
+/* 1. 将圆角提示框改为直角 */
+:deep(.arco-message) {
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.1) !important; /* 硬阴影 */
+  border: 1px solid #1e293b; /* 深色边框 */
+  background-color: #ffffff;
+}
+
+/* 2. 强化图标对比度 */
+:deep(.arco-message-icon-success) {
+  color: #059669 !important; /* Emerald-600 */
+}
+:deep(.arco-message-icon-error) {
+  color: #dc2626 !important; /* Red-600 */
+}
+
+/* 3. 字体统一 */
+:deep(.arco-message-content) {
+  font-family: 'Inter', 'JetBrains Mono', 'PingFang SC', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+/* 帮助按钮样式 */
+.help-trigger-btn {
+  color: #64748b;
+  border-radius: 0;
+  height: 28px; /* 次要按钮高度 */
+}
+
+.help-trigger-btn:hover {
+  background-color: #f1f5f9;
+  color: #1e293b;
 }
 </style>

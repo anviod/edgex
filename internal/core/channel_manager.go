@@ -332,6 +332,12 @@ func (cm *ChannelManager) StartChannel(channelID string) error {
 		// 复制设备以避免循环变量问题和切片重分配导致的指针失效
 		devCopy := *dev
 
+		// 检查设备采集间隔是否为正数
+		if devCopy.Interval <= 0 {
+			zap.L().Warn("Device interval must be positive, skipping start", zap.String("device", devCopy.Name), zap.Duration("interval", time.Duration(devCopy.Interval)))
+			continue
+		}
+
 		// 在 goroutine 中启动设备采集循环
 		go cm.deviceLoop(&devCopy, d, ch)
 	}
@@ -586,7 +592,13 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 	}
 
 	// 设置设备配置 (BACnet 等需要 IP/Port)
-	d.SetDeviceConfig(foundDev.Config)
+	// For BACnet, add _internal_device_id to map string device ID to BACnet instance ID
+	configCopy := make(map[string]any)
+	for k, v := range foundDev.Config {
+		configCopy[k] = v
+	}
+	configCopy["_internal_device_id"] = devID
+	d.SetDeviceConfig(configCopy)
 
 	// Ensure DeviceID is set on points for the driver
 	for i := range pointsCopy {
@@ -674,7 +686,44 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 
 // deviceLoop 设备采集循环
 func (cm *ChannelManager) deviceLoop(dev *model.Device, d drv.Driver, ch *model.Channel) {
-	ticker := time.NewTicker(time.Duration(dev.Interval))
+	// 检查设备是否为 nil
+	if dev == nil {
+		zap.L().Error("Device is nil in deviceLoop")
+		return
+	}
+
+	// 检查设备名称是否为空
+	if dev.Name == "" {
+		zap.L().Error("Device name is empty in deviceLoop")
+		return
+	}
+
+	// 检查设备采集间隔是否为正数
+	if dev.Interval <= 0 {
+		zap.L().Warn("Device interval must be positive", zap.String("device", dev.Name), zap.Duration("interval", time.Duration(dev.Interval)))
+		return
+	}
+
+	// 再次检查，确保 interval 是正数
+	interval := time.Duration(dev.Interval)
+	if interval <= 0 {
+		zap.L().Warn("Device interval must be positive after conversion", zap.String("device", dev.Name), zap.Duration("interval", interval))
+		return
+	}
+
+	// 最后一次检查，确保 interval 是正数
+	if interval <= 0 {
+		zap.L().Error("Fatal: Device interval is non-positive", zap.String("device", dev.Name), zap.Duration("interval", interval))
+		return
+	}
+
+	// 确保 interval 至少为 1 纳秒
+	if interval < time.Nanosecond {
+		interval = time.Nanosecond
+		zap.L().Warn("Device interval is too small, setting to 1ns", zap.String("device", dev.Name), zap.Duration("interval", interval))
+	}
+
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	node := cm.stateManager.GetNode(dev.ID)
@@ -1247,7 +1296,10 @@ func (cm *ChannelManager) ScanDevice(channelID, deviceID string, params map[stri
 	// Inject protocol-specific device ID into params
 	// For BACnet, we need "device_id" (int)
 	if ch.Protocol == "bacnet-ip" {
-		if v, ok := targetDev.Config["device_id"]; ok {
+		// 优先使用 instance_id，其次 device_id
+		if v, ok := targetDev.Config["instance_id"]; ok {
+			params["device_id"] = v
+		} else if v, ok := targetDev.Config["device_id"]; ok {
 			params["device_id"] = v
 		}
 		// Also pass IP if available (for unicast optimization)
@@ -1396,8 +1448,12 @@ func (cm *ChannelManager) AddDevice(channelID string, dev *model.Device) error {
 	if d, ok := cm.drivers[channelID]; ok && ch.Enable && dev.Enable {
 		// 获取切片中最新的那个设备的指针
 		newDev := &ch.Devices[len(ch.Devices)-1]
-		go cm.deviceLoop(newDev, d, ch)
-		zap.L().Info("Device started", zap.String("device", dev.Name))
+		if newDev.Interval > 0 {
+			go cm.deviceLoop(newDev, d, ch)
+			zap.L().Info("Device started", zap.String("device", dev.Name))
+		} else {
+			zap.L().Warn("Device interval must be positive, skipping start", zap.String("device", dev.Name), zap.Duration("interval", time.Duration(newDev.Interval)))
+		}
 	}
 
 	return cm.saveChannels()
@@ -1775,6 +1831,12 @@ func (cm *ChannelManager) restartDeviceLocked(ch *model.Channel, deviceIdx int) 
 		//
 		// So, creating a copy of Device struct is the correct way.
 
+		// 检查设备采集间隔是否为正数
+		if devCopy.Interval <= 0 {
+			zap.L().Warn("Device interval must be positive, skipping restart", zap.String("device", devCopy.Name), zap.Duration("interval", time.Duration(devCopy.Interval)))
+			return nil
+		}
+
 		go cm.deviceLoop(&devCopy, d, ch)
 		zap.L().Info("Device restarted with updated points", zap.String("device", dev.Name))
 	}
@@ -1823,8 +1885,12 @@ func (cm *ChannelManager) UpdateDevice(channelID string, dev *model.Device) erro
 	// 如果启用，重新启动
 	if d, ok := cm.drivers[channelID]; ok && ch.Enable && dev.Enable {
 		newDev := &ch.Devices[idx]
-		go cm.deviceLoop(newDev, d, ch)
-		zap.L().Info("Device restarted", zap.String("device", dev.Name))
+		if newDev.Interval > 0 {
+			go cm.deviceLoop(newDev, d, ch)
+			zap.L().Info("Device restarted", zap.String("device", dev.Name))
+		} else {
+			zap.L().Warn("Device interval must be positive, skipping restart", zap.String("device", dev.Name), zap.Duration("interval", time.Duration(newDev.Interval)))
+		}
 	}
 
 	return cm.saveChannels()

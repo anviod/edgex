@@ -1,135 +1,92 @@
 <template>
   <div class="login-container">
-    <!-- 蓝色光斑背景 -->
-    <div class="background-animation">
-      <div class="blob blob-1"></div>
-      <div class="blob blob-2"></div>
-      <div class="blob blob-3"></div>
-      <div class="blob blob-4"></div>
-      <div class="blob blob-5"></div>
+    <div class="login-scene">
+      <div class="login-panel" 
+        :class="{ 'shake-animation': isShaking, 'login-card-exit': isLoginSuccess, 'countdown-10': ctxData.countdown <= 10 }"
+        :style="{ '--clip-path': getClipPath }"
+      >
+
+        <div class="panel-topbar">
+          <div class="logo-box">
+            <div class="logo-icon">
+              <span>EDGEx</span>
+            </div>
+          </div>
+          <div class="panel-header-side">
+            <span class="version-tag">VER {{ ctxData.configInfo.softVer || '2.0' }}</span>
+          </div>
+        </div>
+
+        <div class="panel-title">
+          <div class="title-main">边缘计算网关</div>
+          <div class="title-sub">IOT THINGS GATEWAY</div>
+        </div>
+
+        <div class="auth-row">
+          <a-radio-group v-model="ctxData.loginMethod" type="button" class="industrial-radio">
+            <a-radio value="local"><icon-user /> 本地登录</a-radio>
+            <a-radio value="ldap"><icon-user-group /> LDAP 登录</a-radio>
+          </a-radio-group>
+          <span class="mode-indicator" :class="{ 'is-ldap': ctxData.loginMethod === 'ldap' }"></span>
+        </div>
+
+        <a-form :model="ctxData.loginForm" layout="vertical" @submit="handleLogin" class="custom-form">
+          <div class="field">
+            <div class="label">用户标识 / Username</div>
+            <a-input v-model="ctxData.loginForm.userName" :placeholder="ctxData.loginMethod === 'ldap' ? 'LDAP 账号 / 邮箱' : '请输入用户名'" size="large" allow-clear>
+              <template #prefix>
+                <icon-user v-if="ctxData.loginMethod === 'local'" />
+                <icon-at v-else />
+              </template>
+            </a-input>
+          </div>
+
+          <div class="field">
+            <div class="label">访问密钥 / Password</div>
+            <a-input-password v-model="ctxData.loginForm.password" :placeholder="ctxData.loginMethod === 'ldap' ? 'LDAP 域密码' : '请输入密码'" size="large" allow-clear @keyup.enter="handleLogin">
+              <template #prefix><icon-lock /></template>
+            </a-input-password>
+          </div>
+
+          <div class="options">
+            <a-checkbox v-model="ctxData.rememberMe" class="remember-check">记住访问权限</a-checkbox>
+            <a-link v-if="ctxData.loginMethod === 'local'" class="forgot-link" @click="handleForgotPassword">忘记密码?</a-link>
+          </div>
+
+          <div v-if="ctxData.loginMethod === 'ldap'" class="ldap-hint compact-hint">
+            <icon-info-circle /> <span>通过企业域控服务进行身份验证</span>
+          </div>
+          <div v-else class="terminal-decorator compact-terminal">
+            <span class="status-dot"></span>
+            <span class="terminal-code">AUTH_MODE: LOCAL_DATABASE</span>
+          </div>
+
+          <div v-if="ctxData.errorMessage" class="error-message">
+            <icon-close-circle-fill /> <span>{{ ctxData.errorMessage }}</span>
+          </div>
+
+          <a-button type="primary" html-type="submit" size="large" long :loading="ctxData.loading" :disabled="isLoginSuccess" class="login-submit-btn">
+            <template #icon>
+              <icon-check-circle-fill v-if="isLoginSuccess" />
+              <icon-arrow-right v-else />
+            </template>
+            {{ isLoginSuccess ? '登录成功' : (ctxData.loginMethod === 'ldap' ? '域验证登录' : '立即登录') }}
+          </a-button>
+
+          <div class="copyright-text panel-copyright">© {{ new Date().getFullYear() }} {{ ctxData.configInfo.name || '系统' }}</div>
+        </a-form>
+      </div>
     </div>
-
-    <!-- 登录卡片 -->
-    <v-card 
-      class="login-card glass-card pa-8" 
-      :class="{'shake-animation': isShaking, 'login-card-exit': isLoginSuccess}"
-      elevation="10" 
-      width="420" 
-      theme="light"
-    >
-      <div class="text-center mb-6 position-relative">
-        <div class="logo-icon mx-auto mb-4">
-           <span>EDGE</span>
-        </div>
-        <h1 class="text-h5 font-weight-bold text-white">{{ ctxData.configInfo.name || '系统登录' }}</h1>
-        <v-progress-linear
-          :model-value="(ctxData.countdown / 60) * 100"
-          :color="ctxData.countdown <= 10 ? 'error' : 'primary'"
-          height="1"
-          rounded
-          reverse
-          class="mx-auto mt-4"
-          style="width: 96%"
-        ></v-progress-linear>
-      </div>
-
-      <v-form ref="loginFormRef" @submit.prevent="handleLogin">
-        <!-- Login Method Toggle -->
-        <div class="d-flex justify-center mb-4">
-            <v-btn-toggle
-                v-model="ctxData.loginMethod"
-                mandatory
-                rounded="xl"
-                color="primary"
-                density="compact"
-                class="login-method-toggle"
-            >
-                <v-btn value="local" size="small" prepend-icon="mdi-account-circle">本地登录</v-btn>
-                <v-btn value="ldap" size="small" prepend-icon="mdi-domain">LDAP 登录</v-btn>
-            </v-btn-toggle>
-        </div>
-
-        <!-- HTML5 Username Input -->
-        <div class="custom-input-group mb-4">
-            <div class="input-icon">
-                <v-icon icon="mdi-account" size="small" color="primary"></v-icon>
-            </div>
-            <input 
-                type="text" 
-                v-model.trim="ctxData.loginForm.userName"
-                placeholder="请输入用户名"
-                class="html5-input"
-                required
-            />
-        </div>
-
-        <!-- HTML5 Password Input -->
-        <div class="custom-input-group mb-4">
-            <div class="input-icon">
-                <v-icon icon="mdi-lock" size="small" color="primary"></v-icon>
-            </div>
-            <input 
-                :type="showPassword ? 'text' : 'password'"
-                v-model.trim="ctxData.loginForm.password"
-                placeholder="请输入密码"
-                class="html5-input"
-                required
-                @keyup.enter="handleLogin"
-            />
-            <div class="password-toggle" @click="showPassword = !showPassword">
-                <v-icon :icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'" size="small" color="grey"></v-icon>
-            </div>
-        </div>
-
-        <div class="d-flex justify-space-between align-center mb-6">
-            <v-checkbox
-                v-model="ctxData.rememberMe"
-                label="记住密码"
-                hide-details
-                density="compact"
-                color="primary"
-                class="remember-checkbox"
-            ></v-checkbox>
-            <a href="#" class="forgot-link text-body-2" @click.prevent="handleForgotPassword">忘记密码？</a>
-        </div>
-
-        <v-btn
-            block
-            :color="isLoginSuccess ? 'success' : 'primary'"
-            size="large"
-            type="submit"
-            :loading="ctxData.loading"
-            :disabled="isLoginSuccess"
-            class="login-button text-capitalize font-weight-bold"
-            elevation="4"
-        >
-            <v-slide-y-transition mode="out-in">
-                <div v-if="isLoginSuccess" class="d-flex align-center justify-center">
-                    <v-icon start>mdi-check-circle</v-icon>
-                    登录成功
-                </div>
-                <span v-else>立即登录</span>
-            </v-slide-y-transition>
-        </v-btn>
-
-        <v-expand-transition>
-            <div v-if="ctxData.errorMessage" class="error-message mt-4">
-                <v-icon icon="mdi-alert-circle" color="error" size="small" start></v-icon>
-                {{ ctxData.errorMessage }}
-            </div>
-        </v-expand-transition>
-      </v-form>
-
-      <div class="footer-info mt-8 text-center text-caption text-grey">
-        <div class="version mb-1">{{ ctxData.configInfo.softVer || '边缘网关开源社区版' }}</div>
-        <div class="copyright">© {{ new Date().getFullYear() }} {{ ctxData.configInfo.name || '系统' }} 版权所有</div>
-      </div>
-    </v-card>
   </div>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref, computed } from 'vue'
+import {
+  IconUser, IconLock, IconArrowRight,
+  IconUserGroup, IconAt, IconInfoCircle,
+  IconCloseCircleFill, IconCheckCircleFill
+} from '@arco-design/web-vue/es/icon'
 import LoginApi from 'api/login.js'
 import router from '@/router'
 import { userStore } from 'stores/user.js'
@@ -144,7 +101,6 @@ const config = configStore()
 const users = userStore()
 
 const loginFormRef = ref(null)
-const showPassword = ref(false)
 const isShaking = ref(false)
 const isLoginSuccess = ref(false)
 
@@ -163,6 +119,38 @@ const ctxData = reactive({
   countdownTimer: null
 })
 
+// 计算倒计时进度，用于外部轮廓动画
+const countdownProgress = computed(() => {
+  return (ctxData.countdown / 60) * 100
+})
+
+// 生成 clip-path 值，用于绘制外部轮廓
+const getClipPath = computed(() => {
+  const progress = countdownProgress.value
+  if (progress >= 100) return 'polygon(0 0, 100% 0, 100% 100%, 0 100%)'
+  if (progress <= 0) return 'polygon(0 0, 0 0, 0 100%, 0 100%)'
+  
+  // 计算进度对应的 clip-path
+  const percentage = progress / 100
+  if (percentage > 0.75) {
+    // 右上角到右下角
+    const y = 100 - (percentage - 0.75) * 400
+    return `polygon(0 0, 100% 0, 100% ${y}%, 0 100%)`
+  } else if (percentage > 0.5) {
+    // 左上角到右上角
+    const x = (percentage - 0.5) * 400
+    return `polygon(0 0, ${x}% 0, 100% 100%, 0 100%)`
+  } else if (percentage > 0.25) {
+    // 左下角到左上角
+    const y = (percentage - 0.25) * 400
+    return `polygon(0 ${y}%, 100% 0, 100% 100%, 0 100%)`
+  } else {
+    // 右下角到左下角
+    const x = 100 - (percentage * 400)
+    return `polygon(0 0, 100% 0, 100% 100%, ${x}% 100%)`
+  }
+})
+
 const clearCountdown = () => {
   if (ctxData.countdownTimer) {
     clearInterval(ctxData.countdownTimer)
@@ -170,23 +158,14 @@ const clearCountdown = () => {
   }
 }
 
-// 格式化倒计时显示
-const formatCountdown = (seconds) => {
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins}:${String(secs).padStart(2, '0')}`
-}
-
-// 启动倒计时
 const startCountdown = () => {
   if (ctxData.countdownTimer) {
     clearInterval(ctxData.countdownTimer)
   }
 
   ctxData.countdown = 60
-  // 使用高频更新（20ms）实现平滑线性效果
   const interval = 20
-  const step = 60 / (60 * 1000 / interval) // 每次减少的时间量
+  const step = 60 / (60 * 1000 / interval)
 
   ctxData.countdownTimer = setInterval(() => {
     ctxData.countdown -= step
@@ -195,7 +174,6 @@ const startCountdown = () => {
       clearInterval(ctxData.countdownTimer)
       ctxData.countdownTimer = null
       showMessage('登录页面已过期，请刷新页面重新登录', 'warning')
-      // 3 秒后自动刷新页面
       setTimeout(() => {
         window.location.reload()
       }, 3000)
@@ -211,7 +189,6 @@ onBeforeUnmount(() => {
 })
 
 onMounted(() => {
-  // 检查是否有登出信息
   const logout = localStorage.getItem('logout')
   if (logout && logout !== '') {
     try {
@@ -223,13 +200,9 @@ onMounted(() => {
     localStorage.setItem('logout', '')
   }
 
-  // 加载记住的账号
   loadRememberedAccount()
-  // 获取系统信息（版本等）
   getSystemInfo()
-  // 获取nonce
   getNonce()
-  // 启动倒计时
   startCountdown()
 })
 
@@ -250,9 +223,10 @@ const getSystemInfo = async () => {
   try {
     const res = await LoginApi.getSystemInfo()
     if (res.code === '0' && res.data) {
+      // 只更新版本号等信息，不更新系统标题
       const newConfigInfo = {
         ...ctxData.configInfo,
-        ...res.data
+        softVer: res.data.softVer
       }
       ctxData.configInfo = newConfigInfo
       config.setConfigInfo(newConfigInfo)
@@ -278,7 +252,6 @@ const getNonce = async () => {
 }
 
 const handleLogin = async () => {
-  // 手动验证
   if (!ctxData.loginForm.userName) {
     ctxData.errorMessage = '请输入用户名'
     triggerShake()
@@ -305,10 +278,8 @@ const handleLogin = async () => {
 
     let passwordToSend = ''
     if (ctxData.loginMethod === 'ldap') {
-      // LDAP 模式：发送原始密码
       passwordToSend = ctxData.loginForm.password
     } else {
-      // 本地模式：发送 Hash 密码
       passwordToSend = sha256(ctxData.loginForm.password + ctxData.nonce).toString(encHex)
     }
 
@@ -350,12 +321,12 @@ const handleLoginSuccess = async (res) => {
   clearCountdown()
   try {
     ctxData.errorMessage = ''
-    isLoginSuccess.value = true // 触发成功状态
-    
+    isLoginSuccess.value = true
+
     const processedPermissions = processPermissions(res.data.permissions)
 
     users.setLoginInfo(
-      {userName: res.data.username},
+      { userName: res.data.username },
       processedPermissions,
       res.data.token
     )
@@ -407,7 +378,7 @@ const processPermissions = (permissions) => {
         const terminalGroup = {
           path: '/terminalGroup',
           name: 'TerminalGroup',
-          meta: {title: '末端群控', icon: 'terminal'}
+          meta: { title: '末端群控', icon: 'terminal' }
         }
 
         const scriptIndex = edge.children.findIndex(c =>
@@ -424,11 +395,11 @@ const processPermissions = (permissions) => {
       list.push({
         name: 'RuleEngine',
         path: '/ruleEngine',
-        meta: {title: '边缘计算', icon: 'ruleEngine'},
+        meta: { title: '边缘计算', icon: 'ruleEngine' },
         children: [{
           path: '/terminalGroup',
           name: 'TerminalGroup',
-          meta: {title: '末端群控', icon: 'terminal'}
+          meta: { title: '末端群控', icon: 'terminal' }
         }]
       })
     }
@@ -441,7 +412,7 @@ const processPermissions = (permissions) => {
 
 const handleLoginFailure = (res) => {
   ctxData.errorMessage = res.message || '登录失败，请检查用户名和密码'
-  getNonce() // 失败后重新获取nonce
+  getNonce()
 }
 
 const handleLoginError = (error) => {
@@ -453,7 +424,7 @@ const handleLoginError = (error) => {
     ctxData.errorMessage = '登录异常，请稍后重试'
   }
 
-  getNonce() // 错误后重新获取nonce
+  getNonce()
 }
 
 const handleForgotPassword = () => {
@@ -462,240 +433,344 @@ const handleForgotPassword = () => {
 </script>
 
 <style scoped>
-/* 基础样式 */
+/* ===== 容器：全屏数据背景 ===== */
 .login-container {
-  height: 100vh;
-  width: 100vw;
+  position: fixed;
+  inset: 0;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ffffff;
-  position: relative;
-  overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: 'JetBrains Mono', monaco, monospace, sans-serif;
 }
 
-/* 科技感背景动画 */
-.background-animation {
-  position: absolute;
+/* 登录 UI 层 */
+.login-scene {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 100%;
+}
+
+.login-panel {
+  width: 580px;
+  padding: 32px 60px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px -5px rgba(0, 0, 0, 0.05), 0 6px 8px -6px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-panel::before {
+  content: '';
+  position: absolute;
   top: 0;
   left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  pointer-events: none;
   z-index: 1;
-  background: 
-    radial-gradient(circle at 15% 50%, rgba(56, 189, 248, 0.04), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(99, 102, 241, 0.04), transparent 25%);
 }
 
-.blob {
+.login-panel::after {
+  content: '';
   position: absolute;
-  border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.15;
-  animation: float 20s infinite ease-in-out;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border: 2px solid #0ea5e9;
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 0;
+  clip-path: var(--clip-path, polygon(0 100%, 100% 100%, 100% 100%, 0 100%));
+  transition: clip-path 0.1s linear, border-color 0.3s ease;
 }
 
-.blob-1 {
-  width: 500px;
-  height: 500px;
-  background: #3b82f6;
-  top: -100px;
-  left: -100px;
-  animation-delay: 0s;
+.login-panel.countdown-10::after {
+  border-color: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
 }
 
-.blob-2 {
-  width: 400px;
-  height: 400px;
-  background: #6366f1;
-  bottom: -100px;
-  right: -100px;
-  animation-delay: -5s;
+.login-panel:hover {
+  box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.1), 0 10px 15px -6px rgba(0, 0, 0, 0.1);
+  border-color: #cbd5e1;
 }
 
-.blob-3 {
-  width: 300px;
-  height: 300px;
-  background: #0ea5e9;
-  top: 40%;
-  left: 30%;
-  animation-delay: -10s;
+.panel-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
 }
 
-.blob-4 {
-  width: 350px;
-  height: 350px;
-  background: #8b5cf6;
-  bottom: -50px;
-  left: -50px;
-  animation-delay: -15s;
+.panel-title {
+  text-align: center;
+  margin-bottom: 24px;
 }
 
-.blob-5 {
-  width: 250px;
-  height: 250px;
-  background: #ec4899;
-  top: 10%;
-  right: -50px;
-  animation-delay: -8s;
+.title-main {
+  font-size: 20px;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: 0.5px;
+  margin: 0;
 }
 
-@keyframes float {
-  0%, 100% { transform: translate(0, 0); }
-  25% { transform: translate(50px, 50px); }
-  50% { transform: translate(0, 100px); }
-  75% { transform: translate(-50px, 50px); }
+.title-sub {
+  font-size: 12px;
+  color: #64748b;
+  letter-spacing: 1.4px;
+  font-family: monaco, monospace;
+  margin-top: 4px;
 }
 
-/* 登录卡片 */
-.login-card {
-  z-index: 10;
-  /* Glassmorphism handled by .glass-card in global css or here */
-  /* Vuetify handles basics, we add specific overrides if needed */
+.panel-header-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
 }
 
-.logo-icon {
-  width: 64px;
-  height: 64px;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  border-radius: 16px;
+.auth-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
-.logo-icon span {
-  font-weight: 800;
-  font-size: 14px;
-  color: white;
-  letter-spacing: 1px;
+/* 其他样式参考前述代码，保持 Arco 组件自定义效果 */
+.field { margin-bottom: 20px; }
+.label { font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 8px; }
+
+.options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 14px 0 10px;
 }
 
-.subtitle-divider {
-  height: 4px;
-  width: 40px;
-  background: #3b82f6;
+.mode-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.7);
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+}
+
+.mode-indicator.is-ldap {
+  background: rgba(139, 92, 246, 0.9);
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.12);
+}
+
+.panel-error {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+.compact-hint {
+  margin: 0 0 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 11px;
+}
+
+.compact-terminal {
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.panel-copyright {
+  margin-top: 14px;
+  text-align: center;
+}
+
+/* 保持 Logo 工业感样式 */
+.logo-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 2px solid #0ea5e9;
   border-radius: 2px;
+  padding: 6px 12px;
+  margin-right: 16px;
+}
+.logo-icon span { font-weight: 800; color: #0ea5e9; font-size: 16px; }
+.logo-icon small { color: #64748b; font-size: 10px; margin-left: 2px; }
+
+.version-tag {
+  font-size: 10px;
+  font-family: monaco, monospace;
+  color: #94a3b8;
+  letter-spacing: 1px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 2px;
+  padding: 1px 6px;
+}
+
+.top-progress {
+  width: 88px;
+}
+
+.industrial-radio {
+  width: 100%;
+  display: flex;
+}
+
+:deep(.industrial-radio .arco-radio-button) {
+  flex: 1;
+  justify-content: center;
+  border-radius: 8px !important;
+  font-weight: 500;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* ===== 表单 ===== */
+.custom-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+:deep(.arco-form-item) {
+  margin-bottom: 14px;
+}
+
+:deep(.arco-input-wrapper),
+:deep(.arco-input-password) {
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  border-color: #cbd5e1 !important;
+}
+
+:deep(.arco-input-wrapper:hover),
+:deep(.arco-input-password:hover) {
+  border-color: #0ea5e9 !important;
+}
+
+:deep(.arco-input-wrapper.arco-input-focus),
+:deep(.arco-input-password.arco-input-focus) {
+  border-color: #0ea5e9 !important;
+  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.15) !important;
+}
+
+/* ===== LDAP 提示 ===== */
+.ldap-hint {
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 14px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #0ea5e9;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: monaco, monospace;
+}
+
+.remember-check {
+  font-size: 13px;
+  color: #64748b;
+}
+
+:deep(.remember-check .arco-checkbox-label) {
+  color: #64748b;
+  font-size: 13px;
 }
 
 .forgot-link {
-  color: #64748b;
-  text-decoration: none;
-  transition: color 0.2s;
+  font-size: 13px;
+  color: #94a3b8 !important;
 }
 
 .forgot-link:hover {
-  color: #3b82f6;
+  color: #0ea5e9 !important;
 }
 
-.login-button {
-  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
-  transition: all 0.2s;
-}
-
-.login-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
-}
-
+/* ===== 错误提示 ===== */
 .error-message {
-  padding: 8px 12px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 8px;
-  color: #f87171;
-  font-size: 14px;
   display: flex;
   align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.04);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-left: 3px solid #ef4444;
+  border-radius: 2px;
+  color: #ef4444;
+  font-size: 13px;
+  margin-bottom: 14px;
 }
 
-/* HTML5 Input Styles */
-.custom-input-group {
-    display: flex;
-    align-items: center;
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    border-radius: 8px;
-    padding: 0 12px;
-    height: 48px; /* Fixed height to match password field with toggle */
-    transition: all 0.3s ease;
+/* ===== 提交按钮 ===== */
+.login-submit-btn { height: 50px !important; margin-top: 10px; }
+
+:deep(.login-submit-btn.arco-btn-primary) {
+  border-radius: 8px !important;
+  background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.3) !important;
+  transition: all 0.2s ease !important;
 }
 
-/* Linear progress transition override */
-:deep(.v-progress-linear__determinate) {
-    transition: width 0.05s linear !important;
+:deep(.login-submit-btn.arco-btn-primary:hover) {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.4) !important;
+  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%) !important;
 }
 
-.custom-input-group:focus-within {
-    background: rgba(255, 255, 255, 0.8);
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+:deep(.login-submit-btn.arco-btn-primary:active) {
+  transform: translateY(0) !important;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3) !important;
 }
 
-.input-icon {
-    margin-right: 10px;
-    display: flex;
-    align-items: center;
+.terminal-decorator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.html5-input {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    font-size: 14px;
-    color: #0f172a;
-    width: 100%;
+.status-dot { width: 6px; height: 6px; background: #22c55e; animation: blink 1.5s infinite; }
+
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.status-dot.is-ldap {
+  background: #0ea5e9;
+  box-shadow: 0 0 6px rgba(14, 165, 233, 0.6);
 }
 
-.html5-input::placeholder {
-    color: #94a3b8;
+.terminal-code {
+  font-size: 10px;
+  font-family: monaco, monospace;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
 }
 
-.password-toggle {
-    cursor: pointer;
-    margin-left: 8px;
-    display: flex;
-    align-items: center;
-    padding: 4px;
-    border-radius: 50%;
-    transition: background 0.2s;
+.copyright-text {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: monaco, monospace;
 }
 
-.password-toggle:hover {
-    background: rgba(0, 0, 0, 0.05);
-}
-
-/* Vuetify Overrides for Transparent/Glass effect */
-:deep(.v-field__outline__start),
-:deep(.v-field__outline__notch),
-:deep(.v-field__outline__end) {
-    border-color: transparent !important;
-}
-
-/* Removed previous focus border color override to keep it subtle */
-
-:deep(.v-label) {
-    color: #334155 !important;
-}
-
-:deep(.v-field__input) {
-    color: #0f172a !important;
-}
-
-:deep(.remember-checkbox .v-label) {
-    color: #94a3b8 !important;
-    opacity: 1;
-}
-
-/* Animations */
+/* ===== 动画 ===== */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-2px); }
-  50% { transform: translateX(2px); }
-  75% { transform: translateX(-1px); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
 }
 
 .shake-animation {
@@ -703,39 +778,43 @@ const handleForgotPassword = () => {
 }
 
 .login-card-exit {
-    transform: scale(0.95) translateY(-20px);
-    opacity: 0;
-    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
+  transform: scale(0.95) translateY(-20px);
+  opacity: 0;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
 }
 
-/* Enhanced Focus Effect */
-:deep(.v-field--focused) {
-    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
-    transition: box-shadow 0.3s ease;
+/* ===== 响应式 ===== */
+@media (max-width: 1199px) {
+  .login-panel {
+    width: min(580px, 90vw);
+  }
 }
 
-:deep(.v-field--focused .v-field__outline__start),
-:deep(.v-field--focused .v-field__outline__notch),
-:deep(.v-field--focused .v-field__outline__end) {
-    border-color: rgba(59, 130, 246, 0.6) !important;
-    border-width: 1px !important;
-}
+@media (max-width: 767px) {
+  .login-panel {
+    width: calc(100vw - 24px);
+    padding: 24px;
+    border-radius: 12px;
+  }
 
-/* Minimal style: remove loader progress animation inside fields */
-:deep(.v-field__loader) {
-  display: none;
-}
+  .panel-topbar,
+  .options,
+  .auth-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
 
-/* Minimal hover effect for the login button */
-.login-button:hover {
-  transform: none;
-  box-shadow: none;
-}
+  .panel-header-side {
+    align-items: flex-start;
+  }
 
-:deep(.v-field--error:not(.v-field--disabled) .v-field__outline__start),
-:deep(.v-field--error:not(.v-field--disabled) .v-field__outline__notch),
-:deep(.v-field--error:not(.v-field--disabled) .v-field__outline__end) {
-    border-color: #ef4444 !important;
+  .login-submit-btn {
+    width: 100%;
+  }
+
+  .top-progress {
+    width: 82px;
+  }
 }
 </style>

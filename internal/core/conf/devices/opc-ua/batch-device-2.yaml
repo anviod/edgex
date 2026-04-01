@@ -1,0 +1,7 @@
+config:
+    endpoint: opc.tcp://localhost:5050
+enable: true
+id: batch-device-2
+interval: 5s
+name: Batch Device 2
+points: []

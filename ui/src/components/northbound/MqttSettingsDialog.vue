@@ -1,0 +1,384 @@
+<template>
+  <a-modal 
+    v-model:visible="visible" 
+    title="MQTT 导出通道配置" 
+    :width="1000" 
+    @ok="saveSettings" 
+    :ok-loading="loading" 
+    unmount-on-close
+    :footer="true"
+    :mask-closable="false"
+    class="industrial-modal"
+  >
+    <a-tabs v-model:active-key="activeTab" type="line" class="industrial-tabs">
+      <a-tab-pane key="basic">
+        <template #title><icon-settings /> 基本配置</template>
+        <a-form :model="form" layout="horizontal" :label-col-props="{ span: 5 }" :wrapper-col-props="{ span: 19 }" class="industrial-form">
+          <a-form-item label="通道名称" required>
+            <a-input v-model="form.name" placeholder="例如: 云端生产环境 MQTT" />
+          </a-form-item>
+          
+          <a-form-item label="启用状态">
+            <a-switch v-model="form.enable" type="round" />
+          </a-form-item>
+
+          <a-form-item label="Broker 地址" required>
+            <a-input v-model="form.broker" placeholder="tcp://127.0.0.1:1883" class="mono-text" />
+          </a-form-item>
+
+          <a-divider orientation="left">主题定义</a-divider>
+
+          <a-form-item label="Client ID">
+            <a-input v-model="form.client_id" placeholder="edge-gateway-01" class="mono-text">
+              <template #append>
+                <a-button type="text" size="mini" @click="autoFillTopics">
+                  <template #icon><icon-refresh /></template>生成推荐
+                </a-button>
+              </template>
+            </a-input>
+          </a-form-item>
+
+          <a-form-item label="上报主题 (Upstream)">
+            <a-input v-model="form.topic" class="mono-text" />
+          </a-form-item>
+          
+          <a-form-item label="订阅主题 (Downstream)">
+            <a-input v-model="form.subscribe_topic" placeholder="/things/{client_id}/write/req" class="mono-text" />
+          </a-form-item>
+
+          <a-form-item label="写入响应主题">
+            <a-input v-model="form.write_response_topic" placeholder="默认: 订阅主题/resp" class="mono-text" />
+          </a-form-item>
+
+          <a-form-item label="离线策略">
+            <a-checkbox v-model="form.ignore_offline_data">设备离线时不主动上报历史数据</a-checkbox>
+          </a-form-item>
+        </a-form>
+      </a-tab-pane>
+
+      <a-tab-pane key="device-status">
+        <template #title><icon-apps /> 设备状态</template>
+        <a-form :model="form" layout="horizontal" :label-col-props="{ span: 5 }" :wrapper-col-props="{ span: 19 }" class="industrial-form">
+          <a-form-item label="生命周期主题">
+            <a-input v-model="form.device_lifecycle_topic" class="mono-text" />
+          </a-form-item>
+          <a-form-item label="状态上报主题">
+            <a-input v-model="form.status_topic" class="mono-text" />
+          </a-form-item>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="上线消息" :label-col-props="{ span: 10 }" :wrapper-col-props="{ span: 14 }">
+                <a-textarea v-model="form.online_payload" :auto-size="{ minRows: 3 }" class="mono-text" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="离线消息" :label-col-props="{ span: 10 }" :wrapper-col-props="{ span: 14 }">
+                <a-textarea v-model="form.offline_payload" :auto-size="{ minRows: 3 }" class="mono-text" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-form-item label="遗嘱主题">
+            <a-input v-model="form.lwt_topic" placeholder="可选: 默认为状态主题" class="mono-text" />
+          </a-form-item>
+          <a-form-item label="遗嘱消息 (JSON)">
+            <a-textarea v-model="form.lwt_payload" :auto-size="{ minRows: 3 }" class="mono-text" />
+          </a-form-item>
+        </a-form>
+      </a-tab-pane>
+
+      <a-tab-pane key="auth">
+        <template #title><icon-lock /> 认证</template>
+        <a-form :model="form" layout="horizontal" :label-col-props="{ span: 5 }" :wrapper-col-props="{ span: 19 }" class="industrial-form">
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="用户名">
+                <a-input v-model="form.username" placeholder="MQTT Username" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="密码">
+                <a-input-password v-model="form.password" placeholder="MQTT Password" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </a-form>
+      </a-tab-pane>
+
+      <a-tab-pane key="device-strategy">
+        <template #title><icon-scan /> 上报策略</template>
+        <div class="table-container">
+          <a-table 
+            :columns="deviceColumns" 
+            :data="deviceTableData" 
+            size="small" 
+            :bordered="{ wrapper: true, cell: true }" 
+            :pagination="false"
+            class="industrial-table-inline"
+          >
+            <template #state="{ record }">
+              <a-tag v-if="record.state === 0" color="green" size="small" class="proto-tag-mini">在线</a-tag>
+              <a-tag v-else-if="record.state === 1" color="orangered" size="small" class="proto-tag-mini">不稳定</a-tag>
+              <a-tag v-else color="red" size="small" class="proto-tag-mini">离线</a-tag>
+            </template>
+            <template #enable="{ record }">
+              <a-switch v-model="record._enable" size="small" @change="updateDeviceEnable(record)" />
+            </template>
+            <template #strategy="{ record }">
+              <a-select v-model="record._strategy" size="small" :disabled="!record._enable" @change="updateDeviceStrategy(record)" class="mono-text">
+                <a-option value="periodic">周期上报</a-option>
+                <a-option value="change">变化上报</a-option>
+              </a-select>
+            </template>
+            <template #interval="{ record }">
+              <a-input v-if="record._strategy === 'periodic'" v-model="record._interval" size="small" :disabled="!record._enable" class="mono-text" @change="updateDeviceInterval(record)" />
+            </template>
+          </a-table>
+        </div>
+      </a-tab-pane>
+    </a-tabs>
+
+    <template #footer>
+      <div class="industrial-modal-footer">
+        <a-button @click="visible = false" class="btn-secondary">取消</a-button>
+        <a-button type="primary" :loading="loading" @click="saveSettings" class="btn-primary">
+          <template #icon><icon-plus /></template>保存通道配置
+        </a-button>
+      </div>
+    </template>
+  </a-modal>
+</template>
+
+<script setup>
+import { ref, watch } from 'vue'
+import { 
+  IconSettings, IconApps, IconLock, IconScan, 
+  IconRefresh, IconPlus 
+} from '@arco-design/web-vue/es/icon'
+import request from '@/utils/request'
+import { showMessage } from '@/composables/useGlobalState'
+
+const props = defineProps({
+  modelValue: { type: Boolean, default: false },
+  config: { type: Object, default: null },
+  allDevices: { type: Array, default: () => [] }
+})
+
+const emit = defineEmits(['update:modelValue', 'saved'])
+
+const visible = ref(false)
+const loading = ref(false)
+const form = ref({})
+const activeTab = ref('basic')
+
+const deviceColumns = [
+  { title: '设备名称', dataIndex: 'name', width: 200 },
+  { title: '通道', dataIndex: 'channelName', width: 120 },
+  { title: '在线状态', slotName: 'state', width: 80, align: 'center' },
+  { title: '启用', slotName: 'enable', width: 60, align: 'center' },
+  { title: '策略', slotName: 'strategy', width: 120 },
+  { title: '上报周期', slotName: 'interval', width: 100 }
+]
+
+const deviceTableData = ref([])
+
+watch(() => props.modelValue, (val) => {
+  visible.value = val
+})
+
+watch(visible, (val) => {
+  emit('update:modelValue', val)
+  if (val) {
+    if (props.config) {
+      form.value = JSON.parse(JSON.stringify(props.config))
+    } else {
+      form.value = {
+        id: 'mqtt_' + Date.now(),
+        enable: true,
+        name: 'New MQTT',
+        broker: 'tcp://127.0.0.1:1883',
+        client_id: '',
+        topic: '',
+        subscribe_topic: '',
+        write_response_topic: '',
+        ignore_offline_data: false,
+        device_lifecycle_topic: '',
+        status_topic: '',
+        online_payload: '',
+        offline_payload: '',
+        lwt_topic: '',
+        lwt_payload: '',
+        username: '',
+        password: '',
+        devices: {}
+      }
+    }
+    if (!form.value.devices) form.value.devices = {}
+    buildDeviceTable()
+  }
+})
+
+const buildDeviceTable = () => {
+  deviceTableData.value = props.allDevices.map(dev => {
+    const current = form.value.devices[dev.id]
+    let _enable = false, _strategy = 'periodic', _interval = '10s'
+    if (current === undefined || current === null) {
+      _enable = false
+    } else if (typeof current === 'boolean') {
+      _enable = current
+    } else if (typeof current === 'object') {
+      _enable = !!current.enable
+      _strategy = current.strategy || 'periodic'
+      _interval = current.interval || '10s'
+    }
+    return { ...dev, _enable, _strategy, _interval }
+  })
+}
+
+const updateDeviceEnable = (record) => {
+  if (!form.value.devices[record.id]) {
+    form.value.devices[record.id] = { enable: record._enable, strategy: 'periodic', interval: '10s' }
+  } else if (typeof form.value.devices[record.id] === 'boolean') {
+    form.value.devices[record.id] = { enable: record._enable, strategy: 'periodic', interval: '10s' }
+  } else {
+    form.value.devices[record.id].enable = record._enable
+  }
+}
+
+const updateDeviceStrategy = (record) => {
+  if (!form.value.devices[record.id] || typeof form.value.devices[record.id] === 'boolean') {
+    form.value.devices[record.id] = { enable: record._enable, strategy: record._strategy, interval: record._interval }
+  } else {
+    form.value.devices[record.id].strategy = record._strategy
+  }
+}
+
+const updateDeviceInterval = (record) => {
+  if (!form.value.devices[record.id] || typeof form.value.devices[record.id] === 'boolean') {
+    form.value.devices[record.id] = { enable: record._enable, strategy: record._strategy, interval: record._interval }
+  } else {
+    form.value.devices[record.id].interval = record._interval
+  }
+}
+
+const autoFillTopics = () => {
+  if (!form.value.client_id) {
+    form.value.client_id = 'edge-gateway'
+  }
+  const root = 'things/{client_id}'
+  form.value.topic = `${root}/up`
+  form.value.subscribe_topic = `${root}/down/req`
+  form.value.write_response_topic = `${root}/down/resp`
+  form.value.status_topic = `${root}/{device_id}/status`
+  form.value.device_lifecycle_topic = `${root}/lifecycle`
+  form.value.lwt_topic = `${root}/lwt`
+  form.value.online_payload = JSON.stringify({ status: 'online', device_id: '%device_id%', timestamp: '%timestamp%' })
+  form.value.offline_payload = JSON.stringify({ status: 'offline', device_id: '%device_id%', timestamp: '%timestamp%' })
+  form.value.lwt_payload = JSON.stringify({ status: 'lwt', device_id: '%device_id%', timestamp: '%timestamp%' })
+  showMessage('已自动生成推荐的主题配置', 'success')
+}
+
+const saveSettings = async () => {
+  loading.value = true
+  try {
+    await request.post('/api/northbound/mqtt', form.value)
+    showMessage('MQTT 配置已保存', 'success')
+    visible.value = false
+    emit('saved')
+  } catch (e) {
+    showMessage('保存失败: ' + e.message, 'error')
+  } finally {
+    loading.value = false
+  }
+}
+</script>
+
+<style scoped>
+/* 弹窗整体风格优化 */
+:deep(.arco-modal) {
+  border-radius: 0;
+}
+
+:deep(.arco-modal-header) {
+  border-bottom: 1px solid #e5e7eb;
+  height: 48px;
+}
+
+/* 标签页对齐 */
+.industrial-tabs :deep(.arco-tabs-nav-tab) {
+  padding: 0 16px;
+}
+
+.industrial-tabs :deep(.arco-tabs-content) {
+  padding: 24px;
+}
+
+/* 极简表单样式 */
+.industrial-form :deep(.arco-form-item-label) {
+  font-weight: 500;
+  color: #475569;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.industrial-form :deep(.arco-input),
+.industrial-form :deep(.arco-textarea),
+.industrial-form :deep(.arco-select-view) {
+  border-radius: 0; /* 直角设计 */
+  background-color: #fcfcfc;
+  border-color: #e5e7eb;
+}
+
+/* 技术数据专用字体 */
+.mono-text {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+  font-size: 12px;
+}
+
+/* 表格融合规范 */
+.table-container {
+  border: 1px solid #e5e7eb;
+}
+
+.industrial-table-inline :deep(.arco-table-th) {
+  background-color: #f8fafc;
+  font-weight: bold;
+  height: 34px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.industrial-table-inline :deep(.arco-table-td) {
+  height: 34px;
+}
+
+/* 协议标签 */
+.proto-tag-mini {
+  font-family: monospace;
+  font-size: 10px;
+  border-radius: 2px;
+  padding: 0 4px;
+}
+
+/* 底部操作区 */
+.industrial-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 0 0;
+}
+
+.btn-primary {
+  background-color: #0f172a !important;
+  border-radius: 0 !important;
+}
+
+.btn-secondary {
+  border-radius: 0 !important;
+  border-color: #cbd5e1;
+}
+
+/* 消除 Arco Divider 默认外边距 */
+:deep(.arco-divider-horizontal) {
+  margin: 16px 0;
+  border-bottom-style: dashed;
+}
+</style>

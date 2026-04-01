@@ -1,52 +1,51 @@
 <template>
-  <v-card variant="outlined" class="mb-2 pa-3 action-editor-card">
-    <v-row density="compact" align="center">
+  <a-card class="action-editor-card" :bordered="true">
+    <a-row :gutter="12">
       <!-- Type Selection -->
-      <v-col cols="12" md="4">
-        <v-select
-          v-model="action.type"
-          :items="actionTypes"
-          label="动作类型"
-          density="compact"
-          hide-details
-          variant="outlined"
-          color="primary"
-          @update:model-value="onTypeChange"
-        ></v-select>
-      </v-col>
+      <a-col :span="24" :md="6">
+        <a-form-item label="动作类型">
+          <a-select
+            v-model="action.type"
+            :options="actionTypes"
+            placeholder="请选择动作类型"
+            class="rect-input"
+            @change="onTypeChange"
+          />
+        </a-form-item>
+      </a-col>
       
       <!-- Interval (Rate Limit) -->
-      <v-col cols="12" md="3">
-        <v-text-field
-          v-model="action.config.interval"
-          label="频率限制 (Interval)"
-          placeholder="e.g. 1s"
-          density="compact"
-          hide-details
-          variant="outlined"
-        ></v-text-field>
-      </v-col>
+      <a-col :span="24" :md="6">
+        <a-form-item label="频率限制 (Interval)">
+          <a-input
+            v-model="action.config.interval"
+            placeholder="e.g. 1s"
+            class="rect-input"
+          />
+        </a-form-item>
+      </a-col>
       
       <!-- Remove Button -->
-      <v-col cols="12" md="5" class="d-flex justify-end">
-        <v-btn 
-          icon="mdi-delete" 
-          size="small" 
-          color="error" 
-          variant="text" 
+      <a-col :span="24" :md="12" style="text-align: right;">
+        <a-button 
+          type="text" 
+          status="danger" 
           @click="$emit('remove')"
-          title="删除动作"
-        ></v-btn>
-      </v-col>
+          size="small"
+        >
+          <template #icon><IconDelete /></template>
+          删除动作
+        </a-button>
+      </a-col>
 
       <!-- Config Area -->
-      <v-col cols="12">
+      <a-col :span="24">
         
         <!-- 1. Sequence -->
         <div v-if="action.type === 'sequence'" class="pl-2">
           <div class="d-flex align-center mb-2">
             <span class="text-subtitle-2 mr-2">执行步骤 (Steps)</span>
-            <v-chip size="x-small" color="primary" variant="outlined">{{ (action.config.steps || []).length }}</v-chip>
+            <a-tag size="small" color="blue">{{ (action.config.steps || []).length }}</a-tag>
           </div>
           <div class="pl-3 border-s-md" style="border-color: #eee;">
             <div v-for="(step, idx) in (action.config.steps || [])" :key="idx" class="mb-2">
@@ -56,63 +55,95 @@
                 @remove="removeStep(idx)"
               />
             </div>
-            <v-btn size="small" variant="tonal" color="primary" prepend-icon="mdi-plus" @click="addStep">添加步骤</v-btn>
+            <a-button size="small" type="primary" @click="addStep">
+              <template #icon><IconPlus /></template>
+              添加步骤
+            </a-button>
           </div>
         </div>
 
         <!-- 2. Check -->
         <div v-if="action.type === 'check'" class="pl-2">
-           <v-row density="compact">
+           <a-row :gutter="12">
              <!-- Device Selection -->
-             <v-col cols="12" md="4">
-               <v-select 
-                 v-model="action.config.channel_id" 
-                 :items="channels" 
-                 item-title="name" 
-                 item-value="id" 
-                 label="通道" 
-                 density="compact" 
-                 variant="outlined"
-                 @update:model-value="onChannelChange(action.config)"
-               ></v-select>
-             </v-col>
-             <v-col cols="12" md="4">
-               <v-select 
-                 v-model="action.config.device_id" 
-                 :items="deviceList" 
-                 item-title="name" 
-                 item-value="id" 
-                 label="设备" 
-                 density="compact" 
-                 variant="outlined"
-                 @update:model-value="onDeviceChange(action.config)"
-               ></v-select>
-             </v-col>
-             <v-col cols="12" md="4">
-               <v-combobox 
-                 v-model="action.config.point_id" 
-                 :items="pointList" 
-                 item-title="name" 
-                 item-value="id" 
-                 label="点位" 
-                 density="compact" 
-                 variant="outlined"
-               ></v-combobox>
-             </v-col>
+             <a-col :span="24" :md="6">
+               <a-form-item label="通道">
+                 <a-select 
+                   v-model="action.config.channel_id" 
+                   :options="channels" 
+                   :label-field="'name'" 
+                   :value-field="'id'" 
+                   placeholder="选择通道"
+                   class="rect-input"
+                   @change="onChannelChange(action.config)"
+                 />
+               </a-form-item>
+             </a-col>
+             <a-col :span="24" :md="6">
+               <a-form-item label="设备">
+                 <a-select 
+                   v-model="action.config.device_id" 
+                   :options="deviceList" 
+                   :label-field="'name'" 
+                   :value-field="'id'" 
+                   placeholder="选择设备"
+                   class="rect-input"
+                   :disabled="!action.config.channel_id"
+                   @change="onDeviceChange(action.config)"
+                 />
+               </a-form-item>
+             </a-col>
+             <a-col :span="24" :md="6">
+               <a-form-item label="点位">
+                 <a-select 
+                   v-model="action.config.point_id" 
+                   :options="pointList" 
+                   :label-field="'name'" 
+                   :value-field="'id'" 
+                   placeholder="选择点位"
+                   class="rect-input"
+                   :disabled="!action.config.device_id"
+                 />
+               </a-form-item>
+             </a-col>
 
-             <v-col cols="12" md="6">
-                <v-text-field v-model="action.config.expression" label="校验表达式" placeholder="v == 1" density="compact" variant="outlined" hint="v 代表当前点位值" persistent-hint></v-text-field>
-             </v-col>
-             <v-col cols="6" md="2">
-                <v-text-field v-model="action.config.timeout" label="超时" placeholder="5s" density="compact" variant="outlined"></v-text-field>
-             </v-col>
-             <v-col cols="6" md="2">
-                <v-text-field v-model.number="action.config.retry" label="重试次数" type="number" density="compact" variant="outlined"></v-text-field>
-             </v-col>
-             <v-col cols="6" md="2">
-                <v-text-field v-model="action.config.interval" label="重试间隔" placeholder="1s" density="compact" variant="outlined"></v-text-field>
-             </v-col>
-           </v-row>
+             <a-col :span="24" :md="12">
+                <a-form-item label="校验表达式">
+                  <a-input 
+                    v-model="action.config.expression" 
+                    placeholder="v == 1" 
+                    class="rect-input"
+                  />
+                  <template #extra>v 代表当前点位值</template>
+                </a-form-item>
+             </a-col>
+             <a-col :span="24" :md="4">
+                <a-form-item label="超时">
+                  <a-input 
+                    v-model="action.config.timeout" 
+                    placeholder="5s" 
+                    class="rect-input"
+                  />
+                </a-form-item>
+             </a-col>
+             <a-col :span="24" :md="4">
+                <a-form-item label="重试次数">
+                  <a-input-number 
+                    v-model="action.config.retry" 
+                    class="rect-input"
+                  />
+                </a-form-item>
+             </a-col>
+             <a-col :span="24" :md="4">
+                <a-form-item label="重试间隔">
+                  <a-input 
+                    v-model="action.config.interval" 
+                    placeholder="1s" 
+                    class="rect-input"
+                  />
+                </a-form-item>
+             </a-col>
+           </a-row>
            
            <!-- On Fail -->
            <div class="mt-2">
@@ -125,109 +156,121 @@
                     @remove="removeFailStep(idx)"
                   />
                 </div>
-                <v-btn size="small" variant="tonal" color="error" prepend-icon="mdi-plus" @click="addFailStep">添加回退动作</v-btn>
+                <a-button size="small" type="outline" status="danger" @click="addFailStep">
+                  <template #icon><IconPlus /></template>
+                  添加回退动作
+                </a-button>
              </div>
            </div>
         </div>
 
         <!-- 3. Delay -->
         <div v-if="action.type === 'delay'" class="pl-2">
-            <v-text-field 
-              v-model="action.config.duration" 
-              label="延时时长 (Duration)" 
-              placeholder="e.g. 30s, 1m" 
-              density="compact" 
-              variant="outlined"
-              prepend-inner-icon="mdi-clock-outline"
-            ></v-text-field>
+            <a-form-item label="延时时长 (Duration)">
+              <a-input 
+                v-model="action.config.duration" 
+                placeholder="e.g. 30s, 1m" 
+                class="rect-input"
+              />
+            </a-form-item>
         </div>
 
         <!-- 4. Log -->
         <div v-if="action.type === 'log'" class="pl-2">
-           <v-row density="compact">
-             <v-col cols="12" md="3">
-               <v-select 
-                 v-model="action.config.level" 
-                 :items="['info', 'warn', 'error']" 
-                 label="日志级别" 
-                 density="compact" 
-                 variant="outlined"
-               ></v-select>
-             </v-col>
-             <v-col cols="12" md="9">
-               <v-text-field 
-                 v-model="action.config.message" 
-                 label="日志内容" 
-                 placeholder="支持模板变量 ${v}" 
-                 density="compact" 
-                 variant="outlined"
-               ></v-text-field>
-             </v-col>
-           </v-row>
+           <a-row :gutter="12">
+             <a-col :span="24" :md="6">
+               <a-form-item label="日志级别">
+                 <a-select 
+                   v-model="action.config.level" 
+                   :options="[
+                     {label: 'Info', value: 'info'},
+                     {label: 'Warn', value: 'warn'},
+                     {label: 'Error', value: 'error'}
+                   ]" 
+                   placeholder="选择级别"
+                   class="rect-input"
+                 />
+               </a-form-item>
+             </a-col>
+             <a-col :span="24" :md="18">
+               <a-form-item label="日志内容">
+                 <a-input 
+                   v-model="action.config.message" 
+                   placeholder="支持模板变量 ${v}" 
+                   class="rect-input"
+                 />
+               </a-form-item>
+             </a-col>
+           </a-row>
         </div>
 
         <!-- 5. Device Control -->
         <div v-if="action.type === 'device_control'" class="pl-2">
-            <div class="d-flex align-center mb-2">
-                <v-switch 
+            <div class="d-flex align-center justify-end mb-2">
+                <a-switch 
                     v-model="isBatchMode" 
-                    label="批量控制 (Batch)" 
-                    color="primary" 
-                    density="compact" 
-                    hide-details 
+                    type="round"
                     class="mr-4"
-                    @update:model-value="toggleBatchMode"
-                ></v-switch>
+                    @change="toggleBatchMode"
+                >
+                    <template #checked>批量控制 (Batch)</template>
+                    <template #unchecked>单点控制</template>
+                </a-switch>
             </div>
 
             <!-- Single Mode -->
             <div v-if="!isBatchMode">
-               <v-row density="compact">
-                 <v-col cols="12" md="4">
-                   <v-select 
-                     v-model="action.config.channel_id" 
-                     :items="channels" 
-                     item-title="name" 
-                     item-value="id" 
-                     label="通道" 
-                     density="compact" 
-                     variant="outlined"
-                     @update:model-value="onChannelChange(action.config)"
-                   ></v-select>
-                 </v-col>
-                 <v-col cols="12" md="4">
-                   <v-select 
-                     v-model="action.config.device_id" 
-                     :items="deviceList" 
-                     item-title="name" 
-                     item-value="id" 
-                     label="设备" 
-                     density="compact" 
-                     variant="outlined"
-                     @update:model-value="onDeviceChange(action.config)"
-                   ></v-select>
-                 </v-col>
-                 <v-col cols="12" md="4">
-                   <v-combobox 
-                     v-model="action.config.point_id" 
-                     :items="pointList" 
-                     item-title="name" 
-                     item-value="id" 
-                     label="点位" 
-                     density="compact" 
-                     variant="outlined"
-                   ></v-combobox>
-                 </v-col>
-                 <v-col cols="12">
-                   <v-text-field 
-                     v-model="action.config.value" 
-                     label="写入值 (Value Template)" 
-                     placeholder="可以是固定值(1) 或 模板(${v})" 
-                     density="compact" 
-                     variant="outlined"
-                   ></v-text-field>
-                 </v-col>
-               </v-row>
+               <a-row :gutter="12">
+                 <a-col :span="24" :md="6">
+                   <a-form-item label="通道">
+                     <a-select 
+                       v-model="action.config.channel_id" 
+                       :options="channels" 
+                       :label-field="'name'" 
+                       :value-field="'id'" 
+                       placeholder="选择通道"
+                       class="rect-input"
+                       @change="onChannelChange(action.config)"
+                     />
+                   </a-form-item>
+                 </a-col>
+                 <a-col :span="24" :md="6">
+                   <a-form-item label="设备">
+                     <a-select 
+                       v-model="action.config.device_id" 
+                       :options="deviceList" 
+                       :label-field="'name'" 
+                       :value-field="'id'" 
+                       placeholder="选择设备"
+                       class="rect-input"
+                       :disabled="!action.config.channel_id"
+                       @change="onDeviceChange(action.config)"
+                     />
+                   </a-form-item>
+                 </a-col>
+                 <a-col :span="24" :md="6">
+                   <a-form-item label="点位">
+                     <a-select 
+                       v-model="action.config.point_id" 
+                       :options="pointList" 
+                       :label-field="'name'" 
+                       :value-field="'id'" 
+                       placeholder="选择点位"
+                       class="rect-input"
+                       :disabled="!action.config.device_id"
+                     />
+                   </a-form-item>
+                 </a-col>
+                 <a-col :span="24">
+                   <a-form-item label="写入值 (Value Template)">
+                     <a-input 
+                       v-model="action.config.value" 
+                       placeholder="可以是固定值(1) 或 模板(${v})" 
+                       class="rect-input"
+                     />
+                   </a-form-item>
+                 </a-col>
+               </a-row>
             </div>
 
             <!-- Batch Mode -->
@@ -235,90 +278,145 @@
                <div v-for="(target, tIdx) in (action.config.targets || [])" :key="tIdx" class="mb-2 pa-2 border rounded">
                   <div class="d-flex justify-space-between mb-1">
                       <span class="text-caption">目标 {{ tIdx + 1 }}</span>
-                      <v-btn icon="mdi-close" size="x-small" variant="text" color="grey" @click="removeTarget(tIdx)"></v-btn>
+                      <a-button type="text" size="mini" @click="removeTarget(tIdx)">
+                        <template #icon><IconClose /></template>
+                      </a-button>
                   </div>
                   <TargetEditor :target="target" :channels="channels" />
                </div>
-               <v-btn size="small" variant="tonal" prepend-icon="mdi-plus" @click="addTarget">添加控制目标</v-btn>
+               <a-button size="small" type="primary" @click="addTarget">
+                 <template #icon><IconPlus /></template>
+                 添加控制目标
+               </a-button>
             </div>
         </div>
 
         <!-- 6. MQTT -->
         <div v-if="action.type === 'mqtt'" class="pl-2">
-            <v-row density="compact">
-                <v-col cols="12" md="4">
-                    <v-select
-                        v-model="action.config.mqtt_config_id"
-                        :items="northboundConfig.mqtt"
-                        item-title="name"
-                        item-value="id"
-                        label="北向通道"
-                        density="compact"
-                        variant="outlined"
-                        clearable
-                        placeholder="选择北向 MQTT 配置"
-                        hide-details
-                    ></v-select>
-                </v-col>
-                <v-col cols="12" md="4">
-                    <v-text-field v-model="action.config.topic" label="Topic" density="compact" variant="outlined" placeholder="可选 (默认使用配置Topic)" hide-details></v-text-field>
-                </v-col>
-                <v-col cols="12" md="4">
-                    <v-select v-model="action.config.send_strategy" :items="['single', 'batch']" label="发送策略" density="compact" variant="outlined" hide-details></v-select>
-                </v-col>
-                <v-col cols="12">
-                    <v-textarea v-model="action.config.message" label="消息内容 (Message Template)" rows="2" density="compact" variant="outlined" placeholder="留空则发送默认 JSON" hide-details></v-textarea>
-                </v-col>
-            </v-row>
+            <a-row :gutter="12">
+                <a-col :span="24" :md="8">
+                    <a-form-item label="北向通道">
+                        <a-select
+                            v-model="action.config.mqtt_config_id"
+                            :options="northboundConfig.mqtt"
+                            :label-field="'name'"
+                            :value-field="'id'"
+                            placeholder="选择北向 MQTT 配置"
+                            class="rect-input"
+                            allow-clear
+                        />
+                    </a-form-item>
+                </a-col>
+                <a-col :span="24" :md="8">
+                    <a-form-item label="Topic">
+                        <a-input 
+                            v-model="action.config.topic" 
+                            placeholder="可选 (默认使用配置Topic)" 
+                            class="rect-input"
+                        />
+                    </a-form-item>
+                </a-col>
+                <a-col :span="24" :md="8">
+                    <a-form-item label="发送策略">
+                        <a-select 
+                            v-model="action.config.send_strategy" 
+                            :options="[
+                                {label: 'Single', value: 'single'},
+                                {label: 'Batch', value: 'batch'}
+                            ]" 
+                            placeholder="选择策略"
+                            class="rect-input"
+                        />
+                    </a-form-item>
+                </a-col>
+                <a-col :span="24">
+                    <a-form-item label="消息内容 (Message Template)">
+                        <a-textarea 
+                            v-model="action.config.message" 
+                            placeholder="留空则发送默认 JSON" 
+                            :rows="2"
+                            class="rect-input"
+                        />
+                    </a-form-item>
+                </a-col>
+            </a-row>
         </div>
 
         <!-- 7. HTTP -->
         <div v-if="action.type === 'http'" class="pl-2">
-            <v-row density="compact">
-                <v-col cols="12" md="12">
-                    <v-select
-                        v-model="action.config.http_config_id"
-                        :items="northboundConfig.http"
-                        item-title="name"
-                        item-value="id"
-                        label="北向通道 (Northbound Channel)"
-                        density="compact"
-                        variant="outlined"
-                        clearable
-                        placeholder="选择北向 HTTP 配置"
-                    ></v-select>
-                </v-col>
-                <!-- Only show inline config if no channel selected (or allow override?) -->
-                <!-- User requested "HTTP Push is also created by Northbound", implying preference for channel. -->
-                <!-- We'll keep them visible but optional/overridable or fallback -->
-                <v-col cols="12" md="2" v-if="!action.config.http_config_id">
-                    <v-select v-model="action.config.method" :items="['POST', 'PUT', 'GET']" label="Method" density="compact" variant="outlined"></v-select>
-                </v-col>
-                <v-col cols="12" md="10" v-if="!action.config.http_config_id">
-                    <v-text-field v-model="action.config.url" label="URL" density="compact" variant="outlined"></v-text-field>
-                </v-col>
-                <v-col cols="12">
-                    <v-textarea v-model="action.config.body" label="Body Template" rows="2" density="compact" variant="outlined"></v-textarea>
-                </v-col>
-            </v-row>
+            <a-row :gutter="12">
+                <a-col :span="24" :md="12">
+                    <a-form-item label="北向通道 (Northbound Channel)">
+                        <a-select
+                            v-model="action.config.http_config_id"
+                            :options="northboundConfig.http"
+                            :label-field="'name'"
+                            :value-field="'id'"
+                            placeholder="选择北向 HTTP 配置"
+                            class="rect-input"
+                            allow-clear
+                        />
+                    </a-form-item>
+                </a-col>
+                <a-col :span="24" :md="6" v-if="!action.config.http_config_id">
+                    <a-form-item label="Method">
+                        <a-select 
+                            v-model="action.config.method" 
+                            :options="[
+                                {label: 'POST', value: 'POST'},
+                                {label: 'PUT', value: 'PUT'},
+                                {label: 'GET', value: 'GET'}
+                            ]" 
+                            placeholder="选择方法"
+                            class="rect-input"
+                        />
+                    </a-form-item>
+                </a-col>
+                <a-col :span="24" :md="18" v-if="!action.config.http_config_id">
+                    <a-form-item label="URL">
+                        <a-input 
+                            v-model="action.config.url" 
+                            placeholder="输入URL" 
+                            class="rect-input"
+                        />
+                    </a-form-item>
+                </a-col>
+                <a-col :span="24">
+                    <a-form-item label="Body Template">
+                        <a-textarea 
+                            v-model="action.config.body" 
+                            placeholder="输入Body模板" 
+                            :rows="2"
+                            class="rect-input"
+                        />
+                    </a-form-item>
+                </a-col>
+            </a-row>
         </div>
 
         <!-- 8. Database -->
         <div v-if="action.type === 'database'" class="pl-2">
-            <v-text-field v-model="action.config.bucket" label="Bucket Name" placeholder="rule_events" density="compact" variant="outlined"></v-text-field>
+            <a-form-item label="Bucket Name">
+                <a-input 
+                    v-model="action.config.bucket" 
+                    placeholder="rule_events" 
+                    class="rect-input"
+                />
+            </a-form-item>
         </div>
 
-      </v-col>
-    </v-row>
-  </v-card>
+      </a-col>
+    </a-row>
+  </a-card>
 </template>
 
 <script setup>
-import { ref, watch, onMounted, computed, inject } from 'vue'
+import { ref, watch, onMounted, inject } from 'vue'
 import request from '@/utils/request'
+import { IconDelete, IconPlus, IconClose } from '@arco-design/web-vue/es/icon'
 // Recursive component self-reference
 import ActionEditor from './ActionEditor.vue'
-import TargetEditor from './TargetEditor.vue' // Extract target editor for reuse
+import TargetEditor from './TargetEditor.vue'
 
 const props = defineProps({
   modelValue: {
@@ -357,14 +455,14 @@ watch(action, (val) => {
 }, { deep: true })
 
 const actionTypes = [
-  { title: 'Log (日志)', value: 'log' },
-  { title: 'Device Control (设备控制)', value: 'device_control' },
-  { title: 'Sequence (顺序执行)', value: 'sequence' },
-  { title: 'Check (校验)', value: 'check' },
-  { title: 'Delay (延时)', value: 'delay' },
-  { title: 'MQTT Push (MQTT推送)', value: 'mqtt' },
-  { title: 'HTTP Push (HTTP推送)', value: 'http' },
-  { title: 'Database (存储)', value: 'database' },
+  { label: 'Log (日志)', value: 'log' },
+  { label: 'Device Control (设备控制)', value: 'device_control' },
+  { label: 'Sequence (顺序执行)', value: 'sequence' },
+  { label: 'Check (校验)', value: 'check' },
+  { label: 'Delay (延时)', value: 'delay' },
+  { label: 'MQTT Push (MQTT推送)', value: 'mqtt' },
+  { label: 'HTTP Push (HTTP推送)', value: 'http' },
+  { label: 'Database (存储)', value: 'database' },
 ]
 
 const onTypeChange = () => {
@@ -467,11 +565,89 @@ onMounted(() => {
         loadDevices(action.value.config)
     }
 })
-
 </script>
 
 <style scoped>
 .action-editor-card {
     border-left: 4px solid #1976D2;
+    border-radius: 0;
+}
+
+.pl-2 {
+    padding-left: 8px;
+}
+
+.pl-3 {
+    padding-left: 12px;
+}
+
+.mb-1 {
+    margin-bottom: 4px;
+}
+
+.mb-2 {
+    margin-bottom: 8px;
+}
+
+.mt-2 {
+    margin-top: 8px;
+}
+
+.mr-2 {
+    margin-right: 8px;
+}
+
+.mr-4 {
+    margin-right: 16px;
+}
+
+.d-flex {
+    display: flex;
+}
+
+.align-center {
+    align-items: center;
+}
+
+.justify-end {
+    justify-content: flex-end;
+}
+
+.justify-space-between {
+    justify-content: space-between;
+}
+
+.text-subtitle-2 {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.text-caption {
+    font-size: 12px;
+}
+
+.text-error {
+    color: #f53f3f;
+}
+
+.border-s-md {
+    border-style: solid;
+    border-width: 1px;
+}
+
+.border-error {
+    border-color: #f53f3f;
+}
+
+.rounded {
+    border-radius: 4px;
+}
+
+.pa-2 {
+    padding: 8px;
+}
+
+.border {
+    border: 1px solid #e5e7eb;
 }
 </style>

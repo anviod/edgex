@@ -214,7 +214,7 @@ Default account see `conf/users.yaml` (admin / passwd@123).
 - Read Strategy: Auto-fallback to single property read on batch read failure; Read/Transport timeout increased (typically 10s) coupled with 30s cooldown auto-recovery mechanism.
 - Port Strategy: Respects device I-Am source port for subsequent unicast communication, falls back to standard port 47808 on abnormality.
 - Gateway pushes latest values to frontend via WebSocket in real-time, list shows Quality tags (Good/Bad) and timestamp.
-- When running Gateway and Simulator on the same machine, if 47808 port conflict occurs, please bind Gateway to a specific NIC IP (e.g., `192.168.3.106:47808`) instead of `0.0.0.0:47808`.
+- When running Gateway and Simulator on the same machine, if 47808 port conflict occurs, please bind Gateway to a specific NIC IP (e.g., `192.168.3.112:47808`) instead of `0.0.0.0:47808`.
 
 ### 4. OPC UA Server Guide
 
@@ -278,7 +278,7 @@ devices:
     interval: 2s
     config:
       device_id: 2228316
-      ip: 192.168.3.106
+      ip: 192.168.3.112
       port: 47808
     points:
       - id: AnalogInput_0

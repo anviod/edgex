@@ -1,0 +1,49 @@
+<svg width="1000" height="450" viewBox="0 0 1000 450" xmlns="http://www.w3.org/2000/svg">
+  <rect x="10" y="10" width="980" height="430" rx="15" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="500" y="40" text-anchor="middle" font-family="Arial" font-size="16" font-weight="bold" fill="#334155">[ 边缘计算：规则类型处理流程与优化 ]</text>
+
+  <g transform="translate(50, 70)">
+    <rect width="200" height="80" rx="10" fill="#fff" stroke="#f59e0b" stroke-width="2"/>
+    <text x="15" y="25" font-family="Arial" font-size="12" fill="#f59e0b" font-weight="bold">窗口规则 [Windowing]</text>
+    <text x="15" y="55" font-family="monospace" font-size="11" fill="#334155">Range: 5 min | Slide: 1 min</text>
+    <text x="15" y="72" font-family="Arial" font-size="10" fill="#d97706">场景: 楼宇能耗汇总统计</text>
+  </g>
+
+  <g transform="translate(50, 180)">
+    <rect width="200" height="80" rx="10" fill="#fff" stroke="#10b981" stroke-width="2"/>
+    <text x="15" y="25" font-family="Arial" font-size="12" fill="#10b981" font-weight="bold">计算规则 [Expression]</text>
+    <text x="15" y="55" font-family="monospace" font-size="12" fill="#065f46">Result = (val * 1.5) / 0.85</text>
+    <text x="15" y="72" font-family="Arial" font-size="10" fill="#059669">优化: 避免重复计算，使用缓存</text>
+  </g>
+
+  <g transform="translate(50, 290)">
+    <rect width="200" height="80" rx="10" fill="#fff" stroke="#ef4444" stroke-width="2"/>
+    <text x="15" y="25" font-family="Arial" font-size="12" fill="#ef4444" font-weight="bold">状态规则 [Status]</text>
+    <text x="15" y="55" font-family="monospace" font-size="11" fill="#334155">Duration &gt; 10s | Count &gt; 3</text>
+    <text x="15" y="72" font-family="Arial" font-size="10" fill="#b91c1c">场景: 持续高温告警判定</text>
+  </g>
+
+  <g transform="translate(420, 160)">
+    <circle cx="80" cy="80" r="75" fill="#fff" stroke="#6366f1" stroke-width="3" stroke-dasharray="10,5"/>
+    <text x="80" y="75" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="#4338ca">分布式</text>
+    <text x="80" y="95" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="#4338ca">任务调度</text>
+  </g>
+
+  <g transform="translate(750, 180)">
+    <rect width="200" height="100" rx="12" fill="#fff" stroke="#64748b" stroke-width="2"/>
+    <text x="100" y="30" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold" fill="#475569">动作触发决策</text>
+    <rect x="20" y="45" width="160" height="15" rx="3" fill="#f1f5f9"/>
+    <text x="30" y="56" font-family="monospace" font-size="10" fill="#64748b">HTTP_POST /api/v1/alert</text>
+    <rect x="20" y="70" width="160" height="15" rx="3" fill="#f1f5f9"/>
+    <text x="30" y="81" font-family="monospace" font-size="10" fill="#64748b">MODBUS_WRITE (0x01, ON)</text>
+  </g>
+
+  <path d="M250 110 C 350 110, 350 240, 420 240" stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+  <path d="M250 220 L 420 240" stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+  <path d="M250 330 C 350 330, 350 240, 420 240" stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+  <path d="M575 240 L 742 240" stroke="#6366f1" stroke-width="2.5" fill="none" marker-end="url(#arrowBlue)"/>
+
+  <defs>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#6366f1"/></marker>
+  </defs>
+</svg>

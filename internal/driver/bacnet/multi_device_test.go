@@ -98,7 +98,7 @@ func TestBACnet_MultiDevice_Scheduling(t *testing.T) {
 	// Device A: 2228316
 	mockClient.devices[2228316] = btypes.Device{
 		DeviceID: 2228316,
-		Addr:     btypes.Address{Mac: []byte{192, 168, 3, 106, 0xBA, 0xC0}, MacLen: 6}, // 192.168.3.106:47808
+		Addr:     btypes.Address{Mac: []byte{192, 168, 3, 106, 0xBA, 0xC0}, MacLen: 6}, // 192.168.3.112:47808
 	}
 	mockClient.values[2228316] = map[string]any{
 		"0:0": float32(16.5), // AnalogInput:0

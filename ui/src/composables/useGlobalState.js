@@ -10,4 +10,8 @@ export const showMessage = (text, color = 'success') => {
     globalState.snackbar.text = text
     globalState.snackbar.color = color
     globalState.snackbar.show = true
+    // Auto hide after 3 seconds
+    setTimeout(() => {
+        globalState.snackbar.show = false
+    }, 3000)
 }

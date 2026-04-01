@@ -1,0 +1,45 @@
+<svg width="1000" height="400" viewBox="0 0 1000 400" xmlns="http://www.w3.org/2000/svg">
+  <rect x="10" y="10" width="980" height="380" rx="15" fill="#fcfdfe" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="500" y="40" text-anchor="middle" font-family="Arial" font-size="16" font-weight="bold" fill="#475569">核心工作流程：从感知到执行 (EDGE_CORE_V2.4)</text>
+
+  <g transform="translate(40, 80)">
+    <rect width="220" height="110" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="2"/>
+    <path d="M0 10 Q0 0 10 0 L210 0 Q220 0 220 10 L220 30 L0 30 Z" fill="#e0f2fe"/>
+    <text x="15" y="20" font-family="monospace" font-size="12" font-weight="bold" fill="#0369a1">设备采集层 [Source]</text>
+    <text x="15" y="55" font-family="Arial" font-size="11" fill="#64748b">设备: CNC_Lathe_01 (Modbus)</text>
+    <text x="15" y="75" font-family="monospace" font-size="13" fill="#0369a1">Temp: 78.4°C | Vib: 0.12g</text>
+    <text x="15" y="95" font-family="Arial" font-size="10" fill="#22c55e">● 实时采样中 (Interval: 1s)</text>
+  </g>
+
+  <g transform="translate(380, 100)">
+    <rect width="240" height="130" rx="12" fill="#fff" stroke="#8b5cf6" stroke-width="2.5" style="filter:drop-shadow(0 10px 15px rgba(139,92,246,0.15))"/>
+    <rect width="240" height="35" rx="10" fill="#f5f3ff"/>
+    <text x="120" y="23" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold" fill="#6d28d9">规则引擎 [Rules Engine]</text>
+    <text x="20" y="65" font-family="monospace" font-size="12" fill="#7c3aed">1. 阈值判断 (Temp &gt; 85)</text>
+    <text x="20" y="85" font-family="monospace" font-size="12" fill="#7c3aed">2. 聚合计算 (Avg_5min)</text>
+    <text x="20" y="105" font-family="monospace" font-size="12" fill="#7c3aed">3. 异常检测 (FFT变换)</text>
+  </g>
+
+  <g transform="translate(740, 60)">
+    <rect width="220" height="80" rx="8" fill="#fff" stroke="#10b981" stroke-width="1.5"/>
+    <text x="110" y="20" text-anchor="middle" font-family="Arial" font-size="11" fill="#059669">本地闭环控制</text>
+    <text x="20" y="50" font-family="Arial" font-size="14" font-weight="bold" fill="#064e3b">触发: 停机指令</text>
+    <text x="20" y="70" font-family="Arial" font-size="10" fill="#059669">Latency: &lt; 10ms (文档最佳值)</text>
+  </g>
+
+  <g transform="translate(740, 180)">
+    <rect width="220" height="80" rx="8" fill="#fff" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="110" y="20" text-anchor="middle" font-family="Arial" font-size="11" fill="#b45309">云端/应用层转发</text>
+    <text x="20" y="50" font-family="Arial" font-size="13" fill="#78350f">协议: MQTT (TLS 加密)</text>
+    <text x="20" y="70" font-family="Arial" font-size="13" fill="#78350f">目标: AWS IoT Core</text>
+  </g>
+
+  <path d="M260 135 C 320 135, 320 165, 372 165" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6,3" fill="none" marker-end="url(#dot)"/>
+  <path d="M620 165 C 680 165, 680 100, 732 100" stroke="#8b5cf6" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M620 165 C 680 165, 680 220, 732 220" stroke="#8b5cf6" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <defs>
+    <marker id="dot" markerWidth="8" markerHeight="8" refX="4" refY="4"><circle cx="4" cy="4" r="3" fill="#94a3b8"/></marker>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#8b5cf6"/></marker>
+  </defs>
+</svg>

@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	ip := "192.168.3.106"
+	ip := "192.168.3.112"
 	port := 47808
 	addr := fmt.Sprintf("%s:%d", ip, port)
 
@@ -27,7 +27,7 @@ func main() {
 	defer conn.Close()
 
 	fmt.Printf("Successfully bound to %s\n", addr)
-	
+
 	// Keep it open for a moment
 	// time.Sleep(5 * time.Second)
 }

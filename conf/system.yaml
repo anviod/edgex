@@ -128,7 +128,7 @@ network:
           version: IPv6
           source: Static
           enabled: true
-        - address: 192.168.3.106
+        - address: 192.168.3.112
           prefix: 24
           version: IPv4
           source: Static

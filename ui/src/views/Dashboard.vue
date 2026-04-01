@@ -1,236 +1,204 @@
 <template>
-  <div>
-    <!-- System Info -->
-    <v-row>
-      <v-col cols="12" md="3">
-        <v-card class="glass-card pa-4" height="100%">
-          <div class="text-overline mb-1">CPU 使用率</div>
-          <div class="text-h4 font-weight-bold text-primary">{{ system.cpu_usage.toFixed(1) }}%</div>
-          <v-progress-linear :model-value="system.cpu_usage" color="primary" height="4" class="mt-2"></v-progress-linear>
-        </v-card>
-      </v-col>
-      <v-col cols="12" md="3">
-        <v-card class="glass-card pa-4" height="100%">
-          <div class="text-overline mb-1">内存使用</div>
-          <div class="text-h4 font-weight-bold text-info">{{ system.memory_usage.toFixed(0) }} MB</div>
-          <v-progress-linear :model-value="(system.memory_usage / 1024) * 100" color="info" height="4" class="mt-2"></v-progress-linear>
-        </v-card>
-      </v-col>
-       <v-col cols="12" md="3">
-        <v-card class="glass-card pa-4" height="100%">
-          <div class="text-overline mb-1">协程数量</div>
-          <div class="text-h4 font-weight-bold text-success">{{ system.goroutines }}</div>
-        </v-card>
-      </v-col>
-       <v-col cols="12" md="3">
-        <v-card class="glass-card pa-4" height="100%">
-          <div class="text-overline mb-1">磁盘使用率</div>
-          <div class="text-h4 font-weight-bold text-warning">{{ system.disk_usage.toFixed(1) }}%</div>
-         <v-progress-linear :model-value="system.disk_usage" color="warning" height="4" class="mt-2"></v-progress-linear>
-        </v-card>
-      </v-col>
-    </v-row>
+  <div class="dashboard-container">
+    <!-- Header with Theme Toggle -->
+    <div class="dashboard-header">
+      <h2 class="dashboard-title">系统概览</h2>
+    </div>
 
-    <!-- Southbound Channels with Metrics -->
-    <v-row class="mt-4">
-      <v-col cols="12">
-        <div class="d-flex align-center mb-4">
-          <div class="text-h6">采集通道</div>
-          <v-spacer></v-spacer>
-          <v-chip size="small" class="mr-2" color="success" variant="outlined">
-            <v-icon size="x-small" start>mdi-check-circle</v-icon>
-            在线: {{ totalOnlineDevices }}
-          </v-chip>
-          <v-chip size="small" color="error" variant="outlined">
-            <v-icon size="x-small" start>mdi-alert-circle</v-icon>
-            离线: {{ totalOfflineDevices }}
-          </v-chip>
+    <!-- System Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">CPU 使用率</div>
+        <div class="stat-value" :style="{ color: getCpuColor(system.cpu_usage) }">
+          {{ (system.cpu_usage || 0).toFixed(1) }}%
         </div>
-      </v-col>
+        <div class="stat-bar">
+          <div class="stat-progress" :style="{ width: (system.cpu_usage || 0) + '%', background: getCpuColor(system.cpu_usage) }"></div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">内存使用</div>
+        <div class="stat-value" :style="{ color: getMemoryColor(system.memory_usage) }">
+          {{ formatMemory(system.memory_usage) }}
+        </div>
+        <div class="stat-bar">
+          <div class="stat-progress" :style="{ width: getMemoryPercent(system.memory_usage) + '%', background: getMemoryColor(system.memory_usage) }"></div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">协程数量</div>
+        <div class="stat-value" style="color: #10b981;">
+          {{ system.goroutines || 0 }}
+        </div>
+        <div class="stat-bar">
+          <div class="stat-progress" style="width: 100%; background: #10b981;"></div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">磁盘使用率</div>
+        <div class="stat-value" :style="{ color: getDiskColor(system.disk_usage) }">
+          {{ (system.disk_usage || 0).toFixed(1) }}%
+        </div>
+        <div class="stat-bar">
+          <div class="stat-progress" :style="{ width: (system.disk_usage || 0) + '%', background: getDiskColor(system.disk_usage) }"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Collection Channels Section -->
+    <div class="section">
+      <div class="section-header">
+        <h3 class="section-title">采集通道</h3>
+        <div class="section-status">
+          <span class="status-badge online">
+            <span class="status-dot"></span>
+            在线: {{ totalOnlineDevices }}
+          </span>
+          <span class="status-badge offline">
+            <span class="status-dot"></span>
+            离线: {{ totalOfflineDevices }}
+          </span>
+        </div>
+      </div>
       
-      <!-- Enhanced Channel Cards -->
-      <v-col v-for="ch in channels" :key="ch.id" cols="12" md="6" lg="4">
-        <v-card class="glass-card channel-card" hover @click="$router.push(`/channels/${ch.id}/devices`)">
-          <!-- 通道头部信息 -->
-          <v-card-item>
-            <template v-slot:prepend>
-              <div class="channel-icon mr-3">
-                <v-icon :icon="getProtocolIcon(ch.protocol)" size="32" :color="getChannelStatusColor(ch)"></v-icon>
+      <div class="channels-grid">
+        <div v-for="ch in channels" :key="ch.id" class="channel-card" @click="$router.push(`/channels/${ch.id}/devices`)">
+          <div class="channel-header">
+            <div class="channel-icon" :class="getProtocolClass(ch.protocol)">
+              <icon-link v-if="ch.protocol === 'bacnet-ip'" :size="20" />
+              <icon-link v-else-if="ch.protocol === 'modbus-rtu'" :size="20" />
+              <icon-link v-else-if="ch.protocol === 'modbus-tcp'" :size="20" />
+              <icon-tool v-else-if="ch.protocol === 'opc-ua'" :size="20" />
+              <icon-settings v-else-if="ch.protocol === 's7'" :size="20" />
+              <icon-link v-else :size="20" />
+            </div>
+            <div class="channel-info">
+              <div class="channel-name">
+                {{ ch.name }}
+                <span class="quality-score" :class="getQualityClass(ch.qualityScore)">{{ ch.qualityScore || '-' }}</span>
               </div>
-            </template>
-            <v-card-title class="d-flex align-center">
-              {{ ch.name }}
-              <v-chip size="x-small" :color="getQualityColor(ch.qualityScore)" variant="flat" class="ml-2">
-                {{ ch.qualityScore || '-' }}
-              </v-chip>
-            </v-card-title>
-            <v-card-subtitle>
-              {{ ch.protocol }}
-              <span class="mx-1">|</span>
-              <v-chip size="x-small" :color="ch.enable ? 'success' : 'grey'" variant="text">
-                {{ ch.enable ? '启用' : '禁用' }}
-              </v-chip>
-              <div v-if="getConnectionUrl(ch)" class="text-caption text-grey-darken-1 mt-1">
-                <v-icon size="x-small">mdi-ip-network</v-icon>
-                {{ getConnectionUrl(ch) }}
-              </div>
-            </v-card-subtitle>
-            <template v-slot:append>
-              <v-btn icon="mdi-chevron-right" variant="text" size="small"></v-btn>
-            </template>
-          </v-card-item>
-
-          <!-- 关键指标 -->
-          <v-card-text>
-            <v-row dense class="channel-stats mb-3">
-              <v-col cols="3">
-                <div class="stat-item text-center">
-                  <div class="text-caption text-grey-darken-1">设备</div>
-                  <div class="text-h6 font-weight-bold">{{ ch.device_count || 0 }}</div>
-                </div>
-              </v-col>
-              <v-col cols="3">
-                <div class="stat-item text-center">
-                  <div class="text-caption text-success">在线</div>
-                  <div class="text-h6 font-weight-bold text-success">{{ ch.online_count || 0 }}</div>
-                </div>
-              </v-col>
-              <v-col cols="3">
-                <div class="stat-item text-center">
-                  <div class="text-caption text-error">离线</div>
-                  <div class="text-h6 font-weight-bold text-error">{{ ch.offline_count || 0 }}</div>
-                </div>
-              </v-col>
-              <v-col cols="3">
-                <div class="stat-item text-center">
-                  <div class="text-caption text-grey-darken-1">成功率</div>
-                  <div class="text-h6 font-weight-bold" :class="getSuccessRateColor(ch.successRate)">
-                    {{ formatPercent(ch.successRate) }}
-                  </div>
-                </div>
-              </v-col>
-            </v-row>
-
-            <!-- 通信质量指标 (如果有) -->
-            <div v-if="ch.metrics" class="metrics-section">
-              <div class="d-flex align-center mb-2" style="position: relative; height: 24px;">
-                <div class="d-flex align-center">
-                  <v-icon size="x-small" class="mr-1 text-info">mdi-pulse</v-icon>
-                  <span class="text-caption text-grey-darken-1">通信质量</span>
-                </div>
-                
-                <!-- 重连次数放在中间 -->
-                <div v-if="ch.metrics.reconnectCount > 0" 
-                  class="text-caption text-info font-weight-bold" 
-                  style="position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap;"
-                >
-                  <v-icon size="x-small" class="mr-1">mdi-refresh</v-icon>
-                  重连: {{ ch.metrics.reconnectCount }}
-                </div>
-                
-                <v-spacer></v-spacer>
-                <span class="text-caption">RTT: {{ formatDuration(ch.metrics.avgRtt) }}</span>
-              </div>
-              
-              <!-- 成功率进度条 -->
-              <v-progress-linear
-                :model-value="(ch.metrics.successRate || 0) * 100"
-                :color="getSuccessRateBarColor(ch.metrics.successRate)"
-                height="6"
-                rounded
-                class="mb-2"
-              ></v-progress-linear>
-              
-              <!-- 错误统计 -->
-              <div class="d-flex justify-center text-caption">
-                <span v-if="ch.metrics.timeoutCount > 0" class="text-warning mx-1">
-                  <v-icon size="x-small">mdi-timer-off</v-icon>
-                  超时: {{ ch.metrics.timeoutCount }}
-                </span>
-                <span v-if="ch.metrics.crcError > 0" class="text-error mx-1">
-                  <v-icon size="x-small">mdi-alert-circle</v-icon>
-                  CRC: {{ ch.metrics.crcError }}
-                </span>
+              <div class="channel-meta">
+                {{ ch.protocol }}
+                <span class="divider">|</span>
+                <span :class="['status-text', ch.enable ? 'enabled' : 'disabled']">{{ ch.enable ? '启用' : '禁用' }}</span>
               </div>
             </div>
-
-            <!-- 最后采集时间 -->
-            <div v-if="ch.last_collect_time" class="mt-2 text-caption text-grey-darken-1 text-right">
-              <v-icon size="x-small">mdi-clock-outline</v-icon>
-              {{ formatTime(ch.last_collect_time) }}
+            <icon-arrow-right :size="14" class="arrow-icon" />
+          </div>
+          
+          <div class="channel-stats">
+            <div class="stat-item">
+              <div class="stat-item-label">设备</div>
+              <div class="stat-item-value">{{ ch.device_count || 0 }}</div>
             </div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-      
-      <v-col v-if="channels.length === 0" cols="12">
-        <v-alert type="info" variant="tonal" class="glass-card">
-          暂无采集通道配置。 <router-link to="/channels">添加通道</router-link>.
-        </v-alert>
-      </v-col>
-    </v-row>
+            <div class="stat-item">
+              <div class="stat-item-label online">在线</div>
+              <div class="stat-item-value online">{{ ch.online_count || 0 }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-item-label offline">离线</div>
+              <div class="stat-item-value offline">{{ ch.offline_count || 0 }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-item-label">成功率</div>
+              <div class="stat-item-value" :class="getSuccessRateClass(ch.successRate)">{{ formatPercent(ch.successRate) }}</div>
+            </div>
+          </div>
+          
+          <div class="channel-metrics" v-if="ch.metrics">
+            <div class="metrics-header">
+              <span class="metrics-label">通信质量</span>
+              <span class="metrics-rtt">RTT: {{ formatDuration(ch.metrics.avgRtt) }}</span>
+            </div>
+            <div class="quality-bar-container">
+              <div class="quality-bar" :class="getQualityBarClass(ch.qualityScore)" :style="{ width: (ch.qualityScore || 0) + '%' }"></div>
+            </div>
+            <div v-if="ch.metrics.reconnectCount > 0" class="reconnect-info">
+              <icon-refresh :size="12" />
+              重连: {{ ch.metrics.reconnectCount }}
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="channels.length === 0" class="empty-card">
+          <div class="empty-content">
+            <icon-apps :size="48" style="margin-bottom: 12px;" />
+            <p>暂无采集通道配置</p>
+            <button class="btn-primary" @click="$router.push('/channels')">添加通道</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <!-- Northbound -->
-    <v-row class="mt-4">
-       <v-col cols="12">
-        <div class="text-h6 mb-4">北向数据上报</div>
-      </v-col>
-      <v-col v-for="nb in northbound" :key="nb.id" cols="12" md="4">
-         <v-card class="glass-card">
-            <v-card-title class="d-flex justify-space-between align-center">
-                {{ nb.name }}
-                <v-chip size="small" :color="nb.status === 'Running' ? 'success' : (nb.status === 'Disabled' ? 'grey' : 'error')">{{ nb.status }}</v-chip>
-            </v-card-title>
-             <v-card-subtitle>{{ nb.type }}</v-card-subtitle>
-             <v-card-actions>
-                 <v-spacer></v-spacer>
-                 <v-btn variant="text" color="primary" to="/northbound">配置</v-btn>
-             </v-card-actions>
-         </v-card>
-      </v-col>
-       <v-col v-if="northbound.length === 0" cols="12">
-          <v-alert type="info" variant="tonal" class="glass-card">
-              暂无北向数据上报配置。 <router-link to="/northbound">配置北向</router-link>.
-          </v-alert>
-      </v-col>
-    </v-row>
-    
-    <!-- Edge Compute Stats Summary -->
-    <v-row class="mt-4">
-         <v-col cols="12">
-            <div class="text-h6 mb-4">边缘计算状态</div>
-            <v-card class="glass-card pa-4" @click="$router.push('/edge-compute/metrics')" hover>
-                <v-row>
-                    <v-col cols="6" md="3">
-                        <div class="text-caption">规则数</div>
-                        <div class="text-h5">{{ edgeRules.rule_count || 0 }}</div>
-                    </v-col>
-                     <v-col cols="6" md="3">
-                        <div class="text-caption">已触发</div>
-                        <div class="text-h5 text-primary">{{ edgeRules.rules_triggered || 0 }}</div>
-                    </v-col>
-                     <v-col cols="6" md="3">
-                        <div class="text-caption">已执行</div>
-                        <div class="text-h5 text-success">{{ edgeRules.rules_executed || 0 }}</div>
-                    </v-col>
-                     <v-col cols="6" md="3">
-                        <div class="text-caption">工作池负载</div>
-                         <v-progress-linear 
-                            :model-value="(edgeRules.worker_pool_usage / (edgeRules.worker_pool_size || 1)) * 100" 
-                            color="warning" height="10" striped class="mt-1">
-                         </v-progress-linear>
-                    </v-col>
-                </v-row>
-            </v-card>
-         </v-col>
-    </v-row>
+    <!-- Northbound Section -->
+    <div class="section">
+      <div class="section-header">
+        <h3 class="section-title">北向数据上报</h3>
+      </div>
+      <div class="northbound-grid">
+        <div v-for="nb in northbound" :key="nb.id" class="northbound-card">
+          <div class="northbound-header">
+            <h4 class="northbound-name">{{ nb.name }}</h4>
+            <span class="status-badge" :class="nb.status === 'Running' ? 'online' : (nb.status === 'Disabled' ? 'disabled' : 'offline')">
+              {{ nb.status }}
+            </span>
+          </div>
+          <div class="northbound-type">{{ nb.type }}</div>
+          <div class="northbound-actions">
+            <button class="btn-outline" @click="$router.push('/northbound')">配置</button>
+          </div>
+        </div>
+        <div v-if="northbound.length === 0" class="empty-card">
+          <div class="empty-content">
+            <p>暂无北向数据上报配置</p>
+            <button class="btn-primary" @click="$router.push('/northbound')">配置北向</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
+    <!-- Edge Compute Section -->
+    <div class="section">
+      <div class="section-header">
+        <h3 class="section-title">边缘计算状态</h3>
+      </div>
+      <div class="edge-compute-card" @click="$router.push('/edge-compute/metrics')">
+        <div class="edge-stats">
+          <div class="edge-stat-item">
+            <div class="edge-stat-label">规则数</div>
+            <div class="edge-stat-value">{{ edgeRules.rule_count || 0 }}</div>
+          </div>
+          <div class="edge-stat-item">
+            <div class="edge-stat-label">已触发</div>
+            <div class="edge-stat-value primary">{{ edgeRules.rules_triggered || 0 }}</div>
+          </div>
+          <div class="edge-stat-item">
+            <div class="edge-stat-label">已执行</div>
+            <div class="edge-stat-value success">{{ edgeRules.rules_executed || 0 }}</div>
+          </div>
+          <div class="edge-stat-item">
+            <div class="edge-stat-label">工作池负载</div>
+            <div class="edge-stat-bar">
+              <div class="edge-progress" :style="{ width: getWorkerPoolPercent() + '%' }"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import request from '@/utils/request'
+import {
+  IconRefresh,
+  IconApps, IconLink, IconSettings, IconTool,
+  IconArrowRight
+} from '@arco-design/web-vue/es/icon'
+
+const router = useRouter()
 
 const system = ref({
     cpu_usage: 0,
@@ -253,103 +221,38 @@ const totalOfflineDevices = computed(() => {
   return channels.value.reduce((sum, ch) => sum + (ch.offline_count || 0), 0)
 })
 
-// 获取连接地址
-const getConnectionUrl = (channel) => {
-    if (!channel || !channel.config) return null
-    const cfg = channel.config
-    
-    // TCP 协议
-    if (channel.protocol?.includes('tcp')) {
-        if (cfg.url) {
-            const match = cfg.url.match(/tcp:\/\/(.+):(\d+)/)
-            if (match) return `${match[1]}:${match[2]}`
-            return cfg.url
-        }
-        if (cfg.address) return cfg.address
-        if (cfg.ip) return `${cfg.ip}:${cfg.port || 502}`
-    }
-    
-    // RTU Over TCP
-    if (channel.protocol === 'modbus-rtu-over-tcp') {
-        if (cfg.url) {
-            const match = cfg.url.match(/tcp:\/\/(.+):(\d+)/)
-            if (match) return `${match[1]}:${match[2]} (RTU)`
-        }
-    }
-    
-    // OPC UA
-    if (channel.protocol === 'opc-ua') {
-        return cfg.url || cfg.endpoint
-    }
-    
-    // BACnet
-    if (channel.protocol === 'bacnet-ip') {
-        return `${cfg.ip || '0.0.0.0'}:${cfg.port || 47808}`
-    }
-    
-    // 串口
-    if (channel.protocol?.includes('rtu') || channel.protocol === 'dlt645') {
-        if (cfg.port) return cfg.port
-    }
-    
-    return null
+// 获取颜色
+const getCpuColor = (val) => {
+  if (val >= 80) return '#ef4444'
+  if (val >= 60) return '#f59e0b'
+  return '#6366f1'
 }
 
-// 获取协议图标
-const getProtocolIcon = (protocol) => {
-  const icons = {
-    'modbus-tcp': 'mdi-lan-connect',
-    'modbus-rtu': 'mdi-serial-port',
-    'modbus-rtu-over-tcp': 'mdi-lan-connect',
-    'bacnet-ip': 'mdi-ip-network',
-    'opc-ua': 'mdi-server',
-    'dlt645': 'mdi-meter-electric',
-    's7': 'mdi-cpu-64-bit',
-    'ethernet-ip': 'mdi-ethernet',
-    'mitsubishi-slmp': 'mdi-ladder',
-    'omron-fins': 'mdi-ladder'
-  }
-  return icons[protocol] || 'mdi-connection'
+const getMemoryColor = (val) => {
+  if (val >= 1024 * 0.8) return '#ef4444'
+  if (val >= 1024 * 0.6) return '#f59e0b'
+  return '#3b82f6'
 }
 
-// 通道状态颜色
-const getChannelStatusColor = (ch) => {
-  if (!ch.enable) return 'grey'
-  if (ch.offline_count > 0 && ch.online_count === 0) return 'error'
-  if (ch.offline_count > 0) return 'warning'
-  if (ch.qualityScore >= 90) return 'success'
-  if (ch.qualityScore >= 60) return 'warning'
-  return 'error'
-}
-
-// 质量评分颜色 (工业标准分级)
-const getQualityColor = (score) => {
-  if (score === undefined || score === null || score === 0) return 'grey'
-  if (score === 100) return 'primary'    // 完美 (蓝色)
-  if (score >= 90) return 'success'     // 优秀 (绿色)
-  if (score >= 80) return 'warning'     // 良好 (橙色/黄色)
-  return 'error'                         // 30-79% 为警告 (红色)
-}
-
-// 成功率相关
-const getSuccessRateColor = (rate) => {
-  if (!rate && rate !== 0) return 'text-grey'
-  if (rate >= 0.99) return 'text-success'
-  if (rate >= 0.95) return 'text-warning'
-  return 'text-error'
-}
-
-const getSuccessRateBarColor = (rate) => {
-  if (rate === undefined || rate === null) return 'grey'
-  const score = rate * 100
-  if (score === 100) return 'primary'    // 100% 蓝色
-  if (score >= 90) return 'success'     // 90% 绿色
-  if (score >= 80) return 'warning'     // 80% 橙色
-  if (score > 0) return 'error'         // 0-80% 红色
-  return 'grey'                         // 0% 灰色
+const getDiskColor = (val) => {
+  if (val >= 80) return '#ef4444'
+  if (val >= 60) return '#f59e0b'
+  return '#f97316'
 }
 
 // 格式化
+const formatMemory = (mb) => {
+  if (!mb) return '0 MB'
+  if (mb >= 1024) return (mb / 1024).toFixed(1) + ' GB'
+  return Math.round(mb) + ' MB'
+}
+
+const getMemoryPercent = (mb) => {
+  // 假设总内存为 8GB
+  const total = 8 * 1024
+  return Math.min(((mb || 0) / total) * 100, 100)
+}
+
 const formatPercent = (val) => {
   if (val === undefined || val === null) return '-'
   return (val * 100).toFixed(0) + '%'
@@ -362,15 +265,49 @@ const formatDuration = (ms) => {
   return (ms / 1000).toFixed(2) + 's'
 }
 
-const formatTime = (ts) => {
-  if (!ts) return ''
-  const date = new Date(ts)
-  const now = new Date()
-  const diff = now - date
-  
-  if (diff < 60000) return '刚刚'
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
-  return date.toLocaleTimeString()
+const getWorkerPoolPercent = () => {
+  const usage = edgeRules.value.worker_pool_usage || 0
+  const size = edgeRules.value.worker_pool_size || 1
+  return Math.min((usage / size) * 100, 100)
+}
+
+// 获取样式类
+const getProtocolClass = (protocol) => {
+  const classes = {
+    'modbus-tcp': 'protocol-tcp',
+    'modbus-rtu': 'protocol-rtu',
+    'modbus-rtu-over-tcp': 'protocol-tcp',
+    'bacnet-ip': 'protocol-bacnet',
+    'opc-ua': 'protocol-opc',
+    's7': 'protocol-s7',
+    'ethernet-ip': 'protocol-ip',
+    'mitsubishi-slmp': 'protocol-mitsubishi',
+    'omron-fins': 'protocol-omron'
+  }
+  return classes[protocol] || 'protocol-default'
+}
+
+const getQualityClass = (score) => {
+  if (score === undefined || score === null || score === 0) return 'quality-none'
+  if (score === 100) return 'quality-perfect'
+  if (score >= 90) return 'quality-good'
+  if (score >= 80) return 'quality-fair'
+  return 'quality-poor'
+}
+
+const getQualityBarClass = (score) => {
+  if (score === undefined || score === null || score === 0) return 'bar-none'
+  if (score === 100) return 'bar-perfect'
+  if (score >= 90) return 'bar-good'
+  if (score >= 80) return 'bar-fair'
+  return 'bar-poor'
+}
+
+const getSuccessRateClass = (rate) => {
+  if (!rate && rate !== 0) return ''
+  if (rate >= 0.99) return 'success'
+  if (rate >= 0.95) return 'warning'
+  return 'error'
 }
 
 const fetchData = async () => {
@@ -415,42 +352,613 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.dashboard-container {
+  padding: 24px;
+  background: #f1f5f9;
+  min-height: calc(100vh - 56px);
+}
+
+/* Dashboard Header */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--arco-border, #e2e8f0);
+}
+
+.dashboard-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--arco-text-1, #1e293b);
+  margin: 0;
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.theme-toggle {
+  background: transparent;
+  border: 1px solid var(--arco-border, #e2e8f0);
+  border-radius: 2px;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--arco-text-2, #64748b);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-toggle:hover {
+  background: var(--arco-bg-2, #f1f5f9);
+  border-color: var(--arco-border-2, #cbd5e1);
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: var(--arco-bg-2, #ffffff);
+  border: 1px solid var(--arco-border, #e2e8f0);
+  border-radius: 2px;
+  padding: 20px;
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  border-color: var(--arco-primary-6, #3b82f6);
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--arco-text-2, #64748b);
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--arco-text-1, #1e293b);
+  margin-bottom: 12px;
+}
+
+.stat-bar {
+  height: 4px;
+  background: var(--arco-border, #e2e8f0);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.stat-progress {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Section */
+.section {
+  margin-bottom: 32px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--arco-border, #e2e8f0);
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--arco-text-1, #1e293b);
+  margin: 0;
+}
+
+.section-status {
+  display: flex;
+  gap: 12px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--arco-border, #e2e8f0);
+  border-radius: 2px;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--arco-bg-2, #ffffff);
+}
+
+.status-badge.online {
+  border-color: #16a34a;
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.05);
+}
+
+.status-badge.offline {
+  border-color: #dc2626;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.05);
+}
+
+.status-badge.disabled {
+  border-color: var(--arco-border, #e2e8f0);
+  color: var(--arco-text-3, #94a3b8);
+  background: var(--arco-bg-2, #ffffff);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Channels Grid */
+.channels-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
 .channel-card {
-  transition: all 0.3s ease;
-  border-left: 3px solid transparent;
+  background: var(--arco-bg-2, #ffffff);
+  border: 1px solid var(--arco-border, #e2e8f0);
+  border-radius: 2px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .channel-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: var(--arco-primary-6, #3b82f6);
 }
 
-.channel-card:hover .channel-icon {
-  transform: scale(1.1);
+.channel-header {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 16px;
 }
 
 .channel-icon {
-  transition: transform 0.3s ease;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--arco-border, #e2e8f0);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  flex-shrink: 0;
+  background: var(--arco-bg-2, #ffffff);
+}
+
+.channel-icon.protocol-bacnet {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.channel-icon.protocol-tcp {
+  border-color: #16a34a;
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.05);
+}
+
+.channel-icon.protocol-rtu {
+  border-color: #d97706;
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.05);
+}
+
+.channel-icon.protocol-opc {
+  border-color: #9333ea;
+  color: #9333ea;
+  background: rgba(147, 51, 234, 0.05);
+}
+
+.channel-icon.protocol-s7 {
+  border-color: #db2777;
+  color: #db2777;
+  background: rgba(219, 39, 119, 0.05);
+}
+
+.channel-icon.protocol-default {
+  border-color: var(--arco-border, #e2e8f0);
+  color: var(--arco-text-3, #94a3b8);
+  background: var(--arco-bg-2, #ffffff);
+}
+
+.channel-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.channel-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--arco-text-1, #1e293b);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quality-score {
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid var(--arco-border, #e2e8f0);
+  border-radius: 2px;
+  font-weight: 500;
+  background: var(--arco-bg-2, #ffffff);
+}
+
+.quality-score.quality-perfect {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.quality-score.quality-good {
+  border-color: #16a34a;
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.05);
+}
+
+.quality-score.quality-fair {
+  border-color: #d97706;
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.05);
+}
+
+.quality-score.quality-poor {
+  border-color: #dc2626;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.05);
+}
+
+.quality-score.quality-none {
+  border-color: var(--arco-border, #e2e8f0);
+  color: var(--arco-text-3, #94a3b8);
+  background: var(--arco-bg-2, #ffffff);
+}
+
+.channel-meta {
+  font-size: 12px;
+  color: var(--arco-text-2, #64748b);
+}
+
+.divider {
+  margin: 0 6px;
+  color: var(--arco-border, #e2e8f0);
+}
+
+.status-text.enabled {
+  color: #16a34a;
+}
+
+.status-text.disabled {
+  color: var(--arco-text-3, #94a3b8);
+}
+
+.arrow-icon {
+  color: var(--arco-text-3, #94a3b8);
+  flex-shrink: 0;
+  margin-left: 8px;
 }
 
 .channel-stats {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--arco-border, #e2e8f0);
+  border-bottom: 1px solid var(--arco-border, #e2e8f0);
+  margin-bottom: 16px;
 }
 
 .stat-item {
-  transition: background 0.2s;
-  border-radius: 4px;
-  padding: 4px;
+  text-align: center;
 }
 
-.stat-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+.stat-item-label {
+  font-size: 12px;
+  color: var(--arco-text-2, #64748b);
+  margin-bottom: 4px;
 }
 
-.metrics-section {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
+.stat-item-label.online {
+  color: #16a34a;
+}
+
+.stat-item-label.offline {
+  color: #dc2626;
+}
+
+.stat-item-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--arco-text-1, #1e293b);
+}
+
+.stat-item-value.online {
+  color: #16a34a;
+}
+
+.stat-item-value.offline {
+  color: #dc2626;
+}
+
+.stat-item-value.success {
+  color: #16a34a;
+}
+
+.stat-item-value.warning {
+  color: #d97706;
+}
+
+.stat-item-value.error {
+  color: #dc2626;
+}
+
+/* Channel Metrics */
+.channel-metrics {
+  background: var(--arco-bg-2, #ffffff);
+  border: 1px solid var(--arco-border, #e2e8f0);
+  border-radius: 2px;
   padding: 12px;
+}
+
+.metrics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.metrics-label {
+  font-size: 12px;
+  color: var(--arco-text-2, #64748b);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metrics-rtt {
+  font-size: 12px;
+  color: var(--arco-text-3, #94a3b8);
+}
+
+.quality-bar-container {
+  height: 4px;
+  background: var(--arco-border, #e2e8f0);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.quality-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.quality-bar.bar-perfect {
+  background: #3b82f6;
+}
+
+.quality-bar.bar-good {
+  background: #22c55e;
+}
+
+.quality-bar.bar-fair {
+  background: #f59e0b;
+}
+
+.quality-bar.bar-poor {
+  background: #ef4444;
+}
+
+.quality-bar.bar-none {
+  background: var(--arco-border, #e2e8f0);
+}
+
+.reconnect-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #3b82f6;
+}
+
+/* Empty Card */
+.empty-card {
+  background: var(--arco-bg-2, #ffffff);
+  border: 1px solid var(--arco-border, #e2e8f0);
+  border-radius: 2px;
+  padding: 40px;
+  grid-column: 1 / -1;
+  text-align: center;
+}
+
+.empty-content {
+  text-align: center;
+  color: var(--arco-text-2, #64748b);
+}
+
+.empty-content p {
+  margin: 0 0 16px 0;
+}
+
+/* Buttons */
+.btn-primary {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 2px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+}
+
+.btn-outline {
+  background: transparent;
+  color: #3b82f6;
+  border: 1px solid #3b82f6;
+  padding: 6px 14px;
+  border-radius: 2px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-outline:hover {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+/* Northbound */
+.northbound-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.northbound-card {
+  background: var(--arco-bg-2, #ffffff);
+  border: 1px solid var(--arco-border, #e2e8f0);
+  border-radius: 2px;
+  padding: 20px;
+}
+
+.northbound-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.northbound-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--arco-text-1, #1e293b);
+  margin: 0;
+}
+
+.northbound-type {
+  font-size: 13px;
+  color: var(--arco-text-2, #64748b);
+  margin-bottom: 16px;
+}
+
+.northbound-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Edge Compute */
+.edge-compute-card {
+  background: var(--arco-bg-2, #ffffff);
+  border: 1px solid var(--arco-border, #e2e8f0);
+  border-radius: 2px;
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edge-compute-card:hover {
+  border-color: var(--arco-primary-6, #3b82f6);
+}
+
+.edge-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.edge-stat-item {
+  text-align: center;
+}
+
+.edge-stat-label {
+  font-size: 13px;
+  color: var(--arco-text-2, #64748b);
+  margin-bottom: 8px;
+}
+
+.edge-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--arco-text-1, #1e293b);
+}
+
+.edge-stat-value.primary {
+  color: #3b82f6;
+}
+
+.edge-stat-value.success {
+  color: #22c55e;
+}
+
+.edge-stat-bar {
+  height: 4px;
+  background: var(--arco-border, #e2e8f0);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.edge-progress {
+  height: 100%;
+  background: #f59e0b;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .channels-grid,
+  .northbound-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .channels-grid,
+  .northbound-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .edge-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 </style>

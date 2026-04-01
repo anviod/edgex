@@ -1,61 +1,37 @@
 <template>
-  <v-dialog v-model="visible" max-width="80%">
-    <v-card class="glass-card pa-4" theme="dark">
-      <v-card-title class="text-h6 font-weight-bold">
-        <v-icon start color="primary">mdi-lock-reset</v-icon>
-        修改密码
-      </v-card-title>
+  <a-modal v-model:visible="visible" title="修改密码" width="500px">
+    <a-form ref="formRef" @submit.prevent="handleSubmit">
+      <a-form-item field="oldPassword" label="旧密码" :rules="[{ required: true, message: '请输入旧密码' }]">
+        <a-input-password v-model="formData.oldPassword" placeholder="请输入旧密码">
+          <template #prefix><icon-lock /></template>
+        </a-input-password>
+      </a-form-item>
       
-      <v-card-text class="pt-4">
-        <v-form ref="formRef" @submit.prevent="handleSubmit">
-          <v-text-field
-            v-model="formData.oldPassword"
-            label="旧密码"
-            type="password"
-            variant="outlined"
-            prepend-inner-icon="mdi-lock-outline"
-            :rules="[v => !!v || '请输入旧密码']"
-            class="mb-2"
-          ></v-text-field>
-          
-          <v-text-field
-            v-model="formData.newPassword"
-            label="新密码"
-            type="password"
-            variant="outlined"
-            prepend-inner-icon="mdi-lock"
-            :rules="newPasswordRules"
-            class="mb-2"
-          ></v-text-field>
-          
-          <v-text-field
-            v-model="formData.confirmPassword"
-            label="确认新密码"
-            type="password"
-            variant="outlined"
-            prepend-inner-icon="mdi-lock-check"
-            :rules="confirmPasswordRules"
-          ></v-text-field>
-        </v-form>
-      </v-card-text>
+      <a-form-item field="newPassword" label="新密码" :rules="newPasswordRules">
+        <a-input-password v-model="formData.newPassword" placeholder="请输入新密码">
+          <template #prefix><icon-lock /></template>
+        </a-input-password>
+      </a-form-item>
       
-      <v-card-actions class="justify-end pt-0">
-        <v-btn variant="text" @click="visible = false">取消</v-btn>
-        <v-btn 
-          color="primary" 
-          variant="elevated" 
-          @click="handleSubmit"
-          :loading="loading"
-        >
-          确认修改
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      <a-form-item field="confirmPassword" label="确认新密码" :rules="confirmPasswordRules">
+        <a-input-password v-model="formData.confirmPassword" placeholder="请确认新密码">
+          <template #prefix><icon-lock /></template>
+        </a-input-password>
+      </a-form-item>
+    </a-form>
+    
+    <template #footer>
+      <a-space>
+        <a-button @click="visible = false">取消</a-button>
+        <a-button type="primary" :loading="loading" @click="handleSubmit">确认修改</a-button>
+      </a-space>
+    </template>
+  </a-modal>
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive } from 'vue'
+import { IconLock } from '@arco-design/web-vue/es/icon'
 import LoginApi from '@/api/login'
 import { showMessage } from '@/composables/useGlobalState'
 import sha256 from 'crypto-js/sha256'
@@ -76,13 +52,13 @@ const formData = reactive({
 })
 
 const newPasswordRules = [
-  v => !!v || '请输入新密码',
-  v => v.length >= 8 || '密码长度至少8位'
+  { required: true, message: '请输入新密码' },
+  { minLength: 8, message: '密码长度至少8位' }
 ]
 
 const confirmPasswordRules = [
-  v => !!v || '请确认新密码',
-  v => v === formData.newPassword || '两次输入的密码不一致'
+  { required: true, message: '请确认新密码' },
+  (value) => value === formData.newPassword || '两次输入的密码不一致'
 ]
 
 const open = () => {
@@ -93,7 +69,7 @@ const open = () => {
 }
 
 const handleSubmit = async () => {
-  const { valid } = await formRef.value.validate()
+  const valid = await formRef.value.validate()
   if (!valid) return
 
   loading.value = true
@@ -108,20 +84,12 @@ const handleSubmit = async () => {
     }
 
     // 2. Hash Old Password
-    // Backend expects SHA256(raw_old_pass + nonce)
-    // However, if we don't know the raw old password (we do, user typed it), we use it.
-    // Wait, the backend verification logic:
-    // expected := sha256.Sum256([]byte(user.Password + req.Nonce))
-    // This assumes user.Password in DB is PLAIN TEXT.
-    // If user.Password in DB is hashed, we can't verify it this way easily unless we know the hash mechanism.
-    // Assuming the backend stores plain text for now (based on `handleLogin` logic which also hashes `user.Password + nonce`).
-    
     const hashedOld = sha256(formData.oldPassword + nonce).toString(encHex)
 
     // 3. Send Request
     const res = await LoginApi.changePassword({
       oldPassword: hashedOld,
-      newPassword: formData.newPassword, // Sending raw new password (will be stored as is)
+      newPassword: formData.newPassword,
       nonce: nonce
     })
 
@@ -146,9 +114,22 @@ defineExpose({ open })
 </script>
 
 <style scoped>
-.glass-card {
-  background: rgba(30, 41, 59, 0.95) !important; /* Slightly more opaque for dialog */
-  backdrop-filter: blur(20px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+/* 修改密码对话框样式 */
+:deep(.arco-form-item-label) {
+  font-weight: 500;
+  white-space: nowrap !important;
+}
+
+:deep(.arco-form-item-control) {
+  min-height: 32px;
+}
+
+:deep(.arco-input-wrapper) {
+  height: 32px;
+}
+
+:deep(.arco-input) {
+  height: 32px;
+  line-height: 32px;
 }
 </style>

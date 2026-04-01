@@ -42,9 +42,23 @@ service.interceptors.request.use(
 
 service.interceptors.response.use(
   response => {
+    console.log('[Response] Status:', response.status)
+    console.log('[Response] Data:', response.data)
+    console.log('[Response] Full response:', response)
+    // Check if response.data is an object with code field
+    if (response.data && typeof response.data === 'object' && 'code' in response.data) {
+      // If code is 0, return the data field
+      if (response.data.code === 0) {
+        return response.data.data
+      }
+      // If code is not 0, reject with error
+      return Promise.reject(new Error(response.data.message || 'Unknown error'))
+    }
+    // Otherwise, return the data as is
     return response.data
   },
   error => {
+    console.error('[Response Error]:', error)
     // Allow silent errors for background/non-blocking requests
     const silent = error?.config && (error.config.silent === true)
     if (silent) {

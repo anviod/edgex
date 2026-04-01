@@ -1,64 +1,57 @@
 <template>
-  <v-row density="compact" class="align-center">
-    <v-col cols="12" md="3">
-      <v-select
-        v-model="target.channel_id"
-        :items="channels"
-        item-title="name"
-        item-value="id"
-        label="通道"
-        density="compact"
-        variant="outlined"
-        hide-details
-        @update:model-value="onChannelChange"
-      ></v-select>
-    </v-col>
-    <v-col cols="12" md="3">
-      <v-select
-        v-model="target.device_id"
-        :items="deviceList"
-        item-title="name"
-        item-value="id"
-        label="设备"
-        density="compact"
-        variant="outlined"
-        hide-details
-        @update:model-value="onDeviceChange"
-      ></v-select>
-    </v-col>
-    <v-col cols="12" md="3">
-      <v-combobox
-        v-model="target.point_id"
-        :items="pointList"
-        item-title="name"
-        item-value="id"
-        label="点位"
-        density="compact"
-        variant="outlined"
-        hide-details
-      ></v-combobox>
-    </v-col>
-    <v-col cols="12" md="3">
-       <v-text-field
-         v-model="target.value"
-         label="值/模板"
-         placeholder="1 或 ${v}"
-         density="compact"
-         variant="outlined"
-         hide-details
-       ></v-text-field>
-    </v-col>
-     <v-col cols="12" md="12" class="mt-2">
-       <v-text-field
-         v-model="target.expression"
-         label="计算表达式 (Expression)"
-         placeholder="e.g. v | 1 (置位)"
-         density="compact"
-         variant="outlined"
-         hide-details
-       ></v-text-field>
-    </v-col>
-  </v-row>
+  <a-card class="target-editor-card" :bordered="true">
+    <a-row :gutter="12">
+      <a-col :span="24" :md="6">
+        <a-form-item label="通道">
+          <a-select 
+            v-model="target.channel_id" 
+            :options="channels" 
+            :label-field="'name'" 
+            :value-field="'id'" 
+            placeholder="选择通道"
+            class="rect-input"
+            @change="onChannelChange"
+          />
+        </a-form-item>
+      </a-col>
+      <a-col :span="24" :md="6">
+        <a-form-item label="设备">
+          <a-select 
+            v-model="target.device_id" 
+            :options="deviceList" 
+            :label-field="'name'" 
+            :value-field="'id'" 
+            placeholder="选择设备"
+            class="rect-input"
+            :disabled="!target.channel_id"
+            @change="onDeviceChange"
+          />
+        </a-form-item>
+      </a-col>
+      <a-col :span="24" :md="6">
+        <a-form-item label="点位">
+          <a-select 
+            v-model="target.point_id" 
+            :options="pointList" 
+            :label-field="'name'" 
+            :value-field="'id'" 
+            placeholder="选择点位"
+            class="rect-input"
+            :disabled="!target.device_id"
+          />
+        </a-form-item>
+      </a-col>
+      <a-col :span="24" :md="6">
+        <a-form-item label="写入值">
+          <a-input 
+            v-model="target.value" 
+            placeholder="固定值或表达式" 
+            class="rect-input"
+          />
+        </a-form-item>
+      </a-col>
+    </a-row>
+  </a-card>
 </template>
 
 <script setup>
@@ -76,25 +69,42 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['update:target'])
+
+const localTarget = ref(props.target)
 const deviceList = ref([])
 const pointList = ref([])
 
+// Sync props to local state
+watch(() => props.target, (val) => {
+  localTarget.value = val
+  // Load devices/points if needed
+  if (localTarget.value.channel_id) {
+    loadDevices()
+  }
+}, { deep: true })
+
+// Sync local state to props
+watch(localTarget, (val) => {
+  emit('update:target', val)
+}, { deep: true })
+
 const onChannelChange = async () => {
-    props.target.device_id = ''
-    props.target.point_id = ''
+    localTarget.value.device_id = ''
+    localTarget.value.point_id = ''
     deviceList.value = []
     pointList.value = []
-    if (props.target.channel_id) {
-        const data = await request.get(`/api/channels/${props.target.channel_id}/devices`)
+    if (localTarget.value.channel_id) {
+        const data = await request.get(`/api/channels/${localTarget.value.channel_id}/devices`)
         deviceList.value = data || []
     }
 }
 
 const onDeviceChange = () => {
-    props.target.point_id = ''
+    localTarget.value.point_id = ''
     pointList.value = []
-    if (props.target.device_id && deviceList.value.length > 0) {
-        const dev = deviceList.value.find(d => d.id === props.target.device_id)
+    if (localTarget.value.device_id && deviceList.value.length > 0) {
+        const dev = deviceList.value.find(d => d.id === localTarget.value.device_id)
         if (dev && dev.points) {
             pointList.value = dev.points.filter(p => p.readwrite !== 'R')
         }
@@ -102,16 +112,27 @@ const onDeviceChange = () => {
 }
 
 const loadDevices = async () => {
-    if (props.target.channel_id && deviceList.value.length === 0) {
-        const data = await request.get(`/api/channels/${props.target.channel_id}/devices`)
+    if (localTarget.value.channel_id && deviceList.value.length === 0) {
+        const data = await request.get(`/api/channels/${localTarget.value.channel_id}/devices`)
         deviceList.value = data || []
-        if (props.target.device_id) {
+        if (localTarget.value.device_id) {
             onDeviceChange()
         }
     }
 }
 
 onMounted(() => {
-    loadDevices()
+    // Init device list loading
+    if (localTarget.value.channel_id) {
+        loadDevices()
+    }
 })
 </script>
+
+<style scoped>
+.target-editor-card {
+    border-left: 4px solid #165DFF;
+    border-radius: 0;
+    background: #f8fafc;
+}
+</style>

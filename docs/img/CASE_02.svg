@@ -1,0 +1,39 @@
+<svg width="800" height="400" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="800" height="400" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="400" y="40" text-anchor="middle" font-family="monospace" font-size="16" font-weight="bold" fill="#1e293b">CASE_02: BUILDING_ENERGY_MANAGEMENT</text>
+
+  <g transform="translate(50, 150)">
+    <rect width="160" height="100" rx="2" fill="#fff" stroke="#0ea5e9" stroke-width="1"/>
+    <rect width="160" height="24" fill="#e0f2fe"/>
+    <text x="80" y="17" text-anchor="middle" font-family="monospace" font-size="11" fill="#0369a1">采集规则 [Input]</text>
+    <text x="15" y="50" font-family="monospace" font-size="10" fill="#64748b">TEMP / HUMI / LUX</text>
+    <text x="15" y="75" font-family="monospace" font-size="10" fill="#64748b">POWER_CONSUMPTION</text>
+  </g>
+
+  <g transform="translate(320, 120)">
+    <rect width="200" height="160" rx="4" fill="#fff" stroke="#6c5ce7" stroke-width="1.5"/>
+    <rect width="200" height="28" fill="#f3f0ff"/>
+    <text x="100" y="19" text-anchor="middle" font-family="monospace" font-size="11" fill="#6c5ce7">EDGE_GW_CORE</text>
+    <text x="20" y="60" font-family="monospace" font-size="10" fill="#1e293b">Rule: Comfort_Threshold</text>
+    <text x="20" y="90" font-family="monospace" font-size="10" fill="#1e293b">Window: Hourly_Energy</text>
+    <text x="20" y="140" font-family="monospace" font-size="12" font-weight="bold" fill="#22c55e">SAVING: 25%</text>
+  </g>
+
+  <g transform="translate(620, 150)">
+    <rect width="140" height="100" rx="2" fill="#fff" stroke="#00aaff" stroke-width="1"/>
+    <text x="70" y="20" text-anchor="middle" font-family="monospace" font-size="11" fill="#0066cc">动作输出 [Action]</text>
+    <text x="15" y="50" font-family="monospace" font-size="10" fill="#1e293b">HVAC_ADJUST</text>
+    <text x="15" y="70" font-family="monospace" font-size="10" fill="#1e293b">LIGHT_CONTROL</text>
+    <text x="15" y="90" font-family="monospace" font-size="10" fill="#1e293b">REPORT_GEN</text>
+  </g>
+
+  <path id="path_b1" d="M210 200 L 320 200" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4,2" fill="none"/>
+  <path id="path_b2" d="M520 200 L 620 200" stroke="#6c5ce7" stroke-width="1" fill="none"/>
+
+  <circle r="3" fill="#0ea5e9">
+    <animateMotion dur="1.5s" repeatCount="indefinite"><mpath href="#path_b1"/></animateMotion>
+  </circle>
+  <circle r="3" fill="#6c5ce7">
+    <animateMotion dur="2s" repeatCount="indefinite"><mpath href="#path_b2"/></animateMotion>
+  </circle>
+</svg>

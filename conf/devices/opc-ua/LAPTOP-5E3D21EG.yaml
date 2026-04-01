@@ -74,6 +74,28 @@ points:
       scale: 1
       threshold: null
       unit: ""
+    - address: ns=3;i=1004
+      datatype: float64
+      group: ""
+      id: ns=3;i=1004
+      name: Sinusoid
+      offset: 0
+      readwrite: R
+      report_mode: ""
+      scale: 1
+      threshold: null
+      unit: ""
+    - address: ns=3;i=1005
+      datatype: float64
+      group: ""
+      id: ns=3;i=1005
+      name: Square
+      offset: 0
+      readwrite: R
+      report_mode: ""
+      scale: 1
+      threshold: null
+      unit: ""
 storage:
     enable: false
     interval: 1

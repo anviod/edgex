@@ -1,88 +1,58 @@
 <template>
-    <div class="h-100 d-flex flex-column pa-4">
+    <div class="log-viewer-container">
         <!-- Toolbar -->
-        <v-toolbar class="glass-toolbar mb-4 rounded-lg border elevation-1" density="comfortable">
-            <v-toolbar-title class="text-subtitle-1 font-weight-bold ml-4 d-flex align-center">
-                <v-icon icon="mdi-console-line" size="small" start color="primary" class="mr-2"></v-icon>
-                实时日志
-            </v-toolbar-title>
-            
-            <v-spacer></v-spacer>
-
-            <v-select
-                v-model="selectedLevel"
-                :items="logLevels"
-                label="日志级别"
-                density="compact"
-                hide-details
-                variant="outlined"
-                class="mr-4 my-auto"
-                style="max-width: 150px"
-            ></v-select>
-
-            <v-switch
-                v-model="isStreaming"
-                color="success"
-                label="实时打印"
-                hide-details
-                inset
-                class="mr-4"
-                density="compact"
-            ></v-switch>
-
-            <v-btn
-                variant="tonal"
-                color="warning"
-                prepend-icon="mdi-delete-sweep"
-                size="small"
-                @click="clearLogs"
-                class="mr-2 rounded"
-            >
-                清空屏幕
-            </v-btn>
-
-            <v-btn
-                variant="tonal"
-                color="primary"
-                prepend-icon="mdi-download"
-                size="small"
-                @click="downloadLogs"
-                class="mr-4 rounded"
-            >
-                导出 CSV
-            </v-btn>
-        </v-toolbar>
+        <div class="log-toolbar">
+            <div class="toolbar-left">
+                <icon-cloud class="toolbar-icon" />
+                <span class="toolbar-title">实时日志</span>
+            </div>
+            <div class="toolbar-right">
+                <a-select v-model="selectedLevel" :options="logLevelOptions" placeholder="日志级别" size="small" class="mr-4">
+                    <template #option="option">
+                        <span>{{ option.label }}</span>
+                    </template>
+                </a-select>
+                <div class="switch-container">
+                    <span class="switch-label">实时打印</span>
+                    <a-switch v-model="isStreaming" size="small" />
+                </div>
+                <a-button type="outline" size="small" @click="clearLogs" class="mr-2">
+                    <template #icon><icon-delete /></template>
+                    清空屏幕
+                </a-button>
+                <a-button type="primary" size="small" @click="downloadLogs">
+                    <template #icon><icon-download /></template>
+                    导出 CSV
+                </a-button>
+            </div>
+        </div>
 
         <!-- Log Terminal -->
-        <div class="log-terminal flex-grow-1 rounded-lg pa-4 mb-2 border elevation-0" ref="terminalRef">
-            <div v-if="displayLogs.length === 0" class="text-grey text-center mt-10">
+        <div class="log-terminal" ref="terminalRef">
+            <div v-if="displayLogs.length === 0" class="no-logs">
                 暂无日志...
             </div>
             <div v-for="(log, index) in displayLogs" :key="index" class="log-line">
-                <span class="text-grey-darken-1 mr-2">[{{ formatTime(log.ts) }}]</span>
-                <span :class="getLevelClass(log.level)" class="font-weight-bold mr-2">{{ (log.level || 'INFO').toUpperCase() }}</span>
-                <span class="text-black">{{ log.msg }}</span>
+                <span class="log-time">{{ formatTime(log.ts) }}</span>
+                <span :class="['log-level', getLevelClass(log.level)]">{{ (log.level || 'INFO').toUpperCase() }}</span>
+                <span class="log-message">{{ log.msg }}</span>
                 <!-- Render extra fields -->
-                <span v-for="(val, key) in getExtraFields(log)" :key="key" class="text-grey-darken-2 ml-2 text-caption">
+                <span v-for="(val, key) in getExtraFields(log)" :key="key" class="log-extra">
                     {{ key }}={{ val }}
                 </span>
             </div>
         </div>
 
         <!-- Pagination -->
-        <v-pagination
-            v-if="logs.length > 0"
-            v-model="page"
-            :length="pageCount"
-            :total-visible="7"
-            density="compact"
-            class="mb-2"
-        ></v-pagination>
+        <div v-if="logs.length > 0" class="log-pagination">
+            <a-pagination v-model:current="page" :page-size="perPage" :total="filteredLogs.length" size="small" />
+        </div>
     </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { IconCloud, IconDelete, IconDownload } from '@arco-design/web-vue/es/icon'
 
 const logs = ref([])
 const isStreaming = ref(true)
@@ -93,7 +63,13 @@ const perPage = 30
 const page = ref(1)
 
 const selectedLevel = ref('ALL')
-const logLevels = ['ALL', 'INFO', 'WARN', 'ERROR', 'DEBUG']
+const logLevelOptions = [
+  { label: 'ALL', value: 'ALL' },
+  { label: 'INFO', value: 'INFO' },
+  { label: 'WARN', value: 'WARN' },
+  { label: 'ERROR', value: 'ERROR' },
+  { label: 'DEBUG', value: 'DEBUG' }
+]
 
 const filteredLogs = computed(() => {
     if (selectedLevel.value === 'ALL') return logs.value
@@ -220,10 +196,10 @@ const formatTime = (ts) => {
 
 const getLevelClass = (level) => {
     const l = (level || '').toUpperCase()
-    if (l === 'ERROR' || l === 'FATAL') return 'text-error'
-    if (l === 'WARN') return 'text-warning'
-    if (l === 'DEBUG') return 'text-grey'
-    return 'text-success'
+    if (l === 'ERROR' || l === 'FATAL') return 'error'
+    if (l === 'WARN') return 'warn'
+    if (l === 'DEBUG') return 'debug'
+    return 'info'
 }
 
 const getExtraFields = (log) => {
@@ -241,28 +217,156 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.glass-toolbar {
-    background: rgba(255, 255, 255, 0.9) !important;
-    backdrop-filter: blur(10px);
+.log-viewer-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px;
+  background-color: #ffffff;
 }
+
+.log-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-icon {
+  margin-right: 8px;
+  color: #0ea5e9;
+  font-size: 18px;
+}
+
+.toolbar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-right .switch-container {
+  display: flex;
+  align-items: center;
+  min-width: 100px;
+  margin-right: 16px;
+}
+
+.toolbar-right .switch-label {
+  margin-right: 8px;
+  font-size: 13px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
 .log-terminal {
-    background-color: #ffffff;
-    overflow-y: auto;
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 13px;
-    line-height: 1.4;
-    border: 1px solid rgba(0,0,0,0.1);
-    color: #333;
+  flex: 1;
+  overflow-y: auto;
+  font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 16px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  color: #1e293b;
 }
+
+.no-logs {
+  text-align: center;
+  color: #94a3b8;
+  padding: 48px 0;
+}
+
 .log-line {
-    word-break: break-all;
-    white-space: pre-wrap;
-    border-bottom: 1px solid #f5f5f5;
-    padding: 2px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding: 6px 0;
+  border-bottom: 1px solid #f1f5f9;
 }
-.text-error { color: #d32f2f !important; }
-.text-warning { color: #f57c00 !important; }
-.text-success { color: #388e3c !important; }
-.text-grey { color: #757575 !important; }
-.text-black { color: #212121 !important; }
+
+.log-time {
+  margin-right: 12px;
+  color: #64748b;
+  font-size: 12px;
+  min-width: 100px;
+}
+
+.log-level {
+  margin-right: 12px;
+  font-weight: 600;
+  font-size: 12px;
+  min-width: 60px;
+}
+
+.log-level.error {
+  color: #ef4444;
+}
+
+.log-level.warn {
+  color: #f59e0b;
+}
+
+.log-level.info {
+  color: #10b981;
+}
+
+.log-level.debug {
+  color: #6366f1;
+}
+
+.log-message {
+  flex: 1;
+  word-break: break-all;
+  white-space: pre-wrap;
+  color: #1e293b;
+}
+
+.log-extra {
+  margin-left: 8px;
+  color: #94a3b8;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.log-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+/* 滚动条样式 */
+.log-terminal::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.log-terminal::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.log-terminal::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.log-terminal::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
 </style>
