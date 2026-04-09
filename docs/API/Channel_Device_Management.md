@@ -1,4 +1,10 @@
-# Channel & Device Management (Southbound) API
+---
+layout: default
+title: Channel & Device Management API
+description: EdgeX channel and device management API documentation
+---
+
+# Channel & Device Management API(Southbound) API
 
 All endpoints require JWT Authentication.
 

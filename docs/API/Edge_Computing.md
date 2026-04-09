@@ -1,3 +1,9 @@
+---
+layout: default
+title: Edge Computing API
+description: EdgeX edge computing API documentation
+---
+
 # Edge Computing API
 
 All endpoints require JWT Authentication.

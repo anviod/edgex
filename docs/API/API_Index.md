@@ -1,3 +1,9 @@
+---
+layout: default
+title: Industrial Edge Gateway API Documentation
+description: EdgeX API documentation
+---
+
 # Industrial Edge Gateway API Documentation
 
 Welcome to the Industrial Edge Gateway API documentation. The API is RESTful and uses JSON for request and response bodies.

@@ -1,3 +1,9 @@
+---
+layout: default
+title: Authentication API
+description: EdgeX authentication API documentation
+---
+
 # Authentication API
 
 ## 1. Get System Info

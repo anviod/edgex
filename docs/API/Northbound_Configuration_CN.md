@@ -1,3 +1,9 @@
+---
+layout: default
+title: 北向配置 API
+description: EdgeX 北向配置 API 文档（中文）
+---
+
 # 北向配置 API (Northbound Configuration)
 
 所有端点均需 JWT 认证。

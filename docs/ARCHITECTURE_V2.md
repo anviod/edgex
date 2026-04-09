@@ -1,3 +1,9 @@
+---
+layout: default
+title: 三级架构设计文档 (Architecture V2)
+description: EdgeX 架构设计文档
+---
+
 # 三级架构设计文档 (Architecture V2)
 
 ## 概述

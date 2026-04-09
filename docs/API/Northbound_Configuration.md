@@ -1,3 +1,9 @@
+---
+layout: default
+title: Northbound Configuration API
+description: EdgeX northbound configuration API documentation
+---
+
 # Northbound Configuration API
 
 All endpoints require JWT Authentication.

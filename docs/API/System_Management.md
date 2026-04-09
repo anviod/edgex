@@ -1,3 +1,9 @@
+---
+layout: default
+title: System Management API
+description: EdgeX system management API documentation
+---
+
 # System Management API
 
 All endpoints require JWT Authentication.

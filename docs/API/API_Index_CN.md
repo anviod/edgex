@@ -1,3 +1,9 @@
+---
+layout: default
+title: 工业边缘网关 API 文档
+description: EdgeX API 文档（中文）
+---
+
 # 工业边缘网关 API 文档
 
 欢迎使用工业边缘网关 API 文档。本 API 符合 RESTful 规范，使用 JSON 作为请求和响应体。

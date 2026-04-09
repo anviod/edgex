@@ -1,3 +1,9 @@
+---
+layout: default
+title: 边缘计算 API
+description: EdgeX 边缘计算 API 文档（中文）
+---
+
 # 边缘计算 API (Edge Computing)
 
 所有端点均需 JWT 认证。

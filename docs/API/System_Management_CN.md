@@ -1,3 +1,9 @@
+---
+layout: default
+title: 系统管理 API
+description: EdgeX 系统管理 API 文档（中文）
+---
+
 # 系统管理 API (System Management)
 
 所有端点均需 JWT 认证。

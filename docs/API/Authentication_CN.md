@@ -1,3 +1,9 @@
+---
+layout: default
+title: 认证 API
+description: EdgeX 认证 API 文档（中文）
+---
+
 # 认证 API (Authentication)
 
 ## 1. 获取系统信息

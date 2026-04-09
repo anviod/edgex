@@ -1,3 +1,9 @@
+---
+layout: default
+title: 边缘计算场景联动手册
+description: EdgeX 边缘计算场景联动手册
+---
+
 # 边缘计算场景联动手册
 
 ## 目录

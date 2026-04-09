@@ -19,4 +19,4 @@ nav:
     url: /ARCHITECTURE_V2.html
 
 # 页面配置
-permalink: pretty
+permalink: /:path/:basename.html

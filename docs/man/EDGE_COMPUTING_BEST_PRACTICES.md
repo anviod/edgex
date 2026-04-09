@@ -1,3 +1,9 @@
+---
+layout: default
+title: 边缘计算最佳实践
+description: EdgeX 边缘计算最佳实践
+---
+
 # 边缘计算最佳实践
 
 ## 目录

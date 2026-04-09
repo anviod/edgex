@@ -1,3 +1,9 @@
+---
+layout: default
+title: 边缘网关用户手册
+description: EdgeX 用户手册
+---
+
 # 边缘网关用户手册
 
 ## 目录
