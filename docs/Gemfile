@@ -1,0 +1,11 @@
+source "https://rubygems.org"
+
+# 基本依赖
+gem "jekyll"
+
+# 远程主题支持
+gem "jekyll-remote-theme"
+
+# 可选插件
+gem "jekyll-seo-tag"
+gem "jekyll-sitemap"
