@@ -1,3 +1,9 @@
+---
+layout: default
+title: 运维手册：BACnet 模块
+description: EdgeX BACnet 运维手册
+---
+
 # 运维手册：BACnet 模块
 
 ## 启动与验证

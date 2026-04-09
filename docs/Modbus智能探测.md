@@ -1,4 +1,10 @@
-一、重构目标（明确工程边界）
+---
+layout: default
+title: Modbus 智能探测
+description: EdgeX Modbus 智能探测
+---
+
+# Modbus 智能探测
 
 你要实现的不是“能读”，而是：
 

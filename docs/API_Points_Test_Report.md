@@ -1,3 +1,9 @@
+---
+layout: default
+title: API Points Response Optimization Test Report
+description: EdgeX API Points Test Report
+---
+
 # API Points Response Optimization Test Report
 
 ## 1. Test Objective

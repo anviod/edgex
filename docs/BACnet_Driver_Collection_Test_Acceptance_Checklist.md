@@ -1,4 +1,10 @@
-当前要实现的架构特点（多设备隔离、设备级质量裁决、全部设备必须 Good）进行强化，并统一使用：
+---
+layout: default
+title: BACnet 驱动采集测试与验收标准清单
+description: EdgeX BACnet 驱动采集测试与验收标准清单
+---
+
+# BACnet 驱动采集测试与验收标准清单
 基于配置修改 D:\code\edgex\conf\channels.yaml
 使用最新配置文件来实现设备读取bacnet点位
 比如 D:\code\edgex\conf\devices\bacnet-ip\bacnet-2228316.yaml

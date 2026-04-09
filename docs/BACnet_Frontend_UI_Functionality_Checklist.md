@@ -1,4 +1,10 @@
-BACnet 前端 Web UI 功能审查清单 必须满足这里的所有功能要求。
+---
+layout: default
+title: BACnet 前端 Web UI 功能审查清单
+description: EdgeX BACnet 前端 UI 功能审查清单
+---
+
+# BACnet 前端 Web UI 功能审查清单
 
 ---
 

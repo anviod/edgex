@@ -1,4 +1,10 @@
-下面给出一份**强化版《BACnet 多设备隔离采集测试方案》**，专门针对你当前架构目标：
+---
+layout: default
+title: BACnet 多设备隔离采集测试方案
+description: EdgeX BACnet 多设备隔离采集测试方案
+---
+
+# BACnet 多设备隔离采集测试方案
 
 * ✅ 多设备隔离
 * ✅ 设备级质量裁决

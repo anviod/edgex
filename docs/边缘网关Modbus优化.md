@@ -1,4 +1,10 @@
-### 专家级 Modbus 驱动重构代码模板方案 基于现有代码拆分为：
+---
+layout: default
+title: 边缘网关 Modbus 优化
+description: EdgeX 边缘网关 Modbus 优化
+---
+
+# 边缘网关 Modbus 优化
 
 > ✅ 通信层（Transport）
 > ✅ 调度层（Scheduler）
