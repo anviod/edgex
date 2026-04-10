@@ -1,9 +1,9 @@
 - id: 5700b238-4cf3-4f3b-b175-b29c585e860f
   name: TMPW
   type: state
-  enable: false
+  enable: true
   priority: 0
-  check_interval: ""
+  check_interval: 5s
   trigger_mode: always
   source:
     alias: ""
@@ -23,7 +23,7 @@
       point_id: hr_40000
       point_name: Temperature
   trigger_logic: ""
-  condition: t1 > 100 && t2>300
+  condition: t1 > t2
   expression: ""
   actions:
     - type: mqtt
@@ -37,23 +37,25 @@
       config:
         interval: 10s
         targets:
-            - channel_id: modbus-tcp-1
-              device_id: slave-1
-              expression: bitset(1, value)
-              point_id: dev1_pressure
-              point_name: Pressure
-              value: "1"
-            - channel_id: modbus-tcp-1
-              device_id: slave-2
+            - channel_id: 44amyf4grh5oquzc
+              device_id: slave-7
               expression: ""
-              point_id: dev2_pressure
+              point_id: hr_2
               point_name: Pressure
-              value: "2"
+              value: "27"
+            - channel_id: 44amyf4grh5oquzc
+              device_id: slave-5
+              point_id: hr_2
+              value: "25"
+            - channel_id: 44amyf4grh5oquzc
+              device_id: slave-4
+              point_id: hr_40001
+              value: "4404"
   window:
     type: sliding
     size: 10s
     interval: ""
     aggr_func: avg
   state:
-    duration: 10s
-    count: 10
+    duration: 30s
+    count: 5

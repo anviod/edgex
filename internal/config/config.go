@@ -169,19 +169,16 @@ func (cm *ConfigManager) StartWatch(interval time.Duration) {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
-		for {
-			select {
-			case <-ticker.C:
-				if cm.checkForChanges() {
-					newCfg, err := LoadConfig(cm.ConfDir)
-					if err == nil {
-						cm.Config = newCfg
-						cm.updateWatchFiles()
-						// 通知应用程序配置已重载
-						select {
-						case cm.ReloadChan <- struct{}{}:
-						default:
-						}
+		for range ticker.C {
+			if cm.checkForChanges() {
+				newCfg, err := LoadConfig(cm.ConfDir)
+				if err == nil {
+					cm.Config = newCfg
+					cm.updateWatchFiles()
+					// 通知应用程序配置已重载
+					select {
+					case cm.ReloadChan <- struct{}{}:
+					default:
 					}
 				}
 			}

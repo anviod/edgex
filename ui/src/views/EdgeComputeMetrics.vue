@@ -166,6 +166,8 @@ onUnmounted(() => {
   height: 100%;
   background: #ffffff;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .metrics-card::after {
@@ -249,5 +251,19 @@ onUnmounted(() => {
 
 :deep(.arco-table-tr:hover .arco-table-td) {
   background: #f9fafb;
+}
+
+/* 确保卡片内部结构也能拉伸 */
+:deep(.arco-card) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.arco-card-body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
 }
 </style>

@@ -71,8 +71,6 @@
                  <a-select 
                    v-model="action.config.channel_id" 
                    :options="channels" 
-                   :label-field="'name'" 
-                   :value-field="'id'" 
                    placeholder="选择通道"
                    class="rect-input"
                    @change="onChannelChange(action.config)"
@@ -84,8 +82,6 @@
                  <a-select 
                    v-model="action.config.device_id" 
                    :options="deviceList" 
-                   :label-field="'name'" 
-                   :value-field="'id'" 
                    placeholder="选择设备"
                    class="rect-input"
                    :disabled="!action.config.channel_id"
@@ -98,8 +94,6 @@
                  <a-select 
                    v-model="action.config.point_id" 
                    :options="pointList" 
-                   :label-field="'name'" 
-                   :value-field="'id'" 
                    placeholder="选择点位"
                    class="rect-input"
                    :disabled="!action.config.device_id"
@@ -226,8 +220,6 @@
                      <a-select 
                        v-model="action.config.channel_id" 
                        :options="channels" 
-                       :label-field="'name'" 
-                       :value-field="'id'" 
                        placeholder="选择通道"
                        class="rect-input"
                        @change="onChannelChange(action.config)"
@@ -239,8 +231,6 @@
                      <a-select 
                        v-model="action.config.device_id" 
                        :options="deviceList" 
-                       :label-field="'name'" 
-                       :value-field="'id'" 
                        placeholder="选择设备"
                        class="rect-input"
                        :disabled="!action.config.channel_id"
@@ -253,8 +243,6 @@
                      <a-select 
                        v-model="action.config.point_id" 
                        :options="pointList" 
-                       :label-field="'name'" 
-                       :value-field="'id'" 
                        placeholder="选择点位"
                        class="rect-input"
                        :disabled="!action.config.device_id"
@@ -431,20 +419,60 @@ const action = ref(props.modelValue)
 const deviceList = ref([])
 const pointList = ref([])
 
+const toOptionLabel = (item, fallbackText) => {
+    if (typeof item === 'string' || typeof item === 'number') return String(item)
+
+    const candidates = [
+        item?.name,
+        item?.device_name,
+        item?.point_name,
+        item?.label,
+        item?.id,
+        item?.value
+    ]
+
+    const candidate = candidates.find((value) => value != null && String(value).trim() !== '')
+    return candidate == null ? fallbackText : String(candidate)
+}
+
+const normalizeDeviceOptions = (data) => {
+    return (Array.isArray(data) ? data : []).map((d) => ({
+        label: toOptionLabel(d, 'Unnamed Device'),
+        value: (typeof d === 'string' || typeof d === 'number')
+            ? String(d)
+            : String(d?.id ?? d?.value ?? toOptionLabel(d, 'Unnamed Device')),
+        raw: d
+    }))
+}
+
+const normalizePointOptions = (points) => {
+    return (Array.isArray(points) ? points : [])
+        .filter((p) => p?.readwrite !== 'R')
+        .map((p) => ({
+            label: toOptionLabel(p, 'Unnamed Point'),
+            value: (typeof p === 'string' || typeof p === 'number')
+                ? String(p)
+                : String(p?.id ?? p?.value ?? toOptionLabel(p, 'Unnamed Point')),
+            raw: p
+        }))
+}
+
 // Inject Options
 const mqttOptions = inject('mqttOptions', ref([]))
 const httpOptions = inject('httpOptions', ref([]))
 
 // Sync props to local state
 watch(() => props.modelValue, (val) => {
+  if (val === action.value) return
+
   action.value = val
   // Load devices/points if needed
-  if (action.value.type === 'device_control' && !isBatchMode.value) {
-     loadDevices(action.value.config)
-  } else if (action.value.type === 'check') {
-     loadDevices(action.value.config)
+  if (action.value?.type === 'device_control' && !isBatchMode.value) {
+     loadDevices(action.value.config || {})
+  } else if (action.value?.type === 'check') {
+     loadDevices(action.value.config || {})
   }
-}, { deep: true })
+}, { immediate: true })
 
 
 
@@ -527,30 +555,31 @@ const onChannelChange = async (cfg) => {
     cfg.point_id = ''
     deviceList.value = []
     pointList.value = []
-    if (cfg.channel_id) {
-        const data = await request.get(`/api/channels/${cfg.channel_id}/devices`)
-        deviceList.value = data || []
-    }
+
+    if (!cfg.channel_id) return
+
+    const data = await request.get(`/api/channels/${cfg.channel_id}/devices`)
+    deviceList.value = normalizeDeviceOptions(data)
 }
 
 const onDeviceChange = (cfg) => {
     cfg.point_id = ''
     pointList.value = []
-    if (cfg.device_id && deviceList.value.length > 0) {
-        const dev = deviceList.value.find(d => d.id === cfg.device_id)
-        if (dev && dev.points) {
-            pointList.value = dev.points.filter(p => p.readwrite !== 'R')
-        }
-    }
+
+    if (!cfg.device_id || deviceList.value.length === 0) return
+
+    const dev = deviceList.value.find((d) => String(d.value) === String(cfg.device_id))
+    const points = dev?.raw?.points || dev?.points || []
+    pointList.value = normalizePointOptions(points)
 }
 
 const loadDevices = async (cfg) => {
-    if (cfg.channel_id && deviceList.value.length === 0) {
-        const data = await request.get(`/api/channels/${cfg.channel_id}/devices`)
-        deviceList.value = data || []
-        if (cfg.device_id) {
-            onDeviceChange(cfg)
-        }
+    if (!cfg?.channel_id || deviceList.value.length > 0) return
+
+    const data = await request.get(`/api/channels/${cfg.channel_id}/devices`)
+    deviceList.value = normalizeDeviceOptions(data)
+    if (cfg.device_id) {
+        onDeviceChange(cfg)
     }
 }
 

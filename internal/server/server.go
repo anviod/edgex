@@ -584,7 +584,7 @@ func (s *Server) getChannelDevices(c *fiber.Ctx) error {
 	channelId := c.Params("channelId")
 	devices := s.cm.GetChannelDevices(channelId)
 	if devices == nil {
-		return c.Status(404).JSON(fiber.Map{"error": "channel not found"})
+		return c.JSON([]model.Device{})
 	}
 	return c.JSON(devices)
 }
@@ -1076,7 +1076,10 @@ func (c *Client) writePump() {
 		select {
 		case msg, ok := <-c.send:
 			if !ok {
-				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				// Channel closed, send close message if connection is still open
+				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
+					return
+				}
 				return
 			}
 			if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {

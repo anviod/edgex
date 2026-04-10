@@ -99,13 +99,15 @@ func (s *PointScheduler) Read(ctx context.Context, points []model.Point) (map[st
 		// User Requirement: Batch Read Timeout = 500ms
 		resp, err := s.client.ReadMultiPropertyWithTimeout(s.targetDevice, chunk, 500*time.Millisecond)
 		if err != nil {
+			// Set firstErr if this is the first error
+			if firstErr == nil {
+				firstErr = err
+			}
+
 			// Optimization: If batch read timed out, single reads will likely timeout too.
 			// Abort fallback to save time (User requirement: < 3s).
 			if strings.Contains(err.Error(), "timeout") {
 				log.Printf("[WARN] Batch read timed out, skipping fallback to prevent cascade delay.")
-				if firstErr == nil {
-					firstErr = err
-				}
 				break
 			}
 
@@ -119,9 +121,6 @@ func (s *PointScheduler) Read(ctx context.Context, points []model.Point) (map[st
 				log.Printf("[INFO] Fallback ReadProperty recovered %d points", len(result)-preCount)
 				// err = nil // Do not fully clear error if not all recovered
 			} else {
-				if firstErr == nil {
-					firstErr = err
-				}
 				// Abort remaining chunks if this one failed completely (likely device offline)
 				// This prevents long blocking times (e.g. 50s) when device is down
 				log.Printf("[WARN] Aborting remaining chunks due to failure")

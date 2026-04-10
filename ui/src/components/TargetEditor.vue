@@ -1,13 +1,11 @@
-<template>
+﻿<template>
   <a-card class="target-editor-card" :bordered="true">
     <a-row :gutter="12">
       <a-col :span="24" :md="6">
         <a-form-item label="通道">
-          <a-select 
-            v-model="target.channel_id" 
-            :options="channels" 
-            :label-field="'name'" 
-            :value-field="'id'" 
+          <a-select
+            v-model="localTarget.channel_id"
+            :options="channels"
             placeholder="选择通道"
             class="rect-input"
             @change="onChannelChange"
@@ -16,36 +14,32 @@
       </a-col>
       <a-col :span="24" :md="6">
         <a-form-item label="设备">
-          <a-select 
-            v-model="target.device_id" 
-            :options="deviceList" 
-            :label-field="'name'" 
-            :value-field="'id'" 
+          <a-select
+            v-model="localTarget.device_id"
+            :options="deviceList"
             placeholder="选择设备"
             class="rect-input"
-            :disabled="!target.channel_id"
+            :disabled="!localTarget.channel_id"
             @change="onDeviceChange"
           />
         </a-form-item>
       </a-col>
       <a-col :span="24" :md="6">
         <a-form-item label="点位">
-          <a-select 
-            v-model="target.point_id" 
-            :options="pointList" 
-            :label-field="'name'" 
-            :value-field="'id'" 
+          <a-select
+            v-model="localTarget.point_id"
+            :options="pointList"
             placeholder="选择点位"
             class="rect-input"
-            :disabled="!target.device_id"
+            :disabled="!localTarget.device_id"
           />
         </a-form-item>
       </a-col>
       <a-col :span="24" :md="6">
         <a-form-item label="写入值">
-          <a-input 
-            v-model="target.value" 
-            placeholder="固定值或表达式" 
+          <a-input
+            v-model="localTarget.value"
+            placeholder="固定值或表达式"
             class="rect-input"
           />
         </a-form-item>
@@ -55,7 +49,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import request from '@/utils/request'
 
 const props = defineProps({
@@ -71,68 +65,101 @@ const props = defineProps({
 
 const emit = defineEmits(['update:target'])
 
-const localTarget = ref(props.target)
+const localTarget = ref(props.target || {})
 const deviceList = ref([])
 const pointList = ref([])
 
-// Sync props to local state
+const toOptionLabel = (item, fallbackText) => {
+  if (typeof item === 'string' || typeof item === 'number') return String(item)
+
+  const candidates = [
+    item?.name,
+    item?.device_name,
+    item?.point_name,
+    item?.label,
+    item?.id,
+    item?.value
+  ]
+
+  const candidate = candidates.find((value) => value != null && String(value).trim() !== '')
+  return candidate == null ? fallbackText : String(candidate)
+}
+
+const normalizeDeviceOptions = (data) => {
+  return (Array.isArray(data) ? data : []).map((d) => ({
+    label: toOptionLabel(d, 'Unnamed Device'),
+    value: typeof d === 'string' || typeof d === 'number'
+      ? String(d)
+      : String(d?.id ?? d?.value ?? toOptionLabel(d, 'Unnamed Device')),
+    raw: d
+  }))
+}
+
+const normalizePointOptions = (points) => {
+  return (Array.isArray(points) ? points : [])
+    .filter((p) => p?.readwrite !== 'R')
+    .map((p) => ({
+      label: toOptionLabel(p, 'Unnamed Point'),
+      value: typeof p === 'string' || typeof p === 'number'
+        ? String(p)
+        : String(p?.id ?? p?.value ?? toOptionLabel(p, 'Unnamed Point')),
+      raw: p
+    }))
+}
+
 watch(() => props.target, (val) => {
-  localTarget.value = val
-  // Load devices/points if needed
-  if (localTarget.value.channel_id) {
+  if (val === localTarget.value) return
+
+  localTarget.value = val || {}
+
+  if (localTarget.value?.channel_id) {
     loadDevices()
   }
-}, { deep: true })
+}, { immediate: true })
 
-// Sync local state to props
 watch(localTarget, (val) => {
   emit('update:target', val)
 }, { deep: true })
 
 const onChannelChange = async () => {
-    localTarget.value.device_id = ''
-    localTarget.value.point_id = ''
-    deviceList.value = []
-    pointList.value = []
-    if (localTarget.value.channel_id) {
-        const data = await request.get(`/api/channels/${localTarget.value.channel_id}/devices`)
-        deviceList.value = Array.isArray(data) ? data : []
-    }
+  localTarget.value.device_id = ''
+  localTarget.value.point_id = ''
+  deviceList.value = []
+  pointList.value = []
+
+  if (!localTarget.value.channel_id) return
+
+  const data = await request.get(`/api/channels/${localTarget.value.channel_id}/devices`)
+  deviceList.value = normalizeDeviceOptions(data)
 }
 
 const onDeviceChange = () => {
-    localTarget.value.point_id = ''
-    pointList.value = []
-    if (localTarget.value.device_id && deviceList.value.length > 0) {
-        const dev = deviceList.value.find(d => d.id === localTarget.value.device_id)
-        if (dev && dev.points) {
-            pointList.value = dev.points.filter(p => p.readwrite !== 'R')
-        }
-    }
+  localTarget.value.point_id = ''
+  pointList.value = []
+
+  if (!localTarget.value.device_id || deviceList.value.length === 0) return
+
+  const dev = deviceList.value.find((d) => String(d.value) === String(localTarget.value.device_id))
+  const points = dev?.raw?.points || dev?.points || []
+  pointList.value = normalizePointOptions(points)
 }
 
 const loadDevices = async () => {
-    if (localTarget.value.channel_id && deviceList.value.length === 0) {
-        const data = await request.get(`/api/channels/${localTarget.value.channel_id}/devices`)
-        deviceList.value = Array.isArray(data) ? data : []
-        if (localTarget.value.device_id) {
-            onDeviceChange()
-        }
-    }
-}
+  if (!localTarget.value?.channel_id || deviceList.value.length > 0) return
 
-onMounted(() => {
-    // Init device list loading
-    if (localTarget.value.channel_id) {
-        loadDevices()
-    }
-})
+  const data = await request.get(`/api/channels/${localTarget.value.channel_id}/devices`)
+  deviceList.value = normalizeDeviceOptions(data)
+
+  if (localTarget.value.device_id) {
+    onDeviceChange()
+  }
+}
 </script>
 
 <style scoped>
 .target-editor-card {
-    border-left: 4px solid #165DFF;
-    border-radius: 0;
-    background: #f8fafc;
+  border-left: 4px solid #165dff;
+  border-radius: 0;
+  background: #f8fafc;
 }
 </style>

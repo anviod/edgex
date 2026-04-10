@@ -44,7 +44,7 @@
                                 </a-button>
                             </template>
                             <template #enable="{ record }">
-                                <a-tag :color="record.enable ? 'success' : 'default'" size="small">
+                                <a-tag :color="record.enable ? 'success' : 'danger'" size="small">
                                     {{ record.enable ? '启用' : '禁用' }}
                                 </a-tag>
                             </template>
@@ -617,26 +617,119 @@
                     </template>
                 </a-modal>
                 <!-- Expression Docs Dialog -->
-                <a-modal v-model:visible="docsDialog" title="表达式函数参考文档 (Expression Reference)" width="900px" :scrollable="true">
-                    <div class="pa-4" style="max-height: 600px; overflow-y: auto;">
+                <a-modal v-model:visible="docsDialog" title="表达式函数参考文档 (Expression Reference)" width="950px" :scrollable="true" class="expression-docs-dialog">
+                    <div class="expression-docs-content" style="max-height: 650px; overflow-y: auto;">
                         
-                        <a-alert type="info" class="mb-4">
-                            <div class="font-medium">基本变量</div>
-                            <div><code>value</code> 或 <code>v</code> : 当前触发点位的值 (The current point value).</div>
-                            <div><code>t1</code>, <code>t2</code> ... : 数据源别名 (Source aliases defined in rule).</div>
+                        <a-alert type="info" class="mb-6 p-4">
+                            <div class="font-medium text-lg mb-2">基本变量</div>
+                            <div class="mb-1"><code class="text-blue-600">value</code> 或 <code class="text-blue-600">v</code> : 当前触发点位的值 (The current point value).</div>
+                            <div><code class="text-blue-600">t1</code>, <code class="text-blue-600">t2</code> ... : 数据源别名 (Source aliases defined in rule).</div>
                         </a-alert>
 
-                        <div class="text-lg font-medium mb-4">1. 位操作函数 (Bitwise Operations)</div>
-                        <a-table :columns="docsColumns" :data="bitwiseFunctions" size="small" :bordered="false" class="mb-4"></a-table>
+                        <div class="function-category mb-8">
+                            <div class="category-header mb-4 pb-2 border-b-2 border-gray-200">
+                                <div class="text-xl font-semibold text-gray-800">1. 位操作函数 (Bitwise Operations)</div>
+                            </div>
+                            <a-table 
+                                :columns="docsColumns" 
+                                :data="bitwiseFunctions" 
+                                size="small" 
+                                :bordered="false" 
+                                class="function-table"
+                            >
+                                <template #function="{ record }">
+                                    <span v-html="record.function"></span>
+                                </template>
+                                <template #description="{ record }">
+                                    <span v-html="record.description"></span>
+                                </template>
+                                <template #example="{ record }">
+                                    <div class="example-cell">
+                                        <span v-html="record.example"></span>
+                                        <a-button 
+                                            type="text" 
+                                            size="small" 
+                                            class="copy-button" 
+                                            @click="copyExample(record.example)"
+                                            title="复制示例"
+                                        >
+                                            复制
+                                        </a-button>
+                                    </div>
+                                </template>
+                            </a-table>
+                        </div>
 
-                        <div class="text-lg font-medium mb-4">2. 数学函数 (Mathematical Functions)</div>
-                        <a-table :columns="docsColumns" :data="mathFunctions" size="small" :bordered="false" class="mb-4"></a-table>
+                        <div class="function-category mb-8">
+                            <div class="category-header mb-4 pb-2 border-b-2 border-gray-200">
+                                <div class="text-xl font-semibold text-gray-800">2. 数学函数 (Mathematical Functions)</div>
+                            </div>
+                            <a-table 
+                                :columns="docsColumns" 
+                                :data="mathFunctions" 
+                                size="small" 
+                                :bordered="false" 
+                                class="function-table"
+                            >
+                                <template #function="{ record }">
+                                    <span v-html="record.function"></span>
+                                </template>
+                                <template #description="{ record }">
+                                    <span v-html="record.description"></span>
+                                </template>
+                                <template #example="{ record }">
+                                    <div class="example-cell">
+                                        <span v-html="record.example"></span>
+                                        <a-button 
+                                            type="text" 
+                                            size="small" 
+                                            class="copy-button" 
+                                            @click="copyExample(record.example)"
+                                            title="复制示例"
+                                        >
+                                            复制
+                                        </a-button>
+                                    </div>
+                                </template>
+                            </a-table>
+                        </div>
 
-                        <div class="text-lg font-medium mb-4">3. 逻辑函数 (Logical Functions)</div>
-                        <a-table :columns="docsColumns" :data="logicalFunctions" size="small" :bordered="false" class="mb-4"></a-table>
+                        <div class="function-category mb-8">
+                            <div class="category-header mb-4 pb-2 border-b-2 border-gray-200">
+                                <div class="text-xl font-semibold text-gray-800">3. 逻辑函数 (Logical Functions)</div>
+                            </div>
+                            <a-table 
+                                :columns="docsColumns" 
+                                :data="logicalFunctions" 
+                                size="small" 
+                                :bordered="false" 
+                                class="function-table"
+                            >
+                                <template #function="{ record }">
+                                    <span v-html="record.function"></span>
+                                </template>
+                                <template #description="{ record }">
+                                    <span v-html="record.description"></span>
+                                </template>
+                                <template #example="{ record }">
+                                    <div class="example-cell">
+                                        <span v-html="record.example"></span>
+                                        <a-button 
+                                            type="text" 
+                                            size="small" 
+                                            class="copy-button" 
+                                            @click="copyExample(record.example)"
+                                            title="复制示例"
+                                        >
+                                            复制
+                                        </a-button>
+                                    </div>
+                                </template>
+                            </a-table>
+                        </div>
                     </div>
                     <template #footer>
-                        <a-button type="primary" @click="docsDialog = false">关闭</a-button>
+                        <a-button type="primary" @click="docsDialog = false" class="w-24">关闭</a-button>
                     </template>
                 </a-modal>
     </div>
@@ -663,13 +756,13 @@ const ruleColumns = [
 ]
 
 const statusColumns = [
-  { title: '规则名称', dataIndex: 'rule_name' },
-  { title: '当前状态', dataIndex: 'current_status', slotName: 'current_status' },
-  { title: '最近触发时间', dataIndex: 'last_trigger', slotName: 'last_trigger' },
-  { title: '触发次数', dataIndex: 'trigger_count' },
-  { title: '最新值', dataIndex: 'last_value' },
-  { title: '操作', dataIndex: 'operations', slotName: 'operations' },
-  { title: '错误信息', dataIndex: 'error_message', slotName: 'error_message' }
+  { title: '规则名称', dataIndex: 'rule_name', width: 140 },
+  { title: '当前状态', dataIndex: 'current_status', slotName: 'current_status', width: 100 },
+  { title: '最近触发时间', dataIndex: 'last_trigger', slotName: 'last_trigger', width: 160 },
+  { title: '触发次数', dataIndex: 'trigger_count', width: 90 },
+  { title: '最新值', dataIndex: 'last_value', width: 120 },
+  { title: '操作', dataIndex: 'operations', slotName: 'operations', width: 120 },
+  { title: '错误信息', dataIndex: 'error_message', slotName: 'error_message', width: 200 }
 ]
 
 const logColumns = [
@@ -701,9 +794,22 @@ const syntaxData = [
 ]
 
 const docsColumns = [
-  { title: '函数 (Function)', dataIndex: 'function', width: 200 },
-  { title: '说明 (Description)', dataIndex: 'description' },
-  { title: '示例 (Example)', dataIndex: 'example' }
+  { 
+    title: '函数 (Function)', 
+    dataIndex: 'function', 
+    width: 200,
+    slotName: 'function'
+  },
+  { 
+    title: '说明 (Description)', 
+    dataIndex: 'description',
+    slotName: 'description'
+  },
+  { 
+    title: '示例 (Example)', 
+    dataIndex: 'example',
+    slotName: 'example'
+  }
 ]
 
 const bitwiseFunctions = [
@@ -794,6 +900,21 @@ const applyHelper = () => {
         helperCallback(helperOutput.value)
     }
     helperDialog.value = false
+}
+
+const copyExample = (example) => {
+    // 提取代码内容，去除 HTML 标签
+    const tempElement = document.createElement('div')
+    tempElement.innerHTML = example
+    const text = tempElement.textContent || tempElement.innerText
+    
+    // 复制到剪贴板
+    navigator.clipboard.writeText(text).then(() => {
+        showMessage('示例已复制到剪贴板', 'success')
+    }).catch(err => {
+        console.error('复制失败:', err)
+        showMessage('复制失败，请手动复制', 'error')
+    })
 }
 
 const route = useRoute()
@@ -1787,5 +1908,139 @@ onUnmounted(() => {
     font-size: 12px;
     background: #f9fafb;
     border: 1px dashed #e5e7eb;
+}
+
+/* 表达式函数参考文档样式 */
+.expression-docs-dialog :deep(.arco-modal-content) {
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.expression-docs-content {
+    padding: 24px;
+}
+
+.function-category {
+    margin-bottom: 32px;
+}
+
+.category-header {
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.category-header .text-xl {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+}
+
+.function-table {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.function-table :deep(.arco-table-th) {
+    background-color: #f8fafc;
+    font-weight: 600;
+    color: #374151;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.function-table :deep(.arco-table-td) {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f3f5;
+    vertical-align: top;
+}
+
+.function-table :deep(.arco-table-tr:hover .arco-table-td) {
+    background-color: #f9fafb;
+}
+
+.function-table code {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    background-color: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #374151;
+}
+
+.function-table :deep(.arco-table-td:first-child) code {
+    color: #2563eb;
+    font-weight: 500;
+}
+
+/* 代码块样式 */
+.expression-docs-content code {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    background-color: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #374151;
+}
+
+/* 基本变量提示样式 */
+.expression-docs-content .text-blue-600 {
+    color: #2563eb;
+    font-weight: 500;
+}
+
+/* 示例单元格样式 */
+.example-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.copy-button {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.copy-button:hover {
+    background-color: #f3f4f6;
+    color: #2563eb;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .expression-docs-dialog :deep(.arco-modal) {
+        width: 95% !important;
+        margin: 10px;
+    }
+    
+    .expression-docs-content {
+        padding: 16px;
+    }
+    
+    .function-table :deep(.arco-table-th),
+    .function-table :deep(.arco-table-td) {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    
+    .category-header .text-xl {
+        font-size: 16px;
+    }
+    
+    .example-cell {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    .copy-button {
+        align-self: flex-start;
+    }
 }
 </style>

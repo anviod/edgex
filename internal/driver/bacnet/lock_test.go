@@ -13,7 +13,7 @@ func TestBACnetDriverLockUsage(t *testing.T) {
 
 	// Test 1: Verify the lock type is RWMutex
 	bacnetDriver := driver.(*BACnetDriver)
-	lockType := reflect.TypeOf(bacnetDriver.mu)
+	lockType := reflect.TypeOf(&bacnetDriver.mu).Elem()
 	lockTypeName := lockType.String()
 
 	if lockTypeName != "sync.RWMutex" {
