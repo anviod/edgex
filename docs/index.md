@@ -12,7 +12,7 @@ description: EdgeX 项目的完整文档
       <div class="hero-grid">
         <div class="hero-copy">
           <div class="eyebrow">Industrial Edge Documentation</div>
-          <h1>EdgeX 文档。</h1>
+          <h1>EdgeX 文档</h1>
           <p>面向工业现场接入、边缘计算与北向集成的文档入口，集中提供 API、架构、部署、驱动适配、测试验证和运维资料。</p>
           <div class="hero-actions">
             <a class="button-link button-link--primary" href="API/API_Index_CN.html">查看 API 文档</a>
@@ -53,7 +53,7 @@ description: EdgeX 项目的完整文档
       <div>
         <div class="section-kicker">Primary Entry</div>
         <h2>核心文档入口</h2>
-        <p>按使用场景整理常用资料，适合从接口联调、系统部署、驱动开发、架构评审和日常运维等任务直接进入对应文档。</p>
+        <p>按使用场景整理常用资料，适合从接口联调、系统部署、驱动开发、架构评审和日常运维等任务。</p>
       </div>
     </div>
 
@@ -130,7 +130,7 @@ description: EdgeX 项目的完整文档
       <div>
         <div class="section-kicker">Deep Dive</div>
         <h2>按专题进入更深的文档流</h2>
-        <p>面向专项工作提供更聚焦的入口，便于继续查阅边缘计算能力设计、南向采集优化、北向数据格式与联调测试资料。</p>
+        <p>面向专项工作提供更聚焦的入口，便于继续查阅边缘计算能力设计、南向采集优化、北向数据格式。</p>
       </div>
     </div>
 
