@@ -10,7 +10,7 @@ description: EdgeX 项目的完整文档
         <div class="hero-copy">
           <div class="eyebrow">Industrial Edge Documentation</div>
           <h1>EdgeX 文档。</h1>
-          <p> 🎯 轻量级的工业边缘计算网关，旨在连接工业现场设备（南向）与云端/上层应用（北向），并提供本地边缘计算能力。</p>
+          <p>面向工业现场接入、边缘计算与北向集成的文档入口，集中提供 API、架构、部署、驱动适配、测试验证和运维资料。</p>
           <div class="hero-actions">
             <a class="button-link button-link--primary" href="API/API_Index_CN.html">查看 API 文档</a>
             <a class="button-link button-link--secondary" href="man/USER_MANUAL.html">打开用户手册</a>
@@ -22,7 +22,7 @@ description: EdgeX 项目的完整文档
               <span>核心文档分区</span>
             </div>
             <div class="metric-card">
-              <strong>V2.0.1</strong>
+              <strong>V0.0.1</strong>
               <span>当前公开版本</span>
             </div>
             <div class="metric-card">
@@ -49,8 +49,8 @@ description: EdgeX 项目的完整文档
     <div class="section-heading">
       <div>
         <div class="section-kicker">Primary Entry</div>
-        <h2>首页卡片区改成大屏 2-3 列布局</h2>
-        <p>这里保留首页该有的“入口感”。在大屏上使用 3 列卡片，宽度收缩后自动变为 2 列或 1 列，方便快速扫视主要文档域。</p>
+        <h2>核心文档入口</h2>
+        <p>按使用场景整理常用资料，适合从接口联调、系统部署、驱动开发、架构评审和日常运维等任务直接进入对应文档。</p>
       </div>
     </div>
 
@@ -127,7 +127,7 @@ description: EdgeX 项目的完整文档
       <div>
         <div class="section-kicker">Deep Dive</div>
         <h2>按专题进入更深的文档流</h2>
-        <p>第二屏继续承担“分流”职责，但不再像旧首页那样堆满单列链接，而是用更宽的专题卡片承接重点内容。</p>
+        <p>面向专项工作提供更聚焦的入口，便于继续查阅边缘计算能力设计、南向采集优化、北向数据格式与联调测试资料。</p>
       </div>
     </div>
 
