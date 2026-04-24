@@ -9,7 +9,7 @@ description: EdgeX 项目的完整文档
       <div class="hero-grid">
         <div class="hero-copy">
           <div class="eyebrow">Industrial Edge Documentation</div>
-          <h1>EdgeX 文档站，直接进入可落地的工程入口。</h1>
+          <h1>EdgeX 文档。</h1>
           <p>把 API、部署、驱动、边缘计算和运维资料集中在一个真正可浏览的 Landing Page 里。首页负责“快速进入”，文档页负责“专注阅读”，两种页面采用不同宽度策略。</p>
           <div class="hero-actions">
             <a class="button-link button-link--primary" href="API/API_Index_CN.html">查看 API 文档</a>
