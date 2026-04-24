@@ -26,7 +26,7 @@ description: EdgeX 项目的完整文档
               <span>当前公开版本</span>
             </div>
             <div class="metric-card">
-              <strong>2026-04-09</strong>
+              <strong>20260409</strong>
               <span>首页信息更新时间</span>
             </div>
           </div>
