@@ -2,6 +2,8 @@ package opcua
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -543,7 +545,7 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 					Value:   0,
 					TS:      time.Now(),
 				}
-//				zap.L().Warn("[OPC UA] Cache Miss or Nil", zap.String("point", p.ID))
+				//				zap.L().Warn("[OPC UA] Cache Miss or Nil", zap.String("point", p.ID))
 			}
 		}
 
@@ -552,7 +554,7 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 		}
 
 		// If missing, log it and fallback to direct read for ALL points to ensure consistency
-//		zap.L().Warn("[OPC UA] Cache missing or incomplete", zap.Int("count", len(points)))
+		//		zap.L().Warn("[OPC UA] Cache missing or incomplete", zap.Int("count", len(points)))
 	} else {
 		zap.L().Debug("[OPC UA] No subscription, using direct read")
 	}
@@ -785,52 +787,1072 @@ func (d *OpcUaDriver) readDirect(ctx context.Context, client *ClientWrapper, poi
 	return result, nil
 }
 
+// WritePoint writes a value to an OPC-UA node with full type conversion and error handling
 func (d *OpcUaDriver) WritePoint(ctx context.Context, point model.Point, value any) error {
 	d.mu.Lock()
 	client := d.activeClient
 	d.mu.Unlock()
 
-	if client == nil || !client.Connected {
-		return fmt.Errorf("client not connected")
+	if client == nil {
+		return fmt.Errorf("no active OPC-UA client")
 	}
 
-	id, err := ua.ParseNodeID(point.Address)
+	// Try to reconnect if not connected
+	if !client.Connected {
+		if err := client.Client.Connect(ctx); err != nil {
+			return fmt.Errorf("OPC-UA client not connected: %v", err)
+		}
+		d.mu.Lock()
+		client.Connected = true
+		d.mu.Unlock()
+	}
+
+	// Parse and validate the node ID
+	nodeID, err := ua.ParseNodeID(point.Address)
 	if err != nil {
-		return fmt.Errorf("invalid node id: %v", err)
+		return fmt.Errorf("invalid node ID %s: %w", point.Address, err)
 	}
 
-	valToWrite, err := castValue(value, point.DataType)
+	// Handle namespace URI format (nsu=...) and string identifier conversion
+	nodeID = d.normalizeNodeID(point.Address, nodeID)
+
+	zap.L().Debug("[OPC UA] Write: node=%s address=%s dataType=%s",
+		zap.Stringer("nodeID", nodeID), zap.String("address", point.Address), zap.String("dataType", point.DataType))
+
+	// Determine the data type to use
+	dataTypeToUse := point.DataType
+
+	// Optionally read the node's actual data type from server
+	serverDataType := d.getServerDataType(ctx, client.Client, nodeID)
+	if serverDataType != "" {
+		zap.L().Debug("[OPC UA] Write: server reports DataType",
+			zap.String("dataType", serverDataType),
+			zap.String("node", point.Address))
+		// If we have a mismatch, log a warning but use the server's type for better compatibility
+		if dataTypeToUse != "" && !strings.EqualFold(dataTypeToUse, serverDataType) {
+			zap.L().Warn("[OPC UA] Write: model DataType mismatch, using server type",
+				zap.String("point", point.ID),
+				zap.String("modelType", dataTypeToUse),
+				zap.String("serverType", serverDataType))
+		}
+		dataTypeToUse = serverDataType
+	}
+
+	// Parse and convert the value according to data type
+	valToWrite, err := d.parseWriteValue(value, dataTypeToUse)
 	if err != nil {
-		return fmt.Errorf("value conversion failed: %v", err)
+		return fmt.Errorf("value conversion failed for node %s: %w", point.Address, err)
 	}
 
-	v, err := ua.NewVariant(valToWrite)
+	// Create the OPC-UA Variant with the correct type
+	variant := d.createWriteVariant(dataTypeToUse, valToWrite)
+	if variant == nil {
+		return fmt.Errorf("failed to create variant for node %s", point.Address)
+	}
+
+	// Create DataValue with timestamp
+	dataValue := &ua.DataValue{
+		Value:           variant,
+		SourceTimestamp: time.Now(),
+	}
+	dataValue.UpdateMask() // Essential: set EncodingMask
+
+	// Build the write request
+	writeValue := &ua.WriteValue{
+		NodeID:      nodeID,
+		AttributeID: ua.AttributeIDValue,
+		Value:       dataValue,
+	}
+
+	// Execute the write with retry on transient errors
+	var resp *ua.WriteResponse
+	for attempt := 0; attempt < 2; attempt++ {
+		resp, err = client.Client.Write(ctx, &ua.WriteRequest{
+			NodesToWrite: []*ua.WriteValue{writeValue},
+		})
+		if err == nil {
+			break
+		}
+
+		// Check if it's a transient error that warrants reconnect
+		if !isOPCUAConnError(err) {
+			return fmt.Errorf("OPC-UA write request failed: %w", err)
+		}
+
+		zap.L().Warn("[OPC UA] Write: connection error, attempting reconnect",
+			zap.String("point", point.ID), zap.Error(err))
+
+		if reconnErr := client.Client.Close(context.Background()); reconnErr == nil {
+			if reconnErr = client.Client.Connect(ctx); reconnErr != nil {
+				return fmt.Errorf("OPC-UA reconnect failed: %w", reconnErr)
+			}
+		}
+	}
+
 	if err != nil {
-		return fmt.Errorf("invalid value: %v", err)
+		return fmt.Errorf("OPC-UA write request failed after retry: %w", err)
 	}
 
-	req := &ua.WriteRequest{
-		NodesToWrite: []*ua.WriteValue{
-			{
-				NodeID:      id,
-				AttributeID: ua.AttributeIDValue,
-				Value: &ua.DataValue{
-					Value: v,
-				},
-			},
-		},
+	if len(resp.Results) == 0 {
+		return fmt.Errorf("OPC-UA write response invalid (no results)")
 	}
 
-	resp, err := client.Client.Write(ctx, req)
-	if err != nil {
-		return err
+	if resp.Results[0] != ua.StatusOK {
+		statusCode := resp.Results[0]
+		errMsg := fmt.Errorf("write failed: %s (0x%X)", statusCode, uint32(statusCode))
+
+		// Try alternative types on failure
+		if d.tryAlternativeWriteTypes(ctx, client.Client, nodeID, value, dataTypeToUse) {
+			zap.L().Info("[OPC UA] Write: succeeded on retry with alternative type",
+				zap.String("point", point.ID), zap.Any("value", value))
+			return nil
+		}
+
+		return errMsg
 	}
-	if len(resp.Results) > 0 && resp.Results[0] != ua.StatusOK {
-		return fmt.Errorf("write failed: %s (0x%X)", resp.Results[0], uint32(resp.Results[0]))
-	}
-	zap.L().Info("[OPC UA] Write success", zap.String("point_id", point.ID), zap.Any("value", valToWrite))
+
+	zap.L().Info("[OPC UA] Write success",
+		zap.String("point_id", point.ID),
+		zap.String("address", point.Address),
+		zap.Any("value", valToWrite))
 
 	return nil
+}
+
+// getServerDataType queries the OPC-UA server for the actual data type of a node
+func (d *OpcUaDriver) getServerDataType(ctx context.Context, client *opcua.Client, nodeID *ua.NodeID) string {
+	if client == nil {
+		return ""
+	}
+
+	// Use a short timeout for metadata read
+	readCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	attrs, err := client.Node(nodeID).Attributes(readCtx, ua.AttributeIDDataType)
+	if err != nil || len(attrs) == 0 || attrs[0].Status != ua.StatusOK {
+		return ""
+	}
+
+	dtNodeID, ok := attrs[0].Value.Value().(*ua.NodeID)
+	if !ok {
+		return ""
+	}
+
+	return lookupDataType(dtNodeID)
+}
+
+// normalizeNodeID handles various NodeID formats and converts to canonical form
+func (d *OpcUaDriver) normalizeNodeID(original string, nodeID *ua.NodeID) *ua.NodeID {
+	// Handle ns=...;s=... format with string identifier
+	if strings.HasPrefix(original, "ns=") && strings.Contains(original, ";s=") {
+		parts := strings.SplitN(original, ";s=", 2)
+		if len(parts) == 2 {
+			nsPart := strings.TrimPrefix(parts[0], "ns=")
+			sIdentifier := parts[1]
+
+			// Try to convert numeric string identifier to numeric NodeID
+			if numericID, err := strconv.ParseUint(sIdentifier, 10, 32); err == nil {
+				numericNodeIDStr := "ns=" + nsPart + ";i=" + fmt.Sprintf("%d", numericID)
+				if converted, err := ua.ParseNodeID(numericNodeIDStr); err == nil {
+					zap.L().Debug("[OPC UA] Write: string ID converted to numeric",
+						zap.String("original", original), zap.String("converted", numericNodeIDStr))
+					return converted
+				}
+			}
+		}
+	}
+
+	return nodeID
+}
+
+// parseWriteValue converts the input value to the appropriate Go type for OPC-UA
+func (d *OpcUaDriver) parseWriteValue(value any, dataType string) (any, error) {
+	dt := strings.ToLower(dataType)
+
+	// Handle ByteString specially: decode base64 if input is string
+	if dt == "bytestring" || dt == "i=15" || dt == "15" {
+		switch v := value.(type) {
+		case []byte:
+			return v, nil
+		case string:
+			// Try base64 decode first
+			if decoded, err := base64.StdEncoding.DecodeString(v); err == nil && len(decoded) > 0 {
+				return decoded, nil
+			}
+			// Fallback: treat as raw bytes
+			return []byte(v), nil
+		case map[string]any:
+			encoding := strings.ToLower(fmt.Sprintf("%v", v["encoding"]))
+			raw := fmt.Sprintf("%v", v["value"])
+			switch encoding {
+			case "hex":
+				return decodeHexString(raw)
+			case "base64":
+				return base64.StdEncoding.DecodeString(raw)
+			default:
+				return parseByteStringValue(value)
+			}
+		default:
+			return parseByteStringValue(value)
+		}
+	}
+
+	// Handle DateTime
+	if dt == "datetime" || dt == "i=13" || dt == "13" {
+		switch v := value.(type) {
+		case time.Time:
+			return v, nil
+		case string:
+			if t, err := time.Parse(time.RFC3339, v); err == nil {
+				return t, nil
+			}
+			// Try other common formats
+			formats := []string{
+				"2006-01-02T15:04:05Z",
+				"2006-01-02 15:04:05",
+				"2006-01-02",
+			}
+			for _, f := range formats {
+				if t, err := time.Parse(f, v); err == nil {
+					return t, nil
+				}
+			}
+			return v, nil
+		case int64:
+			return time.Unix(v, 0), nil
+		case float64:
+			return time.Unix(int64(v), 0), nil
+		}
+	}
+
+	// Handle Guid
+	if dt == "guid" || dt == "i=14" || dt == "14" {
+		switch v := value.(type) {
+		case string:
+			g := parseGuid(v)
+			if g != nil {
+				return g, nil
+			}
+			return nil, fmt.Errorf("invalid GUID format: %s", v)
+		case [16]byte:
+			return ua.NewGUID(string(v[:])), nil
+		default:
+			// Try to parse from string representation
+			if str, ok := value.(string); ok {
+				g := parseGuid(str)
+				if g != nil {
+					return g, nil
+				}
+				return nil, fmt.Errorf("invalid GUID format: %s", str)
+			}
+			g := parseGuid(fmt.Sprintf("%v", value))
+			if g != nil {
+				return g, nil
+			}
+			return nil, fmt.Errorf("cannot convert %T to GUID", value)
+		}
+	}
+
+	// Handle StatusCode
+	if dt == "statuscode" || dt == "i=19" || dt == "19" {
+		switch v := value.(type) {
+		case uint32:
+			return ua.StatusCode(v), nil
+		case int:
+			return ua.StatusCode(v), nil
+		case int64:
+			return ua.StatusCode(v), nil
+		case float64:
+			return ua.StatusCode(uint32(v)), nil
+		case string:
+			// Try to look up status code by name
+			if code, ok := statusCodeFromName(v); ok {
+				return code, nil
+			}
+			return ua.StatusCode(0), nil
+		default:
+			return ua.StatusCode(0), nil
+		}
+	}
+
+	// Handle QualifiedName
+	if dt == "qualifiedname" || dt == "i=20" || dt == "20" {
+		switch v := value.(type) {
+		case string:
+			parts := strings.SplitN(v, ":", 2)
+			if len(parts) == 2 {
+				ns, _ := strconv.ParseUint(parts[0], 10, 16)
+				return ua.QualifiedName{NamespaceIndex: uint16(ns), Name: parts[1]}, nil
+			}
+			return ua.QualifiedName{NamespaceIndex: 0, Name: v}, nil
+		case map[string]any:
+			ns := uint16(0)
+			if n, ok := v["namespace"].(float64); ok {
+				ns = uint16(n)
+			}
+			name := fmt.Sprintf("%v", v["name"])
+			return ua.QualifiedName{NamespaceIndex: ns, Name: name}, nil
+		default:
+			return ua.QualifiedName{NamespaceIndex: 0, Name: fmt.Sprintf("%v", value)}, nil
+		}
+	}
+
+	// Handle LocalizedText
+	if dt == "localizedtext" || dt == "i=21" || dt == "21" {
+		switch v := value.(type) {
+		case string:
+			return ua.LocalizedText{Text: v, Locale: "en"}, nil
+		case map[string]any:
+			text := fmt.Sprintf("%v", v["text"])
+			locale := fmt.Sprintf("%v", v["locale"])
+			if locale == "<nil>" || locale == "" {
+				locale = "en"
+			}
+			return ua.LocalizedText{Text: text, Locale: locale}, nil
+		default:
+			return ua.LocalizedText{Text: fmt.Sprintf("%v", value), Locale: "en"}, nil
+		}
+	}
+
+	// Handle NodeID (rarely written, but supported)
+	if dt == "nodeid" || dt == "i=17" || dt == "17" {
+		switch v := value.(type) {
+		case string:
+			if nodeID, err := ua.ParseNodeID(v); err == nil {
+				return nodeID, nil
+			}
+			return nil, fmt.Errorf("invalid NodeID string: %s", v)
+		case *ua.NodeID:
+			return v, nil
+		default:
+			return nil, fmt.Errorf("cannot convert %T to NodeID", value)
+		}
+	}
+
+	// Handle ExtensionObject - treat as byte array with encoding info
+	if dt == "extensionobject" || dt == "i=22" || dt == "22" {
+		switch v := value.(type) {
+		case []byte:
+			return v, nil
+		case string:
+			decoded, err := base64.StdEncoding.DecodeString(v)
+			if err != nil {
+				return []byte(v), nil
+			}
+			return decoded, nil
+		default:
+			return nil, fmt.Errorf("cannot convert %T to ExtensionObject", value)
+		}
+	}
+
+	// Handle Byte (unsigned 8-bit)
+	if dt == "byte" || dt == "uint8" || dt == "i=3" || dt == "3" {
+		switch v := value.(type) {
+		case uint8:
+			return v, nil
+		case int:
+			return uint8(v), nil
+		case int64:
+			return uint8(v), nil
+		case float64:
+			return uint8(v), nil
+		case string:
+			if n, err := strconv.ParseUint(v, 10, 8); err == nil {
+				return uint8(n), nil
+			}
+			return uint8(0), nil
+		default:
+			return uint8(0), nil
+		}
+	}
+
+	// Use the existing castValue for other types
+	return castValue(value, dataType)
+}
+
+// parseGuid parses a GUID string in standard format
+func parseGuid(s string) *ua.GUID {
+	s = strings.TrimSpace(s)
+	// Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+	if len(s) == 36 {
+		s = strings.ReplaceAll(s, "-", "")
+	}
+	if len(s) == 32 {
+		return ua.NewGUID(s)
+	}
+	return ua.NewGUID(s)
+}
+
+// statusCodeFromName converts a status code name to its value
+func statusCodeFromName(name string) (ua.StatusCode, bool) {
+	// Common status codes
+	codes := map[string]ua.StatusCode{
+		"good":                   ua.StatusGood,
+		"uncertain":              ua.StatusUncertain,
+		"bad":                    ua.StatusBad,
+		"badconnectionclosed":    ua.StatusBadConnectionClosed,
+		"badnotconnected":        ua.StatusBadNotConnected,
+		"badserverhalted":        ua.StatusBadServerHalted,
+		"badnocommunication":     ua.StatusBadNoCommunication,
+		"badoutofmemory":         ua.StatusBadOutOfMemory,
+		"badresourceunavailable": ua.StatusBadResourceUnavailable,
+		"badtimeout":             ua.StatusBadTimeout,
+		"goodclampped":           ua.StatusGoodClamped,
+		"goodlocaloverride":      ua.StatusGoodLocalOverride,
+	}
+	if code, ok := codes[strings.ToLower(name)]; ok {
+		return code, true
+	}
+	return 0, false
+}
+
+// createWriteVariant creates an OPC-UA Variant with the correct type encoding
+func (d *OpcUaDriver) createWriteVariant(dataType string, value any) *ua.Variant {
+	if value == nil {
+		return ua.MustVariant(nil)
+	}
+
+	dt := strings.ToLower(dataType)
+
+	switch {
+	// ===== 基础数值类型 =====
+	case dt == "int32" || dt == "i=6" || dt == "6":
+		return createInt32Variant(value)
+
+	case dt == "int16" || dt == "i=4" || dt == "4":
+		return createInt16Variant(value)
+
+	case dt == "uint32" || dt == "i=7" || dt == "7":
+		return createUint32Variant(value)
+
+	case dt == "uint16" || dt == "i=5" || dt == "5":
+		return createUint16Variant(value)
+
+	case dt == "int64" || dt == "i=8" || dt == "8":
+		return createInt64Variant(value)
+
+	case dt == "uint64" || dt == "i=9" || dt == "9":
+		return createUint64Variant(value)
+
+	case dt == "float" || dt == "float32" || dt == "i=10" || dt == "10":
+		return createFloat32Variant(value)
+
+	case dt == "double" || dt == "i=11" || dt == "11":
+		return createFloat64Variant(value)
+
+	// ===== 布尔和字节类型 =====
+	case dt == "boolean" || dt == "i=1" || dt == "1":
+		return createBooleanVariant(value)
+
+	case dt == "sbyte" || dt == "i=2" || dt == "2":
+		return createSByteVariant(value)
+
+	case dt == "byte" || dt == "uint8" || dt == "i=3" || dt == "3":
+		return createByteVariant(value)
+
+	// ===== 字符串类型 =====
+	case dt == "string" || dt == "i=12" || dt == "12":
+		return ua.MustVariant(fmt.Sprintf("%v", value))
+
+	case dt == "xmlliteral" || dt == "i=16" || dt == "16":
+		return ua.MustVariant(fmt.Sprintf("%v", value))
+
+	// ===== 日期时间类型 =====
+	case dt == "datetime" || dt == "i=13" || dt == "13":
+		return createDateTimeVariant(value)
+
+	// ===== GUID 类型 =====
+	case dt == "guid" || dt == "i=14" || dt == "14":
+		return createGuidVariant(value)
+
+	// ===== ByteString 类型 =====
+	case dt == "bytestring" || dt == "i=15" || dt == "15":
+		return createByteStringVariant(value)
+
+	// ===== NodeID 类型 =====
+	case dt == "nodeid" || dt == "i=17" || dt == "17":
+		return createNodeIDVariant(value)
+
+	// ===== StatusCode 类型 =====
+	case dt == "statuscode" || dt == "i=19" || dt == "19":
+		return createStatusCodeVariant(value)
+
+	// ===== QualifiedName 类型 =====
+	case dt == "qualifiedname" || dt == "i=20" || dt == "20":
+		return createQualifiedNameVariant(value)
+
+	// ===== LocalizedText 类型 =====
+	case dt == "localizedtext" || dt == "i=21" || dt == "21":
+		return createLocalizedTextVariant(value)
+
+	// ===== ExtensionObject 类型 =====
+	case dt == "extensionobject" || dt == "i=22" || dt == "22":
+		return createExtensionObjectVariant(value)
+
+	// ===== 数组类型支持 =====
+	case strings.HasPrefix(dt, "array") || strings.HasPrefix(dt, "[]"):
+		return createArrayVariant(dt, value)
+
+	default:
+		// Fallback: let OPC-UA library handle type inference
+		zap.L().Warn("[OPC UA] Write: using fallback type inference", zap.String("dataType", dataType))
+		return ua.MustVariant(value)
+	}
+}
+
+// ===== Variant 创建辅助函数 =====
+
+func createInt32Variant(value any) *ua.Variant {
+	var v int32
+	switch val := value.(type) {
+	case int32:
+		v = val
+	case int64:
+		v = int32(val)
+	case float64:
+		v = int32(val)
+	case int:
+		v = int32(val)
+	case string:
+		if n, err := strconv.ParseInt(val, 10, 32); err == nil {
+			v = int32(n)
+		}
+	default:
+		return nil
+	}
+	return ua.MustVariant(v)
+}
+
+func createInt16Variant(value any) *ua.Variant {
+	var v int16
+	switch val := value.(type) {
+	case int16:
+		v = val
+	case int32:
+		v = int16(val)
+	case int64:
+		v = int16(val)
+	case float64:
+		v = int16(val)
+	case int:
+		v = int16(val)
+	case string:
+		if n, err := strconv.ParseInt(val, 10, 16); err == nil {
+			v = int16(n)
+		}
+	default:
+		return nil
+	}
+	return ua.MustVariant(v)
+}
+
+func createUint32Variant(value any) *ua.Variant {
+	var v uint32
+	switch val := value.(type) {
+	case uint32:
+		v = val
+	case uint64:
+		v = uint32(val)
+	case float64:
+		v = uint32(val)
+	case uint:
+		v = uint32(val)
+	case int:
+		v = uint32(val)
+	case string:
+		if n, err := strconv.ParseUint(val, 10, 32); err == nil {
+			v = uint32(n)
+		}
+	default:
+		return nil
+	}
+	return ua.MustVariant(v)
+}
+
+func createUint16Variant(value any) *ua.Variant {
+	var v uint16
+	switch val := value.(type) {
+	case uint16:
+		v = val
+	case uint32:
+		v = uint16(val)
+	case uint64:
+		v = uint16(val)
+	case float64:
+		v = uint16(val)
+	case uint:
+		v = uint16(val)
+	case int:
+		v = uint16(val)
+	case string:
+		if n, err := strconv.ParseUint(val, 10, 16); err == nil {
+			v = uint16(n)
+		}
+	default:
+		return nil
+	}
+	return ua.MustVariant(v)
+}
+
+func createInt64Variant(value any) *ua.Variant {
+	var v int64
+	switch val := value.(type) {
+	case int64:
+		v = val
+	case int32:
+		v = int64(val)
+	case float64:
+		v = int64(val)
+	case int:
+		v = int64(val)
+	case string:
+		if n, err := strconv.ParseInt(val, 10, 64); err == nil {
+			v = n
+		}
+	default:
+		return nil
+	}
+	return ua.MustVariant(v)
+}
+
+func createUint64Variant(value any) *ua.Variant {
+	var v uint64
+	switch val := value.(type) {
+	case uint64:
+		v = val
+	case uint32:
+		v = uint64(val)
+	case float64:
+		v = uint64(val)
+	case uint:
+		v = uint64(val)
+	case int:
+		v = uint64(val)
+	case string:
+		if n, err := strconv.ParseUint(val, 10, 64); err == nil {
+			v = n
+		}
+	default:
+		return nil
+	}
+	return ua.MustVariant(v)
+}
+
+func createFloat32Variant(value any) *ua.Variant {
+	var v float32
+	switch val := value.(type) {
+	case float32:
+		v = val
+	case float64:
+		v = float32(val)
+	case int:
+		v = float32(val)
+	case int32:
+		v = float32(val)
+	case int64:
+		v = float32(val)
+	case string:
+		if n, err := strconv.ParseFloat(val, 32); err == nil {
+			v = float32(n)
+		}
+	default:
+		return nil
+	}
+	return ua.MustVariant(v)
+}
+
+func createFloat64Variant(value any) *ua.Variant {
+	var v float64
+	switch val := value.(type) {
+	case float64:
+		v = val
+	case float32:
+		v = float64(val)
+	case int:
+		v = float64(val)
+	case int32:
+		v = float64(val)
+	case int64:
+		v = float64(val)
+	case uint:
+		v = float64(val)
+	case uint32:
+		v = float64(val)
+	case uint64:
+		v = float64(val)
+	case string:
+		if n, err := strconv.ParseFloat(val, 64); err == nil {
+			v = n
+		}
+	default:
+		return nil
+	}
+	return ua.MustVariant(v)
+}
+
+func createBooleanVariant(value any) *ua.Variant {
+	var v bool
+	switch val := value.(type) {
+	case bool:
+		v = val
+	case float64:
+		v = val != 0
+	case int:
+		v = val != 0
+	case string:
+		v = strings.ToLower(val) == "true" || val == "1"
+	default:
+		return nil
+	}
+	return ua.MustVariant(v)
+}
+
+func createSByteVariant(value any) *ua.Variant {
+	var v int8
+	switch val := value.(type) {
+	case int8:
+		v = val
+	case int:
+		v = int8(val)
+	case int32:
+		v = int8(val)
+	case int64:
+		v = int8(val)
+	case float64:
+		v = int8(val)
+	case string:
+		if n, err := strconv.ParseInt(val, 10, 8); err == nil {
+			v = int8(n)
+		}
+	default:
+		return nil
+	}
+	return ua.MustVariant(v)
+}
+
+func createByteVariant(value any) *ua.Variant {
+	var v uint8
+	switch val := value.(type) {
+	case uint8:
+		v = val
+	case uint:
+		v = uint8(val)
+	case uint32:
+		v = uint8(val)
+	case int:
+		v = uint8(val)
+	case int64:
+		v = uint8(val)
+	case float64:
+		v = uint8(val)
+	case string:
+		if n, err := strconv.ParseUint(val, 10, 8); err == nil {
+			v = uint8(n)
+		}
+	default:
+		return nil
+	}
+	return ua.MustVariant(v)
+}
+
+func createDateTimeVariant(value any) *ua.Variant {
+	switch val := value.(type) {
+	case time.Time:
+		return ua.MustVariant(val)
+	case int64:
+		return ua.MustVariant(time.Unix(val, 0))
+	case float64:
+		return ua.MustVariant(time.Unix(int64(val), 0))
+	case string:
+		formats := []string{time.RFC3339, "2006-01-02T15:04:05Z", "2006-01-02 15:04:05", "2006-01-02"}
+		for _, f := range formats {
+			if t, err := time.Parse(f, val); err == nil {
+				return ua.MustVariant(t)
+			}
+		}
+	}
+	return nil
+}
+
+func createGuidVariant(value any) *ua.Variant {
+	switch val := value.(type) {
+	case *ua.GUID:
+		return ua.MustVariant(val)
+	case string:
+		g := parseGuid(val)
+		if g != nil {
+			return ua.MustVariant(g)
+		}
+	case [16]byte:
+		return ua.MustVariant(ua.NewGUID(string(val[:])))
+	}
+	return nil
+}
+
+func createByteStringVariant(value any) *ua.Variant {
+	switch val := value.(type) {
+	case []byte:
+		return ua.MustVariant(val)
+	case string:
+		// Try base64 decode first
+		if decoded, err := base64.StdEncoding.DecodeString(val); err == nil && len(decoded) > 0 {
+			return ua.MustVariant(decoded)
+		}
+		// Fallback to raw bytes
+		return ua.MustVariant([]byte(val))
+	default:
+		return nil
+	}
+}
+
+func createNodeIDVariant(value any) *ua.Variant {
+	switch val := value.(type) {
+	case *ua.NodeID:
+		return ua.MustVariant(val)
+	case string:
+		if nodeID, err := ua.ParseNodeID(val); err == nil {
+			return ua.MustVariant(nodeID)
+		}
+	}
+	return nil
+}
+
+func createStatusCodeVariant(value any) *ua.Variant {
+	var v ua.StatusCode
+	switch val := value.(type) {
+	case ua.StatusCode:
+		v = val
+	case uint32:
+		v = ua.StatusCode(val)
+	case uint64:
+		v = ua.StatusCode(val)
+	case int:
+		v = ua.StatusCode(val)
+	case int64:
+		v = ua.StatusCode(val)
+	case float64:
+		v = ua.StatusCode(uint32(val))
+	case string:
+		if code, ok := statusCodeFromName(val); ok {
+			v = code
+		}
+	default:
+		v = ua.StatusGood
+	}
+	return ua.MustVariant(v)
+}
+
+func createQualifiedNameVariant(value any) *ua.Variant {
+	switch val := value.(type) {
+	case ua.QualifiedName:
+		return ua.MustVariant(val)
+	case string:
+		parts := strings.SplitN(val, ":", 2)
+		if len(parts) == 2 {
+			if ns, err := strconv.ParseUint(parts[0], 10, 16); err == nil {
+				return ua.MustVariant(ua.QualifiedName{NamespaceIndex: uint16(ns), Name: parts[1]})
+			}
+		}
+		return ua.MustVariant(ua.QualifiedName{NamespaceIndex: 0, Name: val})
+	case map[string]any:
+		ns := uint16(0)
+		if n, ok := val["namespace"].(float64); ok {
+			ns = uint16(n)
+		}
+		name := fmt.Sprintf("%v", val["name"])
+		return ua.MustVariant(ua.QualifiedName{NamespaceIndex: ns, Name: name})
+	}
+	return nil
+}
+
+func createLocalizedTextVariant(value any) *ua.Variant {
+	switch val := value.(type) {
+	case ua.LocalizedText:
+		return ua.MustVariant(val)
+	case string:
+		return ua.MustVariant(ua.LocalizedText{Text: val, Locale: "en"})
+	case map[string]any:
+		text := fmt.Sprintf("%v", val["text"])
+		locale := fmt.Sprintf("%v", val["locale"])
+		if locale == "<nil>" || locale == "" {
+			locale = "en"
+		}
+		return ua.MustVariant(ua.LocalizedText{Text: text, Locale: locale})
+	default:
+		return ua.MustVariant(ua.LocalizedText{Text: fmt.Sprintf("%v", value), Locale: "en"})
+	}
+}
+
+func createExtensionObjectVariant(value any) *ua.Variant {
+	// ExtensionObject - treat as bytes
+	switch val := value.(type) {
+	case []byte:
+		return ua.MustVariant(val)
+	case string:
+		if decoded, err := base64.StdEncoding.DecodeString(val); err == nil {
+			return ua.MustVariant(decoded)
+		}
+		return ua.MustVariant([]byte(val))
+	default:
+		return nil
+	}
+}
+
+func createArrayVariant(dataType string, value any) *ua.Variant {
+	// Extract element type from array type, e.g., "array:int32" -> "int32"
+	elemType := strings.TrimPrefix(dataType, "array:")
+	elemType = strings.TrimPrefix(elemType, "[]")
+
+	// Helper to create variant for array element
+	createElemVariant := func(elemType string, elem any) *ua.Variant {
+		dt := strings.ToLower(elemType)
+		switch {
+		case dt == "int32", dt == "i=6", dt == "6":
+			return createInt32Variant(elem)
+		case dt == "int16", dt == "i=4", dt == "4":
+			return createInt16Variant(elem)
+		case dt == "uint32", dt == "i=7", dt == "7":
+			return createUint32Variant(elem)
+		case dt == "uint16", dt == "i=5", dt == "5":
+			return createUint16Variant(elem)
+		case dt == "int64", dt == "i=8", dt == "8":
+			return createInt64Variant(elem)
+		case dt == "uint64", dt == "i=9", dt == "9":
+			return createUint64Variant(elem)
+		case dt == "float", dt == "float32", dt == "i=10", dt == "10":
+			return createFloat32Variant(elem)
+		case dt == "double", dt == "i=11", dt == "11":
+			return createFloat64Variant(elem)
+		case dt == "boolean", dt == "i=1", dt == "1":
+			return createBooleanVariant(elem)
+		case dt == "sbyte", dt == "i=2", dt == "2":
+			return createSByteVariant(elem)
+		case dt == "byte", dt == "uint8", dt == "i=3", dt == "3":
+			return createByteVariant(elem)
+		case dt == "string", dt == "i=12", dt == "12":
+			return ua.MustVariant(fmt.Sprintf("%v", elem))
+		case dt == "datetime", dt == "i=13", dt == "13":
+			return createDateTimeVariant(elem)
+		case dt == "guid", dt == "i=14", dt == "14":
+			return createGuidVariant(elem)
+		case dt == "bytestring", dt == "i=15", dt == "15":
+			return createByteStringVariant(elem)
+		default:
+			return ua.MustVariant(elem)
+		}
+	}
+
+	// Handle slice types
+	switch val := value.(type) {
+	case []any:
+		variants := make([]*ua.Variant, len(val))
+		for i, elem := range val {
+			v := createElemVariant(elemType, elem)
+			if v == nil {
+				return nil
+			}
+			variants[i] = v
+		}
+		return ua.MustVariant(variants)
+	case []int:
+		intVariants := make([]int, len(val))
+		copy(intVariants, val)
+		return ua.MustVariant(intVariants)
+	case []int32:
+		return ua.MustVariant(val)
+	case []int64:
+		return ua.MustVariant(val)
+	case []uint:
+		uintVariants := make([]uint, len(val))
+		copy(uintVariants, val)
+		return ua.MustVariant(uintVariants)
+	case []uint32:
+		return ua.MustVariant(val)
+	case []uint64:
+		return ua.MustVariant(val)
+	case []float32:
+		return ua.MustVariant(val)
+	case []float64:
+		return ua.MustVariant(val)
+	case []string:
+		return ua.MustVariant(val)
+	case []bool:
+		return ua.MustVariant(val)
+	case []byte:
+		return ua.MustVariant(val)
+	}
+	return nil
+}
+
+// tryAlternativeWriteTypes attempts to write using alternative data types when the primary type fails
+func (d *OpcUaDriver) tryAlternativeWriteTypes(ctx context.Context, client *opcua.Client, nodeID *ua.NodeID, originalValue any, originalType string) bool {
+	alternatives := getAlternativeTypes(originalType)
+	if len(alternatives) == 0 {
+		return false
+	}
+
+	for _, altType := range alternatives {
+		// Parse value with alternative type
+		altValue, err := castValue(originalValue, altType)
+		if err != nil {
+			continue
+		}
+
+		// Create variant with alternative type
+		variant := d.createWriteVariant(altType, altValue)
+		if variant == nil {
+			continue
+		}
+
+		// Build write request
+		dataValue := &ua.DataValue{
+			Value:           variant,
+			SourceTimestamp: time.Now(),
+		}
+		dataValue.UpdateMask()
+
+		resp, err := client.Write(ctx, &ua.WriteRequest{
+			NodesToWrite: []*ua.WriteValue{
+				{
+					NodeID:      nodeID,
+					AttributeID: ua.AttributeIDValue,
+					Value:       dataValue,
+				},
+			},
+		})
+
+		if err == nil && len(resp.Results) > 0 && resp.Results[0] == ua.StatusOK {
+			zap.L().Info("[OPC UA] Write: alternative type succeeded",
+				zap.Stringer("nodeID", nodeID),
+				zap.String("originalType", originalType),
+				zap.String("altType", altType))
+			return true
+		}
+	}
+
+	return false
+}
+
+// getAlternativeTypes returns a list of alternative data types to try on write failure
+func getAlternativeTypes(originalType string) []string {
+	dt := strings.ToLower(originalType)
+	switch {
+	case dt == "int32", dt == "i=6", dt == "6":
+		return []string{"Int16", "UInt16", "Int64", "UInt32", "Double"}
+	case dt == "int16", dt == "i=4", dt == "4":
+		return []string{"Int32", "UInt16", "UInt32", "Double"}
+	case dt == "uint32", dt == "i=7", dt == "7":
+		return []string{"UInt16", "Int32", "Int64", "Double"}
+	case dt == "uint16", dt == "i=5", dt == "5":
+		return []string{"UInt32", "Int16", "Int32", "Double"}
+	case dt == "double", dt == "i=11", dt == "11":
+		return []string{"Float", "Int32", "UInt32"}
+	case dt == "float", dt == "float32", dt == "i=10", dt == "10":
+		return []string{"Double", "Int32"}
+	default:
+		return nil
+	}
 }
 
 func (d *OpcUaDriver) ScanObjects(ctx context.Context, config map[string]any) (any, error) {
@@ -924,12 +1946,18 @@ func (d *OpcUaDriver) browseNode(ctx context.Context, c *opcua.Client, nodeID *u
 			item["type"] = "Variable"
 			item["address"] = nodeIDStr
 
-			// Queue for DataType reading
-			variableNodeIDs = append(variableNodeIDs, &ua.ReadValueID{
-				NodeID:      parsedID,
-				AttributeID: ua.AttributeIDDataType,
-			})
-			variableIndices = append(variableIndices, len(results))
+			// Queue for DataType and AccessLevel reading
+			variableNodeIDs = append(variableNodeIDs,
+				&ua.ReadValueID{
+					NodeID:      parsedID,
+					AttributeID: ua.AttributeIDDataType,
+				},
+				&ua.ReadValueID{
+					NodeID:      parsedID,
+					AttributeID: ua.AttributeIDAccessLevel,
+				},
+			)
+			variableIndices = append(variableIndices, len(results), len(results))
 			results = append(results, item)
 
 		} else if ref.NodeClass == ua.NodeClassObject {
@@ -1103,18 +2131,51 @@ func (d *OpcUaDriver) batchReadDataTypes(ctx context.Context, c *opcua.Client, n
 			}
 
 			for j, res := range resp.Results {
-				if res.Status == ua.StatusOK && res.Value != nil {
-					if typeID, ok := res.Value.Value().(*ua.NodeID); ok {
-						mu.Lock()
-						results[chunkIndices[j]]["data_type"] = lookupDataType(typeID)
-						mu.Unlock()
-					}
+				if res.Status != ua.StatusOK || res.Value == nil {
+					continue
 				}
+
+				mu.Lock()
+				switch value := res.Value.Value().(type) {
+				case *ua.NodeID:
+					results[chunkIndices[j]]["data_type"] = lookupDataType(value)
+				case byte:
+					results[chunkIndices[j]]["access_level"] = lookupAccessLevel(value)
+				}
+				mu.Unlock()
 			}
 		}(chunk[0], chunk[1])
 	}
 
 	wg.Wait()
+}
+
+func lookupAccessLevel(level byte) string {
+	flags := make([]string, 0, 8)
+
+	if level&1 != 0 {
+		flags = append(flags, "CurrentRead")
+	}
+	if level&2 != 0 {
+		flags = append(flags, "CurrentWrite")
+	}
+	if level&4 != 0 {
+		flags = append(flags, "HistoryRead")
+	}
+	if level&8 != 0 {
+		flags = append(flags, "HistoryWrite")
+	}
+	if level&16 != 0 {
+		flags = append(flags, "SemanticChange")
+	}
+	if level&32 != 0 {
+		flags = append(flags, "StatusWrite")
+	}
+	if level&64 != 0 {
+		flags = append(flags, "TimestampWrite")
+	}
+
+	return strings.Join(flags, ",")
 }
 
 func lookupDataType(id *ua.NodeID) string {
@@ -1148,8 +2209,52 @@ func lookupDataType(id *ua.NodeID) string {
 		return "String"
 	case 13:
 		return "DateTime"
+	case 15:
+		return "ByteString"
 	default:
 		return fmt.Sprintf("ns=%d;i=%d", id.Namespace(), id.IntID())
+	}
+}
+
+func decodeHexString(raw string) ([]byte, error) {
+	s := strings.TrimSpace(raw)
+	s = strings.TrimPrefix(strings.ToLower(s), "0x")
+	if len(s)%2 != 0 {
+		s = "0" + s
+	}
+	return hex.DecodeString(s)
+}
+
+func decodeBase64String(raw string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(strings.TrimSpace(raw))
+}
+
+func parseByteStringValue(val any) ([]byte, error) {
+	switch v := val.(type) {
+	case []byte:
+		return v, nil
+	case string:
+		s := strings.TrimSpace(v)
+		if strings.HasPrefix(strings.ToLower(s), "0x") {
+			return decodeHexString(s)
+		}
+		if decoded, err := decodeBase64String(s); err == nil {
+			return decoded, nil
+		}
+		return nil, fmt.Errorf("invalid bytestring value: %s", v)
+	case map[string]any:
+		encoding := strings.ToLower(strings.TrimSpace(fmt.Sprintf("%v", v["encoding"])))
+		raw := fmt.Sprintf("%v", v["value"])
+		switch encoding {
+		case "hex":
+			return decodeHexString(raw)
+		case "base64":
+			return decodeBase64String(raw)
+		default:
+			return nil, fmt.Errorf("unsupported bytestring encoding: %s", encoding)
+		}
+	default:
+		return nil, fmt.Errorf("cannot cast %T to bytestring", val)
 	}
 }
 
@@ -1316,6 +2421,9 @@ func castValue(val any, dataType string) (any, error) {
 
 	case dt == "string":
 		return asString(val), nil
+
+	case dt == "bytestring":
+		return parseByteStringValue(val)
 	}
 
 	return val, nil

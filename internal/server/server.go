@@ -5,6 +5,7 @@ import (
 	"context"
 	"edge-gateway/internal/core"
 	"edge-gateway/internal/model"
+	"edge-gateway/internal/northbound/opcua"
 	"edge-gateway/internal/pkg/logger"
 	"edge-gateway/internal/storage"
 	"encoding/csv"
@@ -273,6 +274,9 @@ func (s *Server) setupRoutes() {
 	api.Delete("/northbound/http/:id", s.deleteHTTPConfig) // New HTTP Delete
 	api.Post("/northbound/opcua", s.updateOPCUAConfig)
 	api.Get("/northbound/opcua/:id/stats", s.getOPCUAStats)
+	api.Post("/northbound/opcua/:id/write", s.writeOPCUA)
+	api.Post("/northbound/opcua/:id/batch-write", s.batchWriteOPCUA)
+	api.Get("/northbound/opcua/:id/write-history", s.getOPCUAWriteHistory)
 	api.Get("/northbound/mqtt/:id/stats", s.getMQTTStats)
 	api.Delete("/northbound/sparkplug_b/:id", s.deleteSparkplugBConfig) // Sparkplug B Delete
 
@@ -1245,6 +1249,115 @@ func (s *Server) getOPCUAStats(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(stats)
+}
+
+// writeOPCUA 通过 OPC-UA 服务端写入单个点位
+// POST /api/northbound/opcua/:id/write
+type opcuaWriteRequest struct {
+	ChannelID string `json:"channel_id"`
+	DeviceID  string `json:"device_id"`
+	PointID   string `json:"point_id"`
+	Value     any    `json:"value"`
+}
+
+func (s *Server) writeOPCUA(c *fiber.Ctx) error {
+	serverID := c.Params("id")
+
+	var req opcuaWriteRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	if req.ChannelID == "" || req.DeviceID == "" || req.PointID == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "channel_id, device_id, and point_id are required"})
+	}
+
+	err := s.nbm.WriteOPCUA(serverID, req.ChannelID, req.DeviceID, req.PointID, req.Value)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{
+		"message":    "write success",
+		"server_id":  serverID,
+		"channel_id": req.ChannelID,
+		"device_id":  req.DeviceID,
+		"point_id":   req.PointID,
+		"value":      req.Value,
+	})
+}
+
+// batchWriteOPCUA 批量写入多个点位
+// POST /api/northbound/opcua/:id/batch-write
+type opcuaBatchWriteRequest struct {
+	Points []struct {
+		ChannelID string `json:"channel_id"`
+		DeviceID  string `json:"device_id"`
+		PointID   string `json:"point_id"`
+		Value     any    `json:"value"`
+	} `json:"points"`
+}
+
+func (s *Server) batchWriteOPCUA(c *fiber.Ctx) error {
+	serverID := c.Params("id")
+
+	var req opcuaBatchWriteRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	if len(req.Points) == 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "points array is empty"})
+	}
+
+	// 转换为 opcua.WriteRequest
+	requests := make([]opcua.WriteRequest, len(req.Points))
+	for i, p := range req.Points {
+		requests[i] = opcua.WriteRequest{
+			ChannelID: p.ChannelID,
+			DeviceID:  p.DeviceID,
+			PointID:   p.PointID,
+			Value:     p.Value,
+		}
+	}
+
+	results := s.nbm.BatchWriteOPCUA(serverID, requests)
+
+	successCount := 0
+	failCount := 0
+	for _, r := range results {
+		if r.Success {
+			successCount++
+		} else {
+			failCount++
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"server_id":     serverID,
+		"total":         len(results),
+		"success_count": successCount,
+		"fail_count":    failCount,
+		"results":       results,
+	})
+}
+
+// getOPCUAWriteHistory 获取 OPC-UA 写入历史
+// GET /api/northbound/opcua/:id/write-history?limit=100
+func (s *Server) getOPCUAWriteHistory(c *fiber.Ctx) error {
+	serverID := c.Params("id")
+	limit := c.QueryInt("limit", 100)
+
+	history, err := s.nbm.GetOPCUAWriteHistory(serverID, limit)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{
+		"server_id": serverID,
+		"count":     len(history),
+		"history":   history,
+	})
 }
 
 func (s *Server) getMQTTStats(c *fiber.Ctx) error {

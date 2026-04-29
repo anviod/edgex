@@ -48,6 +48,25 @@ func (m *MockSB) GetDevice(channelID, deviceID string) *model.Device {
 	return nil
 }
 
+func (m *MockSB) GetDevicePoints(channelID, deviceID string) ([]model.PointData, error) {
+	dev := m.GetDevice(channelID, deviceID)
+	if dev == nil {
+		return []model.PointData{}, nil
+	}
+
+	points := make([]model.PointData, 0, len(dev.Points))
+	for _, p := range dev.Points {
+		points = append(points, model.PointData{
+			ID:        p.ID,
+			Name:      p.Name,
+			DataType:  p.DataType,
+			ReadWrite: p.ReadWrite,
+			Address:   p.Address,
+		})
+	}
+	return points, nil
+}
+
 func (m *MockSB) WritePoint(channelID, deviceID, pointID string, value any) error {
 	return nil
 }

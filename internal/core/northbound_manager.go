@@ -463,6 +463,55 @@ func (nm *NorthboundManager) GetOPCUAStats(id string) (opcua.Stats, error) {
 	return opcua.Stats{}, fmt.Errorf("OPC UA server %s not found or not running", id)
 }
 
+// WriteOPCUA 通过 OPC-UA 服务端写入单个点位值
+func (nm *NorthboundManager) WriteOPCUA(serverID, channelID, deviceID, pointID string, value any) error {
+	nm.mu.RLock()
+	defer nm.mu.RUnlock()
+
+	server, ok := nm.opcuaServers[serverID]
+	if !ok {
+		return fmt.Errorf("OPC UA server %s not found or not running", serverID)
+	}
+
+	return server.WriteViaOPCUA(channelID, deviceID, pointID, value)
+}
+
+// BatchWriteOPCUA 批量写入多个点位
+func (nm *NorthboundManager) BatchWriteOPCUA(serverID string, requests []opcua.WriteRequest) []opcua.BatchWriteResult {
+	nm.mu.RLock()
+	defer nm.mu.RUnlock()
+
+	server, ok := nm.opcuaServers[serverID]
+	if !ok {
+		results := make([]opcua.BatchWriteResult, len(requests))
+		for i := range requests {
+			results[i] = opcua.BatchWriteResult{
+				ChannelID: requests[i].ChannelID,
+				DeviceID:  requests[i].DeviceID,
+				PointID:   requests[i].PointID,
+				Success:   false,
+				Error:     fmt.Sprintf("OPC UA server %s not found", serverID),
+			}
+		}
+		return results
+	}
+
+	return server.BatchWrite(requests)
+}
+
+// GetOPCUAWriteHistory 获取 OPC-UA 写入历史
+func (nm *NorthboundManager) GetOPCUAWriteHistory(serverID string, limit int) ([]opcua.WriteHistoryItem, error) {
+	nm.mu.RLock()
+	defer nm.mu.RUnlock()
+
+	server, ok := nm.opcuaServers[serverID]
+	if !ok {
+		return nil, fmt.Errorf("OPC UA server %s not found or not running", serverID)
+	}
+
+	return server.GetWriteHistory(limit), nil
+}
+
 func (nm *NorthboundManager) GetMQTTStats(id string) (mqtt.MQTTStats, error) {
 	nm.mu.RLock()
 	defer nm.mu.RUnlock()

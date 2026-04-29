@@ -9,6 +9,7 @@ import (
 
 	"edge-gateway/internal/model"
 
+	"github.com/awcullen/opcua/ua"
 	"go.uber.org/zap"
 )
 
@@ -109,6 +110,25 @@ func (m *MockSouthboundManager) GetDevice(channelID, deviceID string) *model.Dev
 	return nil
 }
 
+func (m *MockSouthboundManager) GetDevicePoints(channelID, deviceID string) ([]model.PointData, error) {
+	dev := m.GetDevice(channelID, deviceID)
+	if dev == nil {
+		return []model.PointData{}, nil
+	}
+
+	points := make([]model.PointData, 0, len(dev.Points))
+	for _, p := range dev.Points {
+		points = append(points, model.PointData{
+			ID:        p.ID,
+			Name:      p.Name,
+			DataType:  p.DataType,
+			ReadWrite: p.ReadWrite,
+			Address:   p.Address,
+		})
+	}
+	return points, nil
+}
+
 func (m *MockSouthboundManager) WritePoint(channelID, deviceID, pointID string, value interface{}) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -135,62 +155,21 @@ func (m *MockSouthboundManager) ClearWriteHistory() {
 	m.writeHistory = []writeOperation{}
 }
 
-// TestServerStartStop tests basic server start/stop functionality
-func TestServerStartStop(t *testing.T) {
-	// Setup logger
+// TestWriteViaOPCUA tests the WriteViaOPCUA method
+func TestWriteViaOPCUA(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
 
-	// Create mock southbound manager
 	sb := NewMockSouthboundManager()
 
-	// Create OPC UA config
 	config := model.OPCUAConfig{
 		Name:        "Test OPC UA Server",
-		Port:        4840,
+		Port:        4850,
 		Endpoint:    "/",
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	// Create and start server
-	server := NewServer(config, sb)
-	err := server.Start()
-	if err != nil {
-		t.Fatalf("Failed to start server: %v", err)
-	}
-
-	// Wait a bit for server to start
-	time.Sleep(2 * time.Second)
-
-	// Stop server
-	server.Stop()
-
-	// Wait a bit for server to stop
-	time.Sleep(1 * time.Second)
-
-	t.Log("Server start/stop test passed")
-}
-
-// TestServerReadWrite tests reading and writing from OPC UA server
-func TestServerReadWrite(t *testing.T) {
-	// Setup logger
-	logger, _ := zap.NewDevelopment()
-	defer logger.Sync()
-	zap.ReplaceGlobals(logger)
-
-	// Create mock southbound manager
-	sb := NewMockSouthboundManager()
-
-	// Create OPC UA config
-	config := model.OPCUAConfig{
-		Name:        "Test OPC UA Server",
-		Port:        4841,
-		Endpoint:    "/",
-		AuthMethods: []string{"Anonymous"},
-	}
-
-	// Create and start server
 	server := NewServer(config, sb)
 	err := server.Start()
 	if err != nil {
@@ -198,7 +177,250 @@ func TestServerReadWrite(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Test Update method
+	time.Sleep(1 * time.Second)
+
+	// Test writing via OPCUA
+	err = server.WriteViaOPCUA("ch1", "dev1", "point3", 42.5)
+	if err != nil {
+		t.Fatalf("WriteViaOPCUA failed: %v", err)
+	}
+
+	// Verify the write was recorded
+	history := sb.GetWriteHistory()
+	if len(history) != 1 {
+		t.Fatalf("Expected 1 write operation, got %d", len(history))
+	}
+	if history[0].value != 42.5 {
+		t.Fatalf("Write value mismatch: expected 42.5, got %v", history[0].value)
+	}
+
+	// Test writing to non-existent node
+	err = server.WriteViaOPCUA("ch1", "dev1", "nonexistent", 100.0)
+	if err == nil {
+		t.Fatalf("Expected error for non-existent node, got nil")
+	}
+
+	t.Log("WriteViaOPCUA test passed")
+}
+
+// TestBatchWrite tests the BatchWrite method
+func TestBatchWrite(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	defer logger.Sync()
+	zap.ReplaceGlobals(logger)
+
+	sb := NewMockSouthboundManager()
+
+	config := model.OPCUAConfig{
+		Name:        "Test OPC UA Server",
+		Port:        4851,
+		Endpoint:    "/",
+		AuthMethods: []string{"Anonymous"},
+	}
+
+	server := NewServer(config, sb)
+	err := server.Start()
+	if err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+	defer server.Stop()
+
+	time.Sleep(1 * time.Second)
+
+	requests := []WriteRequest{
+		{ChannelID: "ch1", DeviceID: "dev1", PointID: "point3", Value: 10.0},
+		{ChannelID: "ch1", DeviceID: "dev1", PointID: "point5", Value: true},
+	}
+
+	results := server.BatchWrite(requests)
+
+	if len(results) != 2 {
+		t.Fatalf("Expected 2 results, got %d", len(results))
+	}
+
+	// Check success count
+	successCount := 0
+	for _, r := range results {
+		if r.Success {
+			successCount++
+		}
+	}
+	if successCount != 2 {
+		t.Fatalf("Expected 2 successful writes, got %d", successCount)
+	}
+
+	// Test with one invalid point
+	requests = []WriteRequest{
+		{ChannelID: "ch1", DeviceID: "dev1", PointID: "point3", Value: 20.0},
+		{ChannelID: "ch1", DeviceID: "dev1", PointID: "nonexistent", Value: 30.0},
+	}
+
+	results = server.BatchWrite(requests)
+	if len(results) != 2 {
+		t.Fatalf("Expected 2 results, got %d", len(results))
+	}
+
+	// First should succeed, second should fail
+	if !results[0].Success {
+		t.Errorf("First write should succeed")
+	}
+	if results[1].Success {
+		t.Errorf("Second write should fail for non-existent node")
+	}
+
+	t.Log("BatchWrite test passed")
+}
+
+// TestGetWriteHistory tests the GetWriteHistory method
+func TestGetWriteHistory(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	defer logger.Sync()
+	zap.ReplaceGlobals(logger)
+
+	sb := NewMockSouthboundManager()
+
+	config := model.OPCUAConfig{
+		Name:        "Test OPC UA Server",
+		Port:        4852,
+		Endpoint:    "/",
+		AuthMethods: []string{"Anonymous"},
+	}
+
+	server := NewServer(config, sb)
+	err := server.Start()
+	if err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+	defer server.Stop()
+
+	time.Sleep(1 * time.Second)
+
+	// Perform some writes
+	_ = server.WriteViaOPCUA("ch1", "dev1", "point3", 1.0)
+	_ = server.WriteViaOPCUA("ch1", "dev1", "point3", 2.0)
+	_ = server.WriteViaOPCUA("ch1", "dev1", "point3", 3.0)
+
+	// Get full history
+	history := server.GetWriteHistory(0)
+	if len(history) != 3 {
+		t.Fatalf("Expected 3 history entries, got %d", len(history))
+	}
+
+	// Get limited history
+	history = server.GetWriteHistory(2)
+	if len(history) != 2 {
+		t.Fatalf("Expected 2 history entries with limit, got %d", len(history))
+	}
+
+	t.Log("GetWriteHistory test passed")
+}
+
+// TestWriteHistoryLimit tests that write history is limited in size
+func TestWriteHistoryLimit(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	defer logger.Sync()
+	zap.ReplaceGlobals(logger)
+
+	sb := NewMockSouthboundManager()
+
+	config := model.OPCUAConfig{
+		Name:        "Test OPC UA Server",
+		Port:        4853,
+		Endpoint:    "/",
+		AuthMethods: []string{"Anonymous"},
+	}
+
+	server := NewServer(config, sb)
+	err := server.Start()
+	if err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+	defer server.Stop()
+
+	time.Sleep(1 * time.Second)
+
+	// Write more than max history size
+	for i := 0; i < 1100; i++ {
+		_ = server.WriteViaOPCUA("ch1", "dev1", "point3", float64(i))
+	}
+
+	// History should be limited to 1000
+	history := server.GetWriteHistory(0)
+	if len(history) > 1000 {
+		t.Fatalf("History size %d exceeds limit 1000", len(history))
+	}
+
+	t.Logf("WriteHistoryLimit test passed, history size: %d", len(history))
+}
+
+func TestServerOpcUaTypeMetadata(t *testing.T) {
+	s := NewServer(model.OPCUAConfig{Name: "Test Server"}, NewMockSouthboundManager())
+
+	nodeID := s.getDataTypeID("bytestring")
+	wantNodeID := ua.ParseNodeID("i=15")
+	if nodeID != wantNodeID {
+		t.Fatalf("getDataTypeID(bytestring) = %v, want %v", nodeID, wantNodeID)
+	}
+
+	zeroValue, ok := s.getZeroValue("bytestring").([]byte)
+	if !ok {
+		t.Fatalf("getZeroValue(bytestring) type = %T, want []byte", s.getZeroValue("bytestring"))
+	}
+	if len(zeroValue) != 0 {
+		t.Fatalf("getZeroValue(bytestring) length = %d, want 0", len(zeroValue))
+	}
+}
+
+// TestServerStartStop tests basic server start/stop functionality
+func TestServerStartStop(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	defer logger.Sync()
+	zap.ReplaceGlobals(logger)
+
+	sb := NewMockSouthboundManager()
+
+	config := model.OPCUAConfig{
+		Name:        "Test OPC UA Server",
+		Port:        4840,
+		Endpoint:    "/",
+		AuthMethods: []string{"Anonymous"},
+	}
+
+	server := NewServer(config, sb)
+	err := server.Start()
+	if err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+
+	time.Sleep(2 * time.Second)
+	server.Stop()
+	time.Sleep(1 * time.Second)
+
+	t.Log("Server start/stop test passed")
+}
+
+// TestServerReadWrite tests reading and writing from OPC UA server
+func TestServerReadWrite(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	defer logger.Sync()
+	zap.ReplaceGlobals(logger)
+
+	sb := NewMockSouthboundManager()
+
+	config := model.OPCUAConfig{
+		Name:        "Test OPC UA Server",
+		Port:        4841,
+		Endpoint:    "/",
+		AuthMethods: []string{"Anonymous"},
+	}
+
+	server := NewServer(config, sb)
+	err := server.Start()
+	if err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+	defer server.Stop()
+
 	value := model.Value{
 		ChannelID: "ch1",
 		DeviceID:  "dev1",
@@ -209,14 +431,12 @@ func TestServerReadWrite(t *testing.T) {
 	server.Update(value)
 	t.Logf("Update method test passed: updated point1 to 25.5")
 
-	// Test write operation through SouthboundManager
 	err = sb.WritePoint("ch1", "dev1", "point3", 30.0)
 	if err != nil {
 		t.Fatalf("Failed to write through SouthboundManager: %v", err)
 	}
 	t.Logf("Write test passed: wrote 30.0 to point3")
 
-	// Verify write operation was recorded
 	history := sb.GetWriteHistory()
 	if len(history) != 1 {
 		t.Fatalf("Expected 1 write operation, got %d", len(history))
@@ -233,15 +453,12 @@ func TestServerReadWrite(t *testing.T) {
 
 // TestServerUpdate tests the Update method
 func TestServerUpdate(t *testing.T) {
-	// Setup logger
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
 
-	// Create mock southbound manager
 	sb := NewMockSouthboundManager()
 
-	// Create OPC UA config
 	config := model.OPCUAConfig{
 		Name:        "Test OPC UA Server",
 		Port:        4842,
@@ -249,7 +466,6 @@ func TestServerUpdate(t *testing.T) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	// Create and start server
 	server := NewServer(config, sb)
 	err := server.Start()
 	if err != nil {
@@ -257,7 +473,6 @@ func TestServerUpdate(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Update a value
 	value := model.Value{
 		ChannelID: "ch1",
 		DeviceID:  "dev1",
@@ -268,7 +483,6 @@ func TestServerUpdate(t *testing.T) {
 	}
 	server.Update(value)
 
-	// Verify update by checking the node map
 	nodeKey := "ch1/dev1/point1"
 	if _, exists := server.nodeMap[nodeKey]; exists {
 		t.Logf("Update test passed: point1 updated successfully")
@@ -281,15 +495,12 @@ func TestServerUpdate(t *testing.T) {
 
 // BenchmarkServerRead benchmarks reading from OPC UA server
 func BenchmarkServerRead(b *testing.B) {
-	// Setup logger
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
 
-	// Create mock southbound manager
 	sb := NewMockSouthboundManager()
 
-	// Create OPC UA config
 	config := model.OPCUAConfig{
 		Name:        "Test OPC UA Server",
 		Port:        4843,
@@ -297,7 +508,6 @@ func BenchmarkServerRead(b *testing.B) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	// Create and start server
 	server := NewServer(config, sb)
 	err := server.Start()
 	if err != nil {
@@ -305,10 +515,8 @@ func BenchmarkServerRead(b *testing.B) {
 	}
 	defer server.Stop()
 
-	// Run benchmark by simulating read operations
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		// Simulate a read operation by checking the node map
 		nodeKey := "ch1/dev1/point1"
 		if _, exists := server.nodeMap[nodeKey]; !exists {
 			b.Fatalf("Node %s not found in nodeMap", nodeKey)
@@ -319,15 +527,12 @@ func BenchmarkServerRead(b *testing.B) {
 
 // BenchmarkServerWrite benchmarks writing to OPC UA server
 func BenchmarkServerWrite(b *testing.B) {
-	// Setup logger
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
 
-	// Create mock southbound manager
 	sb := NewMockSouthboundManager()
 
-	// Create OPC UA config
 	config := model.OPCUAConfig{
 		Name:        "Test OPC UA Server",
 		Port:        4844,
@@ -335,7 +540,6 @@ func BenchmarkServerWrite(b *testing.B) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	// Create and start server
 	server := NewServer(config, sb)
 	err := server.Start()
 	if err != nil {
@@ -343,10 +547,8 @@ func BenchmarkServerWrite(b *testing.B) {
 	}
 	defer server.Stop()
 
-	// Run benchmark by testing WritePoint method
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		// Test WritePoint method directly
 		err := sb.WritePoint("ch1", "dev1", "point3", float64(i%100))
 		if err != nil {
 			b.Fatalf("Write failed: %v", err)
@@ -357,15 +559,12 @@ func BenchmarkServerWrite(b *testing.B) {
 
 // BenchmarkServerUpdate benchmarks the Update method
 func BenchmarkServerUpdate(b *testing.B) {
-	// Setup logger
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
 
-	// Create mock southbound manager
 	sb := NewMockSouthboundManager()
 
-	// Create OPC UA config
 	config := model.OPCUAConfig{
 		Name:        "Test OPC UA Server",
 		Port:        4845,
@@ -373,7 +572,6 @@ func BenchmarkServerUpdate(b *testing.B) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	// Create and start server
 	server := NewServer(config, sb)
 	err := server.Start()
 	if err != nil {
@@ -381,10 +579,8 @@ func BenchmarkServerUpdate(b *testing.B) {
 	}
 	defer server.Stop()
 
-	// Wait a bit for server to start
 	time.Sleep(2 * time.Second)
 
-	// Run benchmark
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		value := model.Value{
@@ -402,15 +598,12 @@ func BenchmarkServerUpdate(b *testing.B) {
 
 // TestServerStress tests server under stress
 func TestServerStress(t *testing.T) {
-	// Setup logger
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
 
-	// Create mock southbound manager
 	sb := NewMockSouthboundManager()
 
-	// Create OPC UA config
 	config := model.OPCUAConfig{
 		Name:        "Test OPC UA Server",
 		Port:        4846,
@@ -418,7 +611,6 @@ func TestServerStress(t *testing.T) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	// Create and start server
 	server := NewServer(config, sb)
 	err := server.Start()
 	if err != nil {
@@ -426,30 +618,24 @@ func TestServerStress(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Number of concurrent clients
 	clientCount := 10
-	// Number of operations per client
 	operationsPerClient := 100
 
 	var wg sync.WaitGroup
 	errorCh := make(chan error, clientCount)
 
-	// Start multiple goroutines to simulate clients
 	for i := 0; i < clientCount; i++ {
 		wg.Add(1)
 		go func(clientID int) {
 			defer wg.Done()
 
-			// Perform operations
 			for j := 0; j < operationsPerClient; j++ {
-				// Simulate read operation
 				nodeKey := "ch1/dev1/point1"
 				if _, exists := server.nodeMap[nodeKey]; !exists {
 					errorCh <- fmt.Errorf("client %d: node %s not found", clientID, nodeKey)
 					return
 				}
 
-				// Simulate write operation
 				err := sb.WritePoint("ch1", "dev1", "point3", float64((clientID*1000+j)%100))
 				if err != nil {
 					errorCh <- fmt.Errorf("client %d: write failed: %v", clientID, err)
@@ -461,11 +647,9 @@ func TestServerStress(t *testing.T) {
 		}(i)
 	}
 
-	// Wait for all goroutines to complete
 	wg.Wait()
 	close(errorCh)
 
-	// Check for errors
 	errors := []error{}
 	for err := range errorCh {
 		errors = append(errors, err)
@@ -475,7 +659,6 @@ func TestServerStress(t *testing.T) {
 		t.Fatalf("Stress test failed with %d errors: %v", len(errors), errors)
 	}
 
-	// Verify all write operations were recorded
 	history := sb.GetWriteHistory()
 	expectedWrites := clientCount * operationsPerClient
 	if len(history) != expectedWrites {
@@ -484,12 +667,10 @@ func TestServerStress(t *testing.T) {
 
 	t.Logf("Stress test passed: %d clients, %d operations per client, %d total operations", clientCount, operationsPerClient, expectedWrites)
 
-	// Check memory usage
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 	t.Logf("Memory usage after stress test: %f MB", float64(mem.Alloc)/1024/1024)
 
-	// Check server stats
 	stats := server.GetStats()
 	t.Logf("Server stats: %+v", stats)
 }

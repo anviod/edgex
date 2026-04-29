@@ -848,105 +848,168 @@
             :width="480"
             :mask-closable="false"
             unmount-on-close
-            modal-class="industrial-modal"
+            modal-class="write-value-modal"
             title-align="start"
             @cancel="writeDialog.visible = false"
             @ok="submitWrite"
         >
             <template #title>
-                <div class="flex flex-col">
-                    <span class="text-[10px] text-slate-400 font-mono uppercase tracking-wider mb-0.5">
-                        Write Value
-                    </span>
-                    <span class="text-base font-bold text-slate-800">
-                        写入数值
-                    </span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 16px; font-weight: 700; color: #0f172a;">写入数值</span>
+                    <span style="font-size: 11px; color: #64748b; font-family: monospace; text-transform: uppercase;">{{ getDataTypeLabel() }}</span>
                 </div>
             </template>
 
-            <a-form :model="writeDialog" layout="vertical" class="industrial-form p-2">
-                <a-row :gutter="16">
-                    <a-col :span="12">
-                        <a-form-item field="deviceID" label="设备ID">
-                            <a-input
-                                v-model="writeDialog.deviceID"
-                                placeholder="设备ID"
-                                size="small"
-                                :disabled="true"
-                                :tooltip="{ title: '设备唯一标识符', placement: 'top' }"
-                            />
-                        </a-form-item>
-                    </a-col>
-                    <a-col :span="12">
-                        <a-form-item field="pointID" label="点位ID">
-                            <a-input
-                                v-model="writeDialog.pointID"
-                                placeholder="点位ID"
-                                size="small"
-                                :disabled="true"
-                                :tooltip="{ title: '点位唯一标识符', placement: 'top' }"
-                            />
-                        </a-form-item>
-                    </a-col>
-                </a-row>
-                
-                <a-form-item field="value" label="新数值">
-                    <template v-if="isBoolType(writeDialog.dataType)">
-                        <a-radio-group v-model="writeDialog.valueBool" type="button">
-                            <a-radio value="true">TRUE</a-radio>
-                            <a-radio value="false">FALSE</a-radio>
-                        </a-radio-group>
-                    </template>
-                    <template v-else-if="isStringType(writeDialog.dataType)">
-                        <a-input
-                            v-model="writeDialog.valueStr"
-                            placeholder="请输入要写入的字符串"
-                            size="small"
-                            autofocus
-                        />
-                    </template>
-                    <template v-else>
-                        <a-input
-                            v-model.number="writeDialog.valueNum"
-                            type="number"
-                            step="0.01"
-                            placeholder="请输入要写入的数值"
-                            size="small"
-                            autofocus
-                        />
-                    </template>
-                </a-form-item>
-                
-                <!-- BACnet Priority Selection -->
-                <a-form-item v-if="channelProtocol === 'bacnet-ip'" field="priority" label="BACnet 写入优先级">
-                    <a-select
-                        v-model.number="writeDialog.priority"
-                        :options="[
-                            { label: '1 (最高)', value: 1 },
-                            { label: '8 (手动)', value: 8 },
-                            { label: '16 (最低)', value: 16 },
-                            { label: 'NULL (释放)', value: null }
-                        ]"
-                        size="small"
-                        :tooltip="{ title: '优先级 1-16, NULL 表示释放该点位', placement: 'top' }"
+            <div style="padding: 16px;">
+                <!-- 设备信息 -->
+                <div style="display: flex; gap: 16px; margin-bottom: 16px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0;">
+                    <div>
+                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase;">设备</div>
+                        <div style="font-size: 13px; font-weight: 600; font-family: monospace;">{{ writeDialog.deviceID }}</div>
+                    </div>
+                    <div style="border-left: 1px solid #cbd5e1;"></div>
+                    <div>
+                        <div style="font-size: 10px; color: #64748b; text-transform: uppercase;">点位</div>
+                        <div style="font-size: 13px; font-weight: 600; font-family: monospace;">{{ writeDialog.pointID }}</div>
+                    </div>
+                </div>
+
+                <!-- Boolean 类型 -->
+                <template v-if="isBoolType(writeDialog.dataType)">
+                    <div style="margin-bottom: 8px; font-size: 12px; color: #64748b;">BOOL 布尔值</div>
+                    <a-radio-group v-model="writeDialog.valueBool" type="button">
+                        <a-radio :value="true"><strong>TRUE</strong> 真</a-radio>
+                        <a-radio :value="false"><strong>FALSE</strong> 假</a-radio>
+                    </a-radio-group>
+                </template>
+
+                <!-- String 类型 -->
+                <template v-else-if="isStringType(writeDialog.dataType)">
+                    <div style="margin-bottom: 8px; font-size: 12px; color: #64748b;">STRING 字符串</div>
+                    <a-input
+                        v-model="writeDialog.valueStr"
+                        :placeholder="getStringInputPlaceholder()"
+                        size="large"
+                        autofocus
                     />
-                </a-form-item>
-            </a-form>
+                </template>
+
+                <!-- ByteString (二进制) 类型 -->
+                <template v-else-if="isBinaryType(writeDialog.dataType)">
+                    <div style="margin-bottom: 8px; font-size: 12px; color: #64748b;">BYTE STRING 二进制</div>
+                    <a-radio-group v-model="writeDialog.binaryEncoding" type="button" size="small">
+                        <a-radio value="hex">Hex</a-radio>
+                        <a-radio value="base64">Base64</a-radio>
+                    </a-radio-group>
+                    <a-input
+                        v-model="writeDialog.valueBinary"
+                        :placeholder="getBinaryWritePlaceholder()"
+                        size="large"
+                        style="margin-top: 8px; font-family: monospace;"
+                        autofocus
+                    />
+                    <div style="margin-top: 6px; font-size: 11px; color: #64748b;">示例: {{ getBinaryWriteHint() }}</div>
+                </template>
+
+                <!-- DateTime 类型 -->
+                <template v-else-if="isDateTimeType(writeDialog.dataType)">
+                    <div style="margin-bottom: 8px; font-size: 12px; color: #64748b;">DATETIME 日期时间</div>
+                    <a-date-picker
+                        v-model="writeDialog.valueDateTime"
+                        show-time
+                        format="YYYY-MM-DD HH:mm:ss"
+                        size="large"
+                        style="width: 100%"
+                        autofocus
+                    />
+                </template>
+
+                <!-- Guid 类型 -->
+                <template v-else-if="isGuidType(writeDialog.dataType)">
+                    <div style="margin-bottom: 8px; font-size: 12px; color: #64748b;">GUID 全局唯一标识符</div>
+                    <a-input
+                        v-model="writeDialog.valueStr"
+                        placeholder="12345678-1234-1234-1234-123456789abc"
+                        size="large"
+                        style="font-family: monospace;"
+                        autofocus
+                    />
+                </template>
+
+                <!-- StatusCode 类型 -->
+                <template v-else-if="isStatusCodeType(writeDialog.dataType)">
+                    <div style="margin-bottom: 8px; font-size: 12px; color: #64748b;">STATUS CODE 状态码</div>
+                    <a-select
+                        v-model="writeDialog.valueStatusCode"
+                        :options="statusCodeOptions"
+                        placeholder="选择状态码"
+                        size="large"
+                        allow-search
+                        style="width: 100%"
+                    />
+                </template>
+
+                <!-- QualifiedName 类型 -->
+                <template v-else-if="isQualifiedNameType(writeDialog.dataType)">
+                    <div style="margin-bottom: 8px; font-size: 12px; color: #64748b;">QUALIFIED NAME 限定名</div>
+                    <a-input
+                        v-model="writeDialog.valueStr"
+                        placeholder="命名空间:名称 (如 2:Temperature)"
+                        size="large"
+                        style="font-family: monospace;"
+                        autofocus
+                    />
+                </template>
+
+                <!-- LocalizedText 类型 -->
+                <template v-else-if="isLocalizedTextType(writeDialog.dataType)">
+                    <div style="margin-bottom: 8px; font-size: 12px; color: #64748b;">LOCALIZED TEXT 本地化文本</div>
+                    <a-input
+                        v-model="writeDialog.valueStr"
+                        placeholder="请输入文本"
+                        size="large"
+                        autofocus
+                    />
+                </template>
+
+                <!-- NodeId 类型 -->
+                <template v-else-if="isNodeIdType(writeDialog.dataType)">
+                    <div style="margin-bottom: 8px; font-size: 12px; color: #64748b;">NODE ID 节点标识符</div>
+                    <a-input
+                        v-model="writeDialog.valueStr"
+                        placeholder="ns=2;s=Node 或 i=2255"
+                        size="large"
+                        style="font-family: monospace;"
+                        autofocus
+                    />
+                </template>
+
+                <!-- 数值类型 (Int, Float, Double) -->
+                <template v-else>
+                    <div style="margin-bottom: 8px; font-size: 12px; color: #64748b;">
+                        {{ getNumericTypeInfo() || '数值' }}
+                    </div>
+                    <a-input
+                        v-model="writeDialog.valueStr"
+                        placeholder="如 3.14 或 1e-5"
+                        size="large"
+                        autofocus
+                        @keydown.enter="submitWrite"
+                    />
+                    <div style="margin-top: 6px; font-size: 11px; color: #64748b;">支持整数、小数、科学计数法</div>
+                </template>
+            </div>
 
             <template #footer>
-                <div class="flex justify-end gap-2 border-t border-slate-200 pt-3 mt-2">
-                    <a-button @click="writeDialog.visible = false" class="industrial-btn-plain">
-                        取消 (ESC)
-                    </a-button>
+                <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                    <a-button @click="writeDialog.visible = false">取消</a-button>
                     <a-button 
                         type="primary" 
                         status="warning" 
                         :loading="writeDialog.loading" 
-                        class="industrial-btn-execute" 
                         @click="submitWrite"
                     >
-                        <template #icon v-if="!writeDialog.loading"><IconSend /></template>
-                        立即下发 (ENTER)
+                        立即下发
                     </a-button>
                 </div>
             </template>
@@ -1378,6 +1441,10 @@ const writeDialog = reactive({
     valueNum: 0,
     valueStr: '',
     valueBool: false,
+    valueBinary: '',
+    binaryEncoding: 'hex',
+    valueDateTime: null,
+    valueStatusCode: 'Good',
     priority: 16, // Default priority
     loading: false
 })
@@ -1437,14 +1504,19 @@ const pointDialog = reactive({
 })
 
 const datatypeOptions = [
+    'int8',
+    'uint8',
     'int16',
     'uint16',
     'int32',
     'uint32',
+    'int64',
+    'uint64',
     'float32',
     'float64',
     'bool',
     'string',
+    'bytestring',
     'WORD',
     'DWORD',
     'LWORD'
@@ -2944,12 +3016,26 @@ const openWriteDialog = (point) => {
     writeDialog.deviceID = deviceId.value
     writeDialog.pointID = point.id
     writeDialog.dataType = (point.datatype || '').toLowerCase()
-    // 初始化不同类型的输入
+    writeDialog.binaryEncoding = 'hex'
+    writeDialog.valueBinary = ''
+    writeDialog.valueDateTime = null
+    writeDialog.valueStatusCode = 'Good'
+
     if (isBoolType(writeDialog.dataType)) {
         writeDialog.valueBool = false
-    } else if (isStringType(writeDialog.dataType)) {
+    } else if (isStringType(writeDialog.dataType) || isGuidType(writeDialog.dataType)
+             || isQualifiedNameType(writeDialog.dataType) || isLocalizedTextType(writeDialog.dataType)
+             || isNodeIdType(writeDialog.dataType)) {
         writeDialog.valueStr = ''
+    } else if (isBinaryType(writeDialog.dataType)) {
+        writeDialog.valueBinary = ''
+    } else if (isDateTimeType(writeDialog.dataType)) {
+        writeDialog.valueDateTime = new Date()
+    } else if (isStatusCodeType(writeDialog.dataType)) {
+        writeDialog.valueStatusCode = 'Good'
     } else {
+        // 数值类型 (Int, Float, Double) 使用 valueStr 存储以支持科学计数法
+        writeDialog.valueStr = ''
         writeDialog.valueNum = 0
     }
     writeDialog.visible = true
@@ -2963,8 +3049,7 @@ const submitWrite = async () => {
 
     try {
         const payloadValue = normalizeWriteValue()
-        
-        // Handle BACnet Priority
+
         let finalValue = payloadValue
         if (channelProtocol.value === 'bacnet-ip') {
             finalValue = {
@@ -2979,22 +3064,22 @@ const submitWrite = async () => {
             point_id: writeDialog.pointID,
             value: finalValue
         })
-        
-        closeLoading.close() // 关闭加载状态
+
+        closeLoading.close()
 
         Message.success({
             content: `成功：点位 [${writeDialog.pointID}] 已更新`,
             duration: 2000,
             closable: true
         })
-        
+
         writeDialog.visible = false
-        fetchPoints() // 刷新列表
+        fetchPoints()
     } catch (e) {
         closeLoading.close()
         Message.error({
             content: `错误：${e.message}`,
-            duration: 5000, // 错误信息停留更久
+            duration: 5000,
             closable: true
         })
     } finally {
@@ -3029,29 +3114,182 @@ const getProtocolTransport = (p) => {
     return 'TCP/IP'
 }
 
-const isBoolType = (dt) => ['bool', 'boolean', 'bit'].includes((dt || '').toLowerCase())
-const isStringType = (dt) => ['string'].includes((dt || '').toLowerCase())
-const isFloatType = (dt) => ['float', 'float32', 'float64', 'double'].includes((dt || '').toLowerCase())
-const isIntType = (dt) => ['int8','int16','int32','int64','uint8','uint16','uint32','uint64','word','dword','lword','int','uint'].includes((dt || '').toLowerCase())
+// OPC-UA 数据类型判断
+const isBoolType = (dt) => ['bool', 'boolean', 'bit', 'i=1'].includes((dt || '').toLowerCase())
+const isStringType = (dt) => ['string', 'i=12', 'xmlliteral', 'i=16'].includes((dt || '').toLowerCase())
+const isBinaryType = (dt) => ['bytestring', 'i=15', 'extensionobject', 'i=22'].includes((dt || '').toLowerCase())
+const isFloatType = (dt) => {
+    const lowerDt = (dt || '').toLowerCase()
+    // 直接匹配
+    if (['float', 'float32', 'float64', 'double', 'i=10', 'i=11'].includes(lowerDt)) {
+        return true
+    }
+    // 支持带命名空间前缀的 OPC-UA 类型格式 (ns=X;i=10)
+    if (/ns=\d+;i=10/.test(dt) || /ns=\d+;i=11/.test(dt)) {
+        return true
+    }
+    return false
+}
+const isIntType = (dt) => ['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64',
+    'sbyte', 'byte', 'i=2', 'i=3', 'i=4', 'i=5', 'i=6', 'i=7', 'i=8', 'i=9',
+    'word', 'dword', 'lword', 'int', 'uint'].includes((dt || '').toLowerCase())
+
+// OPC-UA 扩展类型判断
+const isDateTimeType = (dt) => ['datetime', 'i=13', 'date'].includes((dt || '').toLowerCase())
+const isGuidType = (dt) => ['guid', 'i=14'].includes((dt || '').toLowerCase())
+const isNodeIdType = (dt) => ['nodeid', 'i=17'].includes((dt || '').toLowerCase())
+const isStatusCodeType = (dt) => ['statuscode', 'i=19'].includes((dt || '').toLowerCase())
+const isQualifiedNameType = (dt) => ['qualifiedname', 'i=20'].includes((dt || '').toLowerCase())
+const isLocalizedTextType = (dt) => ['localizedtext', 'i=21'].includes((dt || '').toLowerCase())
+
+// OPC-UA 状态码选项
+const statusCodeOptions = [
+    { label: 'Good (成功)', value: 'Good' },
+    { label: 'Bad (失败)', value: 'Bad' },
+    { label: 'Uncertain (不确定)', value: 'Uncertain' },
+    { label: 'GoodClamped (被限制)', value: 'GoodClamped' },
+    { label: 'GoodLocalOverride (本地覆盖)', value: 'GoodLocalOverride' },
+    { label: 'BadNoCommunication (无通信)', value: 'BadNoCommunication' },
+    { label: 'BadNotConnected (未连接)', value: 'BadNotConnected' },
+    { label: 'BadTimeout (超时)', value: 'BadTimeout' },
+]
+
+const getBinaryWritePlaceholder = () => {
+    return writeDialog.binaryEncoding === 'base64'
+        ? '请输入 Base64，例如 MTIz'
+        : '请输入 Hex，例如 0x313233'
+}
+
+const getBinaryWriteHint = () => {
+    return writeDialog.binaryEncoding === 'base64'
+        ? '示例: MTIz'
+        : '示例: 0x313233'
+}
+
+// 获取数据类型标签
+const getDataTypeLabel = () => {
+    const dt = (writeDialog.dataType || '').toLowerCase()
+    const typeLabels = {
+        'bool': 'Boolean', 'boolean': 'Boolean', 'bit': 'Boolean', 'i=1': 'Boolean (i=1)',
+        'string': 'String', 'i=12': 'String (i=12)', 'xmlliteral': 'XMLLiteral', 'i=16': 'String (i=16)',
+        'bytestring': 'ByteString', 'i=15': 'ByteString (i=15)', 'extensionobject': 'ExtensionObject', 'i=22': 'ExtensionObject',
+        'datetime': 'DateTime', 'i=13': 'DateTime (i=13)', 'date': 'Date',
+        'guid': 'Guid', 'i=14': 'Guid (i=14)',
+        'float': 'Float', 'float32': 'Float32', 'i=10': 'Float (i=10)',
+        'float64': 'Float64', 'double': 'Double', 'i=11': 'Double (i=11)',
+        'int8': 'Int8', 'int16': 'Int16', 'int32': 'Int32', 'int64': 'Int64',
+        'uint8': 'UInt8', 'uint16': 'UInt16', 'uint32': 'UInt32', 'uint64': 'UInt64',
+        'sbyte': 'SByte', 'byte': 'Byte', 'i=2': 'SByte (i=2)', 'i=3': 'Byte (i=3)',
+        'i=4': 'Int16 (i=4)', 'i=5': 'UInt16 (i=5)', 'i=6': 'Int32 (i=6)', 'i=7': 'UInt32 (i=7)',
+        'i=8': 'Int64 (i=8)', 'i=9': 'UInt64 (i=9)',
+        'word': 'Word', 'dword': 'DWord', 'lword': 'LWord',
+        'int': 'Int', 'uint': 'UInt',
+        'nodeid': 'NodeId', 'i=17': 'NodeId (i=17)',
+        'statuscode': 'StatusCode', 'i=19': 'StatusCode (i=19)',
+        'qualifiedname': 'QualifiedName', 'i=20': 'QualifiedName (i=20)',
+        'localizedtext': 'LocalizedText', 'i=21': 'LocalizedText (i=21)'
+    }
+    return typeLabels[dt] || dt || 'Unknown'
+}
+
+// 获取字符串输入提示
+const getStringInputPlaceholder = () => {
+    const dt = (writeDialog.dataType || '').toLowerCase()
+    if (isQualifiedNameType(dt)) return '命名空间:名称 (如 2:Temperature)'
+    if (isLocalizedTextType(dt)) return '请输入文本'
+    return '请输入字符串'
+}
+
+// 获取数值类型信息
+const getNumericTypeInfo = () => {
+    const dt = (writeDialog.dataType || '').toLowerCase()
+    if (isFloatType(dt)) {
+        if (dt === 'float' || dt === 'float32' || dt === 'i=10') return 'FLOAT32 (32位单精度)'
+        if (dt === 'float64' || dt === 'double' || dt === 'i=11') return 'FLOAT64 (64位双精度)'
+    }
+    if (isIntType(dt)) {
+        if (['int8', 'uint8', 'byte', 'sbyte'].includes(dt) || /i=[2-3]/.test(dt)) return 'INT8/UINT8 (8位整数)'
+        if (['int16', 'uint16', 'word'].includes(dt) || dt === 'i=4' || dt === 'i=5') return 'INT16/UINT16 (16位整数)'
+        if (['int32', 'uint32', 'dword'].includes(dt) || dt === 'i=6' || dt === 'i=7') return 'INT32/UINT32 (32位整数)'
+        if (['int64', 'uint64', 'lword'].includes(dt) || dt === 'i=8' || dt === 'i=9') return 'INT64/UINT64 (64位整数)'
+    }
+    return ''
+}
 
 const normalizeWriteValue = () => {
     const dt = (writeDialog.dataType || '').toLowerCase()
+
+    // Boolean 类型
     if (isBoolType(dt)) {
         return writeDialog.valueBool
     }
+
+    // String 类型
     if (isStringType(dt)) {
         return writeDialog.valueStr
     }
+
+    // ByteString (二进制) 类型
+    if (isBinaryType(dt)) {
+        return {
+            value: writeDialog.valueBinary,
+            encoding: writeDialog.binaryEncoding
+        }
+    }
+
+    // DateTime 类型
+    if (isDateTimeType(dt)) {
+        if (writeDialog.valueDateTime) {
+            return writeDialog.valueDateTime.toISOString()
+        }
+        return new Date().toISOString()
+    }
+
+    // Guid 类型
+    if (isGuidType(dt)) {
+        return writeDialog.valueStr
+    }
+
+    // StatusCode 类型
+    if (isStatusCodeType(dt)) {
+        return writeDialog.valueStatusCode
+    }
+
+    // QualifiedName 类型
+    if (isQualifiedNameType(dt)) {
+        return writeDialog.valueStr
+    }
+
+    // LocalizedText 类型
+    if (isLocalizedTextType(dt)) {
+        return writeDialog.valueStr
+    }
+
+    // NodeId 类型
+    if (isNodeIdType(dt)) {
+        return writeDialog.valueStr
+    }
+
+    // Float/Double 类型 - 支持字符串形式的数值输入
     if (isFloatType(dt)) {
-        const n = Number(writeDialog.valueNum)
-        return isNaN(n) ? 0 : n
+        const inputVal = writeDialog.valueStr !== undefined ? writeDialog.valueStr : writeDialog.valueNum
+        const n = parseFloat(inputVal)
+        if (!isNaN(n) && isFinite(n)) {
+            return n
+        }
+        // 如果输入为空或无效，返回 0
+        return 0
     }
+
+    // Integer 类型 (Int8, Int16, Int32, Int64, UInt8, UInt16, UInt32, UInt64)
     if (isIntType(dt)) {
-        const n = parseInt(writeDialog.valueNum)
+        const inputVal = writeDialog.valueStr !== undefined ? writeDialog.valueStr : writeDialog.valueNum
+        const n = parseInt(inputVal)
         return isNaN(n) ? 0 : n
     }
-    // Fallback: 原样字符串
-    return writeDialog.valueStr || writeDialog.valueNum
+
+    // 默认返回字符串或数值
+    return writeDialog.valueStr || (writeDialog.valueNum !== undefined ? writeDialog.valueNum : 0)
 }
 </script>
 

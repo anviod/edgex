@@ -91,46 +91,107 @@
         </div>
       </div>
 
-      <!-- 表格区域 -->
-      <div class="table-wrapper">
+      <!-- 表格区域 - 改为左右分栏 -->
+      <div v-if="flatNodes.length > 0 || !loading" class="table-wrapper">
         <a-spin :loading="loading" class="w-full">
-          <a-table
-            v-if="results.length > 0"
-            :columns="columns"
-            :data="filteredResults"
-            size="small"
-            :bordered="{ cell: true, wrapper: true }"
-            :pagination="false"
-            :scroll="{ y: 500 }"
-            row-key="node_id"
-            class="industrial-table"
-          >
-
-            
-            <template #selection="{ record }">
-              <div class="row-checkbox-wrapper">
-                <a-checkbox 
-                  :model-value="selected.includes(record.node_id)"
-                  @change="(checked) => onRowCheck(checked, record)"
-                  :disabled="record.diff_status === 'existing'"
-                  class="industrial-checkbox"
+          <div v-if="flatNodes.length > 0" class="split-view">
+            <!-- 左侧：地址空间树 -->
+            <div class="tree-panel">
+              <div class="panel-header">
+                <span class="panel-title">地址空间</span>
+                <span class="panel-count">{{ treeNodeCount }} 个节点</span>
+              </div>
+              <div class="tree-content">
+                <a-tree
+                  v-if="treeData.length > 0"
+                  :data="treeData"
+                  :default-expand-all="true"
+                  :selected-keys="[activeBranchKey]"
+                  :show-line="true"
+                  block-node
+                  @select="onTreeSelect"
+                  class="opc-tree"
                 />
+                <div v-else class="empty-tree">
+                  暂无树数据
+                </div>
               </div>
-            </template>
-            
-            <template #status="{ record }">
-              <div class="status-cell">
-                <span :class="['status-dot', record.diff_status === 'new' ? 'dot-new' : 'dot-existing']" :title="record.diff_status === 'new' ? '新增' : '存量'"></span>
-              </div>
-            </template>
+            </div>
 
-            <template #name="{ record }">
-              <div class="node-name-cell" :style="{ paddingLeft: `${record.level * 20}px` }">
-                <span class="node-icon">{{ record.type === 'Folder' ? '📁' : '◇' }}</span>
-                <span class="node-name font-mono">{{ record.display_name }}</span>
+            <!-- 右侧：点位列表 -->
+            <div class="list-panel">
+              <!-- 列表工具栏 -->
+              <div class="list-toolbar">
+                <div class="list-toolbar-left">
+                  <span class="panel-title">点位列表</span>
+                  <span class="panel-count">{{ filteredResults.length }} 个点位</span>
+                </div>
+                <div class="list-toolbar-right">
+                  <a-button 
+                    size="mini" 
+                    @click="selectAll"
+                    :disabled="selectableAllNodes.length === 0"
+                    class="mini-btn"
+                  >
+                    全部
+                  </a-button>
+                  <a-button
+                    size="mini"
+                    @click="clearSelection"
+                    :disabled="selected.length === 0"
+                    class="mini-btn"
+                  >
+                    清空选择
+                  </a-button>
+                  <a-button
+                    size="mini"
+                    type="primary"
+                    @click="selectCurrentLevel"
+                    :disabled="selectableBranchNodes.length === 0"
+                    class="mini-btn primary"
+                  >
+                    选择当前层级点位 ({{ getCurrentLevelSelectableCount() }})
+                  </a-button>
+                </div>
               </div>
-            </template>
-          </a-table>
+
+              <!-- 表格 -->
+              <a-table
+                :columns="columns"
+                :data="filteredResults"
+                size="small"
+                :bordered="{ cell: true, wrapper: true }"
+                :pagination="{ pageSize: 20, showPageSize: true, pageSizeOptions: [10, 20, 50, 100] }"
+                :scroll="{ y: 400 }"
+                row-key="node_id"
+                class="industrial-table"
+              >
+                <template #selection="{ record }">
+                  <div class="row-checkbox-wrapper">
+                    <a-checkbox 
+                      :model-value="selected.includes(record.node_id)"
+                      @change="(checked) => onRowCheck(checked, record)"
+                      :disabled="!isSelectableNode(record)"
+                      class="industrial-checkbox"
+                    />
+                  </div>
+                </template>
+                
+                <template #status="{ record }">
+                  <div class="status-cell">
+                    <span :class="['status-dot', record.diff_status === 'new' ? 'dot-new' : 'dot-existing']" :title="record.diff_status === 'new' ? '新增' : '存量'"></span>
+                  </div>
+                </template>
+
+                <template #name="{ record }">
+                  <div class="node-name-cell">
+                    <span class="node-icon">{{ record.type === 'Folder' ? '📁' : '◇' }}</span>
+                    <span class="node-name font-mono">{{ record.display_name }}</span>
+                  </div>
+                </template>
+              </a-table>
+            </div>
+          </div>
           
           <div v-else-if="!loading" class="empty-placeholder">
             <IconSearch size="28" class="empty-icon" />
@@ -171,6 +232,8 @@ import { ref, reactive, computed, watch, h, resolveComponent } from 'vue'
 import { IconScan, IconSearch } from '@arco-design/web-vue/es/icon'
 import request from '@/utils/request'
 
+const ROOT_KEY = '__root__'
+
 const props = defineProps({
   visible: {
     type: Boolean,
@@ -198,8 +261,9 @@ const emit = defineEmits(['update:visible', 'cancel', 'points-added'])
 
 const loading = ref(false)
 const adding = ref(false)
-const results = ref([])
-// 选中的节点（存储 node_id 数组）
+const rawTree = ref([])
+const flatNodes = ref([])
+const activeBranchKey = ref(ROOT_KEY)
 const selected = ref([])
 const localVisible = ref(props.visible)
 
@@ -232,7 +296,7 @@ const columns = [
           modelValue: isAllSelected.value,
           indeterminate: isIndeterminate.value,
           onChange: onToggleAll,
-          disabled: selectableNodes.value.length === 0,
+          disabled: selectableBranchNodes.value.length === 0,
           class: 'industrial-checkbox'
         })
       ])
@@ -286,67 +350,189 @@ const existingAddresses = computed(() => {
   return set
 })
 
-const filteredResults = computed(() => {
-  let list = results.value || []
-  
+const normalizeOpcNodes = (nodes, parentId = null, pathIds = [], level = 0) => {
+  let normalized = []
+
+  for (const node of nodes || []) {
+    const nodeId = node.node_id
+    const currentPathIds = nodeId ? [...pathIds, nodeId] : [...pathIds]
+    const normalizedNode = {
+      ...node,
+      node_id: nodeId,
+      display_name: node.display_name || node.name || nodeId || '-',
+      type: node.type || 'Unknown',
+      data_type: node.data_type || '',
+      access_level: node.access_level || '',
+      diff_status: nodeId && existingAddresses.value.has(nodeId) ? 'existing' : 'new',
+      level,
+      parent_id: parentId,
+      path_ids: currentPathIds,
+      has_children: Array.isArray(node.children) && node.children.length > 0
+    }
+
+    normalized.push(normalizedNode)
+
+    if (normalizedNode.has_children) {
+      normalized = normalized.concat(
+        normalizeOpcNodes(node.children, nodeId, currentPathIds, level + 1)
+      )
+    }
+  }
+
+  return normalized
+}
+
+const applyFilters = (nodes) => {
+  let list = nodes || []
+
   if (filters.varsOnly) {
-    list = list.filter(r => r.type === 'Variable')
+    list = list.filter(node => node.type === 'Variable')
   }
-  
+
   if (filters.diffStatus !== 'all') {
-    list = list.filter(r => r.diff_status === filters.diffStatus)
+    list = list.filter(node => node.diff_status === filters.diffStatus)
   }
-  
+
   if (filters.keyword) {
-    const s = filters.keyword.trim().toLowerCase()
-    list = list.filter(r =>
-      (r.node_id && r.node_id.toLowerCase().includes(s)) ||
-      (r.display_name && r.display_name.toLowerCase().includes(s))
+    const keyword = filters.keyword.trim().toLowerCase()
+    list = list.filter(node =>
+      (node.node_id && node.node_id.toLowerCase().includes(keyword)) ||
+      (node.display_name && node.display_name.toLowerCase().includes(keyword))
     )
   }
-  
+
   return list
+}
+
+const branchNodes = computed(() => {
+  if (activeBranchKey.value === ROOT_KEY) {
+    return flatNodes.value
+  }
+
+  return flatNodes.value.filter(node => node.path_ids.includes(activeBranchKey.value))
 })
 
-// 获取可选择的节点（仅新增节点）
-const selectableNodes = computed(() => {
-  return filteredResults.value.filter(r => r.diff_status !== 'existing')
+const filteredResults = computed(() => applyFilters(branchNodes.value))
+const allFilteredNodes = computed(() => applyFilters(flatNodes.value))
+
+const isSelectableNode = (node) => {
+  return node.type === 'Variable' && node.diff_status !== 'existing'
+}
+
+const selectableBranchNodes = computed(() => {
+  return filteredResults.value.filter(isSelectableNode)
 })
 
-// 是否全选
+const selectableAllNodes = computed(() => {
+  return allFilteredNodes.value.filter(isSelectableNode)
+})
+
+const treeVariableCountMap = computed(() => {
+  const map = new Map([[ROOT_KEY, 0]])
+
+  for (const node of flatNodes.value) {
+    if (node.type !== 'Variable') continue
+
+    map.set(ROOT_KEY, (map.get(ROOT_KEY) || 0) + 1)
+
+    for (const pathId of node.path_ids) {
+      map.set(pathId, (map.get(pathId) || 0) + 1)
+    }
+  }
+
+  return map
+})
+
+const treeData = computed(() => {
+  const mapTreeNodes = (nodes) => {
+    return (nodes || []).flatMap(node => {
+      const nodeId = node.node_id
+      const type = node.type || 'Unknown'
+      const children = mapTreeNodes(node.children || [])
+
+      if (!nodeId || type === 'Variable') {
+        return children
+      }
+
+      const displayName = node.display_name || node.name || nodeId
+      const variableCount = treeVariableCountMap.value.get(nodeId) || 0
+
+      return [{
+        key: nodeId,
+        node_id: nodeId,
+        title: variableCount > 0 ? `${displayName} (${variableCount})` : displayName,
+        display_name: displayName,
+        type,
+        variable_count: variableCount,
+        children: children.length > 0 ? children : undefined
+      }]
+    })
+  }
+
+  const rootVariableCount = treeVariableCountMap.value.get(ROOT_KEY) || 0
+
+  return [{
+    key: ROOT_KEY,
+    node_id: ROOT_KEY,
+    title: rootVariableCount > 0 ? `全部地址空间 (${rootVariableCount})` : '全部地址空间',
+    display_name: '全部地址空间',
+    type: 'Root',
+    variable_count: rootVariableCount,
+    children: mapTreeNodes(rawTree.value)
+  }]
+})
+
+const treeNodeCount = computed(() => {
+  const countNodes = (nodes) => {
+    let count = 0
+
+    for (const node of nodes || []) {
+      if (node.type !== 'Root') {
+        count++
+      }
+
+      if (node.children && node.children.length > 0) {
+        count += countNodes(node.children)
+      }
+    }
+
+    return count
+  }
+
+  return countNodes(treeData.value)
+})
+
+const getNodeVariableCount = (node) => {
+  return treeVariableCountMap.value.get(node.node_id || node.key) || 0
+}
+
+const getCurrentLevelSelectableCount = () => {
+  return selectableBranchNodes.value.length
+}
+
 const isAllSelected = computed(() => {
-  const selectable = selectableNodes.value.map(n => n.node_id)
-  return (
-    selectable.length > 0 &&
-    selectable.every(id => selected.value.includes(id))
-  )
+  const selectableIds = selectableBranchNodes.value.map(node => node.node_id)
+  return selectableIds.length > 0 && selectableIds.every(id => selected.value.includes(id))
 })
 
-// 半选状态（关键）
 const isIndeterminate = computed(() => {
-  const selectable = selectableNodes.value.map(n => n.node_id)
-  const selectedCount = selected.value.filter(id =>
-    selectable.includes(id)
-  ).length
+  const selectableIds = selectableBranchNodes.value.map(node => node.node_id)
+  const selectedCount = selected.value.filter(id => selectableIds.includes(id)).length
 
-  return selectedCount > 0 && selectedCount < selectable.length
+  return selectedCount > 0 && selectedCount < selectableIds.length
 })
 
-// 点击表头切换逻辑（核心）
 const onToggleAll = () => {
-  const selectable = selectableNodes.value.map(n => n.node_id)
+  const selectableIds = selectableBranchNodes.value.map(node => node.node_id)
 
   if (isAllSelected.value) {
-    // 👉 当前是全选 → 取消
-    selected.value = selected.value.filter(
-      id => !selectable.includes(id)
-    )
-  } else {
-    // 👉 当前不是全选 → 全选
-    const set = new Set(selected.value)
-    selectable.forEach(id => set.add(id))
-    selected.value = Array.from(set)
+    selected.value = selected.value.filter(id => !selectableIds.includes(id))
+    return
   }
+
+  const nextSelected = new Set(selected.value)
+  selectableIds.forEach(id => nextSelected.add(id))
+  selected.value = Array.from(nextSelected)
 }
 
 const onCancel = () => {
@@ -358,8 +544,10 @@ const onCancel = () => {
 const resetState = () => {
   loading.value = false
   adding.value = false
-  results.value = []
+  rawTree.value = []
+  flatNodes.value = []
   selected.value = []
+  activeBranchKey.value = ROOT_KEY
 }
 
 const startScan = async () => {
@@ -369,26 +557,32 @@ const startScan = async () => {
   }
 
   loading.value = true
-  results.value = []
+  rawTree.value = []
+  flatNodes.value = []
   selected.value = []
+  activeBranchKey.value = ROOT_KEY
 
   try {
     const payload = { mode: 'fast' }
     const res = await request.post(
       `/api/channels/${props.channelId}/devices/${props.deviceId}/scan`,
       payload,
-      { timeout: 180000 } // 增加到3分钟
+      { timeout: 180000 }
     )
 
-    if (Array.isArray(res)) {
-      if (res.length === 0) {
-        emit('info', '扫描结果为空')
-      } else {
-        results.value = flattenOpcNodes(res)
-      }
-    } else {
+    if (!Array.isArray(res)) {
       emit('error', '扫描结果格式错误')
+      return
     }
+
+    if (res.length === 0) {
+      emit('info', '扫描结果为空')
+      return
+    }
+
+    rawTree.value = res
+    flatNodes.value = normalizeOpcNodes(res)
+    activeBranchKey.value = ROOT_KEY
   } catch (e) {
     emit('error', '扫描失败: ' + e.message)
   } finally {
@@ -396,74 +590,110 @@ const startScan = async () => {
   }
 }
 
-const flattenOpcNodes = (nodes, level = 0) => {
-  let result = []
-  for (const node of nodes) {
-    const item = {
-      ...node,
-      level: level,
-      display_name: node.name || node.node_id,
-      type: node.type || 'Unknown',
-      data_type: node.data_type || '',
-      access_level: node.access_level || ''
-    }
-
-    if (node.node_id) {
-      item.diff_status = existingAddresses.value.has(node.node_id) ? 'existing' : 'new'
-    }
-
-    result.push(item)
-
-    if (node.children && node.children.length > 0) {
-      result = result.concat(flattenOpcNodes(node.children, level + 1))
-    }
-  }
-  return result
+const onTreeSelect = (selectedKeys) => {
+  activeBranchKey.value = selectedKeys[0] || ROOT_KEY
 }
 
-// 行 checkbox 点击事件
+const selectCurrentLevel = () => {
+  const nextSelected = new Set(selected.value)
+  selectableBranchNodes.value.forEach(node => nextSelected.add(node.node_id))
+  selected.value = Array.from(nextSelected)
+}
+
+const selectAll = () => {
+  const nextSelected = new Set(selected.value)
+  selectableAllNodes.value.forEach(node => nextSelected.add(node.node_id))
+  selected.value = Array.from(nextSelected)
+}
+
+const clearSelection = () => {
+  selected.value = []
+}
+
 const onRowCheck = (checked, record) => {
+  if (!isSelectableNode(record)) {
+    return
+  }
+
   const id = record.node_id
-  if (!id) return
+  if (!id) {
+    return
+  }
 
   if (checked) {
     if (!selected.value.includes(id)) {
       selected.value.push(id)
     }
-  } else {
-    selected.value = selected.value.filter(i => i !== id)
+    return
   }
+
+  selected.value = selected.value.filter(selectedId => selectedId !== id)
+}
+
+const getOpcUaReadWrite = (accessLevel) => {
+  const normalized = String(accessLevel || '').toLowerCase()
+  const canRead = normalized.includes('currentread')
+  const canWrite = normalized.includes('currentwrite')
+
+  if (canRead && canWrite) return 'RW'
+  if (canWrite) return 'W'
+  return 'R'
+}
+
+const normalizeOpcUaDataType = (dataType) => {
+  const normalized = String(dataType || '').trim().toLowerCase()
+
+  const mapping = {
+    'bool': 'bool',
+    'boolean': 'bool',
+    'byte': 'uint8',
+    'uint8': 'uint8',
+    'sbyte': 'int8',
+    'int8': 'int8',
+    'int16': 'int16',
+    'short': 'int16',
+    'uint16': 'uint16',
+    'unsignedshort': 'uint16',
+    'int32': 'int32',
+    'int': 'int32',
+    'uint32': 'uint32',
+    'unsignedint': 'uint32',
+    'int64': 'int64',
+    'long': 'int64',
+    'uint64': 'uint64',
+    'unsignedlong': 'uint64',
+    'float': 'float32',
+    'float32': 'float32',
+    'double': 'float64',
+    'float64': 'float64',
+    'string': 'string',
+    'bytestring': 'bytestring'
+  }
+
+  return mapping[normalized] || ''
 }
 
 const addSelected = async () => {
   if (selected.value.length === 0) return
 
-  const selectedObjs = results.value.filter(r =>
-    selected.value.includes(r.node_id)
-  )
+  const selectedObjs = flatNodes.value.filter(node => {
+    return selected.value.includes(node.node_id) && isSelectableNode(node)
+  })
 
   adding.value = true
   let successCount = 0
   let failCount = 0
 
   for (const obj of selectedObjs) {
-    if (obj.type !== 'Variable') continue
-
     try {
-      let rw = obj.access_level && obj.access_level.includes('CurrentWrite') ? 'RW' : 'R'
-      let dt = (obj.data_type || 'Float').toLowerCase()
-      
-      const dataTypeMap = {
-        'bool': 'bool', 'boolean': 'bool',
-        'int16': 'int16', 'short': 'int16',
-        'uint16': 'uint16', 'unsignedshort': 'uint16',
-        'int32': 'int32', 'int': 'int32',
-        'uint32': 'uint32', 'unsignedint': 'uint32',
-        'float': 'float32', 'double': 'float64',
-        'string': 'string'
+      const rw = getOpcUaReadWrite(obj.access_level)
+      const dt = normalizeOpcUaDataType(obj.data_type)
+
+      if (!dt) {
+        failCount++
+        console.warn(`Unsupported OPC UA datatype for quick import: ${obj.data_type}`, obj)
+        continue
       }
-      
-      dt = dataTypeMap[dt] || 'float32'
 
       const pointPayload = {
         id: obj.node_id,
@@ -697,12 +927,13 @@ const addSelected = async () => {
   background: #dee2e6;
 }
 
-/* 表格样式 */
+/* 表格样式 - 改为分栏布局 */
 .table-wrapper {
   border: 1px solid #e9ecef;
   background: #ffffff;
   display: flex;
   flex-direction: column;
+  min-height: 450px;
 }
 
 .table-wrapper .arco-spin {
@@ -715,6 +946,155 @@ const addSelected = async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
+}
+
+/* 左右分栏布局 */
+.split-view {
+  display: flex;
+  height: 480px;
+}
+
+/* 左侧树形面板 */
+.tree-panel {
+  width: 280px;
+  border-right: 1px solid #e9ecef;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #fafbfc;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.panel-count {
+  font-size: 11px;
+  color: #868e96;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.tree-content {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 0;
+}
+
+.opc-tree :deep(.arco-tree-node) {
+  padding: 2px 0;
+}
+
+.opc-tree :deep(.arco-tree-node-title) {
+  padding: 4px 8px;
+  border-radius: 0;
+}
+
+.opc-tree :deep(.arco-tree-node-title:hover) {
+  background: #f8f9fa;
+}
+
+.opc-tree :deep(.arco-tree-node-selected .arco-tree-node-title) {
+  background: #e9ecef;
+}
+
+.tree-node-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.tree-node-icon {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.tree-node-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #212529;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.tree-node-badge {
+  background: #495057;
+  color: #fff;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.empty-tree {
+  padding: 24px;
+  text-align: center;
+  color: #adb5bd;
+  font-size: 12px;
+}
+
+/* 右侧列表面板 */
+.list-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #fafbfc;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.list-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.list-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mini-btn {
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 0;
+  border-color: #dee2e6;
+  color: #495057;
+}
+
+.mini-btn:hover:not(:disabled) {
+  border-color: #adb5bd;
+  color: #212529;
+}
+
+.mini-btn.primary {
+  background: #495057 !important;
+  border-color: #495057;
+  color: #fff;
+}
+
+.mini-btn.primary:hover:not(:disabled) {
+  background: #343a40 !important;
+  border-color: #343a40;
 }
 
 .industrial-table :deep(.arco-table-th) {
@@ -818,7 +1198,8 @@ const addSelected = async () => {
 
 /* 空状态 */
 .empty-placeholder {
-  height: 360px;
+  flex: 1;
+  min-height: 360px;
   display: flex;
   flex-direction: column;
   justify-content: center;

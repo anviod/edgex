@@ -85,6 +85,28 @@ points:
       scale: 1
       threshold: null
       unit: ""
+    - address: ns=3;i=1011
+      datatype: bytestring
+      group: ""
+      id: ns=3;i=1011
+      name: t1011
+      offset: 0
+      readwrite: RW
+      report_mode: ""
+      scale: 1
+      threshold: null
+      unit: ""
+    - address: ns=3;i=1012
+      datatype: float32
+      group: ""
+      id: ns=3;i=1012
+      name: t1012
+      offset: 0
+      readwrite: RW
+      report_mode: ""
+      scale: 1
+      threshold: null
+      unit: ""
 storage:
     enable: false
     interval: 1
