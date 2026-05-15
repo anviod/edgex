@@ -74,15 +74,15 @@ description: EdgeX 项目的完整文档
           <ul style="color: #b8c5d6; font-size: 14px; line-height: 1.8; list-style-type: none; padding-left: 0;">
             <li style="padding-left: 20px; position: relative;">
               <span style="position: absolute; left: 0; color: #00d4ff;">•</span>
-              <strong style="color: #ffffff;">Go</strong> + <a href="https://github.com/anviod/logix" target="_blank" style="color: #00d4ff;">logix</a> 库
+              <strong style="color: #ffffff;">Go</strong> + <a href="https://github.com/anviod/logix" target="_blank" style="color: #00d4ff;">logix</a> 库(原gologix库 (备选))
             </li>
             <li style="padding-left: 20px; position: relative;">
               <span style="position: absolute; left: 0; color: #00d4ff;">•</span>
-              Vue 3 + Arco Design (前端)
+              EtherNet/IP协议规范
             </li>
             <li style="padding-left: 20px; position: relative;">
               <span style="position: absolute; left: 0; color: #00d4ff;">•</span>
-              TCP/IP 通信协议
+              TCP/IP 通信协议 CIP协议规范
             </li>
           </ul>
         </div>
