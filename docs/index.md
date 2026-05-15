@@ -187,6 +187,119 @@ description: EdgeX 项目的完整文档
   <div class="shell shell--wide">
     <div class="section-heading">
       <div>
+        <div class="section-kicker">完成的核心文档</div>
+        <h2>智能采集优化系列</h2>
+        <p>涵盖智能画像、影子设备、RTT/MTU/Gap 管理器等核心组件的设计与实现文档。</p>
+      </div>
+    </div>
+
+    <div class="cards-grid cards-grid--two">
+      <article class="feature-card">
+        <span class="feature-card__tag">架构</span>
+        <h3>项目现状分析</h3>
+        <p>项目整体现状分析，为后续优化提供基础参考。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="architecture/1. 项目现状分析.html">查看文档</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">设计</span>
+        <h3>智能画像方案</h3>
+        <p>设备智能画像方案设计，支持自适应采集参数学习。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="architecture/2. 智能画像方案设计.html">设计文档</a>
+          <a class="mini-link" href="architecture/2. 智能画像方案设计_测试文档.html">测试文档</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">设计</span>
+        <h3>核心结构体定义</h3>
+        <p>定义系统核心数据结构和接口规范。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="architecture/3. 核心结构体定义.html">设计文档</a>
+          <a class="mini-link" href="architecture/3. 核心结构体定义_测试文档.html">测试文档</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">设计</span>
+        <h3>核心设计</h3>
+        <p>系统核心功能模块的详细设计文档。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="architecture/4. 核心设计.html">设计文档</a>
+          <a class="mini-link" href="architecture/4. 核心设计_测试文档.html">测试文档</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">架构</span>
+        <h3>实现架构</h3>
+        <p>系统整体实现架构设计。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="architecture/5. 实现架构.html">查看文档</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">设计</span>
+        <h3>影子设备设计</h3>
+        <p>影子设备系统设计，支持数据一致性与快速恢复。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="architecture/6. 影子设备设计.html">设计文档</a>
+          <a class="mini-link" href="architecture/6. 影子设备设计_测试文档.html">测试文档</a>
+          <a class="mini-link" href="architecture/影子设备与采集优化集成测试文档.html">集成测试</a>
+          <a class="mini-link" href="architecture/影子设备系统联动关系文档.html">联动关系</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">运维</span>
+        <h3>边缘运维与设备替换</h3>
+        <p>边缘环境下的运维策略与设备替换方案。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="architecture/7. 边缘运维与设备替换.html">查看文档</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">实现</span>
+        <h3>RTT 管理器</h3>
+        <p>基于 EWMA 算法的 RTT 延迟监测与超时自适应。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="architecture/8. RTT管理器实现.html">实现文档</a>
+          <a class="mini-link" href="architecture/8. RTT管理器实现_测试文档.html">测试文档</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">实现</span>
+        <h3>MTU 管理器</h3>
+        <p>自动探测设备最大传输单元，优化批量读取效率。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="architecture/9. MTU管理器实现.html">实现文档</a>
+          <a class="mini-link" href="architecture/9. MTU管理器实现_测试文档.html">测试文档</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">实现</span>
+        <h3>Gap 优化器</h3>
+        <p>基于设备负载动态调整通信间隔，优化总线效率。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="architecture/10. Gap优化器实现.html">实现文档</a>
+          <a class="mini-link" href="architecture/10. Gap优化器实现_测试文档.html">测试文档</a>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section">
+  <div class="shell shell--wide">
+    <div class="section-heading">
+      <div>
         <div class="section-kicker">最近更新</div>
         <h2>更新记录</h2>
       </div>
