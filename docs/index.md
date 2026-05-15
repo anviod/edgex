@@ -56,9 +56,10 @@ description: EdgeX 项目的完整文档
       <div class="quick-links">
         <span class="quick-links__tag">Q3 2026</span>
         <a href="drivers/index.html">EtherNet/IP 驱动支持</a>
+        <a href="https://github.com/anviod/logix" target="_blank">logix 库</a>
       </div>
       <ul>
-        <li>基于 gologix 库实现与 PLC 的真实 TCP 通信</li>
+        <li>基于 <a href="https://github.com/anviod/logix" target="_blank">logix</a> 库实现与 PLC 的真实 TCP 通信</li>
         <li>支持 ControlLogix、CompactLogix、Micro800 等系列</li>
         <li>支持 bool、sint、int、dint、real、string 数据类型</li>
         <li>批量读取优化，减少网络往返</li>
