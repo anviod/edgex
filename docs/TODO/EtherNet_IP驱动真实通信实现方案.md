@@ -1,3 +1,9 @@
+---
+layout: default
+title: EtherNet/IP 驱动真实通信实现方案
+description: EdgeX EtherNet/IP 驱动真实通信实现方案
+---
+
 # EtherNet/IP 驱动真实通信实现方案
 
 ## 1. 产品概述
