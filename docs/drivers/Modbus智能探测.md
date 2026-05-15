@@ -98,7 +98,7 @@ func (p *ProbeEngine) probe(slave uint8, regType RegisterType, start, end uint16
     ok := p.tryRead(slave, regType, start, length)
 
     if ok {
-        return []ValidBlock{{Start: start, End: end}}
+        return []ValidBlock{{ '{{' }}Start: start, End: end{{ '}}' }}
     }
 
     if length == 1 {
