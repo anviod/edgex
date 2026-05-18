@@ -3,6 +3,7 @@ module edge-gateway
 go 1.25.3
 
 require (
+	github.com/anviod/ethernet-ip v0.0.1
 	github.com/anviod/gos7 v0.0.1
 	github.com/awcullen/opcua v1.4.0
 	github.com/eclipse/paho.mqtt.golang v1.5.1

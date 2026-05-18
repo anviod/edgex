@@ -21,7 +21,7 @@ description: EdgeX EtherNet/IP 驱动真实通信实现方案
 
 ## 3. 技术栈
 
-- **后端**: Go + github.com/loki-os/go-ethernet-ip（首选）/ github.com/danomagnum/gologix（备选）
+- **后端**: Go + github.com/anviod/ethernet-ip
 - **前端**: Vue 3 + Arco Design (现有技术栈)
 - **数据模型**: 复用现有Channel/Device/Point模型
 
@@ -40,39 +40,18 @@ description: EdgeX EtherNet/IP 驱动真实通信实现方案
 | **社区支持** | 较小 | 活跃 |
 | **许可证** | WTFPL | MIT |
 
-### 3.1.2 推荐方案
+### 3.1.2 本项目选型
 
-**首选**: `github.com/danomagnum/gologix`
+**确定使用**: `github.com/loki-os/go-ethernet-ip`
 
-**推荐理由**:
-1. **更新活跃**: 最近一次更新是2026年3月，相比loki-os库（2022年）更活跃
-2. **功能完善**: 专门针对Rockwell PLC优化，支持ControlLogix/CompactLogix/Micro800
-3. **文档丰富**: 提供完整的API文档和使用示例
-4. **社区支持**: 有较多的使用案例和issue反馈
-5. **许可证友好**: MIT许可证，适合商业项目
+**选型理由**:
+1. **通用性更强**: 完整的CIP协议实现，支持多种厂商设备
+2. **批量操作支持**: 支持MultipleServicePacket批量读写
+3. **协议完整性**: 覆盖EtherNet/IP整个协议栈
+4. **轻量级**: 更适合资源受限的边缘网关环境
 
-**备选**: `github.com/loki-os/go-ethernet-ip`
+### 3.1.3 依赖配置
 
-**适用场景**:
-- 需要更底层的CIP协议控制
-- 需要支持非Rockwell设备（如Schneider等支持EtherNet/IP的设备）
-
-### 3.1.3 评估结论
-
-**建议采用 gologix 作为主库**，理由：
-- 更活跃的维护
-- 更完善的Rockwell PLC支持
-- 更好的文档和社区支持
-- 与现有S7驱动的gos7库风格更接近
-
-### 3.1.4 依赖配置
-
-**go.mod新增**:
-```go
-require github.com/danomagnum/gologix v0.1.x
-```
-
-**替代方案配置**（如使用loki-os库）:
 ```go
 require github.com/loki-os/go-ethernet-ip latest
 ```
