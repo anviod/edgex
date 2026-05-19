@@ -20,12 +20,13 @@ type ENIPTransport struct {
 
 	tcpFactory func(address string, cfg *go_ethernet_ip.Config) (*go_ethernet_ip.EIPTCP, error)
 
-	ip            string
-	port          int
-	slot          int
-	timeout       time.Duration
-	maxRetries    int
-	retryInterval time.Duration
+	ip             string
+	port           int
+	slot           int
+	connectionType string
+	timeout        time.Duration
+	maxRetries     int
+	retryInterval  time.Duration
 
 	connected          atomic.Bool
 	mu                 sync.Mutex
@@ -107,6 +108,12 @@ func (t *ENIPTransport) parseConfig() {
 	} else if v, ok := t.cfg["heartbeat_interval"].(int); ok {
 		t.heartbeatInterval = time.Duration(v) * time.Millisecond
 	}
+
+	if v, ok := t.cfg["connection_type"].(string); ok {
+		t.connectionType = v
+	} else {
+		t.connectionType = "cip"
+	}
 }
 
 func (t *ENIPTransport) Connect(ctx context.Context) error {
@@ -121,8 +128,7 @@ func (t *ENIPTransport) Connect(ctx context.Context) error {
 		return fmt.Errorf("ENIP transport: IP address not configured")
 	}
 
-	addr := fmt.Sprintf("%s:%d", t.ip, t.port)
-	t.remoteAddr = addr
+	t.remoteAddr = fmt.Sprintf("%s:%d", t.ip, t.port)
 
 	var lastErr error
 	for attempt := 0; attempt <= t.maxRetries; attempt++ {
@@ -134,16 +140,16 @@ func (t *ENIPTransport) Connect(ctx context.Context) error {
 			}
 			zap.L().Info("[ENIP] Retrying connection",
 				zap.Int("attempt", attempt),
-				zap.String("addr", addr),
+				zap.String("addr", t.remoteAddr),
 			)
 		}
 
-		tcp, err := t.tcpFactory(addr, nil)
+		tcp, err := t.tcpFactory(t.ip, nil)
 		if err != nil {
 			lastErr = fmt.Errorf("failed to create ENIP client: %w", err)
 			zap.L().Warn("[ENIP] Failed to create ENIP client",
 				zap.Error(err),
-				zap.String("addr", addr),
+				zap.String("addr", t.remoteAddr),
 			)
 			continue
 		}
@@ -158,7 +164,7 @@ func (t *ENIPTransport) Connect(ctx context.Context) error {
 			zap.L().Warn("[ENIP] Connection failed",
 				zap.Error(err),
 				zap.Int("attempt", attempt),
-				zap.String("addr", addr),
+				zap.String("addr", t.remoteAddr),
 			)
 			continue
 		}
@@ -173,7 +179,7 @@ func (t *ENIPTransport) Connect(ctx context.Context) error {
 		t.startHeartbeat()
 
 		zap.L().Info("[ENIP] TCP connection established",
-			zap.String("addr", addr),
+			zap.String("addr", t.remoteAddr),
 			zap.Int("slot", t.slot),
 			zap.Duration("timeout", t.timeout),
 		)
@@ -194,6 +200,7 @@ func (t *ENIPTransport) Disconnect() error {
 	t.stopHeartbeat <- struct{}{}
 
 	if t.tcp != nil {
+		t.tcp.Close()
 	}
 
 	t.connected.Store(false)
@@ -251,6 +258,7 @@ func (t *ENIPTransport) reconnect() {
 	}
 
 	if t.tcp != nil {
+		t.tcp.Close()
 	}
 	t.mu.Unlock()
 

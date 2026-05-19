@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="channel-list-container">
     <div class="channel-header">
       <div class="header-title">
@@ -245,7 +245,22 @@
         </a-form-item>
 
         <a-form-item field="enable" label="启用">
-          <a-switch v-model="dialog.form.enable" />
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <a-switch v-model="dialog.form.enable" />
+            <a-button 
+              v-if="dialog.form.protocol === 'ethernet-ip'" 
+              type="text" 
+              @click="showENIPHelp = true" 
+              style="padding: 0; height: auto; line-height: 1;"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#1890ff" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
+                <path d="M12 17h.01"/>
+              </svg>
+              <span style="color: #1890ff; margin-left: 4px; font-size: 12px;">查看帮助说明</span>
+            </a-button>
+          </div>
         </a-form-item>
 
         <!-- Protocol specific config -->
@@ -578,6 +593,62 @@
           </a-row>
         </div>
 
+        <!-- EtherNet/IP Config -->
+        <div v-if="dialog.form.protocol === 'ethernet-ip'" class="config-section">
+          <a-divider orientation="left" :size="2">基础连接</a-divider>
+          <a-form-item field="config.ip" label="PLC IP 地址" required>
+            <a-input v-model="dialog.form.config.ip" placeholder="192.168.1.10" />
+          </a-form-item>
+          <a-form-item field="config.port" label="PLC 端口">
+            <a-input-number v-model="dialog.form.config.port" :min="1" :max="65535" placeholder="44818 (默认)" />
+          </a-form-item>
+          <a-form-item field="config.slot" label="槽号 (Slot)">
+            <a-input-number v-model="dialog.form.config.slot" :min="0" :max="10" placeholder="0 (默认)" />
+          </a-form-item>
+          <a-form-item field="config.connection_type" label="连接类型">
+            <a-select v-model="dialog.form.config.connection_type" placeholder="请选择连接类型">
+              <a-option value="cip">标准 CIP 模式</a-option>
+              <a-option value="logix">Logix 模式</a-option>
+            </a-select>
+          </a-form-item>
+
+          <a-divider orientation="left" :size="2">通信参数</a-divider>
+          <a-row :gutter="12">
+            <a-col :span="8">
+              <a-form-item field="config.timeout" label="超时时间 (ms)">
+                <a-input-number v-model="dialog.form.config.timeout" :min="500" :max="30000" placeholder="2000" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.max_retries" label="重试次数">
+                <a-input-number v-model="dialog.form.config.max_retries" :min="0" :max="10" placeholder="3" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.retry_interval" label="重试间隔 (ms)">
+                <a-input-number v-model="dialog.form.config.retry_interval" :min="10" :max="5000" placeholder="100" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="12">
+            <a-col :span="8">
+              <a-form-item field="config.heartbeat_interval" label="心跳间隔 (ms)">
+                <a-input-number v-model="dialog.form.config.heartbeat_interval" :min="0" :max="300000" placeholder="30000" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.batch_read_max" label="批量读取上限">
+                <a-input-number v-model="dialog.form.config.batch_read_max" :min="1" :max="200" placeholder="50" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.min_interval" label="最小间隔 (ms)">
+                <a-input-number v-model="dialog.form.config.min_interval" :min="0" :max="1000" placeholder="5" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </div>
+
         <!-- Help button -->
         <div class="mt-4 d-flex justify-end">
           <a-button type="text" status="info" @click="showHelp = true" v-if="!dialog.isEdit">
@@ -739,6 +810,34 @@
         <a-button type="primary" @click="metricsDialog.show = false">关闭</a-button>
       </div>
     </a-modal>
+
+    <!-- EtherNet/IP Help Dialog -->
+    <a-modal
+      v-model:visible="showENIPHelp"
+      title="EtherNet/IP 协议配置帮助"
+      :width="700"
+      @ok="showENIPHelp = false"
+    >
+      <div class="help-content">
+        <div v-for="section in ENIPHelpContent.sections" :key="section.title" class="help-section">
+          <h3 class="help-section-title">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#1890ff" stroke-width="2" style="margin-right: 8px;">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
+              <path d="M12 17h.01"/>
+            </svg>
+            {{ section.title }}
+          </h3>
+          <p v-if="section.content" class="help-content-text">{{ section.content }}</p>
+          <div v-if="section.items" class="help-items">
+            <div v-for="item in section.items" :key="item.label" class="help-item">
+              <span class="help-item-label">{{ item.label }}</span>
+              <span class="help-item-desc">{{ item.desc }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -783,6 +882,8 @@ const metricsDialog = reactive({
   expandedDetails: ['details']
 })
 
+const showENIPHelp = ref(false)
+
 const protocols = [
   { label: 'Modbus TCP', value: 'modbus-tcp' },
   { label: 'Modbus RTU Over TCP', value: 'modbus-rtu-over-tcp' },
@@ -790,7 +891,8 @@ const protocols = [
   { label: 'BACnet IP', value: 'bacnet-ip' },
   { label: 'OPC UA', value: 'opc-ua' },
   { label: 'S7', value: 's7' },
-  { label: 'DLT645', value: 'dlt645' }
+  { label: 'DLT645', value: 'dlt645' },
+  { label: 'EtherNet/IP', value: 'ethernet-ip' }
 ]
 
 const tableColumns = [
@@ -1261,6 +1363,64 @@ const fetchChannels = async () => {
 onMounted(() => {
   fetchChannels()
 })
+
+// EtherNet/IP 帮助说明组件
+const ENIPHelpContent = {
+  title: 'EtherNet/IP 协议配置帮助',
+  sections: [
+    {
+      title: '协议概述',
+      content: 'EtherNet/IP 是一种工业以太网通信协议，基于 CIP（Common Industrial Protocol）技术，主要用于 Allen-Bradley 系列 PLC 的通信。'
+    },
+    {
+      title: '基础连接配置',
+      items: [
+        { label: 'PLC IP 地址', desc: '目标 PLC 设备的 IP 地址，支持 IPv4 格式（如 192.168.1.10）' },
+        { label: 'PLC 端口', desc: 'EtherNet/IP 默认端口为 44818，某些设备可能使用 47818' },
+        { label: '槽号 (Slot)', desc: 'PLC CPU 所在的槽位，通常为 0 或 1' }
+      ]
+    },
+    {
+      title: '连接类型选择',
+      items: [
+        { label: '标准 CIP 模式', desc: '适用于大多数 Allen-Bradley PLC 设备，使用标准 CIP 协议进行通信' },
+        { label: 'Logix 模式', desc: '专门针对 Allen-Bradley Logix 系列控制器优化，支持更高级的功能' }
+      ]
+    },
+    {
+      title: '通信参数',
+      items: [
+        { label: '超时时间', desc: '单次通信超时时间，建议设置为 2000-5000ms' },
+        { label: '重试次数', desc: '通信失败后的重试次数，建议设置为 3-5 次' },
+        { label: '重试间隔', desc: '重试之间的等待时间，建议设置为 200-500ms' }
+      ]
+    },
+    {
+      title: '高级配置',
+      items: [
+        { label: '心跳间隔', desc: '连接心跳检测间隔，建议设置为 30000ms（30秒）' },
+        { label: '最大失败次数', desc: '心跳失败多少次后断开连接并重连' },
+        { label: '数据包大小', desc: '通信数据包大小，默认 4096 字节' }
+      ]
+    },
+    {
+      title: '支持的数据类型',
+      content: 'INT, DINT, UINT, UDINT, REAL, LREAL, BOOL, SINT, USINT, LINT, ULINT, STRING'
+    },
+    {
+      title: '标签地址格式',
+      content: '完整标签路径格式：Program:ProgramName.TagName（如 Program:MainProgram.IntTag）'
+    },
+    {
+      title: '故障排除',
+      items: [
+        { label: '连接失败', desc: '检查网络连通性、PLC IP 地址和端口是否正确' },
+        { label: '标签读取失败', desc: '确认标签名称和路径正确，检查 PLC 程序是否运行' },
+        { label: '通信超时', desc: '增加超时时间，检查网络质量' }
+      ]
+    }
+  ]
+}
 </script>
 
 <style scoped>
@@ -1898,5 +2058,67 @@ onMounted(() => {
   padding: 6px 10px;
   border-radius: 0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* EtherNet/IP 帮助对话框样式 */
+.help-content {
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 16px 0;
+}
+
+.help-section {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.help-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.help-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.help-content-text {
+  margin-bottom: 12px;
+  line-height: 1.6;
+  color: #475569;
+  font-size: 13px;
+}
+
+.help-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.help-item {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 4px;
+}
+
+.help-item-label {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.help-item-desc {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
 }
 </style>

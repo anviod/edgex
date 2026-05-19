@@ -44,8 +44,17 @@ func (d *ENIPDecoder) ParseAddress(addr string) (*ENIPTag, error) {
 
 	if m := reSimpleTag.FindStringSubmatch(addr); m != nil {
 		return &ENIPTag{
-			Name: m[1],
-			Path: []string{m[1]},
+			Name:       m[1],
+			ArrayIndex: -1,
+			Path:       []string{m[1]},
+		}, nil
+	}
+
+	if strings.Contains(addr, ":") {
+		return &ENIPTag{
+			Name:       addr,
+			ArrayIndex: -1,
+			Path:       []string{addr},
 		}, nil
 	}
 

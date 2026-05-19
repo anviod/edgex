@@ -246,7 +246,9 @@ func (s *Server) setupRoutes() {
 	api.Put("/channels/:channelId/devices/:deviceId/points/:pointId", s.updatePoint)
 	api.Delete("/channels/:channelId/devices/:deviceId/points/:pointId", s.removePoint)
 	api.Delete("/channels/:channelId/devices/:deviceId/points", s.removePoints)
-	api.Post("/channels/:channelId/devices/:deviceId/scan", s.scanDevice) // New: Scan points in device
+	api.Post("/channels/:channelId/devices/:deviceId/scan", s.scanDevice)                  // New: Scan points in device
+	api.Get("/channels/:channelId/devices/:deviceId/points/export", s.exportDevicePoints)  // Export points
+	api.Post("/channels/:channelId/devices/:deviceId/points/import", s.importDevicePoints) // Import points
 
 	// 兼容路径：UI 可能会尝试直接通过设备 ID 访问点位（不带 channelId）
 	api.Get("/devices/:deviceId/points", s.getDevicePoints)
@@ -1647,4 +1649,187 @@ func (s *Server) publishEdgeOSNATS(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"success": true})
+}
+
+// exportDevicePoints 导出设备点位配置为JSON格式
+func (s *Server) exportDevicePoints(c *fiber.Ctx) error {
+	channelId := c.Params("channelId")
+	deviceId := c.Params("deviceId")
+
+	dev := s.cm.GetDevice(channelId, deviceId)
+	if dev == nil {
+		return c.Status(404).JSON(fiber.Map{"error": "device not found"})
+	}
+
+	// 获取通道协议
+	ch := s.cm.GetChannel(channelId)
+	protocol := ""
+	if ch != nil {
+		protocol = ch.Protocol
+	}
+
+	// 构建导出数据
+	type ExportPoint struct {
+		ID           string  `json:"id"`
+		Name         string  `json:"name"`
+		Address      string  `json:"address"`
+		DataType     string  `json:"datatype"`
+		Scale        float64 `json:"scale"`
+		Offset       float64 `json:"offset"`
+		Unit         string  `json:"unit"`
+		ReadWrite    string  `json:"readwrite"`
+		Group        string  `json:"group"`
+		ReportMode   string  `json:"report_mode"`
+		SlaveID      uint8   `json:"slave_id,omitempty"`
+		RegisterType string  `json:"register_type,omitempty"`
+		FunctionCode byte    `json:"function_code,omitempty"`
+	}
+
+	exportData := struct {
+		ChannelID   string        `json:"channel_id"`
+		ChannelName string        `json:"channel_name"`
+		Protocol    string        `json:"protocol"`
+		DeviceID    string        `json:"device_id"`
+		DeviceName  string        `json:"device_name"`
+		Points      []ExportPoint `json:"points"`
+	}{
+		ChannelID:   channelId,
+		ChannelName: ch.Name,
+		Protocol:    protocol,
+		DeviceID:    deviceId,
+		DeviceName:  dev.Name,
+	}
+
+	for _, p := range dev.Points {
+		ep := ExportPoint{
+			ID:           p.ID,
+			Name:         p.Name,
+			Address:      p.Address,
+			DataType:     p.DataType,
+			Scale:        p.Scale,
+			Offset:       p.Offset,
+			Unit:         p.Unit,
+			ReadWrite:    p.ReadWrite,
+			Group:        p.Group,
+			ReportMode:   p.ReportMode,
+			RegisterType: p.RegisterType.String(),
+			FunctionCode: p.FunctionCode,
+		}
+		exportData.Points = append(exportData.Points, ep)
+	}
+
+	// 设置响应头
+	c.Set("Content-Type", "application/json")
+	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=points_%s_%s.json", channelId, deviceId))
+
+	return c.JSON(exportData)
+}
+
+// importDevicePoints 导入设备点位配置
+func (s *Server) importDevicePoints(c *fiber.Ctx) error {
+	channelId := c.Params("channelId")
+	deviceId := c.Params("deviceId")
+
+	// 获取现有设备
+	dev := s.cm.GetDevice(channelId, deviceId)
+	if dev == nil {
+		return c.Status(404).JSON(fiber.Map{"error": "device not found"})
+	}
+
+	// 获取通道协议
+	ch := s.cm.GetChannel(channelId)
+	if ch == nil {
+		return c.Status(404).JSON(fiber.Map{"error": "channel not found"})
+	}
+
+	// 解析导入数据
+	type ImportPoint struct {
+		ID           string  `json:"id"`
+		Name         string  `json:"name"`
+		Address      string  `json:"address"`
+		DataType     string  `json:"datatype"`
+		Scale        float64 `json:"scale"`
+		Offset       float64 `json:"offset"`
+		Unit         string  `json:"unit"`
+		ReadWrite    string  `json:"readwrite"`
+		Group        string  `json:"group"`
+		ReportMode   string  `json:"report_mode"`
+		SlaveID      uint8   `json:"slave_id,omitempty"`
+		RegisterType string  `json:"register_type,omitempty"`
+		FunctionCode byte    `json:"function_code,omitempty"`
+	}
+
+	var importData struct {
+		ChannelID   string        `json:"channel_id"`
+		DeviceID    string        `json:"device_id"`
+		Points      []ImportPoint `json:"points"`
+		ReplaceMode bool          `json:"replace_mode"` // true: 替换现有点位, false: 追加
+	}
+
+	if err := c.BodyParser(&importData); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid request body: " + err.Error()})
+	}
+
+	// 如果指定了目标通道/设备ID，使用请求中的值
+	if importData.ChannelID != "" {
+		channelId = importData.ChannelID
+	}
+	if importData.DeviceID != "" {
+		deviceId = importData.DeviceID
+	}
+
+	// 转换为Point结构
+	var points []model.Point
+	for _, ip := range importData.Points {
+		p := model.Point{
+			ID:           ip.ID,
+			Name:         ip.Name,
+			Address:      ip.Address,
+			DataType:     ip.DataType,
+			Scale:        ip.Scale,
+			Offset:       ip.Offset,
+			Unit:         ip.Unit,
+			ReadWrite:    ip.ReadWrite,
+			Group:        ip.Group,
+			ReportMode:   ip.ReportMode,
+			RegisterType: model.ParseRegisterType(ip.RegisterType),
+			FunctionCode: ip.FunctionCode,
+		}
+
+		// 如果ID为空，使用Name
+		if p.ID == "" {
+			p.ID = p.Name
+		}
+		points = append(points, p)
+	}
+
+	if len(points) == 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "no points to import"})
+	}
+
+	// 根据模式处理
+	if importData.ReplaceMode {
+		// 替换模式：先删除所有现有点位，再添加新点位
+		existingPointIDs := make([]string, 0, len(dev.Points))
+		for _, p := range dev.Points {
+			existingPointIDs = append(existingPointIDs, p.ID)
+		}
+		if len(existingPointIDs) > 0 {
+			if err := s.cm.RemovePoints(channelId, deviceId, existingPointIDs); err != nil {
+				return c.Status(500).JSON(fiber.Map{"error": "failed to remove existing points: " + err.Error()})
+			}
+		}
+	}
+
+	// 添加新点位
+	if err := s.cm.AddPoints(channelId, deviceId, points); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to add points: " + err.Error()})
+	}
+
+	return c.JSON(fiber.Map{
+		"success":     true,
+		"message":     fmt.Sprintf("successfully imported %d points", len(points)),
+		"imported":    len(points),
+		"replaceMode": importData.ReplaceMode,
+	})
 }

@@ -1,0 +1,64 @@
+enable: true
+id: enip-simulator
+interval: 1s
+name: ENIP-Simulator
+points:
+    - address: Program:MainProgram.IntTag
+      datatype: INT
+      group: ""
+      id: IntTag
+      name: IntTag
+      offset: 0
+      readwrite: RW
+      report_mode: ""
+      scale: 0
+      threshold: null
+      unit: ""
+    - address: Program:MainProgram.DintTag
+      datatype: DINT
+      group: ""
+      id: DintTag
+      name: DintTag
+      offset: 0
+      readwrite: RW
+      report_mode: ""
+      scale: 0
+      threshold: null
+      unit: ""
+    - address: Program:MainProgram.UintTag
+      datatype: UINT
+      group: ""
+      id: UintTag
+      name: UintTag
+      offset: 0
+      readwrite: RW
+      report_mode: ""
+      scale: 0
+      threshold: null
+      unit: ""
+    - address: Program:MainProgram.UdintTag
+      datatype: UDINT
+      group: ""
+      id: UdintTag
+      name: UdintTag
+      offset: 0
+      readwrite: RW
+      report_mode: ""
+      scale: 0
+      threshold: null
+      unit: ""
+    - address: Program:MainProgram.RealTag
+      datatype: REAL
+      group: ""
+      id: RealTag
+      name: RealTag
+      offset: 0
+      readwrite: RW
+      report_mode: ""
+      scale: 0
+      threshold: null
+      unit: ""
+storage:
+    enable: false
+    interval: 1
+    max_records: 1000

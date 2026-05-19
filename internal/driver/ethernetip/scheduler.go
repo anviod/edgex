@@ -3,6 +3,7 @@ package ethernetip
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -123,7 +124,7 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 		return nil
 	}
 
-	tagGroup := go_ethernet_ip.NewTagGroup(new(sync.Mutex))
+	s.incTotal()
 
 	for _, pwt := range points {
 		fullName := pwt.Tag.Name
@@ -135,43 +136,47 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 		}
 
 		tag := new(go_ethernet_ip.Tag)
-		tag.TCP = tcp
-		tag.Lock = new(sync.Mutex)
-		tcp.InitializeTag(fullName, tag)
 
-		tagGroup.Add(tag)
-	}
+		zap.L().Info("[ENIP] Attempting to initialize tag",
+			zap.String("name", fullName),
+			zap.Bool("connected", tcp.IsConnected()),
+		)
 
-	s.incTotal()
-
-	if err := tagGroup.Read(); err != nil {
-		for _, pwt := range points {
+		err := tcp.InitializeTag(fullName, tag)
+		if err != nil {
+			zap.L().Warn("[ENIP] Failed to initialize tag",
+				zap.String("name", fullName),
+				zap.Error(err),
+			)
 			results[pwt.Point.ID] = model.Value{
 				PointID: pwt.Point.ID,
 				Quality: "Bad",
 				TS:      time.Now(),
 			}
 			s.incFailure()
-		}
-		return fmt.Errorf("batch read failed: %w", err)
-	}
-
-	for _, pwt := range points {
-		fullName := pwt.Tag.Name
-		if pwt.Tag.ArrayIndex >= 0 {
-			fullName = fmt.Sprintf("%s[%d]", pwt.Tag.Name, pwt.Tag.ArrayIndex)
-		}
-		if len(pwt.Tag.Path) > 1 {
-			fullName = strings.Join(pwt.Tag.Path, ".")
+			continue
 		}
 
-		tag := new(go_ethernet_ip.Tag)
-		tag.TCP = tcp
-		tag.Lock = new(sync.Mutex)
-		tcp.InitializeTag(fullName, tag)
+		err = tag.Read()
+		if err != nil {
+			zap.L().Warn("[ENIP] Failed to read tag",
+				zap.String("name", fullName),
+				zap.Error(err),
+			)
+			results[pwt.Point.ID] = model.Value{
+				PointID: pwt.Point.ID,
+				Quality: "Bad",
+				TS:      time.Now(),
+			}
+			s.incFailure()
+			continue
+		}
 
 		val := tag.GetValue()
 		if val == nil {
+			zap.L().Warn("[ENIP] Tag value is nil",
+				zap.String("name", fullName),
+			)
 			results[pwt.Point.ID] = model.Value{
 				PointID: pwt.Point.ID,
 				Quality: "Bad",
@@ -188,10 +193,10 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 			TS:      time.Now(),
 		}
 		s.incSuccess()
-	}
 
-	if s.minInterval > 0 {
-		time.Sleep(s.minInterval)
+		if s.minInterval > 0 {
+			time.Sleep(s.minInterval)
+		}
 	}
 
 	return nil
@@ -239,7 +244,44 @@ func (s *ENIPScheduler) WritePoint(ctx context.Context, p model.Point, value int
 	case float64:
 		tag.SetInt32(int32(v))
 	case string:
-		tag.SetString(v)
+		switch strings.ToUpper(p.DataType) {
+		case "BOOL":
+			boolVal, err := strconv.ParseBool(v)
+			if err != nil {
+				return fmt.Errorf("invalid bool value: %w", err)
+			}
+			if boolVal {
+				tag.SetInt32(1)
+			} else {
+				tag.SetInt32(0)
+			}
+		case "INT", "SINT", "UINT", "USINT":
+			intVal, err := strconv.ParseInt(v, 10, 32)
+			if err != nil {
+				return fmt.Errorf("invalid int value: %w", err)
+			}
+			tag.SetInt32(int32(intVal))
+		case "DINT", "UDINT":
+			intVal, err := strconv.ParseInt(v, 10, 32)
+			if err != nil {
+				return fmt.Errorf("invalid dint value: %w", err)
+			}
+			tag.SetInt32(int32(intVal))
+		case "LINT", "ULINT":
+			intVal, err := strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid lint value: %w", err)
+			}
+			tag.SetInt32(int32(intVal))
+		case "REAL", "LREAL":
+			floatVal, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				return fmt.Errorf("invalid float value: %w", err)
+			}
+			tag.SetInt32(int32(floatVal))
+		default:
+			tag.SetString(v)
+		}
 	default:
 		return fmt.Errorf("unsupported value type: %T", value)
 	}

@@ -297,6 +297,9 @@ func SaveConfig(confDir string, cfg *Config) error {
 		for j, device := range channel.Devices {
 			devicesToSave[j] = model.Device{
 				ID:         device.ID,
+				Name:       device.Name,
+				Enable:     device.Enable,
+				Interval:   device.Interval,
 				DeviceFile: device.DeviceFile,
 			}
 		}
