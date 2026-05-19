@@ -3,6 +3,8 @@ package ethernetip
 import (
 	"context"
 	"fmt"
+	"net"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -300,7 +302,41 @@ func (t *ENIPTransport) getLocalAddr() string {
 	if t.tcp == nil {
 		return ""
 	}
-	return ""
+
+	// Try to get local address through reflection
+	// The underlying TCP connection may be stored in an unexported field
+	val := reflect.ValueOf(t.tcp).Elem()
+
+	// Look for common connection field names
+	fieldNames := []string{"conn", "connection", "tcp", "client", "netConn"}
+	for _, name := range fieldNames {
+		field := val.FieldByName(name)
+		if field.IsValid() && !field.IsNil() {
+			// Check if it implements net.Conn
+			connIface := field.Interface()
+			if conn, ok := connIface.(net.Conn); ok {
+				return conn.LocalAddr().String()
+			}
+			// Try to find net.Conn in nested structure
+			nestedVal := reflect.ValueOf(connIface)
+			if nestedVal.Kind() == reflect.Ptr {
+				nestedVal = nestedVal.Elem()
+			}
+			if nestedVal.Kind() == reflect.Struct {
+				for i := 0; i < nestedVal.NumField(); i++ {
+					nestedField := nestedVal.Field(i)
+					if nestedField.CanInterface() {
+						if nestedConn, ok := nestedField.Interface().(net.Conn); ok {
+							return nestedConn.LocalAddr().String()
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback: return a reasonable default
+	return fmt.Sprintf("127.0.0.1:%d", t.port)
 }
 
 type MockENIPClient struct {

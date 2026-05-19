@@ -3,6 +3,7 @@ package ethernetip
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -193,10 +194,6 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 			TS:      time.Now(),
 		}
 		s.incSuccess()
-
-		if s.minInterval > 0 {
-			time.Sleep(s.minInterval)
-		}
 	}
 
 	return nil
@@ -234,10 +231,16 @@ func (s *ENIPScheduler) WritePoint(ctx context.Context, p model.Point, value int
 			tag.SetInt32(0)
 		}
 	case int:
+		if v > math.MaxInt32 || v < math.MinInt32 {
+			return fmt.Errorf("int value %d exceeds int32 range", v)
+		}
 		tag.SetInt32(int32(v))
 	case int32:
 		tag.SetInt32(v)
 	case int64:
+		if v > math.MaxInt32 || v < math.MinInt32 {
+			return fmt.Errorf("int64 value %d exceeds int32 range", v)
+		}
 		tag.SetInt32(int32(v))
 	case float32:
 		tag.SetInt32(int32(v))
@@ -255,28 +258,58 @@ func (s *ENIPScheduler) WritePoint(ctx context.Context, p model.Point, value int
 			} else {
 				tag.SetInt32(0)
 			}
-		case "INT", "SINT", "UINT", "USINT":
+		case "INT", "SINT":
 			intVal, err := strconv.ParseInt(v, 10, 32)
 			if err != nil {
 				return fmt.Errorf("invalid int value: %w", err)
 			}
 			tag.SetInt32(int32(intVal))
-		case "DINT", "UDINT":
+		case "UINT", "USINT":
+			uintVal, err := strconv.ParseUint(v, 10, 32)
+			if err != nil {
+				return fmt.Errorf("invalid uint value: %w", err)
+			}
+			tag.SetInt32(int32(uintVal))
+		case "DINT":
 			intVal, err := strconv.ParseInt(v, 10, 32)
 			if err != nil {
 				return fmt.Errorf("invalid dint value: %w", err)
 			}
 			tag.SetInt32(int32(intVal))
-		case "LINT", "ULINT":
+		case "UDINT":
+			uintVal, err := strconv.ParseUint(v, 10, 32)
+			if err != nil {
+				return fmt.Errorf("invalid udint value: %w", err)
+			}
+			tag.SetInt32(int32(uintVal))
+		case "LINT":
 			intVal, err := strconv.ParseInt(v, 10, 64)
 			if err != nil {
 				return fmt.Errorf("invalid lint value: %w", err)
 			}
+			if intVal > math.MaxInt32 || intVal < math.MinInt32 {
+				return fmt.Errorf("lint value %d exceeds int32 range, library does not support int64 write", intVal)
+			}
 			tag.SetInt32(int32(intVal))
-		case "REAL", "LREAL":
+		case "ULINT":
+			uintVal, err := strconv.ParseUint(v, 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid ulint value: %w", err)
+			}
+			if uintVal > math.MaxUint32 {
+				return fmt.Errorf("ulint value %d exceeds uint32 range, library does not support uint64 write", uintVal)
+			}
+			tag.SetInt32(int32(uintVal))
+		case "REAL":
+			floatVal, err := strconv.ParseFloat(v, 32)
+			if err != nil {
+				return fmt.Errorf("invalid real value: %w", err)
+			}
+			tag.SetInt32(int32(floatVal))
+		case "LREAL":
 			floatVal, err := strconv.ParseFloat(v, 64)
 			if err != nil {
-				return fmt.Errorf("invalid float value: %w", err)
+				return fmt.Errorf("invalid lreal value: %w", err)
 			}
 			tag.SetInt32(int32(floatVal))
 		default:
