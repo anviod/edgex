@@ -178,9 +178,10 @@ func TestDecoderAddressParsing(t *testing.T) {
 		wantPath []string
 		wantIdx  int
 	}{
-		{"simple_tag", "MyTag", "MyTag", []string{"MyTag"}, 0},
-		{"program_tag", "Program:Main.MyTag", "Program:Main", []string{"Program:Main", "MyTag"}, 0},
+		{"simple_tag", "MyTag", "MyTag", []string{"MyTag"}, -1},
+		{"program_tag", "Program:Main.MyTag", "Program:Main", []string{"Program:Main", "MyTag"}, -1},
 		{"array_tag", "MyArray[10]", "MyArray", []string{"MyArray"}, 10},
+		{"array_tag_zero", "MyArray[0]", "MyArray", []string{"MyArray"}, 0},
 		{"program_array_tag", "Program:Main.MyArray[5]", "Program:Main", []string{"Program:Main", "MyArray[5]"}, 0},
 	}
 

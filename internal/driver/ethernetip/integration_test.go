@@ -12,12 +12,13 @@ import (
 func TestIntegrationWithSimulator(t *testing.T) {
 	// 配置模拟器连接
 	cfg := map[string]any{
-		"ip":          "127.0.0.1",
-		"port":        44818,
-		"slot":        0,
-		"timeout":     3000,
-		"maxRetries":  3,
-		"retryInterval": 100,
+		"ip":              "127.0.0.1",
+		"port":            44818,
+		"slot":            0,
+		"timeout":         3000,
+		"maxRetries":      3,
+		"retryInterval":   100,
+		"connection_type": "cip",
 	}
 
 	// 创建传输层
@@ -172,7 +173,7 @@ func testSinglePointWrite(t *testing.T, scheduler *ENIPScheduler) {
 		{"WriteInt", "Program:MainProgram.IntTag", "INT", 12345},
 		{"WriteDint", "Program:MainProgram.DintTag", "DINT", 987654321},
 		{"WriteReal", "Program:MainProgram.RealTag", "REAL", float32(2.71828)},
-		{"WriteString", "Program:MainProgram.StringTag", "STRING", "Test Message"},
+		{"WriteString", "Program:MainProgram.StringTag", "STRING", "Hi"},
 	}
 
 	for _, tc := range testCases {
@@ -259,11 +260,11 @@ func testArrayRead(t *testing.T, scheduler *ENIPScheduler) {
 // TestConnectionReconnect 测试连接断开后自动重连
 func TestConnectionReconnect(t *testing.T) {
 	cfg := map[string]any{
-		"ip":          "127.0.0.1",
-		"port":        44818,
-		"slot":        0,
-		"timeout":     2000,
-		"maxRetries":  2,
+		"ip":            "127.0.0.1",
+		"port":          44818,
+		"slot":          0,
+		"timeout":       2000,
+		"maxRetries":    2,
 		"retryInterval": 500,
 	}
 

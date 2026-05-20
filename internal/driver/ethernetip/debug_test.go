@@ -673,6 +673,12 @@ func TestENIPDecoder_EncodeValue(t *testing.T) {
 			value:    float64(3.1415926535),
 			expected: []byte{0x44, 0x17, 0x41, 0x54, 0xFB, 0x21, 0x09, 0x40}, // 3.1415926535 as float64 in little-endian
 		},
+		{
+			name:     "STRING 类型写入",
+			dataType: "STRING",
+			value:    "Hi",
+			expected: []byte{0x02, 0x00, 0x00, 0x00, 'H', 'i'}, // CIP STRING format: [length:2][capacity:2][data]
+		},
 	}
 
 	decoder := NewENIPDecoder()

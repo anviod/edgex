@@ -304,7 +304,7 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 			fullName = strings.Join(pwt.Tag.Path, ".")
 		}
 		// 如果是简单数组标签（非程序标签），添加数组索引
-		if pwt.Tag.ArrayIndex > 0 && len(pwt.Tag.Path) == 1 {
+		if pwt.Tag.ArrayIndex >= 0 && len(pwt.Tag.Path) == 1 {
 			fullName = fmt.Sprintf("%s[%d]", pwt.Tag.Name, pwt.Tag.ArrayIndex)
 		}
 
@@ -506,7 +506,7 @@ func (s *ENIPScheduler) WritePoint(ctx context.Context, p model.Point, value int
 
 	// 执行写入
 	if err := tag.Write(); err != nil {
-		return fmt.Errorf("failed to write tag %s: %w", p.Name, err)
+		return fmt.Errorf("failed to write tag %s: %w", address, err)
 	}
 
 	return nil

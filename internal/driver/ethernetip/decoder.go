@@ -48,7 +48,7 @@ func (d *ENIPDecoder) ParseAddress(addr string) (*ENIPTag, error) {
 	if m := reSimpleTag.FindStringSubmatch(addr); m != nil {
 		return &ENIPTag{
 			Name:       m[1],
-			ArrayIndex: 0,
+			ArrayIndex: -1,
 			Path:       []string{m[1]},
 		}, nil
 	}
@@ -79,14 +79,14 @@ func (d *ENIPDecoder) ParseAddress(addr string) (*ENIPTag, error) {
 		if len(parts) >= 2 {
 			return &ENIPTag{
 				Name:       parts[0],
-				ArrayIndex: 0,
+				ArrayIndex: -1,
 				Path:       parts,
 			}, nil
 		}
 
 		return &ENIPTag{
 			Name:       addr,
-			ArrayIndex: 0,
+			ArrayIndex: -1,
 			Path:       []string{addr},
 		}, nil
 	}
@@ -97,8 +97,9 @@ func (d *ENIPDecoder) ParseAddress(addr string) (*ENIPTag, error) {
 	}
 
 	tag := &ENIPTag{
-		Name: parts[0],
-		Path: parts,
+		Name:       parts[0],
+		ArrayIndex: -1,
+		Path:       parts,
 	}
 
 	if len(parts) > 1 {
@@ -383,7 +384,18 @@ func (d *ENIPDecoder) EncodeValue(value interface{}, dataType string) ([]byte, e
 	case "STRING":
 		switch v := value.(type) {
 		case string:
-			return []byte(v), nil
+			// CIP STRING 格式：[length:2][max_capacity:2][data:n]
+			// 总长度 = 4 + len(v)
+			result := make([]byte, 4+len(v))
+			// 前 2 字节：实际长度（小端）
+			result[0] = byte(len(v) & 0xFF)
+			result[1] = byte((len(v) >> 8) & 0xFF)
+			// 接下来 2 字节：最大容量（小端，设为 255）
+			result[2] = 0xFF
+			result[3] = 0x00
+			// 剩余字节：字符串数据
+			copy(result[4:], []byte(v))
+			return result, nil
 		default:
 			return nil, fmt.Errorf("unsupported data type for encoding: %T", value)
 		}
