@@ -205,10 +205,14 @@ func (s *ENIPScheduler) ReadPoints(ctx context.Context, points []model.Point) (m
 		if len(regularPoints) > 0 {
 			groups := s.groupTags(regularPoints)
 			for _, group := range groups {
-				if err := s.readGroup(ctx, tcp, group, results); err != nil {
+				newTcp, err := s.readGroup(ctx, tcp, group, results)
+				if err != nil {
 					zap.L().Warn("[ENIP] Failed to read group",
 						zap.Error(err),
 					)
+				} else if newTcp != nil {
+					// 更新连接对象，以便后续调用使用新连接
+					tcp = newTcp
 				}
 			}
 		}
@@ -216,10 +220,14 @@ func (s *ENIPScheduler) ReadPoints(ctx context.Context, points []model.Point) (m
 		// 非 Logix 模式，使用标准 Tag 读取
 		groups := s.groupTags(parsed)
 		for _, group := range groups {
-			if err := s.readGroup(ctx, tcp, group, results); err != nil {
+			newTcp, err := s.readGroup(ctx, tcp, group, results)
+			if err != nil {
 				zap.L().Warn("[ENIP] Failed to read group",
 					zap.Error(err),
 				)
+			} else if newTcp != nil {
+				// 更新连接对象，以便后续调用使用新连接
+				tcp = newTcp
 			}
 		}
 	}
@@ -244,9 +252,9 @@ func (s *ENIPScheduler) groupTags(points []pointWithTag) [][]pointWithTag {
 	return groups
 }
 
-func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTCP, points []pointWithTag, results map[string]model.Value) error {
+func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTCP, points []pointWithTag, results map[string]model.Value) (*go_ethernet_ip.EIPTCP, error) {
 	if len(points) == 0 {
-		return nil
+		return tcp, nil
 	}
 
 	s.incTotal()
@@ -264,7 +272,7 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 				}
 				s.incFailure()
 			}
-			return fmt.Errorf("connection lost: %w", err)
+			return nil, fmt.Errorf("connection lost: %w", err)
 		}
 		tcp = s.transport.GetClient()
 		if tcp == nil {
@@ -277,10 +285,9 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 				}
 				s.incFailure()
 			}
-			return fmt.Errorf("failed to get client after reconnect")
+			return nil, fmt.Errorf("failed to get client after reconnect")
 		}
 		zap.L().Info("[ENIP] Reconnect successful in readGroup")
-		// 重连成功后继续执行读取操作，不需要返回
 	}
 
 	// 使用 TagGroup 进行批量读取优化
@@ -291,12 +298,14 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 
 	// 阶段1: 初始化所有标签并添加到 TagGroup
 	for _, pwt := range points {
+		// 使用 Path 构建完整的标签名称，如果 Path 长度大于1
 		fullName := pwt.Tag.Name
-		if pwt.Tag.ArrayIndex >= 0 {
-			fullName = fmt.Sprintf("%s[%d]", pwt.Tag.Name, pwt.Tag.ArrayIndex)
-		}
 		if len(pwt.Tag.Path) > 1 {
 			fullName = strings.Join(pwt.Tag.Path, ".")
+		}
+		// 如果是简单数组标签（非程序标签），添加数组索引
+		if pwt.Tag.ArrayIndex > 0 && len(pwt.Tag.Path) == 1 {
+			fullName = fmt.Sprintf("%s[%d]", pwt.Tag.Name, pwt.Tag.ArrayIndex)
 		}
 
 		tag := new(go_ethernet_ip.Tag)
@@ -321,7 +330,7 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 	}
 
 	if len(tagsWithPoints) == 0 {
-		return nil
+		return tcp, nil
 	}
 
 	// 阶段2: 批量读取所有标签
@@ -352,7 +361,7 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 				s.processTagValue(twp, results)
 			}
 		}
-		return nil
+		return tcp, nil
 	}
 
 	// 阶段3: 处理批量读取结果
@@ -365,7 +374,7 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 		zap.Duration("duration", readDuration),
 	)
 
-	return nil
+	return tcp, nil
 }
 
 // processTagValue 处理单个标签的值并存储到结果中
@@ -419,7 +428,7 @@ func (s *ENIPScheduler) WritePoint(ctx context.Context, p model.Point, value int
 	if strings.EqualFold(s.transport.connectionType, "logix") {
 		resolvedName := s.resolveLogixTagName(address)
 		if attrID, ok := s.getLogixClass2AttrID(resolvedName); ok {
-			encoded, err := s.decoder.EncodeValue(p.DataType, value)
+			encoded, err := s.decoder.EncodeValue(value, p.DataType)
 			if err != nil {
 				return fmt.Errorf("failed to encode Class 2 value for %s: %w", address, err)
 			}

@@ -22,13 +22,15 @@ func NewENIPDecoder() *ENIPDecoder {
 }
 
 var (
-	reSimpleTag = regexp.MustCompile(`^([a-zA-Z_][a-zA-Z0-9_]*)$`)
-	reArrayTag  = regexp.MustCompile(`^([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]$`)
+	reSimpleTag    = regexp.MustCompile(`^([a-zA-Z_][a-zA-Z0-9_]*)$`)
+	reArrayTag     = regexp.MustCompile(`^([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]$`)
+	reFullArrayTag = regexp.MustCompile(`^(.+)\[(\d+)\]$`)
 )
 
 func (d *ENIPDecoder) ParseAddress(addr string) (*ENIPTag, error) {
 	addr = strings.TrimSpace(addr)
 
+	// 处理数组标签（如 MyArray[10]）
 	if m := reArrayTag.FindStringSubmatch(addr); m != nil {
 		tagName := m[1]
 		index, err := strconv.Atoi(m[2])
@@ -42,18 +44,49 @@ func (d *ENIPDecoder) ParseAddress(addr string) (*ENIPTag, error) {
 		}, nil
 	}
 
+	// 处理简单标签（如 MyTag）
 	if m := reSimpleTag.FindStringSubmatch(addr); m != nil {
 		return &ENIPTag{
 			Name:       m[1],
-			ArrayIndex: -1,
+			ArrayIndex: 0,
 			Path:       []string{m[1]},
 		}, nil
 	}
 
+	// 处理包含冒号的地址（如 Program:Main.MyTag 或 Program:Main.MyArray[5]）
 	if strings.Contains(addr, ":") {
+		// 检查是否为数组形式
+		if m := reFullArrayTag.FindStringSubmatch(addr); m != nil {
+			// 包含数组索引的程序标签，数组索引包含在 Path 中，ArrayIndex 设为 0
+			basePath := m[1]
+			parts := strings.Split(basePath, ".")
+			if len(parts) >= 2 {
+				return &ENIPTag{
+					Name:       parts[0],
+					ArrayIndex: 0,
+					Path:       []string{parts[0], parts[1] + "[" + m[2] + "]"},
+				}, nil
+			}
+			return &ENIPTag{
+				Name:       basePath,
+				ArrayIndex: 0,
+				Path:       []string{addr},
+			}, nil
+		}
+
+		// 普通程序标签（如 Program:Main.MyTag）
+		parts := strings.Split(addr, ".")
+		if len(parts) >= 2 {
+			return &ENIPTag{
+				Name:       parts[0],
+				ArrayIndex: 0,
+				Path:       parts,
+			}, nil
+		}
+
 		return &ENIPTag{
 			Name:       addr,
-			ArrayIndex: -1,
+			ArrayIndex: 0,
 			Path:       []string{addr},
 		}, nil
 	}
@@ -68,408 +101,362 @@ func (d *ENIPDecoder) ParseAddress(addr string) (*ENIPTag, error) {
 		Path: parts,
 	}
 
-	if arrayPart := strings.Split(parts[0], "["); len(arrayPart) == 2 {
-		tag.Name = arrayPart[0]
-		tag.ArrayIndex, _ = strconv.Atoi(strings.Trim(arrayPart[1], "]"))
+	if len(parts) > 1 {
+		tag.Name = parts[0]
 	}
 
 	return tag, nil
 }
 
-func (d *ENIPDecoder) ReadSizeForTag(tag *ENIPTag, dataType string) int {
+func (d *ENIPDecoder) EncodeValue(value interface{}, dataType string) ([]byte, error) {
 	switch strings.ToUpper(dataType) {
-	case "BOOL", "BIT":
-		return 1
-	case "SINT", "UINT8":
-		return 1
-	case "INT", "UINT16", "WORD":
-		return 2
-	case "DINT", "UINT32", "DWORD", "REAL":
-		return 4
-	case "LINT", "UINT64", "LWORD", "LREAL":
-		return 8
-	case "STRING":
-		return 88
-	default:
-		return 4
-	}
-}
-
-func (d *ENIPDecoder) DecodeValue(data []byte, dataType string) (interface{}, error) {
-	if len(data) == 0 {
-		return nil, fmt.Errorf("empty data buffer")
-	}
-
-	switch strings.ToUpper(dataType) {
-	case "BOOL", "BIT":
-		if len(data) < 1 {
-			return nil, fmt.Errorf("buffer too short for BOOL")
-		}
-		return data[0] != 0, nil
-
-	case "SINT", "INT8":
-		if len(data) < 1 {
-			return nil, fmt.Errorf("buffer too short for SINT")
-		}
-		return int8(data[0]), nil
-
-	case "UINT8", "USINT":
-		if len(data) < 1 {
-			return nil, fmt.Errorf("buffer too short for USINT")
-		}
-		return data[0], nil
-
-	case "INT", "INT16":
-		if len(data) < 2 {
-			return nil, fmt.Errorf("buffer too short for INT")
-		}
-		val := int16(data[0]) | int16(data[1])<<8
-		return val, nil
-
-	case "UINT", "UINT16", "WORD":
-		if len(data) < 2 {
-			return nil, fmt.Errorf("buffer too short for UINT")
-		}
-		val := uint16(data[0]) | uint16(data[1])<<8
-		return val, nil
-
-	case "DINT", "INT32":
-		if len(data) < 4 {
-			return nil, fmt.Errorf("buffer too short for DINT")
-		}
-		val := int32(data[0]) | int32(data[1])<<8 | int32(data[2])<<16 | int32(data[3])<<24
-		return val, nil
-
-	case "UINT32", "UDINT", "DWORD":
-		if len(data) < 4 {
-			return nil, fmt.Errorf("buffer too short for UINT32")
-		}
-		val := uint32(data[0]) | uint32(data[1])<<8 | uint32(data[2])<<16 | uint32(data[3])<<24
-		return val, nil
-
-	case "REAL", "FLOAT", "FLOAT32":
-		if len(data) < 4 {
-			return nil, fmt.Errorf("buffer too short for REAL")
-		}
-		bits := uint32(data[0]) | uint32(data[1])<<8 | uint32(data[2])<<16 | uint32(data[3])<<24
-		val := math.Float32frombits(bits)
-		return val, nil
-
-	case "LINT", "INT64":
-		if len(data) < 8 {
-			return nil, fmt.Errorf("buffer too short for LINT")
-		}
-		val := int64(data[0]) | int64(data[1])<<8 | int64(data[2])<<16 | int64(data[3])<<24 |
-			int64(data[4])<<32 | int64(data[5])<<40 | int64(data[6])<<48 | int64(data[7])<<56
-		return val, nil
-
-	case "ULINT", "UINT64", "LWORD":
-		if len(data) < 8 {
-			return nil, fmt.Errorf("buffer too short for ULINT")
-		}
-		val := uint64(data[0]) | uint64(data[1])<<8 | uint64(data[2])<<16 | uint64(data[3])<<24 |
-			uint64(data[4])<<32 | uint64(data[5])<<40 | uint64(data[6])<<48 | uint64(data[7])<<56
-		return val, nil
-
-	case "LREAL", "FLOAT64", "DOUBLE":
-		if len(data) < 8 {
-			return nil, fmt.Errorf("buffer too short for LREAL")
-		}
-		bits := uint64(data[0]) | uint64(data[1])<<8 | uint64(data[2])<<16 | uint64(data[3])<<24 |
-			uint64(data[4])<<32 | uint64(data[5])<<40 | uint64(data[6])<<48 | uint64(data[7])<<56
-		val := math.Float64frombits(bits)
-		return val, nil
-
-	case "STRING":
-		if len(data) < 2 {
-			return string(data), nil
-		}
-		strLen := int(data[1])
-		if strLen+2 > len(data) {
-			strLen = len(data) - 2
-		}
-		return string(data[2 : 2+strLen]), nil
-
-	default:
-		if len(data) >= 4 {
-			val := int32(data[0]) | int32(data[1])<<8 | int32(data[2])<<16 | int32(data[3])<<24
-			return val, nil
-		}
-		return nil, fmt.Errorf("unsupported data type: %s", dataType)
-	}
-}
-
-func (d *ENIPDecoder) EncodeValue(dataType string, value interface{}) ([]byte, error) {
-	switch strings.ToUpper(dataType) {
-	case "BOOL", "BIT":
+	case "BOOL":
 		switch v := value.(type) {
 		case bool:
 			if v {
 				return []byte{1}, nil
 			}
 			return []byte{0}, nil
-		case string:
-			if v == "true" || v == "1" {
-				return []byte{1}, nil
-			}
-			return []byte{0}, nil
 		default:
-			if fmt.Sprintf("%v", value) == "true" {
-				return []byte{1}, nil
-			}
-			return []byte{0}, nil
+			return nil, fmt.Errorf("unsupported data type for encoding: %T", value)
 		}
-
 	case "SINT", "INT8":
 		switch v := value.(type) {
 		case int8:
 			return []byte{byte(v)}, nil
 		case int:
 			return []byte{byte(v)}, nil
-		case int32:
-			return []byte{byte(v)}, nil
+		case float64:
+			return []byte{byte(int(v))}, nil
 		default:
-			vInt, ok := toInt(value)
-			if !ok {
-				return nil, fmt.Errorf("cannot convert %T to SINT", value)
-			}
-			return []byte{byte(vInt)}, nil
+			return nil, fmt.Errorf("unsupported data type for encoding: %T", value)
 		}
-
-	case "UINT8", "USINT":
-		switch v := value.(type) {
-		case uint8:
-			return []byte{v}, nil
-		case uint:
-			return []byte{byte(v)}, nil
-		case int:
-			return []byte{byte(v)}, nil
-		default:
-			vUint, ok := toUint(value)
-			if !ok {
-				return nil, fmt.Errorf("cannot convert %T to USINT", value)
-			}
-			return []byte{byte(vUint)}, nil
-		}
-
 	case "INT", "INT16":
 		switch v := value.(type) {
 		case int16:
-			return []byte{byte(v), byte(v >> 8)}, nil
+			return []byte{byte(v & 0xFF), byte((v >> 8) & 0xFF)}, nil
 		case int:
-			return []byte{byte(v), byte(v >> 8)}, nil
-		case int32:
-			return []byte{byte(v), byte(v >> 8)}, nil
+			return []byte{byte(v & 0xFF), byte((v >> 8) & 0xFF)}, nil
 		case float64:
-			val := int16(v)
-			return []byte{byte(val), byte(val >> 8)}, nil
+			return []byte{byte(int(v) & 0xFF), byte((int(v) >> 8) & 0xFF)}, nil
+		default:
+			return nil, fmt.Errorf("unsupported data type for encoding: %T", value)
 		}
-
-	case "UINT", "UINT16", "WORD":
-		switch v := value.(type) {
-		case uint16:
-			return []byte{byte(v), byte(v >> 8)}, nil
-		case uint:
-			return []byte{byte(v), byte(v >> 8)}, nil
-		case int:
-			return []byte{byte(v), byte(v >> 8)}, nil
-		case float64:
-			val := uint16(v)
-			return []byte{byte(val), byte(val >> 8)}, nil
-		}
-
 	case "DINT", "INT32":
 		switch v := value.(type) {
 		case int32:
-			return []byte{byte(v), byte(v >> 8), byte(v >> 16), byte(v >> 24)}, nil
+			return []byte{
+				byte(v & 0xFF),
+				byte((v >> 8) & 0xFF),
+				byte((v >> 16) & 0xFF),
+				byte((v >> 24) & 0xFF),
+			}, nil
 		case int:
-			val := int32(v)
-			return []byte{byte(val), byte(val >> 8), byte(val >> 16), byte(val >> 24)}, nil
-		case int64:
-			val := int32(v)
-			return []byte{byte(val), byte(val >> 8), byte(val >> 16), byte(val >> 24)}, nil
+			return []byte{
+				byte(v & 0xFF),
+				byte((v >> 8) & 0xFF),
+				byte((v >> 16) & 0xFF),
+				byte((v >> 24) & 0xFF),
+			}, nil
 		case float64:
-			val := int32(v)
-			return []byte{byte(val), byte(val >> 8), byte(val >> 16), byte(val >> 24)}, nil
+			return []byte{
+				byte(int(v) & 0xFF),
+				byte((int(v) >> 8) & 0xFF),
+				byte((int(v) >> 16) & 0xFF),
+				byte((int(v) >> 24) & 0xFF),
+			}, nil
+		default:
+			return nil, fmt.Errorf("unsupported data type for encoding: %T", value)
 		}
-
-	case "UINT32", "UDINT", "DWORD":
-		switch v := value.(type) {
-		case uint32:
-			return []byte{byte(v), byte(v >> 8), byte(v >> 16), byte(v >> 24)}, nil
-		case uint:
-			val := uint32(v)
-			return []byte{byte(val), byte(val >> 8), byte(val >> 16), byte(val >> 24)}, nil
-		case float64:
-			val := uint32(v)
-			return []byte{byte(val), byte(val >> 8), byte(val >> 16), byte(val >> 24)}, nil
-		}
-
-	case "REAL", "FLOAT", "FLOAT32":
-		switch v := value.(type) {
-		case float32:
-			bits := math.Float32bits(v)
-			return []byte{byte(bits), byte(bits >> 8), byte(bits >> 16), byte(bits >> 24)}, nil
-		case float64:
-			bits := math.Float32bits(float32(v))
-			return []byte{byte(bits), byte(bits >> 8), byte(bits >> 16), byte(bits >> 24)}, nil
-		case int:
-			bits := math.Float32bits(float32(v))
-			return []byte{byte(bits), byte(bits >> 8), byte(bits >> 16), byte(bits >> 24)}, nil
-		}
-
 	case "LINT", "INT64":
 		switch v := value.(type) {
 		case int64:
 			return []byte{
-				byte(v), byte(v >> 8), byte(v >> 16), byte(v >> 24),
-				byte(v >> 32), byte(v >> 40), byte(v >> 48), byte(v >> 56),
+				byte(v & 0xFF),
+				byte((v >> 8) & 0xFF),
+				byte((v >> 16) & 0xFF),
+				byte((v >> 24) & 0xFF),
+				byte((v >> 32) & 0xFF),
+				byte((v >> 40) & 0xFF),
+				byte((v >> 48) & 0xFF),
+				byte((v >> 56) & 0xFF),
+			}, nil
+		case int:
+			return []byte{
+				byte(v & 0xFF),
+				byte((v >> 8) & 0xFF),
+				byte((v >> 16) & 0xFF),
+				byte((v >> 24) & 0xFF),
+				byte((v >> 32) & 0xFF),
+				byte((v >> 40) & 0xFF),
+				byte((v >> 48) & 0xFF),
+				byte((v >> 56) & 0xFF),
 			}, nil
 		case float64:
-			val := int64(v)
 			return []byte{
-				byte(val), byte(val >> 8), byte(val >> 16), byte(val >> 24),
-				byte(val >> 32), byte(val >> 40), byte(val >> 48), byte(val >> 56),
+				byte(int64(v) & 0xFF),
+				byte((int64(v) >> 8) & 0xFF),
+				byte((int64(v) >> 16) & 0xFF),
+				byte((int64(v) >> 24) & 0xFF),
+				byte((int64(v) >> 32) & 0xFF),
+				byte((int64(v) >> 40) & 0xFF),
+				byte((int64(v) >> 48) & 0xFF),
+				byte((int64(v) >> 56) & 0xFF),
 			}, nil
+		default:
+			return nil, fmt.Errorf("unsupported data type for encoding: %T", value)
 		}
-
+	case "USINT", "UINT8":
+		switch v := value.(type) {
+		case uint8:
+			return []byte{v}, nil
+		case uint:
+			return []byte{uint8(v)}, nil
+		case int:
+			return []byte{uint8(v)}, nil
+		case float64:
+			return []byte{uint8(v)}, nil
+		default:
+			return nil, fmt.Errorf("unsupported data type for encoding: %T", value)
+		}
+	case "UINT", "UINT16", "WORD":
+		switch v := value.(type) {
+		case uint16:
+			return []byte{byte(v & 0xFF), byte((v >> 8) & 0xFF)}, nil
+		case uint:
+			return []byte{byte(v & 0xFF), byte((v >> 8) & 0xFF)}, nil
+		case int:
+			return []byte{byte(v & 0xFF), byte((v >> 8) & 0xFF)}, nil
+		case float64:
+			return []byte{byte(uint16(v) & 0xFF), byte((uint16(v) >> 8) & 0xFF)}, nil
+		default:
+			return nil, fmt.Errorf("unsupported data type for encoding: %T", value)
+		}
+	case "UINT32", "UDINT", "DWORD":
+		switch v := value.(type) {
+		case uint32:
+			return []byte{
+				byte(v & 0xFF),
+				byte((v >> 8) & 0xFF),
+				byte((v >> 16) & 0xFF),
+				byte((v >> 24) & 0xFF),
+			}, nil
+		case uint:
+			return []byte{
+				byte(v & 0xFF),
+				byte((v >> 8) & 0xFF),
+				byte((v >> 16) & 0xFF),
+				byte((v >> 24) & 0xFF),
+			}, nil
+		case int:
+			return []byte{
+				byte(v & 0xFF),
+				byte((v >> 8) & 0xFF),
+				byte((v >> 16) & 0xFF),
+				byte((v >> 24) & 0xFF),
+			}, nil
+		case float64:
+			return []byte{
+				byte(uint32(v) & 0xFF),
+				byte((uint32(v) >> 8) & 0xFF),
+				byte((uint32(v) >> 16) & 0xFF),
+				byte((uint32(v) >> 24) & 0xFF),
+			}, nil
+		default:
+			return nil, fmt.Errorf("unsupported data type for encoding: %T", value)
+		}
 	case "ULINT", "UINT64", "LWORD":
 		switch v := value.(type) {
 		case uint64:
 			return []byte{
-				byte(v), byte(v >> 8), byte(v >> 16), byte(v >> 24),
-				byte(v >> 32), byte(v >> 40), byte(v >> 48), byte(v >> 56),
+				byte(v & 0xFF),
+				byte((v >> 8) & 0xFF),
+				byte((v >> 16) & 0xFF),
+				byte((v >> 24) & 0xFF),
+				byte((v >> 32) & 0xFF),
+				byte((v >> 40) & 0xFF),
+				byte((v >> 48) & 0xFF),
+				byte((v >> 56) & 0xFF),
+			}, nil
+		case uint:
+			return []byte{
+				byte(v & 0xFF),
+				byte((v >> 8) & 0xFF),
+				byte((v >> 16) & 0xFF),
+				byte((v >> 24) & 0xFF),
+				byte((v >> 32) & 0xFF),
+				byte((v >> 40) & 0xFF),
+				byte((v >> 48) & 0xFF),
+				byte((v >> 56) & 0xFF),
+			}, nil
+		case int:
+			return []byte{
+				byte(v & 0xFF),
+				byte((v >> 8) & 0xFF),
+				byte((v >> 16) & 0xFF),
+				byte((v >> 24) & 0xFF),
+				byte((v >> 32) & 0xFF),
+				byte((v >> 40) & 0xFF),
+				byte((v >> 48) & 0xFF),
+				byte((v >> 56) & 0xFF),
 			}, nil
 		case float64:
-			val := uint64(v)
 			return []byte{
-				byte(val), byte(val >> 8), byte(val >> 16), byte(val >> 24),
-				byte(val >> 32), byte(val >> 40), byte(val >> 48), byte(val >> 56),
+				byte(uint64(v) & 0xFF),
+				byte((uint64(v) >> 8) & 0xFF),
+				byte((uint64(v) >> 16) & 0xFF),
+				byte((uint64(v) >> 24) & 0xFF),
+				byte((uint64(v) >> 32) & 0xFF),
+				byte((uint64(v) >> 40) & 0xFF),
+				byte((uint64(v) >> 48) & 0xFF),
+				byte((uint64(v) >> 56) & 0xFF),
 			}, nil
+		default:
+			return nil, fmt.Errorf("unsupported data type for encoding: %T", value)
 		}
-
-	case "LREAL", "FLOAT64", "DOUBLE":
+	case "REAL", "FLOAT":
+		switch v := value.(type) {
+		case float32:
+			bits := math.Float32bits(v)
+			return []byte{
+				byte(bits & 0xFF),
+				byte((bits >> 8) & 0xFF),
+				byte((bits >> 16) & 0xFF),
+				byte((bits >> 24) & 0xFF),
+			}, nil
+		case float64:
+			bits := math.Float32bits(float32(v))
+			return []byte{
+				byte(bits & 0xFF),
+				byte((bits >> 8) & 0xFF),
+				byte((bits >> 16) & 0xFF),
+				byte((bits >> 24) & 0xFF),
+			}, nil
+		case string:
+			f, err := strconv.ParseFloat(v, 32)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse string to float32: %w", err)
+			}
+			bits := math.Float32bits(float32(f))
+			return []byte{
+				byte(bits & 0xFF),
+				byte((bits >> 8) & 0xFF),
+				byte((bits >> 16) & 0xFF),
+				byte((bits >> 24) & 0xFF),
+			}, nil
+		default:
+			return nil, fmt.Errorf("unsupported data type for encoding: %T", value)
+		}
+	case "LREAL", "DOUBLE":
 		switch v := value.(type) {
 		case float64:
 			bits := math.Float64bits(v)
 			return []byte{
-				byte(bits), byte(bits >> 8), byte(bits >> 16), byte(bits >> 24),
-				byte(bits >> 32), byte(bits >> 40), byte(bits >> 48), byte(bits >> 56),
+				byte(bits & 0xFF),
+				byte((bits >> 8) & 0xFF),
+				byte((bits >> 16) & 0xFF),
+				byte((bits >> 24) & 0xFF),
+				byte((bits >> 32) & 0xFF),
+				byte((bits >> 40) & 0xFF),
+				byte((bits >> 48) & 0xFF),
+				byte((bits >> 56) & 0xFF),
 			}, nil
-		case float32:
-			bits := math.Float64bits(float64(v))
+		case string:
+			f, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse string to float64: %w", err)
+			}
+			bits := math.Float64bits(f)
 			return []byte{
-				byte(bits), byte(bits >> 8), byte(bits >> 16), byte(bits >> 24),
-				byte(bits >> 32), byte(bits >> 40), byte(bits >> 48), byte(bits >> 56),
+				byte(bits & 0xFF),
+				byte((bits >> 8) & 0xFF),
+				byte((bits >> 16) & 0xFF),
+				byte((bits >> 24) & 0xFF),
+				byte((bits >> 32) & 0xFF),
+				byte((bits >> 40) & 0xFF),
+				byte((bits >> 48) & 0xFF),
+				byte((bits >> 56) & 0xFF),
 			}, nil
+		default:
+			return nil, fmt.Errorf("unsupported data type for encoding: %T", value)
 		}
-
 	case "STRING":
 		switch v := value.(type) {
 		case string:
-			strBytes := []byte(v)
-			result := make([]byte, 2+len(strBytes))
-			result[0] = byte(len(strBytes))
-			result[1] = byte(len(strBytes))
-			copy(result[2:], strBytes)
-			return result, nil
+			return []byte(v), nil
+		default:
+			return nil, fmt.Errorf("unsupported data type for encoding: %T", value)
 		}
-	}
-
-	return nil, fmt.Errorf("unsupported data type for encoding: %s", dataType)
-}
-
-func toInt(value interface{}) (int64, bool) {
-	switch v := value.(type) {
-	case int:
-		return int64(v), true
-	case int8:
-		return int64(v), true
-	case int16:
-		return int64(v), true
-	case int32:
-		return int64(v), true
-	case int64:
-		return v, true
-	case uint:
-		return int64(v), true
-	case uint8:
-		return int64(v), true
-	case uint16:
-		return int64(v), true
-	case uint32:
-		return int64(v), true
-	case uint64:
-		return int64(v), true
-	case float32:
-		return int64(v), true
-	case float64:
-		return int64(v), true
-	case string:
-		val, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return 0, false
-		}
-		return val, true
 	default:
-		return 0, false
+		return nil, fmt.Errorf("unsupported data type: %s", dataType)
 	}
 }
 
-func toUint(value interface{}) (uint64, bool) {
-	switch v := value.(type) {
-	case uint:
-		return uint64(v), true
-	case uint8:
-		return uint64(v), true
-	case uint16:
-		return uint64(v), true
-	case uint32:
-		return uint64(v), true
-	case uint64:
-		return v, true
-	case int:
-		if v < 0 {
-			return 0, false
+func (d *ENIPDecoder) DecodeValue(data []byte, dataType string) (interface{}, error) {
+	switch strings.ToUpper(dataType) {
+	case "BOOL":
+		if len(data) >= 1 {
+			return data[0] != 0, nil
 		}
-		return uint64(v), true
-	case int8:
-		if v < 0 {
-			return 0, false
+		return false, nil
+	case "SINT", "INT8":
+		if len(data) >= 1 {
+			return int8(data[0]), nil
 		}
-		return uint64(v), true
-	case int16:
-		if v < 0 {
-			return 0, false
+		return int8(0), nil
+	case "INT", "INT16":
+		if len(data) >= 2 {
+			return int16(data[0]) | int16(data[1])<<8, nil
 		}
-		return uint64(v), true
-	case int32:
-		if v < 0 {
-			return 0, false
+		return int16(0), nil
+	case "DINT", "INT32":
+		if len(data) >= 4 {
+			return int32(data[0]) | int32(data[1])<<8 | int32(data[2])<<16 | int32(data[3])<<24, nil
 		}
-		return uint64(v), true
-	case int64:
-		if v < 0 {
-			return 0, false
+		return int32(0), nil
+	case "LINT", "INT64":
+		if len(data) >= 8 {
+			return int64(data[0]) | int64(data[1])<<8 | int64(data[2])<<16 | int64(data[3])<<24 |
+				int64(data[4])<<32 | int64(data[5])<<40 | int64(data[6])<<48 | int64(data[7])<<56, nil
 		}
-		return uint64(v), true
-	case float32:
-		if v < 0 {
-			return 0, false
+		return int64(0), nil
+	case "USINT", "UINT8":
+		if len(data) >= 1 {
+			return data[0], nil
 		}
-		return uint64(v), true
-	case float64:
-		if v < 0 {
-			return 0, false
+		return uint8(0), nil
+	case "UINT", "UINT16", "WORD":
+		if len(data) >= 2 {
+			return uint16(data[0]) | uint16(data[1])<<8, nil
 		}
-		return uint64(v), true
-	case string:
-		val, err := strconv.ParseUint(v, 10, 64)
-		if err != nil {
-			return 0, false
+		return uint16(0), nil
+	case "UINT32", "UDINT", "DWORD":
+		if len(data) >= 4 {
+			return uint32(data[0]) | uint32(data[1])<<8 | uint32(data[2])<<16 | uint32(data[3])<<24, nil
 		}
-		return val, true
+		return uint32(0), nil
+	case "ULINT", "UINT64", "LWORD":
+		if len(data) >= 8 {
+			return uint64(data[0]) | uint64(data[1])<<8 | uint64(data[2])<<16 | uint64(data[3])<<24 |
+				uint64(data[4])<<32 | uint64(data[5])<<40 | uint64(data[6])<<48 | uint64(data[7])<<56, nil
+		}
+		return uint64(0), nil
+	case "REAL", "FLOAT":
+		if len(data) >= 4 {
+			bits := uint32(data[0]) | uint32(data[1])<<8 | uint32(data[2])<<16 | uint32(data[3])<<24
+			return math.Float32frombits(bits), nil
+		}
+		return float32(0), nil
+	case "LREAL", "DOUBLE":
+		if len(data) >= 8 {
+			bits := uint64(data[0]) | uint64(data[1])<<8 | uint64(data[2])<<16 | uint64(data[3])<<24 |
+				uint64(data[4])<<32 | uint64(data[5])<<40 | uint64(data[6])<<48 | uint64(data[7])<<56
+			return math.Float64frombits(bits), nil
+		}
+		return float64(0), nil
+	case "STRING":
+		return string(data), nil
 	default:
-		return 0, false
+		return nil, fmt.Errorf("unsupported data type: %s", dataType)
 	}
 }

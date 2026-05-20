@@ -661,13 +661,25 @@ func TestENIPDecoder_EncodeValue(t *testing.T) {
 			value:    float64(4294967295),
 			expected: []byte{0xFF, 0xFF, 0xFF, 0xFF}, // max uint32
 		},
+		{
+			name:     "REAL 类型写入 (float64)",
+			dataType: "REAL",
+			value:    float64(3.14159),
+			expected: []byte{0xD0, 0x0F, 0x49, 0x40}, // 3.14159 as float32 in little-endian
+		},
+		{
+			name:     "LREAL 类型写入 (float64)",
+			dataType: "LREAL",
+			value:    float64(3.1415926535),
+			expected: []byte{0x44, 0x17, 0x41, 0x54, 0xFB, 0x21, 0x09, 0x40}, // 3.1415926535 as float64 in little-endian
+		},
 	}
 
 	decoder := NewENIPDecoder()
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, err := decoder.EncodeValue(tc.dataType, tc.value)
+			actual, err := decoder.EncodeValue(tc.value, tc.dataType)
 			if err != nil {
 				t.Errorf("编码失败: %v", err)
 				return

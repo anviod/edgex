@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'  # 当推送以 v 开头的 tag 时触发，例如 v1.0.0
 
+permissions:
+  contents: write  # 授予创建 Release 的权限
+
 jobs:
   test-and-build:
     name: Run Tests and Build
@@ -18,7 +21,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'  # 根据项目的 Go 版本调整
+          go-version: '1.22'
           check-latest: true
 
       - name: Cache Go modules
@@ -38,10 +41,16 @@ jobs:
         run: go test ./... -v -count=1
 
       - name: Build for Linux
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o gateway-linux-amd64 ./cmd/main.go
+        run: |
+          echo "Building for Linux..."
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o gateway-linux-amd64 ./cmd/main.go
+          ls -la gateway-linux-amd64
 
       - name: Build for Windows
-        run: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o gateway-windows-amd64.exe ./cmd/main.go
+        run: |
+          echo "Building for Windows..."
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o gateway-windows-amd64.exe ./cmd/main.go
+          ls -la gateway-windows-amd64.exe
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
@@ -57,7 +66,7 @@ jobs:
 
   release:
     name: Create Release
-    needs: test-and-build  # 依赖 test-and-build 作业成功完成
+    needs: test-and-build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -77,23 +86,32 @@ jobs:
           name: gateway-windows-amd64
           path: .
 
-      - name: Make binaries executable
-        run: chmod +x gateway-linux-amd64 gateway-windows-amd64.exe
+      - name: Verify artifacts
+        run: |
+          ls -la
+          chmod +x gateway-linux-amd64 gateway-windows-amd64.exe
 
       - name: Get tag name
         id: get_tag
-        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "TAG_NAME=$TAG_NAME"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
       - name: Generate changelog
         id: changelog
         run: |
-          # 获取上一个 tag（如果存在）
+          TAG_NAME=${{ env.TAG_NAME }}
+          echo "Generating changelog for tag: $TAG_NAME"
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          echo "Previous tag: $PREV_TAG"
           if [ -n "$PREV_TAG" ]; then
-            echo "CHANGELOG=$(git log --oneline $PREV_TAG..$TAG_NAME)" >> $GITHUB_ENV
+            CHANGELOG=$(git log --oneline "$PREV_TAG..$TAG_NAME")
           else
-            echo "CHANGELOG=$(git log --oneline)" >> $GITHUB_ENV
+            CHANGELOG=$(git log --oneline)
           fi
+          echo "CHANGELOG=$CHANGELOG" >> $GITHUB_ENV
+          echo "Changelog generated successfully"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
     <div class="point-list-container">
         <div class="point-header">
             <div class="header-left">
@@ -3142,6 +3142,24 @@ const isStatusCodeType = (dt) => ['statuscode', 'i=19'].includes((dt || '').toLo
 const isQualifiedNameType = (dt) => ['qualifiedname', 'i=20'].includes((dt || '').toLowerCase())
 const isLocalizedTextType = (dt) => ['localizedtext', 'i=21'].includes((dt || '').toLowerCase())
 
+// Ethernet/IP (enip) 数据类型判断 - 基于 Logix 控制器类型
+const isEnipRealType = (dt) => ['real', 'float32'].includes((dt || '').toLowerCase())
+const isEnipLrealType = (dt) => ['lreal', 'float64', 'double'].includes((dt || '').toLowerCase())
+const isEnipBoolType = (dt) => ['bool'].includes((dt || '').toLowerCase())
+const isEnipSintType = (dt) => ['sint', 'int8', 'int8s'].includes((dt || '').toLowerCase())
+const isEnipIntType = (dt) => ['int', 'int16', 'int16s'].includes((dt || '').toLowerCase())
+const isEnipDintType = (dt) => ['dint', 'int32', 'int32s'].includes((dt || '').toLowerCase())
+const isEnipLintType = (dt) => ['lint', 'int64', 'int64s'].includes((dt || '').toLowerCase())
+const isEnipUsintType = (dt) => ['usint', 'uint8', 'uint8u'].includes((dt || '').toLowerCase())
+const isEnipUintType = (dt) => ['uint', 'uint16', 'uint16u'].includes((dt || '').toLowerCase())
+const isEnipUdintType = (dt) => ['udint', 'uint32', 'uint32u'].includes((dt || '').toLowerCase())
+const isEnipUlintType = (dt) => ['ulint', 'uint64', 'uint64u'].includes((dt || '').toLowerCase())
+const isEnipStringType = (dt) => ['string'].includes((dt || '').toLowerCase())
+const isEnipFloatType = (dt) => isEnipRealType(dt) || isEnipLrealType(dt)
+const isEnipNumericType = (dt) => isEnipSintType(dt) || isEnipIntType(dt) || isEnipDintType(dt) || isEnipLintType(dt) ||
+                                isEnipUsintType(dt) || isEnipUintType(dt) || isEnipUdintType(dt) || isEnipUlintType(dt) ||
+                                isEnipRealType(dt) || isEnipLrealType(dt)
+
 // OPC-UA 状态码选项
 const statusCodeOptions = [
     { label: 'Good (成功)', value: 'Good' },
@@ -3218,6 +3236,129 @@ const getNumericTypeInfo = () => {
 
 const normalizeWriteValue = () => {
     const dt = (writeDialog.dataType || '').toLowerCase()
+    const proto = channelProtocol.value || ''
+
+    // ==================== Ethernet/IP (enip) 协议特殊处理 ====================
+    // 对于 enip-simulator 设备，需要按照 Logix 控制器类型进行严格的类型处理
+    if (proto === 'ethernet-ip') {
+        // BOOL 类型
+        if (isEnipBoolType(dt)) {
+            return writeDialog.valueBool
+        }
+
+        // STRING 类型 - 只有字符串类型接受字符串值
+        if (isEnipStringType(dt)) {
+            return writeDialog.valueStr || ''
+        }
+
+        // REAL/FLOAT32 类型 - 必须使用浮点类型
+        if (isEnipRealType(dt)) {
+            const inputVal = writeDialog.valueStr !== undefined ? writeDialog.valueStr : writeDialog.valueNum
+            const n = parseFloat(inputVal)
+            if (!isNaN(n) && isFinite(n)) {
+                return n  // 返回 float32 类型的数值
+            }
+            return 0.0
+        }
+
+        // LREAL/FLOAT64/DOUBLE 类型 - 必须使用浮点类型
+        if (isEnipLrealType(dt)) {
+            const inputVal = writeDialog.valueStr !== undefined ? writeDialog.valueStr : writeDialog.valueNum
+            const n = parseFloat(inputVal)
+            if (!isNaN(n) && isFinite(n)) {
+                return n  // 返回 float64 类型的数值
+            }
+            return 0.0
+        }
+
+        // SINT/INT8 类型
+        if (isEnipSintType(dt)) {
+            const inputVal = writeDialog.valueStr !== undefined ? writeDialog.valueStr : writeDialog.valueNum
+            const n = parseInt(inputVal)
+            if (!isNaN(n)) {
+                // 限制范围 -128 到 127
+                return Math.max(-128, Math.min(127, n))
+            }
+            return 0
+        }
+
+        // INT/INT16 类型
+        if (isEnipIntType(dt)) {
+            const inputVal = writeDialog.valueStr !== undefined ? writeDialog.valueStr : writeDialog.valueNum
+            const n = parseInt(inputVal)
+            if (!isNaN(n)) {
+                // 限制范围 -32768 到 32767
+                return Math.max(-32768, Math.min(32767, n))
+            }
+            return 0
+        }
+
+        // DINT/INT32 类型
+        if (isEnipDintType(dt)) {
+            const inputVal = writeDialog.valueStr !== undefined ? writeDialog.valueStr : writeDialog.valueNum
+            const n = parseInt(inputVal)
+            if (!isNaN(n)) {
+                // 限制范围 -2147483648 到 2147483647
+                return Math.max(-2147483648, Math.min(2147483647, n))
+            }
+            return 0
+        }
+
+        // LINT/INT64 类型
+        if (isEnipLintType(dt)) {
+            const inputVal = writeDialog.valueStr !== undefined ? writeDialog.valueStr : writeDialog.valueNum
+            const n = parseInt(inputVal)
+            return isNaN(n) ? 0 : n
+        }
+
+        // USINT/UINT8 类型
+        if (isEnipUsintType(dt)) {
+            const inputVal = writeDialog.valueStr !== undefined ? writeDialog.valueStr : writeDialog.valueNum
+            const n = parseInt(inputVal)
+            if (!isNaN(n)) {
+                // 限制范围 0 到 255
+                return Math.max(0, Math.min(255, n))
+            }
+            return 0
+        }
+
+        // UINT/UINT16 类型
+        if (isEnipUintType(dt)) {
+            const inputVal = writeDialog.valueStr !== undefined ? writeDialog.valueStr : writeDialog.valueNum
+            const n = parseInt(inputVal)
+            if (!isNaN(n)) {
+                // 限制范围 0 到 65535
+                return Math.max(0, Math.min(65535, n))
+            }
+            return 0
+        }
+
+        // UDINT/UINT32 类型
+        if (isEnipUdintType(dt)) {
+            const inputVal = writeDialog.valueStr !== undefined ? writeDialog.valueStr : writeDialog.valueNum
+            const n = parseInt(inputVal)
+            if (!isNaN(n)) {
+                // 限制范围 0 到 4294967295
+                return Math.max(0, Math.min(4294967295, n))
+            }
+            return 0
+        }
+
+        // ULINT/UINT64 类型
+        if (isEnipUlintType(dt)) {
+            const inputVal = writeDialog.valueStr !== undefined ? writeDialog.valueStr : writeDialog.valueNum
+            const n = parseInt(inputVal)
+            if (!isNaN(n) && n >= 0) {
+                return n
+            }
+            return 0
+        }
+
+        // 对于 enip 协议，未知类型默认作为字符串处理
+        return writeDialog.valueStr || ''
+    }
+
+    // ==================== 通用类型处理（其他协议） ====================
 
     // Boolean 类型
     if (isBoolType(dt)) {
