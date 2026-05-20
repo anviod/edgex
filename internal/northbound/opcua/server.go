@@ -567,12 +567,12 @@ func (s *Server) Update(v model.Value) {
 			status = 0x80000000 // Bad
 		}
 
-		zap.L().Debug("OPC UA Node Update",
-			zap.String("point_id", v.PointID),
-			zap.Any("value", v.Value),
-			zap.String("quality", v.Quality),
-			zap.String("component", "opcua-server"),
-		)
+		// zap.L().Debug("OPC UA Node Update",
+		// 	zap.String("point_id", v.PointID),
+		// 	zap.Any("value", v.Value),
+		// 	zap.String("quality", v.Quality),
+		// 	zap.String("component", "opcua-server"),
+		// )
 
 		node.SetValue(ua.DataValue{
 			Value:           v.Value,

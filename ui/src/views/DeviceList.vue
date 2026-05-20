@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="device-list-container">
     <div class="device-header">
       <div class="header-left">
@@ -503,7 +503,7 @@ const getConfigValue = (device, field) => {
 const defaultForm = {
   id: '',
   name: '',
-  interval: '1s',
+  interval: '10s',
   enable: true,
   configStr: '{}',
   dlt645Address: '',

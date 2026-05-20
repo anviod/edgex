@@ -228,6 +228,12 @@ func (d *ENIPDecoder) EncodeValue(dataType string, value interface{}) ([]byte, e
 			return []byte{byte(v)}, nil
 		case int32:
 			return []byte{byte(v)}, nil
+		default:
+			vInt, ok := toInt(value)
+			if !ok {
+				return nil, fmt.Errorf("cannot convert %T to SINT", value)
+			}
+			return []byte{byte(vInt)}, nil
 		}
 
 	case "UINT8", "USINT":
@@ -238,6 +244,12 @@ func (d *ENIPDecoder) EncodeValue(dataType string, value interface{}) ([]byte, e
 			return []byte{byte(v)}, nil
 		case int:
 			return []byte{byte(v)}, nil
+		default:
+			vUint, ok := toUint(value)
+			if !ok {
+				return nil, fmt.Errorf("cannot convert %T to USINT", value)
+			}
+			return []byte{byte(vUint)}, nil
 		}
 
 	case "INT", "INT16":
@@ -248,6 +260,9 @@ func (d *ENIPDecoder) EncodeValue(dataType string, value interface{}) ([]byte, e
 			return []byte{byte(v), byte(v >> 8)}, nil
 		case int32:
 			return []byte{byte(v), byte(v >> 8)}, nil
+		case float64:
+			val := int16(v)
+			return []byte{byte(val), byte(val >> 8)}, nil
 		}
 
 	case "UINT", "UINT16", "WORD":
@@ -258,6 +273,9 @@ func (d *ENIPDecoder) EncodeValue(dataType string, value interface{}) ([]byte, e
 			return []byte{byte(v), byte(v >> 8)}, nil
 		case int:
 			return []byte{byte(v), byte(v >> 8)}, nil
+		case float64:
+			val := uint16(v)
+			return []byte{byte(val), byte(val >> 8)}, nil
 		}
 
 	case "DINT", "INT32":
@@ -270,6 +288,9 @@ func (d *ENIPDecoder) EncodeValue(dataType string, value interface{}) ([]byte, e
 		case int64:
 			val := int32(v)
 			return []byte{byte(val), byte(val >> 8), byte(val >> 16), byte(val >> 24)}, nil
+		case float64:
+			val := int32(v)
+			return []byte{byte(val), byte(val >> 8), byte(val >> 16), byte(val >> 24)}, nil
 		}
 
 	case "UINT32", "UDINT", "DWORD":
@@ -277,6 +298,9 @@ func (d *ENIPDecoder) EncodeValue(dataType string, value interface{}) ([]byte, e
 		case uint32:
 			return []byte{byte(v), byte(v >> 8), byte(v >> 16), byte(v >> 24)}, nil
 		case uint:
+			val := uint32(v)
+			return []byte{byte(val), byte(val >> 8), byte(val >> 16), byte(val >> 24)}, nil
+		case float64:
 			val := uint32(v)
 			return []byte{byte(val), byte(val >> 8), byte(val >> 16), byte(val >> 24)}, nil
 		}
@@ -301,6 +325,12 @@ func (d *ENIPDecoder) EncodeValue(dataType string, value interface{}) ([]byte, e
 				byte(v), byte(v >> 8), byte(v >> 16), byte(v >> 24),
 				byte(v >> 32), byte(v >> 40), byte(v >> 48), byte(v >> 56),
 			}, nil
+		case float64:
+			val := int64(v)
+			return []byte{
+				byte(val), byte(val >> 8), byte(val >> 16), byte(val >> 24),
+				byte(val >> 32), byte(val >> 40), byte(val >> 48), byte(val >> 56),
+			}, nil
 		}
 
 	case "ULINT", "UINT64", "LWORD":
@@ -309,6 +339,12 @@ func (d *ENIPDecoder) EncodeValue(dataType string, value interface{}) ([]byte, e
 			return []byte{
 				byte(v), byte(v >> 8), byte(v >> 16), byte(v >> 24),
 				byte(v >> 32), byte(v >> 40), byte(v >> 48), byte(v >> 56),
+			}, nil
+		case float64:
+			val := uint64(v)
+			return []byte{
+				byte(val), byte(val >> 8), byte(val >> 16), byte(val >> 24),
+				byte(val >> 32), byte(val >> 40), byte(val >> 48), byte(val >> 56),
 			}, nil
 		}
 
@@ -341,4 +377,99 @@ func (d *ENIPDecoder) EncodeValue(dataType string, value interface{}) ([]byte, e
 	}
 
 	return nil, fmt.Errorf("unsupported data type for encoding: %s", dataType)
+}
+
+func toInt(value interface{}) (int64, bool) {
+	switch v := value.(type) {
+	case int:
+		return int64(v), true
+	case int8:
+		return int64(v), true
+	case int16:
+		return int64(v), true
+	case int32:
+		return int64(v), true
+	case int64:
+		return v, true
+	case uint:
+		return int64(v), true
+	case uint8:
+		return int64(v), true
+	case uint16:
+		return int64(v), true
+	case uint32:
+		return int64(v), true
+	case uint64:
+		return int64(v), true
+	case float32:
+		return int64(v), true
+	case float64:
+		return int64(v), true
+	case string:
+		val, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		return val, true
+	default:
+		return 0, false
+	}
+}
+
+func toUint(value interface{}) (uint64, bool) {
+	switch v := value.(type) {
+	case uint:
+		return uint64(v), true
+	case uint8:
+		return uint64(v), true
+	case uint16:
+		return uint64(v), true
+	case uint32:
+		return uint64(v), true
+	case uint64:
+		return v, true
+	case int:
+		if v < 0 {
+			return 0, false
+		}
+		return uint64(v), true
+	case int8:
+		if v < 0 {
+			return 0, false
+		}
+		return uint64(v), true
+	case int16:
+		if v < 0 {
+			return 0, false
+		}
+		return uint64(v), true
+	case int32:
+		if v < 0 {
+			return 0, false
+		}
+		return uint64(v), true
+	case int64:
+		if v < 0 {
+			return 0, false
+		}
+		return uint64(v), true
+	case float32:
+		if v < 0 {
+			return 0, false
+		}
+		return uint64(v), true
+	case float64:
+		if v < 0 {
+			return 0, false
+		}
+		return uint64(v), true
+	case string:
+		val, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		return val, true
+	default:
+		return 0, false
+	}
 }

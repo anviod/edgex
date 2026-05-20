@@ -298,6 +298,13 @@ func (t *ENIPTransport) GetConnectionMetrics() (
 	return
 }
 
+// GetRemoteAddr 返回远程地址
+func (t *ENIPTransport) GetRemoteAddr() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.remoteAddr
+}
+
 func (t *ENIPTransport) getLocalAddr() string {
 	if t.tcp == nil {
 		return ""

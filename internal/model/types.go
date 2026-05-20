@@ -247,7 +247,7 @@ type Device struct {
 	DeviceFile   string         `json:"device_file,omitempty" yaml:"device_file,omitempty"` // 设备配置文件路径
 	Config       map[string]any `json:"config" yaml:"config"`                               // 设备特定配置（如 slave_id）
 	Storage      DeviceStorage  `json:"storage,omitempty" yaml:"storage,omitempty"`         // Data storage strategy
-	Points       []Point        `json:"points" yaml:"points"`                               // 该设备的点位列表
+	Points       []Point        `json:"points,omitempty" yaml:"points,omitempty"`             // 该设备的点位列表
 	State        int            `json:"state" yaml:"-"`                                     // 运行时状态：0=Online, 1=Unstable, 2=Offline, 3=Quarantine
 	QualityScore int            `json:"quality_score" yaml:"-"`                             // 质量评分 (0-100)
 	StopChan     chan struct{}  `json:"-" yaml:"-"`
