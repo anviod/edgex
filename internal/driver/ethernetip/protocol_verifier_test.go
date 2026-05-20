@@ -214,7 +214,8 @@ func (pv *ProtocolVerifier) verifyTagReadWrite() []TestResult {
 		fmt.Printf("✗ 单个标签写入 - 初始化失败: %v\n", err)
 		results = append(results, TestResult{Name: "单标签写_初始化", Passed: false, Message: err.Error()})
 	} else {
-		tag2.SetInt32(12345)
+		// 使用正确的数据类型：IntTag 是 INT (16位)，应该使用 SetInt16
+		tag2.SetInt16(12345)
 		err = tag2.Write()
 		if err != nil {
 			fmt.Printf("✗ 单个标签写入失败: %v\n", err)

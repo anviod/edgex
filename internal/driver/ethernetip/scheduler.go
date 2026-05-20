@@ -280,6 +280,7 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 			return fmt.Errorf("failed to get client after reconnect")
 		}
 		zap.L().Info("[ENIP] Reconnect successful in readGroup")
+		// 重连成功后继续执行读取操作，不需要返回
 	}
 
 	// 使用 TagGroup 进行批量读取优化
