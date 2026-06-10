@@ -48,7 +48,99 @@ description: EdgeX 项目的完整文档
   </div>
 </section>
 
+<section class="landing-section">
+  <div class="shell shell--wide">
+    <div class="wide-panel" style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%); border: 1px solid #444; border-radius: 12px; padding: 35px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+      <div class="section-kicker" style="color: #00d4ff;">计划方向</div>
+      <h2 style="color: #ffffff; margin-bottom: 15px;">即将推出</h2>
+      <p style="color: #b8c5d6; margin-bottom: 25px;">展示正在规划和开发中的功能，预计发布时间仅供参考。</p>
 
+      <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+        <span style="background: linear-gradient(135deg, #00d4ff, #0099cc); color: white; padding: 6px 16px; border-radius: 20px; font-size: 14px; font-weight: 600;">Q3 2026</span>
+        <a href="TODO/基于go-libp2p%20同步通信规划方案.html" style="color: #00d4ff; text-decoration: none; font-weight: 500; border-bottom: 2px solid transparent; transition: border-color 0.3s;">多节点同步通信</a>
+        <a href="https://github.com/libp2p/go-libp2p" target="_blank" style="color: #00d4ff; text-decoration: none; font-weight: 500; border-bottom: 2px solid transparent; transition: border-color 0.3s;">go-libp2p</a>
+      </div>
+
+      <div style="grid-template-columns: 1fr 1fr; gap: 30px; display: grid;">
+        <div>
+          <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">核心定位：Hybrid Sync Model</h3>
+          <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8;">
+            <strong style="color: #ffffff;">分布式配置与控制权同步系统</strong>，基于 go-libp2p 构建，专用于多台边缘网关之间的自动发现与配置一致性维护。这是一个"逻辑状态同步系统"，而非传统文件同步，通过结构化的 ConfigSnapshot 实现语义级别的配置共享与冲突处理。
+          </p>
+          <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8; margin-top: 10px;">
+            <strong style="color: #ffffff;">为什么选择 Hybrid Sync Model？</strong><br/>
+            相比 Raft（太重、leader瓶颈、ARM无法运行）、全CRDT（实现复杂、不适合设备控制）、rsync文件同步（无语义），本方案在可控性、轻量级与工业适配之间取得最佳平衡。
+          </p>
+        </div>
+
+        <div>
+          <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">三层一致性模型</h3>
+          <ul style="color: #b8c5d6; font-size: 14px; line-height: 1.8; list-style-type: none; padding-left: 0;">
+            <li style="padding-left: 20px; position: relative;">
+              <span style="position: absolute; left: 0; color: #00d4ff;">•</span>
+              <strong style="color: #ffffff;">Config 层</strong> → 最终一致 (Eventual Consistency)：通过 Announce + Pull 两阶段同步实现，允许延迟但保证最终一致
+            </li>
+            <li style="padding-left: 20px; position: relative;">
+              <span style="position: absolute; left: 0; color: #00d4ff;">•</span>
+              <strong style="color: #ffffff;">Ownership 层</strong> → 租约约束 (Lease)：设备控制权通过租约机制管理，防止多节点冲突抢占
+            </li>
+            <li style="padding-left: 20px; position: relative;">
+              <span style="position: absolute; left: 0; color: #00d4ff;">•</span>
+              <strong style="color: #ffffff;">Runtime 层</strong> → 单点主控 (Owner Only)：运行时数据仅允许主控节点写入，避免数据同步风暴
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+        <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">技术架构特性</h3>
+        <ul style="color: #b8c5d6; font-size: 14px; line-height: 1.8; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px;">
+          <li style="padding-left: 20px; position: relative;">
+            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
+            <strong>0配置启动</strong>：无需 bootstrap、无证书、无手动配置，接入网络即可被发现
+          </li>
+          <li style="padding-left: 20px; position: relative;">
+            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
+            <strong>局域网自动发现</strong>：基于 go-libp2p 的 P2P 网络能力，自动发现同网段节点并组建集群
+          </li>
+          <li style="padding-left: 20px; position: relative;">
+            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
+            <strong>向量时钟版本控制</strong>：每个节点维护版本向量，解决并发修改冲突，支持冲突状态可视化
+          </li>
+          <li style="padding-left: 20px; position: relative;">
+            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
+            <strong>两阶段同步</strong>：Announce（广播Hash变更） + Pull（按需拉取完整数据），避免全量广播导致网络风暴
+          </li>
+          <li style="padding-left: 20px; position: relative;">
+            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
+            <strong>设备访问模式</strong>：Exclusive（独占）、Shared（共享）、Lease（租约）三种模式适配不同工业协议特性
+          </li>
+          <li style="padding-left: 20px; position: relative;">
+            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
+            <strong>ARMv7 友好</strong>：轻量级实现、限流保护、数据压缩，适合资源受限的边缘网关设备
+          </li>
+        </ul>
+      </div>
+
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+        <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">核心应用场景</h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">ARMv7 边缘网关</span>
+          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">PLC / OPC-UA / BACnet / Modbus</span>
+          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">分布式采集</span>
+          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">配置共享</span>
+          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">设备接管</span>
+        </div>
+      </div>
+
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+        <p style="color: #b8c5d6; font-size: 13px; text-align: center;">
+          查看完整规划方案：<a href="TODO/基于go-libp2p%20同步通信规划方案.html" style="color: #00d4ff; text-decoration: none; border-bottom: 1px solid #00d4ff;">基于 go-libp2p 同步通信规划方案</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
 
 <section class="landing-section">
   <div class="shell shell--wide">
@@ -187,96 +279,6 @@ description: EdgeX 项目的完整文档
     </div>
   </div>
 :</section>
-
-<section class="landing-section">
-  <div class="shell shell--wide">
-    <div class="wide-panel" style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%); border: 1px solid #444; border-radius: 12px; padding: 35px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
-      <div class="section-kicker" style="color: #00d4ff;">计划方向</div>
-      <h2 style="color: #ffffff; margin-bottom: 15px;">即将推出</h2>
-      <p style="color: #b8c5d6; margin-bottom: 25px;">展示正在规划和开发中的功能，预计发布时间仅供参考。</p>
-
-      <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
-        <span style="background: linear-gradient(135deg, #00d4ff, #0099cc); color: white; padding: 6px 16px; border-radius: 20px; font-size: 14px; font-weight: 600;">Q3 2026</span>
-        <a href="TODO/基于go-libp2p%20同步通信规划方案.html" style="color: #00d4ff; text-decoration: none; font-weight: 500; border-bottom: 2px solid transparent; transition: border-color 0.3s;">多节点同步通信</a>
-        <a href="https://github.com/libp2p/go-libp2p" target="_blank" style="color: #00d4ff; text-decoration: none; font-weight: 500; border-bottom: 2px solid transparent; transition: border-color 0.3s;">go-libp2p</a>
-      </div>
-
-      <div style="grid-template-columns: 1fr 1fr; gap: 30px; display: grid;">
-        <div>
-          <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">核心定位：Hybrid Sync Model</h3>
-          <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8;">
-            <strong style="color: #ffffff;">分布式配置与控制权同步系统</strong>，基于 go-libp2p 构建，专用于多台边缘网关之间的自动发现与配置一致性维护。
-          </p>
-        </div>
-
-        <div>
-          <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">三层一致性模型</h3>
-          <ul style="color: #b8c5d6; font-size: 14px; line-height: 1.8; list-style-type: none; padding-left: 0;">
-            <li style="padding-left: 20px; position: relative;">
-              <span style="position: absolute; left: 0; color: #00d4ff;">•</span>
-              <strong style="color: #ffffff;">Config</strong> → 最终一致 (Eventual Consistency)
-            </li>
-            <li style="padding-left: 20px; position: relative;">
-              <span style="position: absolute; left: 0; color: #00d4ff;">•</span>
-              <strong style="color: #ffffff;">Ownership</strong> → 租约约束 (Lease)
-            </li>
-            <li style="padding-left: 20px; position: relative;">
-              <span style="position: absolute; left: 0; color: #00d4ff;">•</span>
-              <strong style="color: #ffffff;">Runtime</strong> → 单点主控 (Owner Only)
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-        <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">核心特性</h3>
-        <ul style="color: #b8c5d6; font-size: 14px; line-height: 1.8; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px;">
-          <li style="padding-left: 20px; position: relative;">
-            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
-            <strong>0配置启动</strong>：无 bootstrap / 无证书 / 无手动配置
-          </li>
-          <li style="padding-left: 20px; position: relative;">
-            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
-            <strong>局域网自动发现</strong>：自动组网，即插即用
-          </li>
-          <li style="padding-left: 20px; position: relative;">
-            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
-            <strong>向量时钟</strong>：冲突检测与版本控制
-          </li>
-          <li style="padding-left: 20px; position: relative;">
-            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
-            <strong>两阶段同步</strong>：Announce + Pull 按需拉取
-          </li>
-          <li style="padding-left: 20px; position: relative;">
-            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
-            <strong>设备访问模式</strong>：Exclusive / Shared / Lease
-          </li>
-          <li style="padding-left: 20px; position: relative;">
-            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
-            <strong>ARMv7 友好</strong>：轻量、限流、压缩
-          </li>
-        </ul>
-      </div>
-
-      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-        <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">适用场景</h3>
-        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">ARMv7 边缘网关</span>
-          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">PLC / OPC-UA / BACnet / Modbus</span>
-          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">分布式采集</span>
-          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">配置共享</span>
-          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">设备接管</span>
-        </div>
-      </div>
-
-      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-        <p style="color: #b8c5d6; font-size: 13px; text-align: center;">
-          查看完整规划方案：<a href="TODO/基于go-libp2p%20同步通信规划方案.html" style="color: #00d4ff; text-decoration: none; border-bottom: 1px solid #00d4ff;">基于 go-libp2p 同步通信规划方案</a>
-        </p>
-      </div>
-    </div>
-  </div>
-</section>
 
 <section class="landing-section">
   <div class="shell shell--wide">
