@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"edge-gateway/internal/driver/bacnet"
-	"edge-gateway/internal/model"
 	"fmt"
 	"time"
+
+	"github.com/anviod/edgex/internal/driver/bacnet"
+	"github.com/anviod/edgex/internal/model"
 )
 
 func main() {
@@ -118,7 +119,7 @@ func main() {
 		// 实际上 SetDeviceConfig 触发的是异步发现，但 ReadPoints 会检查 Context 是否存在。
 		// 我们可以手动等一下，确保发现完成。
 		fmt.Print("  Waiting for discovery...")
-		time.Sleep(2 * time.Second) 
+		time.Sleep(2 * time.Second)
 		fmt.Println(" Done.")
 
 		// 3.3 读取点位

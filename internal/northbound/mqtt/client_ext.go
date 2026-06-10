@@ -1,10 +1,11 @@
 package mqtt
 
 import (
-	"edge-gateway/internal/model"
 	"encoding/json"
 	"sync/atomic"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 
 	"go.uber.org/zap"
 )
@@ -30,7 +31,7 @@ func (c *Client) retryLoop() {
 			c.configMu.RLock()
 			enable := c.config.Enable
 			c.configMu.RUnlock()
-			
+
 			if enable {
 				c.flushOfflineMessages()
 			}

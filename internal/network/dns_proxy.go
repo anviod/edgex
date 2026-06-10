@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/miekg/dns"
 )

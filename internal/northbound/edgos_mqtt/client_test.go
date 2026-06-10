@@ -126,7 +126,7 @@ func TestNodeRegistrationPayload(t *testing.T) {
 		Body: map[string]any{
 			"node_id":      nodeID,
 			"node_name":    "EdgeX Gateway Node",
-			"model":        "edge-gateway",
+			"model":        "edgex",
 			"version":      "1.0.0",
 			"api_version":  "v1",
 			"capabilities": []string{"shadow-sync", "heartbeat", "device-control", "task-execution"},
@@ -161,8 +161,8 @@ func TestNodeRegistrationPayload(t *testing.T) {
 	if body["node_name"] != "EdgeX Gateway Node" {
 		t.Errorf("Expected node_name 'EdgeX Gateway Node', got '%v'", body["node_name"])
 	}
-	if body["model"] != "edge-gateway" {
-		t.Errorf("Expected model 'edge-gateway', got '%v'", body["model"])
+	if body["model"] != "edgex" {
+		t.Errorf("Expected model 'edgex', got '%v'", body["model"])
 	}
 	if body["version"] != "1.0.0" {
 		t.Errorf("Expected version '1.0.0', got '%v'", body["version"])
@@ -1379,19 +1379,19 @@ func TestWriteCommandWithRequestIDInHeader(t *testing.T) {
 	// Build write command with request_id in header (new format)
 	writeCommand := Message{
 		Header: MessageHeader{
-			MessageID:     "96dbecc2-413b-4982-925d-e6c1c5c8a0d5",
-			Timestamp:    1776836206011,
-			Source:       "edgeos-server",
-			Destination:  nodeID,
-			MessageType:  "command_write",
-			Version:      "1.0",
-			RequestID:    requestID,
+			MessageID:   "96dbecc2-413b-4982-925d-e6c1c5c8a0d5",
+			Timestamp:   1776836206011,
+			Source:      "edgeos-server",
+			Destination: nodeID,
+			MessageType: "command_write",
+			Version:     "1.0",
+			RequestID:   requestID,
 		},
 		Body: map[string]any{
-			"device_id":  deviceID,
-			"node_id":    nodeID,
-			"point_id":   "hr_2",
-			"value":      7715,
+			"device_id": deviceID,
+			"node_id":   nodeID,
+			"point_id":  "hr_2",
+			"value":     7715,
 		},
 	}
 
@@ -1447,7 +1447,7 @@ func TestHeartbeatMessageFormat(t *testing.T) {
 		Status:        "active",
 		Timestamp:     time.Now().UnixMilli(),
 		Sequence:      100,
-		UptimeSeconds:  3600,
+		UptimeSeconds: 3600,
 		Version:       "1.0.0",
 		SystemMetrics: SystemMetrics{
 			CPUUsage:       25.5,

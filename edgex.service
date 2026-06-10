@@ -1,0 +1,12 @@
+[Unit]
+Description=edgex Service (edgex)
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/usr/local/bin/edgex
+ExecStart=/usr/local/bin/edgex/edgex -conf conf
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

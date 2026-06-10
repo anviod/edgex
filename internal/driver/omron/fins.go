@@ -2,14 +2,15 @@ package omron
 
 import (
 	"context"
-	"edge-gateway/internal/driver"
-	"edge-gateway/internal/model"
 	"fmt"
 	"log"
 	"math/rand"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/anviod/edgex/internal/driver"
+	"github.com/anviod/edgex/internal/model"
 )
 
 func init() {

@@ -1,13 +1,14 @@
 package core
 
 import (
-	"edge-gateway/internal/model"
 	"fmt"
 	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 
 	"gopkg.in/yaml.v3"
 )

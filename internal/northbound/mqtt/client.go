@@ -1,14 +1,15 @@
 package mqtt
 
 import (
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/storage"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/storage"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"go.uber.org/zap"
@@ -150,11 +151,11 @@ func (c *Client) Start() error {
 	c.configMu.RLock()
 	enable := c.config.Enable
 	c.configMu.RUnlock()
-	
+
 	if !enable {
 		return nil
 	}
-	
+
 	// Start connection in background to support custom retry logic
 	go c.connectLoop()
 	go c.retryLoop()
@@ -292,11 +293,11 @@ func (c *Client) PublishRaw(topic string, payload []byte) error {
 	c.configMu.RLock()
 	enable := c.config.Enable
 	c.configMu.RUnlock()
-	
+
 	if !enable {
 		return mqtt.ErrNotConnected
 	}
-	
+
 	connected := c.client != nil && c.client.IsConnected()
 
 	if !connected {
@@ -337,12 +338,12 @@ func (c *Client) connectLoop() {
 	c.configMu.RLock()
 	enable := c.config.Enable
 	c.configMu.RUnlock()
-	
+
 	if !enable {
 		c.setStatus(StatusDisconnected)
 		return
 	}
-	
+
 	c.setStatus(StatusReconnecting)
 
 	c.configMu.RLock()
@@ -659,7 +660,7 @@ func (c *Client) Publish(v model.Value) {
 	c.configMu.RLock()
 	enable := c.config.Enable
 	c.configMu.RUnlock()
-	
+
 	if !enable || c.client == nil || !c.client.IsConnected() {
 		return
 	}
@@ -790,7 +791,7 @@ func (c *Client) PublishDeviceStatus(deviceID string, status int) {
 	c.configMu.RLock()
 	enable := c.config.Enable
 	c.configMu.RUnlock()
-	
+
 	if !enable || c.client == nil || !c.client.IsConnected() {
 		return
 	}

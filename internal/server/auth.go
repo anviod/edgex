@@ -3,13 +3,14 @@ package server
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"edge-gateway/internal/model"
 	"encoding/hex"
 	"fmt"
 	"log"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -19,6 +20,7 @@ import (
 // ==========================
 // JWT Implementation
 // ==========================
+var DebugMode bool = true
 
 type JWT struct {
 	SigningKey []byte
@@ -268,8 +270,10 @@ func (s *Server) handleGetSystemInfo(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"code": "0",
 		"data": fiber.Map{
-			"name":    cfg.Hostname.Name,
-			"softVer": "v1.0.0",
+			"name":      cfg.Hostname.Name,
+			"softVer":   model.Version,
+			"buildTime": model.BuildTime,
+			"commitID":  model.CommitID,
 		},
 	})
 }
@@ -309,9 +313,11 @@ func (s *Server) handleLogin(c *fiber.Ctx) error {
 		})
 	}
 
-	// 1. Verify Nonce
-	if !ValidateAndConsumeNonce(req.Data.Nonce) {
-		return c.JSON(fiber.Map{"code": "1", "msg": "加密已过期或无效，请刷新页面"})
+	// 1. Verify Nonce (skip in debug mode if nonce is empty)
+	if !DebugMode || req.Data.Nonce != "" {
+		if !ValidateAndConsumeNonce(req.Data.Nonce) {
+			return c.JSON(fiber.Map{"code": "1", "msg": "加密已过期或无效，请刷新页面"})
+		}
 	}
 
 	var user *model.UserConfig
@@ -341,12 +347,19 @@ func (s *Server) handleLogin(c *fiber.Ctx) error {
 		}
 
 		// 3. Verify Password
-		expected := sha256.Sum256([]byte(user.Password + req.Data.Nonce))
-		expectedHex := hex.EncodeToString(expected[:])
-
-		if req.Data.Password != expectedHex {
-			AddLoginFail(ip)
-			return c.JSON(fiber.Map{"code": "1", "msg": "密码错误"})
+		// In debug mode with empty nonce, compare password directly (plain text)
+		if DebugMode && req.Data.Nonce == "" {
+			if req.Data.Password != user.Password {
+				AddLoginFail(ip)
+				return c.JSON(fiber.Map{"code": "1", "msg": "密码错误"})
+			}
+		} else {
+			expected := sha256.Sum256([]byte(user.Password + req.Data.Nonce))
+			expectedHex := hex.EncodeToString(expected[:])
+			if req.Data.Password != expectedHex {
+				AddLoginFail(ip)
+				return c.JSON(fiber.Map{"code": "1", "msg": "密码错误"})
+			}
 		}
 	}
 

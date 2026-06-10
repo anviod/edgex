@@ -3,7 +3,7 @@ package data
 import (
 	"fmt"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 func ToBitString(d btypes.PropertyData) (ok bool, out *btypes.BitString) {

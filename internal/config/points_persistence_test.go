@@ -1,10 +1,11 @@
 package config
 
 import (
-	"edge-gateway/internal/model"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 func TestPointsPersistence(t *testing.T) {

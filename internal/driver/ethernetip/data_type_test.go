@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 )
 
 func TestWritePointDataTypeConversion(t *testing.T) {

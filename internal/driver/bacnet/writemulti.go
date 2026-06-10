@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/driver/bacnet/encoding"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/encoding"
 )
 
 func (c *client) WriteMultiProperty(dev btypes.Device, wp btypes.MultiplePropertyData) error {

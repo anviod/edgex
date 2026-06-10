@@ -4,10 +4,11 @@ package bacnet
 
 import (
 	"context"
-	"edge-gateway/internal/model"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 // TestBACnet_ManualWrite tests writing to a real BACnet device.

@@ -1,11 +1,12 @@
 package core
 
 import (
-	"edge-gateway/internal/config"
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/network"
 	"fmt"
 	"sync"
+
+	"github.com/anviod/edgex/internal/config"
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/network"
 )
 
 type SystemManager struct {
@@ -24,7 +25,7 @@ func NewSystemManager(cfg *config.Config, confDir string) *SystemManager {
 		cfg.System.Time.Manual.Timezone = "Asia/Shanghai"
 	}
 	if cfg.System.Hostname.Name == "" {
-		cfg.System.Hostname.Name = "edge-gateway"
+		cfg.System.Hostname.Name = "edgex"
 	}
 	if cfg.System.Hostname.HTTPPort == 0 {
 		cfg.System.Hostname.HTTPPort = 8082

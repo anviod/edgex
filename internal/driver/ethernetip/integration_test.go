@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 )
 
 // TestIntegrationWithSimulator 测试与EtherNet/IP模拟器的集成

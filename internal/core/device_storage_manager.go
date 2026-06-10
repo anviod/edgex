@@ -1,13 +1,14 @@
 package core
 
 import (
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/storage"
 	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/storage"
 )
 
 // DeviceStorageManager handles minute-level data persistence for devices

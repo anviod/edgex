@@ -18,7 +18,7 @@
 
 ### 1. 启动应用（使用默认配置）
 ```bash
-cd /d/code/edgex/edge-gateway
+cd /d/code/edgex/edgex
 go run cmd/main.go
 ```
 

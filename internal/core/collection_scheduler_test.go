@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 )
 
 func TestCollectionScheduler(t *testing.T) {

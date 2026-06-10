@@ -1,8 +1,8 @@
 package encoding
 
 import (
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/driver/bacnet/btypes/ndpu"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes/ndpu"
 )
 
 //https://github.com/bacnet-stack/bacnet-stack/blob/master/src/bacnet/npdu.c#L391

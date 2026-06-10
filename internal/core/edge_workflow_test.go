@@ -2,10 +2,11 @@ package core
 
 import (
 	"context"
-	"edge-gateway/internal/model"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 // MockDeviceIO for testing ReadPoint/WritePoint

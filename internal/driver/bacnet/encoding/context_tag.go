@@ -1,6 +1,6 @@
 package encoding
 
-import "edge-gateway/internal/driver/bacnet/btypes"
+import "github.com/anviod/edgex/internal/driver/bacnet/btypes"
 
 /* refer to https://github.com/bacnet-stack/bacnet-stack/blob/bacnet-stack-0.9.1/src/bacapp.c#L583 */
 /* returns the fixed tag type for certain context tagged properties */

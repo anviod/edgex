@@ -1,12 +1,13 @@
 package core
 
 import (
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/storage"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/storage"
 )
 
 func TestShadowIngress_Ingest(t *testing.T) {

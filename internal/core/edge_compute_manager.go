@@ -3,8 +3,6 @@ package core
 import (
 	"bytes"
 	"context"
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/storage"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -17,6 +15,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/storage"
 
 	"github.com/expr-lang/expr"
 )
@@ -1023,7 +1024,7 @@ func (em *EdgeComputeManager) executeActions(ruleID string, actions []model.Rule
 				em.actionHook(ruleID, act, val, env, err)
 			}
 			if err != nil {
-	//				log.Printf("[EdgeAction] Action failed: %v", err)
+				//				log.Printf("[EdgeAction] Action failed: %v", err)
 				em.saveFailedAction(ruleID, act, val, env, err.Error())
 			}
 		}(action)

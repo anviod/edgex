@@ -80,7 +80,7 @@ const props = defineProps({
   modelValue: {
     type: Object,
     default: () => ({
-      name: 'edge-gateway',
+      name: 'edgex',
       enable_mdns: true,
       enable_bare: true,
       http_port: 8082,

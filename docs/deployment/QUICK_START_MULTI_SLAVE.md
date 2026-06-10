@@ -46,7 +46,7 @@ devices:
 ### 2️⃣ 编译
 
 ```bash
-cd edge-gateway
+cd edgex
 go build ./cmd/main.go
 ```
 

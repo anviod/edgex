@@ -2,9 +2,9 @@
 # 安装后处理脚本（安全版）
 set -e
 
-DATA_DIR="/usr/local/bin/gateway/data"
-CONFIG_DIR="/usr/local/bin/gateway/config"
-BACKUP_DIR="/tmp/gateway_backup"
+DATA_DIR="/usr/local/bin/edgex/data"
+CONFIG_DIR="/usr/local/bin/edgex/config"
+BACKUP_DIR="/tmp/edgex_backup"
 
 echo "[postinstall] Running postinstall script..."
 
@@ -32,10 +32,10 @@ if command -v systemctl >/dev/null 2>&1; then
     systemctl daemon-reload || true
 
     echo "[postinstall] Enabling service..."
-    systemctl enable gateway || true
+    systemctl enable edgex || true
 
     echo "[postinstall] Starting service..."
-    systemctl restart gateway || true
+    systemctl restart edgex || true
 else
     echo "[postinstall] systemctl not found, skipping systemd service operations."
 fi

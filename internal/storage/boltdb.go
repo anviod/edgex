@@ -1,10 +1,13 @@
 package storage
 
 import (
-	"edge-gateway/internal/model"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 
 	"go.etcd.io/bbolt"
 )
@@ -116,9 +119,21 @@ type OfflineMessage struct {
 }
 
 func NewStorage(path string) (*Storage, error) {
-	db, err := bbolt.Open(path, 0600, &bbolt.Options{Timeout: 5 * time.Second})
+	// Create directory if it doesn't exist
+	dir := filepath.Dir(path)
+	if dir != "." && dir != "/" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+
+	// Open database with increased timeout
+	db, err := bbolt.Open(path, 0600, &bbolt.Options{
+		Timeout:    30 * time.Second,
+		NoGrowSync: true,
+	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open database %s: %w", path, err)
 	}
 
 	// Init buckets
@@ -132,7 +147,8 @@ func NewStorage(path string) (*Storage, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		db.Close()
+		return nil, fmt.Errorf("failed to init buckets: %w", err)
 	}
 
 	return &Storage{db: db}, nil

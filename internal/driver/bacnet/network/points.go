@@ -3,11 +3,11 @@ package network
 import (
 	"errors"
 
-	"edge-gateway/internal/driver/bacnet"
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/driver/bacnet/btypes/priority"
-	"edge-gateway/internal/driver/bacnet/btypes/units"
-	"edge-gateway/internal/driver/bacnet/helpers/data"
+	"github.com/anviod/edgex/internal/driver/bacnet"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes/priority"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes/units"
+	"github.com/anviod/edgex/internal/driver/bacnet/helpers/data"
 )
 
 type Point struct {

@@ -256,10 +256,10 @@ nats pub "edgex.cmd.edgex-node-001.device-001.write" '{
 
 ```bash
 # 查看所有日志
-tail -f logs/edgex-gateway.log
+tail -f logs/edgex-gateway.edgex.log
 
 # 只查看 edgeOS 相关日志
-tail -f logs/edgex-gateway.log | grep edgeOS
+tail -f logs/edgex-gateway.edgex.log | grep edgeOS
 ```
 
 ### 5.2 查看连接状态
@@ -377,6 +377,6 @@ client_id: "edgex-node-002-mqtt"
 ## 技术支持
 
 如遇问题，请查看：
-1. 日志文件: `logs/edgex-gateway.log`
+1. 日志文件: `logs/edgex-gateway.edgex.log`
 2. 统计信息: `/api/northbound/config`
 3. 帮助文档: Web UI 北向通道页面 → 帮助按钮

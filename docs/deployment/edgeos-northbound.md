@@ -412,7 +412,7 @@ nats pub "edgex.cmd.edgex-node-001.discover" '{
 telnet 127.0.0.1 1883
 
 # 查看日志
-tail -f logs/edgex-gateway.log | grep edgeOS
+tail -f logs/edgex-gateway.edgex.log | grep edgeOS
 ```
 
 **NATS:**

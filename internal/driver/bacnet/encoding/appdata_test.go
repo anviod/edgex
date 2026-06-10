@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 func subTestSimpleData(t *testing.T, d *Decoder, x interface{}) func(t *testing.T) {

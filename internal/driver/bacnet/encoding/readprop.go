@@ -3,7 +3,7 @@ package encoding
 import (
 	"fmt"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 func (e *Encoder) readPropertyHeader(tagPos uint8, data *btypes.PropertyData) (uint8, error) {

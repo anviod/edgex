@@ -13,10 +13,10 @@ func TestNodeRegisterCommandMessageParsing(t *testing.T) {
 	regCommand := Message{
 		Header: MessageHeader{
 			MessageID:     "test-msg-001",
-			Timestamp:    time.Now().UnixMilli(),
-			Source:       "edgeos-server",
-			MessageType:  "node_register",
-			Version:      "1.0",
+			Timestamp:     time.Now().UnixMilli(),
+			Source:        "edgeos-server",
+			MessageType:   "node_register",
+			Version:       "1.0",
 			CorrelationID: "test-corr-001",
 		},
 		Body: map[string]interface{}{
@@ -56,10 +56,10 @@ func TestNodeRegisterResponseGeneration(t *testing.T) {
 	nodeID := "test-node-001"
 	origHeader := MessageHeader{
 		MessageID:     "test-msg-001",
-		Timestamp:    time.Now().UnixMilli(),
-		Source:       "edgeos-server",
-		MessageType:  "node_register",
-		Version:      "1.0",
+		Timestamp:     time.Now().UnixMilli(),
+		Source:        "edgeos-server",
+		MessageType:   "node_register",
+		Version:       "1.0",
 		CorrelationID: "test-corr-001",
 	}
 
@@ -67,11 +67,11 @@ func TestNodeRegisterResponseGeneration(t *testing.T) {
 	response := Message{
 		Header: MessageHeader{
 			MessageID:     generateMessageID(),
-			Timestamp:    time.Now().UnixMilli(),
-			Source:      nodeID,
-			Destination: origHeader.Source,
-			MessageType: "node_register_response",
-			Version:     "1.0",
+			Timestamp:     time.Now().UnixMilli(),
+			Source:        nodeID,
+			Destination:   origHeader.Source,
+			MessageType:   "node_register_response",
+			Version:       "1.0",
 			CorrelationID: origHeader.MessageID,
 		},
 		Body: map[string]interface{}{
@@ -123,13 +123,13 @@ func TestNodeRegistrationPayload(t *testing.T) {
 			Version:     "1.0",
 		},
 		Body: map[string]interface{}{
-			"node_id":     nodeID,
-			"node_name":   "EdgeX Gateway Node",
-			"model":       "edge-gateway",
-			"version":     "1.0.0",
-			"api_version": "v1",
+			"node_id":      nodeID,
+			"node_name":    "EdgeX Gateway Node",
+			"model":        "edgex",
+			"version":      "1.0.0",
+			"api_version":  "v1",
 			"capabilities": []string{"shadow-sync", "heartbeat", "device-control", "task-execution"},
-			"protocol":    "edgeOS(NATS)",
+			"protocol":     "edgeOS(NATS)",
 			"endpoint": map[string]string{
 				"host": "127.0.0.1",
 				"port": "8082",
@@ -160,8 +160,8 @@ func TestNodeRegistrationPayload(t *testing.T) {
 	if body["node_name"] != "EdgeX Gateway Node" {
 		t.Errorf("Expected node_name 'EdgeX Gateway Node', got '%v'", body["node_name"])
 	}
-	if body["model"] != "edge-gateway" {
-		t.Errorf("Expected model 'edge-gateway', got '%v'", body["model"])
+	if body["model"] != "edgex" {
+		t.Errorf("Expected model 'edgex', got '%v'", body["model"])
 	}
 	if body["version"] != "1.0.0" {
 		t.Errorf("Expected version '1.0.0', got '%v'", body["version"])
@@ -277,7 +277,7 @@ func TestDeviceReportMessageFormat(t *testing.T) {
 			"service_name":    "Test Channel",
 			"labels":          []string{},
 			"description":     "",
-			"admin_state":    "ENABLED",
+			"admin_state":     "ENABLED",
 			"operating_state": "ENABLED",
 			"properties": map[string]interface{}{
 				"protocol":   "modbus",
@@ -291,7 +291,7 @@ func TestDeviceReportMessageFormat(t *testing.T) {
 			"service_name":    "Test Channel",
 			"labels":          []string{"sensor", "temperature"},
 			"description":     "",
-			"admin_state":    "ENABLED",
+			"admin_state":     "ENABLED",
 			"operating_state": "DISABLED",
 			"properties": map[string]interface{}{
 				"protocol":   "bacnet",
@@ -309,8 +309,8 @@ func TestDeviceReportMessageFormat(t *testing.T) {
 			Version:     "1.0",
 		},
 		Body: map[string]interface{}{
-			"node_id":  nodeID,
-			"devices":  devices,
+			"node_id": nodeID,
+			"devices": devices,
 		},
 	}
 
@@ -408,11 +408,11 @@ func TestRegisterResponseParsing(t *testing.T) {
 	responseMessage := Message{
 		Header: MessageHeader{
 			MessageID:     "resp-msg-001",
-			Timestamp:    time.Now().UnixMilli(),
-			Source:       "edgeos-server",
-			Destination:  "edgex-node-001",
-			MessageType:  "node_register_response",
-			Version:      "1.0",
+			Timestamp:     time.Now().UnixMilli(),
+			Source:        "edgeos-server",
+			Destination:   "edgex-node-001",
+			MessageType:   "node_register_response",
+			Version:       "1.0",
 			CorrelationID: "req-msg-001",
 		},
 		Body: map[string]interface{}{
@@ -458,11 +458,11 @@ func TestRegisterResponseFailureHandling(t *testing.T) {
 	responseMessage := Message{
 		Header: MessageHeader{
 			MessageID:     "resp-msg-002",
-			Timestamp:    time.Now().UnixMilli(),
-			Source:       "edgeos-server",
-			Destination:  "edgex-node-001",
-			MessageType:  "node_register_response",
-			Version:      "1.0",
+			Timestamp:     time.Now().UnixMilli(),
+			Source:        "edgeos-server",
+			Destination:   "edgex-node-001",
+			MessageType:   "node_register_response",
+			Version:       "1.0",
 			CorrelationID: "req-msg-002",
 		},
 		Body: map[string]interface{}{
@@ -507,8 +507,8 @@ func TestDeviceReportWithEmptyDevices(t *testing.T) {
 			Version:     "1.0",
 		},
 		Body: map[string]interface{}{
-			"node_id":  nodeID,
-			"devices":  []map[string]interface{}{},
+			"node_id": nodeID,
+			"devices": []map[string]interface{}{},
 		},
 	}
 
@@ -545,9 +545,9 @@ func TestDeviceOperatingStateMapping(t *testing.T) {
 		state         int
 		expectedState string
 	}{
-		{0, "ENABLED"},   // Default/Unknown
-		{1, "UNSTABLE"},  // Unstable
-		{2, "DISABLED"},  // Offline
+		{0, "ENABLED"},    // Default/Unknown
+		{1, "UNSTABLE"},   // Unstable
+		{2, "DISABLED"},   // Offline
 		{3, "QUARANTINE"}, // Quarantine
 	}
 
@@ -578,14 +578,14 @@ func TestNATSMessageFormat(t *testing.T) {
 	msg := Message{
 		Header: MessageHeader{
 			MessageID:     "nats-test-001",
-			Timestamp:    time.Now().UnixMilli(),
-			Source:       "edgeos-nats-server",
-			MessageType:  "node_register",
-			Version:      "1.0",
+			Timestamp:     time.Now().UnixMilli(),
+			Source:        "edgeos-nats-server",
+			MessageType:   "node_register",
+			Version:       "1.0",
 			CorrelationID: "nats-corr-001",
 		},
 		Body: map[string]interface{}{
-			"action": "re-register",
+			"action":  "re-register",
 			"node_id": "edgex-node-001",
 		},
 	}
@@ -659,9 +659,9 @@ func TestNATSDeviceOnlineMessageFormat(t *testing.T) {
 			"online_time": time.Now().UnixMilli(),
 			"status":      "online",
 			"details": map[string]interface{}{
-				"protocol":           "modbus-tcp",
-				"address":            "192.168.1.100:502",
-				"last_offline_time":  1744679000000,
+				"protocol":          "modbus-tcp",
+				"address":           "192.168.1.100:502",
+				"last_offline_time": 1744679000000,
 			},
 		},
 	}
@@ -738,10 +738,10 @@ func TestNATSDeviceOfflineMessageFormat(t *testing.T) {
 			"status":       "offline",
 			"reason":       reason,
 			"details": map[string]interface{}{
-				"protocol":          "modbus-tcp",
-				"address":           "192.168.1.100:502",
-				"last_online_time":  1744679000000,
-				"retry_count":       3,
+				"protocol":         "modbus-tcp",
+				"address":          "192.168.1.100:502",
+				"last_online_time": 1744679000000,
+				"retry_count":      3,
 			},
 		},
 	}

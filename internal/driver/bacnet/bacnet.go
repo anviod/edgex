@@ -2,12 +2,6 @@ package bacnet
 
 import (
 	"context"
-	"edge-gateway/internal/driver"
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/driver/bacnet/btypes/null"
-	"edge-gateway/internal/driver/bacnet/btypes/units"
-	"edge-gateway/internal/driver/bacnet/datalink"
-	"edge-gateway/internal/model"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -15,6 +9,13 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/anviod/edgex/internal/driver"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes/null"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes/units"
+	"github.com/anviod/edgex/internal/driver/bacnet/datalink"
+	"github.com/anviod/edgex/internal/model"
 
 	"go.uber.org/zap"
 )

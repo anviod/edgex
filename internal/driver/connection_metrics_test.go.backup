@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 )
 
 // testGetMetrics 辅助函数，测试GetMetrics方法

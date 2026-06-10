@@ -3,13 +3,14 @@ package sparkplugb
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"edge-gateway/internal/model"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )

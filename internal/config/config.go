@@ -1,12 +1,13 @@
 package config
 
 import (
-	"edge-gateway/internal/model"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 
 	"gopkg.in/yaml.v3"
 )

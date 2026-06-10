@@ -265,10 +265,10 @@ go build
 ### 3. 日志监控
 ```bash
 # 实时查看日志
-tail -f logs/edgex-gateway.log | grep edgeOS
+tail -f logs/edgex-gateway.edgex.log | grep edgeOS
 
 # 过滤错误
-tail -f logs/edgex-gateway.log | grep "error\|Error\|ERROR"
+tail -f logs/edgex-gateway.edgex.log | grep "error\|Error\|ERROR"
 ```
 
 ## 验收标准

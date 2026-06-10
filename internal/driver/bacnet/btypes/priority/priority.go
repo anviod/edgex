@@ -3,9 +3,9 @@ package priority
 import (
 	"reflect"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/driver/bacnet/helpers/data"
-	"edge-gateway/internal/driver/bacnet/helpers/nils"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/helpers/data"
+	"github.com/anviod/edgex/internal/driver/bacnet/helpers/nils"
 )
 
 func BuildFloat32(in btypes.PropertyData, objType btypes.ObjectType) (pri *Float32) {

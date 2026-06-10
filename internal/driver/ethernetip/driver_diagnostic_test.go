@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 
 	go_ethernet_ip "github.com/anviod/ethernet-ip"
 )
@@ -47,7 +47,7 @@ func TestDriverTagRead(t *testing.T) {
 
 func TestDriverFullReadPoints(t *testing.T) {
 	driver := NewEtherNetIPDriver()
-	
+
 	config := model.DriverConfig{
 		Config: map[string]any{
 			"ip":   "127.0.0.1",

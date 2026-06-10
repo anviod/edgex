@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/storage"
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/storage"
 
 	nats "github.com/nats-io/nats.go"
 	"go.uber.org/zap"
@@ -26,12 +26,12 @@ const (
 
 // MessageHeader represents standard edgeOS message header
 type MessageHeader struct {
-	MessageID   string `json:"message_id"`
-	Timestamp   int64  `json:"timestamp"`
-	Source      string `json:"source"`
-	Destination string `json:"destination,omitempty"`
-	MessageType string `json:"message_type"`
-	Version     string `json:"version"`
+	MessageID     string `json:"message_id"`
+	Timestamp     int64  `json:"timestamp"`
+	Source        string `json:"source"`
+	Destination   string `json:"destination,omitempty"`
+	MessageType   string `json:"message_type"`
+	Version       string `json:"version"`
 	CorrelationID string `json:"correlation_id,omitempty"`
 }
 
@@ -43,19 +43,19 @@ type Message struct {
 
 // Client implements edgeOS(NATS) northbound channel
 type Client struct {
-	config    model.EdgeOSNATSConfig
-	configMu  sync.RWMutex
-	nc        *nats.Conn
-	js        nats.JetStreamContext
-	nodeID    string
+	config   model.EdgeOSNATSConfig
+	configMu sync.RWMutex
+	nc       *nats.Conn
+	js       nats.JetStreamContext
+	nodeID   string
 
-	status    int
-	statusMu  sync.RWMutex
-	stopChan  chan struct{}
+	status   int
+	statusMu sync.RWMutex
+	stopChan chan struct{}
 
-	sb        model.SouthboundManager
-	storage   *storage.Storage
-	logger    *zap.Logger
+	sb      model.SouthboundManager
+	storage *storage.Storage
+	logger  *zap.Logger
 
 	// Stats
 	successCount    int64
@@ -63,15 +63,15 @@ type Client struct {
 	reconnectCount  int64
 	lastOfflineTime int64
 	lastOnlineTime  int64
-	publishCount   int64
+	publishCount    int64
 
 	// Subscriptions
 	subscriptions map[string]*nats.Subscription
 	subMu         sync.Mutex
 
 	// Device aggregation for periodic push
-	deviceAggregators  map[string]*deviceAggregator
-	aggregatorMu       sync.RWMutex
+	deviceAggregators map[string]*deviceAggregator
+	aggregatorMu      sync.RWMutex
 }
 
 // NewClient creates a new edgeOS(NATS) client
@@ -82,14 +82,14 @@ func NewClient(cfg model.EdgeOSNATSConfig, sb model.SouthboundManager, s *storag
 		zap.String("name", cfg.Name),
 	)
 	return &Client{
-		config:             cfg,
-		sb:                 sb,
-		storage:            s,
-		nodeID:             cfg.NodeID,
-		logger:             logger,
-		stopChan:           make(chan struct{}),
-		subscriptions:      make(map[string]*nats.Subscription),
-		deviceAggregators:  make(map[string]*deviceAggregator),
+		config:            cfg,
+		sb:                sb,
+		storage:           s,
+		nodeID:            cfg.NodeID,
+		logger:            logger,
+		stopChan:          make(chan struct{}),
+		subscriptions:     make(map[string]*nats.Subscription),
+		deviceAggregators: make(map[string]*deviceAggregator),
 	}
 }
 
@@ -275,13 +275,13 @@ func (c *Client) publishNodeOnline() {
 			Version:     "1.0",
 		},
 		Body: map[string]interface{}{
-			"node_id":     nodeID,
-			"node_name":   "EdgeX Gateway Node",
-			"model":       "edge-gateway",
-			"version":     "1.0.0",
-			"api_version": "v1",
+			"node_id":      nodeID,
+			"node_name":    "EdgeX Gateway Node",
+			"model":        "edgex",
+			"version":      "1.0.0",
+			"api_version":  "v1",
 			"capabilities": []string{"shadow-sync", "heartbeat", "device-control", "task-execution"},
-			"protocol":    "edgeOS(NATS)",
+			"protocol":     "edgeOS(NATS)",
 			"endpoint": map[string]string{
 				"host": "127.0.0.1",
 				"port": "8082",
@@ -397,12 +397,12 @@ func (c *Client) handleDiscoverCommand(msg *nats.Msg) {
 	// Send response
 	response := Message{
 		Header: MessageHeader{
-			MessageID:    generateMessageID(),
-			Timestamp:    time.Now().UnixMilli(),
-			Source:       c.nodeID,
-			Destination:  message.Header.Source,
-			MessageType:  "discover_response",
-			Version:      "1.0",
+			MessageID:     generateMessageID(),
+			Timestamp:     time.Now().UnixMilli(),
+			Source:        c.nodeID,
+			Destination:   message.Header.Source,
+			MessageType:   "discover_response",
+			Version:       "1.0",
 			CorrelationID: message.Header.MessageID,
 		},
 		Body: map[string]interface{}{
@@ -436,12 +436,12 @@ func (c *Client) handleWriteCommand(msg *nats.Msg) {
 		zap.L().Error("Invalid write subject", zap.String("subject", msg.Subject))
 		response := Message{
 			Header: MessageHeader{
-				MessageID:    generateMessageID(),
-				Timestamp:    time.Now().UnixMilli(),
-				Source:       c.nodeID,
-				Destination:  message.Header.Source,
-				MessageType:  "write_response",
-				Version:      "1.0",
+				MessageID:     generateMessageID(),
+				Timestamp:     time.Now().UnixMilli(),
+				Source:        c.nodeID,
+				Destination:   message.Header.Source,
+				MessageType:   "write_response",
+				Version:       "1.0",
 				CorrelationID: message.Header.MessageID,
 			},
 			Body: map[string]interface{}{
@@ -461,12 +461,12 @@ func (c *Client) handleWriteCommand(msg *nats.Msg) {
 		zap.L().Error("Invalid write command body")
 		response := Message{
 			Header: MessageHeader{
-				MessageID:    generateMessageID(),
-				Timestamp:    time.Now().UnixMilli(),
-				Source:       c.nodeID,
-				Destination:  message.Header.Source,
-				MessageType:  "write_response",
-				Version:      "1.0",
+				MessageID:     generateMessageID(),
+				Timestamp:     time.Now().UnixMilli(),
+				Source:        c.nodeID,
+				Destination:   message.Header.Source,
+				MessageType:   "write_response",
+				Version:       "1.0",
 				CorrelationID: message.Header.MessageID,
 			},
 			Body: map[string]interface{}{
@@ -484,12 +484,12 @@ func (c *Client) handleWriteCommand(msg *nats.Msg) {
 		zap.L().Error("Invalid points in write command")
 		response := Message{
 			Header: MessageHeader{
-				MessageID:    generateMessageID(),
-				Timestamp:    time.Now().UnixMilli(),
-				Source:       c.nodeID,
-				Destination:  message.Header.Source,
-				MessageType:  "write_response",
-				Version:      "1.0",
+				MessageID:     generateMessageID(),
+				Timestamp:     time.Now().UnixMilli(),
+				Source:        c.nodeID,
+				Destination:   message.Header.Source,
+				MessageType:   "write_response",
+				Version:       "1.0",
 				CorrelationID: message.Header.MessageID,
 			},
 			Body: map[string]interface{}{
@@ -507,12 +507,12 @@ func (c *Client) handleWriteCommand(msg *nats.Msg) {
 		zap.L().Error("Southbound manager not initialized")
 		response := Message{
 			Header: MessageHeader{
-				MessageID:    generateMessageID(),
-				Timestamp:    time.Now().UnixMilli(),
-				Source:       c.nodeID,
-				Destination:  message.Header.Source,
-				MessageType:  "write_response",
-				Version:      "1.0",
+				MessageID:     generateMessageID(),
+				Timestamp:     time.Now().UnixMilli(),
+				Source:        c.nodeID,
+				Destination:   message.Header.Source,
+				MessageType:   "write_response",
+				Version:       "1.0",
 				CorrelationID: message.Header.MessageID,
 			},
 			Body: map[string]interface{}{
@@ -559,12 +559,12 @@ func (c *Client) handleWriteCommand(msg *nats.Msg) {
 
 	response := Message{
 		Header: MessageHeader{
-			MessageID:    generateMessageID(),
-			Timestamp:    time.Now().UnixMilli(),
-			Source:       c.nodeID,
-			Destination:  message.Header.Source,
-			MessageType:  "write_response",
-			Version:      "1.0",
+			MessageID:     generateMessageID(),
+			Timestamp:     time.Now().UnixMilli(),
+			Source:        c.nodeID,
+			Destination:   message.Header.Source,
+			MessageType:   "write_response",
+			Version:       "1.0",
 			CorrelationID: message.Header.MessageID,
 		},
 		Body: map[string]interface{}{
@@ -595,12 +595,12 @@ func (c *Client) handleTaskCommand(msg *nats.Msg) {
 	// For now, just acknowledge command
 	response := Message{
 		Header: MessageHeader{
-			MessageID:    generateMessageID(),
-			Timestamp:    time.Now().UnixMilli(),
-			Source:       c.nodeID,
-			Destination:  message.Header.Source,
-			MessageType:  "task_response",
-			Version:      "1.0",
+			MessageID:     generateMessageID(),
+			Timestamp:     time.Now().UnixMilli(),
+			Source:        c.nodeID,
+			Destination:   message.Header.Source,
+			MessageType:   "task_response",
+			Version:       "1.0",
 			CorrelationID: message.Header.MessageID,
 		},
 		Body: map[string]interface{}{
@@ -634,12 +634,12 @@ func (c *Client) handleNodeRegisterCommand(msg *nats.Msg) {
 	// Send response back to EdgeOS
 	response := Message{
 		Header: MessageHeader{
-			MessageID:    generateMessageID(),
-			Timestamp:    time.Now().UnixMilli(),
-			Source:       c.nodeID,
-			Destination:  message.Header.Source,
-			MessageType:  "node_register_response",
-			Version:      "1.0",
+			MessageID:     generateMessageID(),
+			Timestamp:     time.Now().UnixMilli(),
+			Source:        c.nodeID,
+			Destination:   message.Header.Source,
+			MessageType:   "node_register_response",
+			Version:       "1.0",
 			CorrelationID: message.Header.MessageID,
 		},
 		Body: map[string]interface{}{
@@ -736,13 +736,13 @@ func (c *Client) publishDeviceReport() {
 				"device_id":       device.ID,
 				"device_name":     device.Name,
 				"device_profile":  channel.Protocol, // Use protocol as profile
-				"service_name":    channel.Name,      // Use channel name as service
+				"service_name":    channel.Name,     // Use channel name as service
 				"labels":          []string{},
 				"description":     "",
 				"admin_state":     "ENABLED",
 				"operating_state": operatingState,
 				"properties": map[string]interface{}{
-					"protocol":    channel.Protocol,
+					"protocol":   channel.Protocol,
 					"channel_id": channel.ID,
 				},
 			}
@@ -767,8 +767,8 @@ func (c *Client) publishDeviceReport() {
 			Version:     "1.0",
 		},
 		Body: map[string]interface{}{
-			"node_id":  nodeID,
-			"devices":  devices,
+			"node_id": nodeID,
+			"devices": devices,
 		},
 	}
 
@@ -916,7 +916,7 @@ func (c *Client) publishDeviceData(deviceID string, points map[string]interface{
 			MessageID:   generateMessageID(),
 			Timestamp:   time.Now().UnixMilli(),
 			Source:      c.nodeID,
-			MessageType:  "data",
+			MessageType: "data",
 			Version:     "1.0",
 		},
 		Body: map[string]interface{}{
@@ -1017,7 +1017,7 @@ func (c *Client) PublishHeartbeat(metrics map[string]interface{}) {
 			Version:     "1.0",
 		},
 		Body: map[string]interface{}{
-			"node_id":  nodeID,
+			"node_id":   nodeID,
 			"status":    "active",
 			"timestamp": time.Now().UnixMilli(),
 			"metrics":   metrics,
@@ -1421,4 +1421,3 @@ func (c *Client) PublishDeviceOffline(deviceID, deviceName, reason string, detai
 	)
 	return nil
 }
-

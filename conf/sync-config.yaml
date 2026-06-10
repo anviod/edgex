@@ -1,0 +1,59 @@
+# Edge Gateway Node Configuration
+# This file is used for multi-node synchronization testing
+
+# Node Identification
+node:
+  id: "NODE-1"
+  name: "Primary Gateway"
+  location: "Main Building"
+
+# Network Configuration
+network:
+  listen_addresses:
+    - "/ip4/0.0.0.0/tcp/4001"
+    - "/ip4/0.0.0.0/udp/4001/quic-v1"
+  bootstrap_peers:
+    - "/ip4/192.168.3.230/tcp/4001/p2p/QmSZ1CuR2t4eWHUeBywbs46MgbCLUBo7cTLgyRn6u6TMr4"
+  discovery_enabled: true
+  discovery_interval: 30
+
+# Synchronization Configuration
+sync:
+  enabled: true
+  mode: "delta"  # full, delta, incremental
+  interval: 30   # seconds
+  retry_count: 3
+  timeout: 60    # seconds
+  auto_sync: true
+
+# Storage Configuration
+storage:
+  path: "data/sync.db"
+  max_size: "1GB"
+  backup_enabled: true
+  backup_interval: 3600  # seconds
+
+# Logging Configuration
+logging:
+  level: "info"
+  file: "logs/sync.log"
+  max_size: "100MB"
+  max_backups: 10
+  max_age: 30  # days
+
+# Test Configuration
+test:
+  enabled: true
+  test_nodes:
+    - id: "NODE-2"
+      address: "192.168.3.230:4001"
+      auto_connect: true
+    - id: "NODE-3"
+      address: "192.168.3.231:4001"
+      auto_connect: false
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  port: 9090
+  path: "/metrics"

@@ -2,11 +2,12 @@ package bacnet
 
 import (
 	"context"
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/model"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/model"
 )
 
 // TestCompliance_BACnet_Isolation implements the test plan from "BACnet 多设备隔离采集测试方案.md"

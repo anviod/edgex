@@ -3,7 +3,7 @@ package btypes
 import (
 	"fmt"
 
-	"edge-gateway/internal/driver/bacnet/btypes/bacerr"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes/bacerr"
 )
 
 /*

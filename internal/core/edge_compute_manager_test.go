@@ -1,9 +1,10 @@
 package core
 
 import (
-	"edge-gateway/internal/model"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 func TestEdgeComputeManager_StateLogic(t *testing.T) {

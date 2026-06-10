@@ -2,15 +2,16 @@ package bacnet
 
 import (
 	"context"
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/pkg/dataformat"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/pkg/dataformat"
 )
 
 // PointRuntime Runtime state of a point
@@ -111,7 +112,7 @@ func (s *PointScheduler) Read(ctx context.Context, points []model.Point) (map[st
 				break
 			}
 
-//			log.Printf("[WARN] BACnet Read chunk %d failed: %v. Attempting fallback to ReadProperty (Single)...", i/batchSize, err)
+			//			log.Printf("[WARN] BACnet Read chunk %d failed: %v. Attempting fallback to ReadProperty (Single)...", i/batchSize, err)
 
 			// Fallback: Try reading individual properties
 			preCount := len(result)
@@ -404,7 +405,7 @@ func (s *PointScheduler) readSinglePropertiesWithTimeout(chunk btypes.MultiplePr
 			resp, err := s.client.ReadPropertyWithTimeout(s.targetDevice, pd, timeout)
 
 			if err != nil {
-//				log.Printf("[WARN] Fallback ReadProperty failed for %v: %v", obj.ID, err)
+				//				log.Printf("[WARN] Fallback ReadProperty failed for %v: %v", obj.ID, err)
 				continue
 			}
 

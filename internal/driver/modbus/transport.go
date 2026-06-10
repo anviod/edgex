@@ -2,7 +2,6 @@ package modbus
 
 import (
 	"context"
-	"edge-gateway/internal/model"
 	"fmt"
 	"net"
 	"reflect"
@@ -11,6 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/simonvetter/modbus"
 	"go.uber.org/zap"

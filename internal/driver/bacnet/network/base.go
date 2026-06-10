@@ -1,8 +1,9 @@
 package network
 
 import (
-	"edge-gateway/internal/driver/bacnet"
 	"log"
+
+	"github.com/anviod/edgex/internal/driver/bacnet"
 )
 
 type Network struct {

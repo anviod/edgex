@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 )
 
 // DeviceAdapter 设备适配器接口

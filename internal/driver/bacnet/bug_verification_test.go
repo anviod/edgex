@@ -2,12 +2,13 @@ package bacnet
 
 import (
 	"context"
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/model"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/model"
 )
 
 // RealWorldMockClient simulates the specific environment described in the bug report

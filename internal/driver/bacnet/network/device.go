@@ -3,8 +3,8 @@ package network
 import (
 	"fmt"
 
-	"edge-gateway/internal/driver/bacnet"
-	"edge-gateway/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 type Device struct {

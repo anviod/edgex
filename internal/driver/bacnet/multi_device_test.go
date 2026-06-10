@@ -2,11 +2,12 @@ package bacnet
 
 import (
 	"context"
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/model"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/model"
 )
 
 // MultiDeviceMockClient implements Client interface for testing

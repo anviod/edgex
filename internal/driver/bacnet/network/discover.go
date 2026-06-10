@@ -3,10 +3,11 @@ package network
 import (
 	"fmt"
 
-	"edge-gateway/internal/driver/bacnet"
-	"edge-gateway/internal/driver/bacnet/btypes"
-	pprint "edge-gateway/internal/driver/bacnet/helpers/print"
 	"log"
+
+	"github.com/anviod/edgex/internal/driver/bacnet"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	pprint "github.com/anviod/edgex/internal/driver/bacnet/helpers/print"
 )
 
 type DevicePoints struct {

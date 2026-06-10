@@ -391,7 +391,7 @@ edgeOS                             EdgeX                             Broker
   "body": {
     "node_id": "<节点ID>",
     "node_name": "<节点名称>",
-    "model": "edge-gateway",
+    "model": "edgex",
     "version": "<版本号>",
     "api_version": "v1",
     "capabilities": ["shadow-sync", "heartbeat", "device-control", "task-execution"],
@@ -425,7 +425,7 @@ mosquitto_pub -h 127.0.0.1 -p 1883 \
     "body": {
       "node_id": "edgex-node-001",
       "node_name": "EdgeX Gateway Node 001",
-      "model": "edge-gateway",
+      "model": "edgex",
       "version": "1.0.0",
       "api_version": "v1",
       "capabilities": ["shadow-sync", "heartbeat", "device-control", "task-execution"],
@@ -1343,7 +1343,7 @@ EdgeX 也可以主动发起设备发现，请求 edgeOS 广播到所有中间件
   "body": {
     "node_id": "<节点ID>",
     "node_name": "<节点名称>",
-    "model": "edge-gateway",
+    "model": "edgex",
     "version": "<版本号>",
     "api_version": "v1",
     "capabilities": ["shadow-sync", "heartbeat", "device-control", "task-execution"],
@@ -1379,7 +1379,7 @@ nats pub "edgex.nodes.register" '{
   "body": {
     "node_id": "edgex-node-001",
     "node_name": "EdgeX Gateway Node 001",
-    "model": "edge-gateway",
+    "model": "edgex",
     "version": "1.0.0",
     "api_version": "v1",
     "capabilities": ["shadow-sync", "heartbeat", "device-control", "task-execution"],

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 )
 
 // BenchmarkGroupTags 测试分组逻辑性能

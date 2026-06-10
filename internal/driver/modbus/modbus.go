@@ -2,10 +2,11 @@ package modbus
 
 import (
 	"context"
-	"edge-gateway/internal/driver"
-	"edge-gateway/internal/model"
 	"log"
 	"time"
+
+	"github.com/anviod/edgex/internal/driver"
+	"github.com/anviod/edgex/internal/model"
 )
 
 func init() {

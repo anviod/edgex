@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 )
 
 // CollectionScheduler 采集调度器

@@ -2,11 +2,12 @@ package core
 
 import (
 	"context"
-	"edge-gateway/internal/model"
 	"fmt"
 	"math"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 // MockDeviceWriter 用于捕获 WritePoint 调用

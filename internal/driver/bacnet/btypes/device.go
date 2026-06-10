@@ -3,8 +3,8 @@ package btypes
 import (
 	"fmt"
 
-	ip2bytes "edge-gateway/internal/driver/bacnet/helpers/ipbytes"
-	"edge-gateway/internal/driver/bacnet/helpers/validation"
+	ip2bytes "github.com/anviod/edgex/internal/driver/bacnet/helpers/ipbytes"
+	"github.com/anviod/edgex/internal/driver/bacnet/helpers/validation"
 )
 
 type Enumerated uint32

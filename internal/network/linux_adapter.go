@@ -3,7 +3,6 @@ package network
 import (
 	"bufio"
 	"bytes"
-	"edge-gateway/internal/model"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 type LinuxAdapter struct{}

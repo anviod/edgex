@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 // Decoder used

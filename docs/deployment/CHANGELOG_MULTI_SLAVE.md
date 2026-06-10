@@ -67,7 +67,7 @@ func (dm *DeviceManager) readPointsForSlave(d drv.Driver, slaveID uint8,
     points []model.Point, ctx context.Context) (map[string]model.Value, error)
 
 // 包导入改进：避免命名冲突
-import drv "edge-gateway/internal/driver"
+import drv "github.com/anviod/edgex/internal/driver"
 ```
 
 **行数变更**：~50 行

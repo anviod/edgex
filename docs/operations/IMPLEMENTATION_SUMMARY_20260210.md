@@ -217,7 +217,7 @@ mqtt:
     name: "生命周期MQTT"
     enable: true
     broker: tcp://mqtt:1883
-    client_id: edge-gateway
+    client_id: edgex
     topic: devices/up
     device_lifecycle_topic: devices/{device_id}/lifecycle
     online_payload: '{"status":"online","timestamp":"%timestamp%"}'
@@ -328,7 +328,7 @@ http:
 
 ### 编译
 ```bash
-cd edge-gateway
+cd edgex
 go build -o gateway ./cmd/main.go
 ```
 

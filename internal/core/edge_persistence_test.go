@@ -1,11 +1,12 @@
 package core
 
 import (
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/storage"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/storage"
 )
 
 func TestEdgeRulePersistence(t *testing.T) {

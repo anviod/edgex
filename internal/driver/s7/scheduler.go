@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/anviod/gos7"
 	"go.uber.org/zap"
@@ -18,8 +18,8 @@ type S7Scheduler struct {
 	decoder   *S7Decoder
 
 	// 配置
-	batchReadMax int // 单次AGReadMulti最大读取点数（最大20）
-	pduSize      int // PDU大小限制（字节）
+	batchReadMax int           // 单次AGReadMulti最大读取点数（最大20）
+	pduSize      int           // PDU大小限制（字节）
 	minInterval  time.Duration // 指令最小间隔
 
 	// 统计

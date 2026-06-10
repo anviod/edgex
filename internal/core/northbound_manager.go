@@ -2,17 +2,18 @@ package core
 
 import (
 	"context"
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/northbound/edgos_mqtt"
-	"edge-gateway/internal/northbound/edgos_nats"
-	"edge-gateway/internal/northbound/http"
-	"edge-gateway/internal/northbound/mqtt"
-	"edge-gateway/internal/northbound/opcua"
-	"edge-gateway/internal/northbound/sparkplugb"
-	"edge-gateway/internal/storage"
 	"fmt"
 	"log"
 	"sync"
+
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/northbound/edgos_mqtt"
+	"github.com/anviod/edgex/internal/northbound/edgos_nats"
+	"github.com/anviod/edgex/internal/northbound/http"
+	"github.com/anviod/edgex/internal/northbound/mqtt"
+	"github.com/anviod/edgex/internal/northbound/opcua"
+	"github.com/anviod/edgex/internal/northbound/sparkplugb"
+	"github.com/anviod/edgex/internal/storage"
 )
 
 type NorthboundStatus struct {

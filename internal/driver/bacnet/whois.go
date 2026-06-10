@@ -1,8 +1,9 @@
 package bacnet
 
 import (
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/driver/bacnet/encoding"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/encoding"
+
 	//"log"
 	"time"
 )

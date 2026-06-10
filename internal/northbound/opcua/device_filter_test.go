@@ -1,8 +1,9 @@
 package opcua
 
 import (
-	"edge-gateway/internal/model"
 	"testing"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 func TestServer_DeviceFiltering(t *testing.T) {

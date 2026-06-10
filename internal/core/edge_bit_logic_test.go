@@ -2,8 +2,9 @@ package core
 
 import (
 	"context"
-	"edge-gateway/internal/model"
 	"testing"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 func TestEdgeAction_BitValueLogic(t *testing.T) {

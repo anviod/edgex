@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/storage"
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/storage"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/shirou/gopsutil/v4/cpu"
@@ -336,7 +336,7 @@ func (c *Client) publishNodeOnline() {
 		Body: map[string]any{
 			"node_id":      nodeID,
 			"node_name":    "EdgeX Gateway Node",
-			"model":        "edge-gateway",
+			"model":        "edgex",
 			"version":      "1.0.0",
 			"api_version":  "v1",
 			"capabilities": []string{"shadow-sync", "heartbeat", "device-control", "task-execution"},

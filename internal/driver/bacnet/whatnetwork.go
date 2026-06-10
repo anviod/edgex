@@ -3,9 +3,9 @@ package bacnet
 import (
 	"fmt"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/driver/bacnet/btypes/ndpu"
-	"edge-gateway/internal/driver/bacnet/encoding"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes/ndpu"
+	"github.com/anviod/edgex/internal/driver/bacnet/encoding"
 )
 
 /*

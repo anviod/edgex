@@ -5,11 +5,8 @@ package bacnet
 import (
 	"context"
 	"testing"
-	"time"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/driver/bacnet/btypes/null"
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 // acceptance_test.go implements tests based on "BACnet 驱动采集测试与验收标准清单.md"

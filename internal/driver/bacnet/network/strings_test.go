@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 func TestDevice_ReadPointName(t *testing.T) {

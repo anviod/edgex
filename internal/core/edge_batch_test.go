@@ -2,8 +2,9 @@ package core
 
 import (
 	"context"
-	"edge-gateway/internal/model"
 	"testing"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 type MockBatchWriter struct {

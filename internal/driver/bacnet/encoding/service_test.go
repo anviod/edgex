@@ -3,8 +3,8 @@ package encoding
 import (
 	"encoding/json"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
-	pprint "edge-gateway/internal/driver/bacnet/helpers/print"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	pprint "github.com/anviod/edgex/internal/driver/bacnet/helpers/print"
 
 	"log"
 	"reflect"

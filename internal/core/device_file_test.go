@@ -1,10 +1,11 @@
 package core
 
 import (
-	"edge-gateway/internal/model"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"

@@ -3,9 +3,9 @@ package network
 import (
 	"fmt"
 
-	"edge-gateway/internal/driver/bacnet"
-	"edge-gateway/internal/driver/bacnet/btypes"
-	segmentation2 "edge-gateway/internal/driver/bacnet/btypes/segmentation"
+	"github.com/anviod/edgex/internal/driver/bacnet"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	segmentation2 "github.com/anviod/edgex/internal/driver/bacnet/btypes/segmentation"
 
 	//"github.com/ibuilding-x/driver-box/internal/plugins/bacnet/bacnet"
 

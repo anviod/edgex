@@ -2,9 +2,9 @@
 # preinstall.sh - 软件安装前备份用户配置和参数
 set -e
 
-ROOT_DIR="/usr/local/bin/gateway"
+ROOT_DIR="/usr/local/bin/edgex"
 CONFIG_DIR="$ROOT_DIR/config"
-BACKUP_DIR="/tmp/gateway_backup"
+BACKUP_DIR="/tmp/edgex_backup"
 
 echo "[preinstall] Starting preinstall script..."
 

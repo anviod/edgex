@@ -3,7 +3,7 @@ package bacnet
 import (
 	"fmt"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 func (c *client) objectListLen(dev btypes.Device) (int, error) {

@@ -3,7 +3,6 @@ package network
 import (
 	"bufio"
 	"bytes"
-	"edge-gateway/internal/model"
 	"fmt"
 	"net"
 	"net/http"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 // NetworkAdapter defines the interface for OS-specific network operations

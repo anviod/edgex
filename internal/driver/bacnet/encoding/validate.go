@@ -3,7 +3,7 @@ package encoding
 import (
 	"fmt"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 func isValidObjectType(idType btypes.ObjectType) error {

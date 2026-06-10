@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	pprint "edge-gateway/internal/driver/bacnet/helpers/print"
+	pprint "github.com/anviod/edgex/internal/driver/bacnet/helpers/print"
 )
 
 func TestSupported(t *testing.T) {

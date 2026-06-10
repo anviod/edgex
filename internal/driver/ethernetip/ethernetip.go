@@ -2,10 +2,11 @@ package ethernetip
 
 import (
 	"context"
-	"edge-gateway/internal/driver"
-	"edge-gateway/internal/model"
 	"fmt"
 	"time"
+
+	"github.com/anviod/edgex/internal/driver"
+	"github.com/anviod/edgex/internal/model"
 
 	"go.uber.org/zap"
 )

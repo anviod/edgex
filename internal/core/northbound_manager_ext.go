@@ -1,10 +1,11 @@
 package core
 
 import (
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/northbound/http"
-	"edge-gateway/internal/northbound/mqtt"
 	"fmt"
+
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/northbound/http"
+	"github.com/anviod/edgex/internal/northbound/mqtt"
 )
 
 func (nm *NorthboundManager) UpsertHTTPConfig(cfg model.HTTPConfig) error {

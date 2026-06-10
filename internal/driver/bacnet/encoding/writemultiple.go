@@ -1,6 +1,6 @@
 package encoding
 
-import "edge-gateway/internal/driver/bacnet/btypes"
+import "github.com/anviod/edgex/internal/driver/bacnet/btypes"
 
 // WriteMultiProperty encodes a writes property request
 func (e *Encoder) WriteMultiProperty(invokeID uint8, data btypes.MultiplePropertyData) error {

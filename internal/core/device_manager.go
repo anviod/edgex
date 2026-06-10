@@ -6,7 +6,7 @@ import (
 	"log"
 	"sync"
 
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 )
 
 // DEPRECATED: DeviceManager is deprecated. Use ChannelManager instead for three-level architecture support.

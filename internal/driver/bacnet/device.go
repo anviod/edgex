@@ -7,13 +7,13 @@ import (
 	"sync"
 	"time"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/driver/bacnet/btypes/ndpu"
-	"edge-gateway/internal/driver/bacnet/datalink"
-	"edge-gateway/internal/driver/bacnet/encoding"
-	"edge-gateway/internal/driver/bacnet/helpers/validation"
-	"edge-gateway/internal/driver/bacnet/tsm"
-	"edge-gateway/internal/driver/bacnet/utsm"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes/ndpu"
+	"github.com/anviod/edgex/internal/driver/bacnet/datalink"
+	"github.com/anviod/edgex/internal/driver/bacnet/encoding"
+	"github.com/anviod/edgex/internal/driver/bacnet/helpers/validation"
+	"github.com/anviod/edgex/internal/driver/bacnet/tsm"
+	"github.com/anviod/edgex/internal/driver/bacnet/utsm"
 )
 
 const mtuHeaderLength = 4
@@ -131,7 +131,7 @@ func (c *client) ClientRun() {
 }
 
 func (c *client) handleMsg(src *btypes.Address, b []byte) {
-//	log.Printf("[DEBUG] handleMsg: len=%d src=%v", len(b), src)
+	//	log.Printf("[DEBUG] handleMsg: len=%d src=%v", len(b), src)
 	var header btypes.BVLC
 	var npdu btypes.NPDU
 	var apdu btypes.APDU
@@ -173,7 +173,7 @@ func (c *client) handleMsg(src *btypes.Address, b []byte) {
 			log.Printf("[ERROR] Issue decoding APDU: %v", err)
 			return
 		}
-//		log.Printf("[DEBUG] APDU DataType=%d UnconfirmedService=%d", apdu.DataType, apdu.UnconfirmedService)
+		//		log.Printf("[DEBUG] APDU DataType=%d UnconfirmedService=%d", apdu.DataType, apdu.UnconfirmedService)
 		switch apdu.DataType {
 		case btypes.UnconfirmedServiceRequest:
 			if apdu.UnconfirmedService == btypes.ServiceUnconfirmedIAm {

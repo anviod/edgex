@@ -1,14 +1,12 @@
 package datalink
 
 import (
-	"context"
 	"fmt"
 	//"log"
 	"net"
 	"strings"
-	"syscall"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 // DefaultPort that BacnetIP will use if a port is not given. Valid ports for
@@ -81,27 +79,10 @@ func dataLink(ipAddr string, port int) (DataLink, error) {
 		broadcast[i] = ipNet.IP[i] | ^ipNet.Mask[i]
 	}
 
-	udpAddrStr := fmt.Sprintf("%s:%d", ip.String(), port)
-
-	lc := net.ListenConfig{
-		Control: func(network, address string, c syscall.RawConn) error {
-			var opErr error
-			err := c.Control(func(fd uintptr) {
-				opErr = syscall.SetsockoptInt(syscall.Handle(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-			})
-			if err != nil {
-				return err
-			}
-			return opErr
-		},
-	}
-
-	conn, err := lc.ListenPacket(context.Background(), "udp4", udpAddrStr)
+	udpConn, err := createUDPListener(ip.String(), port)
 	if err != nil {
 		return nil, err
 	}
-
-	udpConn := conn.(*net.UDPConn)
 
 	//log.Printf("[DEBUG] UDP DataLink listening on %s:%d (Broadcast: %s)\n", ipAddr, port, broadcast.String())
 

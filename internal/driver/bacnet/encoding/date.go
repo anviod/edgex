@@ -1,6 +1,6 @@
 package encoding
 
-import "edge-gateway/internal/driver/bacnet/btypes"
+import "github.com/anviod/edgex/internal/driver/bacnet/btypes"
 
 // epochYear is an increment to all non-stored values. This year is chosen in
 // the standard. Why? No idea. God help us all if bacnet hits the 255 + 1990

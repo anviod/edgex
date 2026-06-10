@@ -1,9 +1,10 @@
 package server
 
 import (
-	"edge-gateway/internal/model"
 	"os"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/gofiber/fiber/v2"
 )

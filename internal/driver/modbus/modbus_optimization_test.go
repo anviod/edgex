@@ -2,11 +2,12 @@ package modbus
 
 import (
 	"context"
-	"edge-gateway/internal/model"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/simonvetter/modbus"
 )
@@ -57,7 +58,7 @@ func TestGroupPoints(t *testing.T) {
 	// 测试场景3：不同寄存器类型应该分组
 	points = []model.Point{
 		{ID: "point1", Address: "0", DataType: "int16", RegisterType: model.RegHolding}, // HOLDING_REGISTER
-		{ID: "point2", Address: "0", DataType: "int16", RegisterType: model.RegInput}, // INPUT_REGISTER
+		{ID: "point2", Address: "0", DataType: "int16", RegisterType: model.RegInput},   // INPUT_REGISTER
 	}
 
 	groups, err = scheduler.groupPoints(points)

@@ -1,11 +1,12 @@
 package bacnet
 
 import (
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/model"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/model"
 )
 
 func TestPointSchedulerDecodeResponseWithDataformat(t *testing.T) {

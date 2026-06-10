@@ -1,8 +1,9 @@
 package modbus
 
 import (
-	"edge-gateway/internal/model"
 	"testing"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 func TestReverseScaleOffset_Int32(t *testing.T) {

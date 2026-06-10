@@ -1,8 +1,9 @@
 package modbus
 
 import (
-	"edge-gateway/internal/model"
 	"testing"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 func TestPointDecoder_Encode_Int64(t *testing.T) {

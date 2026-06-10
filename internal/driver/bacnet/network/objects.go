@@ -3,10 +3,11 @@ package network
 import (
 	"fmt"
 
-	"edge-gateway/internal/driver/bacnet"
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/driver/bacnet/helpers/data"
 	"log"
+
+	"github.com/anviod/edgex/internal/driver/bacnet"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/helpers/data"
 )
 
 // DeviceObjects get device objects

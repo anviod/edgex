@@ -342,7 +342,7 @@ nc.Subscribe("edgex.req.node.>", func(msg *nats.Msg) {
   "body": {
     "node_id": "edgex-node-001",
     "node_name": "EdgeX Gateway Node",
-    "model": "edge-gateway",
+    "model": "edgex",
     "version": "1.0.0",
         "api_version": "v1",
         "capabilities": [

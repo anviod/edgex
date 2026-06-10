@@ -63,7 +63,7 @@ Single-file deployment, zero dependencies, multi-architecture support, suitable 
 | **BACnet IP** | ✅ Implemented | Supports device discovery (Who-Is/I-Am), multi-interface broadcast + unicast fallback (respects I-Am source port), object scanning and point read/write, automatic fallback to single read upon batch read failure, fallback to 47808 on abnormal ports, read timeout and automatic recovery optimization. **New Local Simulator Support**: Automatically attempts localhost unicast discovery for simulators running locally on Windows. |
 | **OPC UA Client** | ✅ Implemented | Based on `gopcua/opcua`, supports read/write operations, Subscription and Monitoring, supports automatic reconnection on disconnection |
 | **Siemens S7** | ✅ Implemented | Full support for S7-200Smart/1200/1500 series PLCs; **Communication Modes**: Supports both S7 Protocol (ISO-on-TCP/RFC1006) and optimized fetch/write operations; **Memory Areas**: Supports DB (Data Block), Input/Output (I/Q), Memory Bits (M), Timers (T), Counters (C); **Data Types**: Supports bit, byte, word, dword, int, dint, real, and string operations; **Robustness**: Automatic connection pooling, retry mechanism, and connection health monitoring |
-| **EtherNet/IP (ODVA)** | 🚧 In Development | Planned implementation |
+| **EtherNet/IP (ODVA)** | ✅ Implemented | Based on `github.com/anviod/ethernet-ip` library, full support for Rockwell Allen-Bradley PLCs including ControlLogix, CompactLogix, Micro800, SLC 500, PLC-5; supports Tag address format, batch read optimization with Multiple Service Packet (MSP), CIP messaging, explicit/implicit messaging, automatic reconnection, and connection health monitoring |
 | **Mitsubishi MELSEC (SLMP)** | 🚧 In Development | Planned implementation |
 | **Omron FINS (TCP/UDP)** | 🚧 In Development | Planned implementation |
 | **DL/T645-2007** | 🚧 In Development | Planned implementation |
@@ -293,7 +293,7 @@ devices:
 ### Core Driver Completion
 - [x] **OPC UA Client**: Implement real read/write via `gopcua/opcua`.
 - [x] **Siemens S7**: Implement real TCP communication for S7 protocol.
-- [ ] **EtherNet/IP**: Implement CIP/EIP protocol stack.
+- [x] **EtherNet/IP**: Implement CIP/EIP protocol stack based on `github.com/anviod/ethernet-ip` library.
 - [ ] **Other Drivers**: Gradually replace development implementation for Mitsubishi, Omron, DL/T645.
 
 ### Northbound Enhancement

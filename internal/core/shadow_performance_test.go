@@ -1,14 +1,15 @@
 package core
 
 import (
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/storage"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/storage"
 )
 
 func BenchmarkShadowCore_WriteShadowDevice(b *testing.B) {

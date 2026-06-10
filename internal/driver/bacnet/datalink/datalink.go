@@ -1,7 +1,7 @@
 package datalink
 
 import (
-	"edge-gateway/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 type DataLink interface {

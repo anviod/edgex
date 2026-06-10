@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"edge-gateway/internal/driver"
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/driver"
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/gopcua/opcua/ua"
 	"github.com/stretchr/testify/assert"

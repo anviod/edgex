@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"edge-gateway/internal/pkg/dataformat"
+	"github.com/anviod/edgex/internal/pkg/dataformat"
 )
 
 func TestOpcua_FormatPoint_UnsignedInt(t *testing.T) {

@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"edge-gateway/internal/driver"
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/pkg/dataformat"
+	"github.com/anviod/edgex/internal/driver"
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/pkg/dataformat"
 
 	"github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/ua"

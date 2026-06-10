@@ -1,10 +1,11 @@
 package dataformat
 
 import (
-	"edge-gateway/internal/model"
 	"encoding/binary"
 	"strconv"
 	"strings"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 type PointFormatConfig struct {

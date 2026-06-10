@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 // MockScanClient implements Client interface

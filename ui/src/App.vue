@@ -46,6 +46,12 @@
                 </span>
                 <span v-if="!drawerRail" class="nav-text">系统日志</span>
             </router-link>
+            <router-link to="/node-sync" class="nav-item" active-class="nav-item-active">
+                <span class="nav-icon">
+                    <icon-link />
+                </span>
+                <span v-if="!drawerRail" class="nav-text">节点同步</span>
+            </router-link>
             <router-link to="/system" class="nav-item" active-class="nav-item-active">
                 <span class="nav-icon">
                     <icon-settings />
@@ -55,6 +61,20 @@
         </nav>
 
         <div class="sidebar-footer">
+            <div v-if="!drawerRail" class="sidebar-status">
+                <span class="status-indicator"></span>
+                <span class="status-text">{{ systemVersion }}</span>
+            </div>
+            <div v-if="!drawerRail" class="version-info">
+                <div class="version-row">
+                    <span class="version-label">Build</span>
+                    <span class="version-value">{{ buildTime || 'unknown' }}</span>
+                </div>
+                <div class="version-row">
+                    <span class="version-label">Commit</span>
+                    <span class="version-value mono">{{ commitID || 'unknown' }}</span>
+                </div>
+            </div>
             <button class="collapse-btn" @click="drawerRail = !drawerRail">
                 <icon-arrow-left v-if="!drawerRail" :size="14" />
                 <icon-arrow-right v-else :size="14" />
@@ -165,6 +185,11 @@ const user = userStore()
 const changePwdRef = ref(null)
 const isDarkTheme = ref(false)
 
+// 版本信息
+const systemVersion = ref('dev')
+const buildTime = ref('')
+const commitID = ref('')
+
 const isLoginPage = computed(() => {
     return route.path === '/login'
 })
@@ -172,6 +197,20 @@ const isLoginPage = computed(() => {
 const userInitials = computed(() => {
     return (user.username || 'A').charAt(0).toUpperCase()
 })
+
+// 获取系统版本信息
+const fetchSystemInfo = async () => {
+    try {
+        const res = await LoginApi.getSystemInfo()
+        if (res.code === '0' && res.data) {
+            systemVersion.value = `v${res.data.softVer || 'dev'}`
+            buildTime.value = res.data.buildTime || ''
+            commitID.value = res.data.commitID || ''
+        }
+    } catch (e) {
+        console.error('获取系统信息失败:', e)
+    }
+}
 
 // Theme toggle
 const toggleTheme = () => {
@@ -222,9 +261,8 @@ onMounted(() => {
             console.error('Failed to restore user info', e)
         }
     }
-    // Test showMessage function
-    console.log('Testing showMessage function')
-    showMessage('测试提示信息', 'success')
+    // Fetch system version info for sidebar footer
+    fetchSystemInfo()
 })
 
 onUnmounted(() => {
@@ -946,6 +984,33 @@ body {
     font-size: 11px;
     color: #94a3b8;
     margin-top: 4px;
+}
+
+.version-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1px 0;
+}
+
+.version-label {
+    font-size: 10px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.version-value {
+    font-size: 10px;
+    color: #64748b;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.version-value.mono {
+    font-family: 'JetBrains Mono', monospace;
 }
 
 .collapse-btn {

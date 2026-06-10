@@ -1,6 +1,6 @@
 package btypes
 
-import "edge-gateway/internal/driver/bacnet/btypes/ndpu"
+import "github.com/anviod/edgex/internal/driver/bacnet/btypes/ndpu"
 
 type NPDUPriority byte
 

@@ -1,11 +1,12 @@
 package core
 
 import (
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/northbound/edgos_mqtt"
-	"edge-gateway/internal/northbound/edgos_nats"
 	"fmt"
 	"log"
+
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/northbound/edgos_mqtt"
+	"github.com/anviod/edgex/internal/northbound/edgos_nats"
 )
 
 // updateEdgeOSMQTTClients 更新 edgeOS(MQTT) 客户端

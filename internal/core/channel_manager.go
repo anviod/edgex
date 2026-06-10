@@ -2,8 +2,6 @@ package core
 
 import (
 	"context"
-	drv "edge-gateway/internal/driver"
-	"edge-gateway/internal/model"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +10,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	drv "github.com/anviod/edgex/internal/driver"
+	"github.com/anviod/edgex/internal/model"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -47,9 +48,10 @@ type ChannelManager struct {
 	cancel               context.CancelFunc
 	saveFunc             func([]model.Channel) error
 	statusHandler        func(deviceID string, status int)
+	dataDir              string // 同步数据根目录，按节点名称组织
 }
 
-func NewChannelManager(pipeline *DataPipeline, saveFunc func([]model.Channel) error) *ChannelManager {
+func NewChannelManager(pipeline *DataPipeline, saveFunc func([]model.Channel) error, dataDir string) *ChannelManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	deviceAdapterManager := NewDeviceAdapterManager()
 	protocolRegistry := NewProtocolAdapterRegistry()
@@ -67,6 +69,7 @@ func NewChannelManager(pipeline *DataPipeline, saveFunc func([]model.Channel) er
 		ctx:                  ctx,
 		cancel:               cancel,
 		saveFunc:             saveFunc,
+		dataDir:              dataDir,
 	}
 
 	// Wire state manager events
@@ -203,7 +206,7 @@ func (cm *ChannelManager) AddChannel(ch *model.Channel) error {
 		}
 	}
 
-//	zap.L().Info("Channel added", zap.String("channel", ch.Name), zap.String("protocol", ch.Protocol), zap.Int("device_count", len(ch.Devices)))
+	//	zap.L().Info("Channel added", zap.String("channel", ch.Name), zap.String("protocol", ch.Protocol), zap.Int("device_count", len(ch.Devices)))
 	return nil
 }
 
@@ -1421,8 +1424,8 @@ func (cm *ChannelManager) AddDevice(channelID string, dev *model.Device) error {
 
 	// 为新设备创建设备文件
 	if dev.DeviceFile == "" {
-		// 构建设备文件路径
-		deviceFilePath := fmt.Sprintf("conf/devices/%s/%s.yaml", ch.Protocol, dev.ID)
+		// 构建设备文件路径，按节点名称分文件夹存储
+		deviceFilePath := filepath.Join(cm.dataDir, "devices", ch.Protocol, dev.ID+".yaml")
 		dev.DeviceFile = deviceFilePath
 
 		// 确保设备文件目录存在

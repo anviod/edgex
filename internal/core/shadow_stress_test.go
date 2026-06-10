@@ -1,8 +1,6 @@
 package core
 
 import (
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/storage"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +8,9 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/storage"
 )
 
 func TestStress_ConcurrentWrites(t *testing.T) {

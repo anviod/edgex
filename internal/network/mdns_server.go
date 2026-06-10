@@ -6,7 +6,7 @@ import (
 	"net"
 	"sync"
 
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/grandcat/zeroconf"
 )
@@ -33,7 +33,7 @@ func (s *MDNSServer) Start(cfg model.HostnameConfig) error {
 	}
 
 	if cfg.Name == "" {
-		cfg.Name = "edge-gateway"
+		cfg.Name = "edgex"
 	}
 
 	// Resolve interfaces
@@ -132,7 +132,7 @@ func (s *MDNSServer) Start(cfg model.HostnameConfig) error {
 	if gwPort == 0 {
 		gwPort = 80
 	}
-	if err := register("_gateway._tcp", gwPort, []string{"model=edge-gateway", "version=1.0"}); err != nil {
+	if err := register("_gateway._tcp", gwPort, []string{"model=edgex", "version=1.0"}); err != nil {
 		return fmt.Errorf("failed to register gateway service: %v", err)
 	}
 

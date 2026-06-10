@@ -1,7 +1,7 @@
 package encoding
 
 import (
-	"edge-gateway/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 // Bacnet Virtual Layer Control

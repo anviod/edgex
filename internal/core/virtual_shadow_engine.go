@@ -1,12 +1,13 @@
 package core
 
 import (
-	"edge-gateway/internal/model"
 	"fmt"
 	"log"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/expr-lang/expr"
 )

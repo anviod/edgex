@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	nodeID     = "edgex-node-001"
-	broker     = "tcp://127.0.0.1:1883"
-	clientID   = "edgex-integration-test"
+	nodeID   = "edgex-node-001"
+	broker   = "tcp://127.0.0.1:1883"
+	clientID = "edgex-integration-test"
 )
 
 type MessageHeader struct {
@@ -26,7 +26,7 @@ type MessageHeader struct {
 
 type Message struct {
 	Header MessageHeader `json:"header"`
-	Body   any          `json:"body"`
+	Body   any           `json:"body"`
 }
 
 var (
@@ -131,13 +131,13 @@ func testNodeRegistration(client mqtt.Client) {
 			Version:     "1.0",
 		},
 		Body: map[string]any{
-			"node_id":     nodeID,
-			"node_name":   "EdgeX Gateway Node",
-			"model":       "edge-gateway",
-			"version":     "1.0.0",
-			"api_version": "v1",
+			"node_id":      nodeID,
+			"node_name":    "EdgeX Gateway Node",
+			"model":        "edgex",
+			"version":      "1.0.0",
+			"api_version":  "v1",
 			"capabilities": []string{"shadow-sync", "heartbeat", "device-control", "task-execution"},
-			"protocol":    "edgeOS(MQTT)",
+			"protocol":     "edgeOS(MQTT)",
 			"endpoint": map[string]string{
 				"host": "127.0.0.1",
 				"port": "8082",
@@ -216,7 +216,7 @@ func testDeviceReport(client mqtt.Client) {
 					"service_name":    "Test Channel",
 					"labels":          []string{},
 					"description":     "",
-					"admin_state":    "ENABLED",
+					"admin_state":     "ENABLED",
 					"operating_state": "ENABLED",
 					"properties": map[string]any{
 						"protocol":   "modbus",
@@ -287,43 +287,43 @@ func testPointReport(client mqtt.Client) {
 			"device_id": "test-device-001",
 			"points": []map[string]any{
 				{
-					"point_id":     "SupplyWaterTemp",
-					"point_name":   "供水温度",
-					"data_type":    "Float32",
-					"access_mode":  "R",
-					"unit":         "°C",
-					"minimum":      -50.0,
-					"maximum":       150.0,
-					"address":       "AI-30001",
-					"description":  "AHU Supply Water Temperature Sensor",
-					"scale":         0.1,
-					"offset":        0,
+					"point_id":    "SupplyWaterTemp",
+					"point_name":  "供水温度",
+					"data_type":   "Float32",
+					"access_mode": "R",
+					"unit":        "°C",
+					"minimum":     -50.0,
+					"maximum":     150.0,
+					"address":     "AI-30001",
+					"description": "AHU Supply Water Temperature Sensor",
+					"scale":       0.1,
+					"offset":      0,
 				},
 				{
-					"point_id":     "ReturnWaterTemp",
-					"point_name":   "回水温度",
-					"data_type":    "Float32",
-					"access_mode":  "R",
-					"unit":         "°C",
-					"minimum":      -50.0,
-					"maximum":       150.0,
-					"address":       "AI-30002",
-					"description":  "AHU Return Water Temperature Sensor",
-					"scale":         0.1,
-					"offset":        0,
+					"point_id":    "ReturnWaterTemp",
+					"point_name":  "回水温度",
+					"data_type":   "Float32",
+					"access_mode": "R",
+					"unit":        "°C",
+					"minimum":     -50.0,
+					"maximum":     150.0,
+					"address":     "AI-30002",
+					"description": "AHU Return Water Temperature Sensor",
+					"scale":       0.1,
+					"offset":      0,
 				},
 				{
-					"point_id":     "ValvePosition",
-					"point_name":   "阀门开度",
-					"data_type":    "Float32",
-					"access_mode":  "RW",
-					"unit":         "%",
-					"minimum":      0.0,
-					"maximum":       100.0,
-					"address":       "AO-30001",
-					"description":  "Control Valve Position",
-					"scale":         1.0,
-					"offset":        0,
+					"point_id":    "ValvePosition",
+					"point_name":  "阀门开度",
+					"data_type":   "Float32",
+					"access_mode": "RW",
+					"unit":        "%",
+					"minimum":     0.0,
+					"maximum":     100.0,
+					"address":     "AO-30001",
+					"description": "Control Valve Position",
+					"scale":       1.0,
+					"offset":      0,
 				},
 			},
 		},
@@ -385,18 +385,18 @@ func testPointSync(client mqtt.Client) {
 			"timestamp": time.Now().UnixMilli(),
 			"points": map[string]any{
 				"Temperature": map[string]any{
-					"value":    25.5,
-					"quality":  "good",
+					"value":     25.5,
+					"quality":   "good",
 					"timestamp": time.Now().UnixMilli() - 5000,
 				},
 				"Humidity": map[string]any{
-					"value":    60.0,
-					"quality":  "good",
+					"value":     60.0,
+					"quality":   "good",
 					"timestamp": time.Now().UnixMilli() - 5000,
 				},
 				"Pressure": map[string]any{
-					"value":    1013.25,
-					"quality":  "good",
+					"value":     1013.25,
+					"quality":   "good",
 					"timestamp": time.Now().UnixMilli() - 5000,
 				},
 			},

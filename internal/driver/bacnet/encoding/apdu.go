@@ -3,8 +3,8 @@ package encoding
 import (
 	"fmt"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/driver/bacnet/btypes/bacerr"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes/bacerr"
 )
 
 func (e *Encoder) APDU(a btypes.APDU) error {

@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 
 	go_ethernet_ip "github.com/anviod/ethernet-ip"
 	"github.com/anviod/ethernet-ip/messages/packet"

@@ -1,8 +1,9 @@
 package core
 
 import (
-	"edge-gateway/internal/model"
 	"sync"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 // DataPipeline handles the flow of collected data

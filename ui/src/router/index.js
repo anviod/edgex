@@ -11,6 +11,7 @@ import EdgeComputeMetrics from '../views/EdgeComputeMetrics.vue'
 import SystemSettings from '../views/SystemSettings.vue'
 import LogViewer from '../views/LogViewer.vue'
 import Login from '../views/Login.vue'
+import NodeSync from '../views/NodeSync.vue'
 
 const routes = [
     {
@@ -57,6 +58,11 @@ const routes = [
         path: '/northbound', 
         component: Northbound,
         meta: { title: '北向数据上报' }
+    },
+    { 
+        path: '/node-sync', 
+        component: NodeSync,
+        meta: { title: '节点同步' }
     }
 ]
 

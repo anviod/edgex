@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 const compareErrFmt = "Mismatch in %s when decoding values. Expected: %d, received: %d"

@@ -2,13 +2,14 @@ package core
 
 import (
 	"crypto/sha256"
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/storage"
 	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/storage"
 )
 
 const (

@@ -29,7 +29,7 @@
           <a-divider orientation="left">主题定义</a-divider>
 
           <a-form-item label="Client ID">
-            <a-input v-model="form.client_id" placeholder="edge-gateway-01" class="mono-text">
+            <a-input v-model="form.client_id" placeholder="edgex-01" class="mono-text">
               <template #append>
                 <a-button type="text" size="mini" @click="autoFillTopics">
                   <template #icon><icon-refresh /></template>生成推荐
@@ -260,7 +260,7 @@ const updateDeviceInterval = (record) => {
 
 const autoFillTopics = () => {
   if (!form.value.client_id) {
-    form.value.client_id = 'edge-gateway'
+    form.value.client_id = 'edgex'
   }
   const root = 'things/{client_id}'
   form.value.topic = `${root}/up`

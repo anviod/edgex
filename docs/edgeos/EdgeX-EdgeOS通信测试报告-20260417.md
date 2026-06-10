@@ -8,7 +8,7 @@ description: EdgeX EdgeX-EdgeOS 通信测试报告
 
 **测试日期**: 2026-04-17
 **测试人员**: Claude Code
-**项目**: edge-gateway
+**项目**: edgex
 **测试版本**: latest
 
 ---
@@ -71,7 +71,7 @@ description: EdgeX EdgeX-EdgeOS 通信测试报告
   "body": {
     "node_id": "edgex-node-001",
     "node_name": "EdgeX Gateway Node",
-    "model": "edge-gateway",
+    "model": "edgex",
     "version": "1.0.0",
     "api_version": "v1",
     "capabilities": ["shadow-sync", "heartbeat", "device-control", "task-execution"],

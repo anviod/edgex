@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	drv "edge-gateway/internal/driver"
-	"edge-gateway/internal/model"
+	drv "github.com/anviod/edgex/internal/driver"
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -171,7 +171,7 @@ func createTestChannelManager(t *testing.T) (*ChannelManager, string, func()) {
 		}
 		return os.WriteFile(filepath.Join(tempDir, "channels.yaml"), data, 0644)
 	}
-	cm := NewChannelManager(nil, saveFunc)
+	cm := NewChannelManager(nil, saveFunc, tempDir)
 	return cm, tempDir, func() {
 		cm.cancel()
 	}
@@ -318,12 +318,11 @@ func TestOpcUa_AddDevice_ConfigFileSaved(t *testing.T) {
 	err := cm.AddDevice(channelID, dev)
 	require.NoError(t, err)
 
-	expectedFilePath := filepath.Join("conf", "devices", "opc-ua", deviceID+".yaml")
+	expectedFilePath := filepath.Join(tempDir, "devices", "opc-ua", deviceID+".yaml")
 
 	devices := cm.GetChannelDevices(channelID)
 	require.Len(t, devices, 1)
-	// DeviceFile uses forward slashes (as set by AddDevice using fmt.Sprintf)
-	assert.Equal(t, "conf/devices/opc-ua/"+deviceID+".yaml", devices[0].DeviceFile, "DeviceFile path should be set correctly")
+	assert.Equal(t, expectedFilePath, devices[0].DeviceFile, "DeviceFile path should be set correctly")
 	assert.Equal(t, deviceID, devices[0].ID)
 	assert.Equal(t, "Temperature Sensor 01", devices[0].Name)
 	assert.Equal(t, "opc.tcp://192.168.1.100:4840", devices[0].Config["endpoint"])
@@ -332,16 +331,7 @@ func TestOpcUa_AddDevice_ConfigFileSaved(t *testing.T) {
 	assert.True(t, devices[0].Storage.Enable)
 	assert.Equal(t, "interval", devices[0].Storage.Strategy)
 
-	// Verify the device file was actually created on disk
-	// AddDevice uses relative path, so check from current working directory
-	actualFileOnDisk := filepath.Join("conf", "devices", "opc-ua", deviceID+".yaml")
-	assert.FileExists(t, actualFileOnDisk, "Device config file should be created on disk")
-	// Cleanup the created file
-	defer os.Remove(actualFileOnDisk)
-	defer os.RemoveAll("conf")
-
-	_ = tempDir
-	_ = expectedFilePath
+	assert.FileExists(t, expectedFilePath, "Device config file should be created on disk")
 }
 
 // ============================================================

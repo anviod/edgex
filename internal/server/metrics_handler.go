@@ -2,8 +2,9 @@ package server
 
 import (
 	"context"
-	"edge-gateway/internal/model"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"

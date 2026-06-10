@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="edge-compute-container">
     <a-tabs v-model:active-key="activeTab" class="mb-4">
       <a-tab-pane key="time" title="时间同步" />
@@ -104,7 +104,7 @@ const haConfig = reactive({
 
 // Hostname Config
 const hostnameConfig = reactive({
-  name: 'edge-gateway',
+  name: 'edgex',
   enable_mdns: true,
   enable_bare: true,
   http_port: 8082,

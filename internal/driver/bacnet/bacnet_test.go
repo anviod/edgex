@@ -3,13 +3,7 @@
 package bacnet
 
 import (
-	"context"
-	"fmt"
-	"testing"
-	"time"
-
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 )
 
 // MockClient implements Client interface for testing

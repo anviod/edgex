@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
-	"edge-gateway/internal/driver"
-	"edge-gateway/internal/driver/bacnet"
-	"edge-gateway/internal/model"
 	"encoding/json"
 	"log"
 	"time"
+
+	"github.com/anviod/edgex/internal/driver"
+	"github.com/anviod/edgex/internal/driver/bacnet"
+	"github.com/anviod/edgex/internal/model"
 )
 
 func main() {

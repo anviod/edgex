@@ -267,7 +267,7 @@ ChannelManager
 ### 编译
 
 ```bash
-cd edge-gateway
+cd edgex
 go build ./cmd/main.go -o main.exe
 ```
 

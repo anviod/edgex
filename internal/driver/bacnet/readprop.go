@@ -3,11 +3,12 @@ package bacnet
 import (
 	"context"
 	"fmt"
+
 	//"log"
 	"time"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/driver/bacnet/encoding"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/encoding"
 )
 
 // ReadProperty reads a single property from a single object in the given device.

@@ -2,8 +2,9 @@ package driver
 
 import (
 	"context"
-	"edge-gateway/internal/model"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 // HealthStatus represents the health of the driver connection

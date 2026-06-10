@@ -2,14 +2,15 @@ package bacnet
 
 import (
 	"context"
-	"edge-gateway/internal/driver"
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/driver/bacnet/datalink"
-	"edge-gateway/internal/model"
 	"fmt"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/driver"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/driver/bacnet/datalink"
+	"github.com/anviod/edgex/internal/model"
 )
 
 // CoverageMockClient is a flexible mock client for coverage testing

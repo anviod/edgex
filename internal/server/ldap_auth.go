@@ -2,9 +2,10 @@ package server
 
 import (
 	"crypto/tls"
-	"edge-gateway/internal/model"
 	"fmt"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/go-ldap/ldap/v3"
 	"go.uber.org/zap"

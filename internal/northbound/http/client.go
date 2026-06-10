@@ -2,14 +2,15 @@ package http
 
 import (
 	"bytes"
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/storage"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/storage"
 
 	"go.uber.org/zap"
 )

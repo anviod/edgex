@@ -1,9 +1,10 @@
 package opcua
 
 import (
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/pkg/dataformat"
 	"testing"
+
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/pkg/dataformat"
 )
 
 func TestFormatScalarForUint16ExprInOpcua(t *testing.T) {

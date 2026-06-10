@@ -1,7 +1,7 @@
 package server
 
 import (
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"

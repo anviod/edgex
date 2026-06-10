@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"edge-gateway/internal/driver/bacnet/btypes"
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/edgex/internal/model"
 )
 
 // SmartMockClient implements Client interface for multi-device testing

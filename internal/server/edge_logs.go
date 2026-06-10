@@ -3,10 +3,11 @@ package server
 import (
 	"encoding/json"
 
-	"edge-gateway/internal/model"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/gofiber/fiber/v2"
 )

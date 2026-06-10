@@ -1,0 +1,93 @@
+version: 2
+project_name: edgex
+dist: ./dist
+
+before:
+  hooks:
+    - go mod tidy
+    - npm run build --prefix ./ui         # 构建 Vue 应用
+
+builds:
+  - id: edgex
+    main: ./cmd/main.go
+    binary: edgex
+    flags:
+      - -trimpath
+    env:
+      - CGO_ENABLED=0
+    ldflags: >
+      -s -w
+      -X github.com/anviod/edgex/internal/model.Version={{.Version}}
+      -X 'github.com/anviod/edgex/internal/model.BuildTime={{.Date}}'
+      -X github.com/anviod/edgex/internal/model.CommitID={{.ShortCommit}}
+    goos:
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 7
+    ignore:
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: edgex-archive
+    formats:
+      - tar.gz
+    name_template: '{{.ProjectName}}-{{.Version}}-{{.Os}}-{{.Arch}}{{if .Arm}}{{.Arm}}{{end}}'
+    files:
+      - README*
+      - LICENSE*
+      - conf/**
+      - scripts/**
+      - edgex.service
+      - edgex.sh
+      - ui/dist/**
+
+nfpms:
+  - id: edgex-deb
+    package_name: edgex
+    file_name_template: 'edgex-v{{.Version}}-{{.Arch}}'
+    formats:
+      - deb
+    vendor: HNE Inc.
+    homepage: https://github.com/anviod/edgex
+    maintainer: anviod <anviod@aliyun.com>
+    description: 边缘网关，基于 Go 语言的边缘网络通讯与同步服务
+    license: Apache-2.0
+    bindir: /usr/local/bin/edgex
+    contents:
+      - src: ./edgex.service
+        dst: /etc/systemd/system/edgex.service
+        type: config
+      - src: ./edgex.sh
+        dst: /usr/local/bin/edgex/edgex.sh
+      - src: ./conf
+        dst: /usr/local/bin/edgex/conf
+        type: dir
+      - src: ./ui/dist
+        dst: /usr/local/bin/edgex/ui/dist
+        type: dir
+    scripts:
+      preinstall: scripts/preinstall.sh
+      postinstall: scripts/postinstall.sh
+
+checksum:
+  name_template: SHA256SUMS
+  algorithm: sha256
+
+release:
+  draft: true
+  prerelease: auto
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'

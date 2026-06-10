@@ -2,8 +2,9 @@ package bacnet
 
 import (
 	"context"
-	"edge-gateway/internal/model"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 
 	"go.uber.org/zap"
 )

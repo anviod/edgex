@@ -1,0 +1,1476 @@
+<template>
+  <div class="node-tree-container">
+    <!-- 顶部导航栏 -->
+    <header class="tree-header">
+      <div class="header-left">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M8 15s1.5-2 4-2 4 2 4 2"/>
+          <circle cx="12" cy="9" r="3"/>
+        </svg>
+        <h2 class="header-title">配置树</h2>
+      </div>
+      <div class="header-actions">
+        <button class="action-btn" @click="refreshTree">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"/>
+            <polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+          </svg>
+          刷新
+        </button>
+        <button class="action-btn primary" @click="syncAll">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0 3-4.03 3-9s-1.343-9 3-9m-9 9a9 9 0 019-9"/>
+          </svg>
+          同步全部
+        </button>
+      </div>
+    </header>
+
+    <!-- 主体布局 -->
+    <div class="tree-layout">
+      <!-- 左侧：节点选择 + 配置树 -->
+      <aside class="sidebar">
+        <!-- 节点选择 -->
+        <div class="node-selector">
+          <div class="selector-header">
+            <span>已发现节点</span>
+            <span class="node-count">{{ nodes.length }}</span>
+          </div>
+          <div class="node-list">
+            <div 
+              v-for="node in nodes" 
+              :key="node.id"
+              class="node-item"
+              :class="{ 
+                active: selectedNode?.id === node.id,
+                'is-local': node.isLocal 
+              }"
+              @click="selectNode(node)"
+            >
+              <div class="node-status-dot" :class="node.status"></div>
+              <div class="node-info">
+                <span class="node-name">{{ node.name }}</span>
+                <span class="node-address">{{ node.address }}</span>
+              </div>
+              <span v-if="node.isLocal" class="local-tag">本节点</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 配置树 -->
+        <div class="config-tree">
+          <div class="tree-header-text">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+            {{ selectedNode?.name || '选择节点' }}
+          </div>
+          <div class="tree-scroll">
+            <div v-if="selectedNode" class="tree-content">
+              <!-- Gateway Root -->
+              <div class="tree-node root">
+                <div class="tree-node-header" @click="toggleExpand('root')">
+                  <svg 
+                    viewBox="0 0 24 24" 
+                    width="14" 
+                    height="14" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    stroke-width="2"
+                    :class="{ rotated: expandedNodes.includes('root') }"
+                  >
+                    <polyline points="5 9 12 15 19 9"/>
+                  </svg>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M8 15s1.5-2 4-2 4 2 4 2"/>
+                    <circle cx="12" cy="9" r="3"/>
+                  </svg>
+                  <span>{{ selectedNode.name }}</span>
+                  <span class="node-status-badge" :class="selectedNode.status">
+                    {{ statusText(selectedNode.status) }}
+                  </span>
+                </div>
+
+                <!-- Channels -->
+                <div v-if="expandedNodes.includes('root')" class="tree-children">
+                  <!-- Channels Section -->
+                  <div class="tree-node section">
+                    <div class="tree-node-header" @click="toggleExpand('channels')">
+                      <svg 
+                        viewBox="0 0 24 24" 
+                        width="12" 
+                        height="12" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        stroke-width="2"
+                        :class="{ rotated: expandedNodes.includes('channels') }"
+                      >
+                        <polyline points="5 9 12 15 19 9"/>
+                      </svg>
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                      </svg>
+                      <span>通道</span>
+                      <span class="count-badge">{{ treeData.channels?.length || 0 }}</span>
+                    </div>
+
+                    <!-- Channel List -->
+                    <div v-if="expandedNodes.includes('channels')" class="tree-children">
+                      <div 
+                        v-for="channel in treeData.channels" 
+                        :key="channel.id"
+                        class="tree-node item channel"
+                        :class="{ 
+                          selected: selectedItem?.type === 'channel' && selectedItem?.id === channel.id,
+                          'has-diff': channel.hasDiff 
+                        }"
+                        @click="selectTreeItem('channel', channel)"
+                      >
+                        <div class="tree-node-row">
+                          <svg 
+                            v-if="channel.deviceCount > 0" 
+                            viewBox="0 0 24 24" 
+                            width="10" 
+                            height="10" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            stroke-width="2"
+                            :class="{ rotated: expandedNodes.includes('channel-' + channel.id) }"
+                            @click.stop="loadChannelDevices(channel)"
+                          >
+                            <polyline points="5 9 12 15 19 9"/>
+                          </svg>
+                          <span v-else class="spacer"></span>
+                          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"/>
+                            <rect x="14" y="3" width="7" height="7"/>
+                            <rect x="14" y="14" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7"/>
+                          </svg>
+                          <span class="item-name">{{ channel.name }}</span>
+                          <span v-if="channel.hasDiff" class="diff-badge">差异</span>
+                          <span class="status-badge" :class="channel.status">{{ statusText(channel.status) }}</span>
+                        </div>
+
+                        <!-- Devices under Channel -->
+                        <div v-if="expandedNodes.includes('channel-' + channel.id) && channel.devices" class="tree-children">
+                          <div 
+                            v-for="device in channel.devices" 
+                            :key="device.id"
+                            class="tree-node item device"
+                            :class="{ 
+                              selected: selectedItem?.type === 'device' && selectedItem?.id === device.id,
+                              'has-diff': device.hasDiff 
+                            }"
+                            @click="selectTreeItem('device', device, channel)"
+                          >
+                            <div class="tree-node-row">
+                              <svg 
+                                v-if="device.pointCount > 0" 
+                                viewBox="0 0 24 24" 
+                                width="10" 
+                                height="10" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                stroke-width="2"
+                                :class="{ rotated: expandedNodes.includes('device-' + device.id) }"
+                                @click.stop="loadDevicePoints(device, channel)"
+                              >
+                                <polyline points="5 9 12 15 19 9"/>
+                              </svg>
+                              <span v-else class="spacer"></span>
+                              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                                <line x1="8" y1="21" x2="16" y2="21"/>
+                                <line x1="12" y1="17" x2="12" y2="21"/>
+                              </svg>
+                              <span class="item-name">{{ device.name }}</span>
+                              <span v-if="device.hasDiff" class="diff-badge">差异</span>
+                              <span class="status-badge" :class="device.status">{{ statusText(device.status) }}</span>
+                            </div>
+
+                            <!-- Points under Device -->
+                            <div v-if="expandedNodes.includes('device-' + device.id) && device.points" class="tree-children">
+                              <div 
+                                v-for="point in device.points" 
+                                :key="point.id"
+                                class="tree-node item point"
+                                :class="{ 
+                                  selected: selectedItem?.type === 'point' && selectedItem?.id === point.id,
+                                  'has-diff': point.hasDiff,
+                                  warning: point.status === 'warning'
+                                }"
+                                @click="selectTreeItem('point', point, device, channel)"
+                              >
+                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                                  <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                                <span class="item-name">{{ point.name }}</span>
+                                <span class="point-address">{{ point.address }}</span>
+                                <span v-if="point.hasDiff" class="diff-badge">差异</span>
+                                <span v-if="point.status === 'warning'" class="warning-badge">⚠️</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-tree">
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <p>请选择一个节点</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 右侧：详情面板 -->
+      <main class="detail-panel">
+        <div v-if="selectedItem" class="detail-content">
+          <!-- 详情头部 -->
+          <div class="detail-header">
+            <div class="header-left">
+              <h3>{{ selectedItem.label }}</h3>
+              <div class="breadcrumbs">
+                <span v-for="(crumb, index) in breadcrumbs" :key="index">
+                  <span v-if="index > 0">/</span>
+                  <span :class="{ active: index === breadcrumbs.length - 1 }">{{ crumb }}</span>
+                </span>
+              </div>
+            </div>
+            <div class="header-right">
+              <button 
+                class="view-toggle"
+                :class="{ active: viewMode === 'raw' }"
+                @click="viewMode = viewMode === 'structured' ? 'raw' : 'structured'"
+              >
+                {{ viewMode === 'structured' ? '原始视图' : '结构视图' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- 操作工具栏 -->
+          <div class="detail-toolbar">
+            <button class="toolbar-btn" @click="viewItem">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 21h5v-2a3 3 0 00-5.356-1.857M15 21H9m12-6h-2.01M12 21h-2.01M9 21H3v-2a3 3 0 015.356-1.857M9 21v-6a3 3 0 016-0v6m-9 0V9a3 3 0 016-0v12"/>
+              </svg>
+              查看
+            </button>
+            <button class="toolbar-btn" @click="compareItem">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18h6"/>
+                <path d="M3 6h18"/>
+                <path d="M18 6v12c0 1.66-1.34 3-3 3H3c-1.66 0-3-1.34-3-3V6"/>
+              </svg>
+              对比差异
+            </button>
+            <button 
+              class="toolbar-btn"
+              :class="{ disabled: !selectedItem.hasDiff }"
+              @click="syncItem"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+              </svg>
+              同步
+            </button>
+            <button 
+              class="toolbar-btn"
+              :class="{ locked: selectedItem.locked }"
+              @click="toggleLock"
+            >
+              <svg v-if="!selectedItem.locked" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0110 0v4"/>
+              </svg>
+              <svg v-else viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 00-5 5v4a5 5 0 005 5v-2m5-10V5a3 3 0 016 0v2"/>
+              </svg>
+              {{ selectedItem.locked ? '解锁' : '锁定' }}
+            </button>
+          </div>
+
+          <!-- 详情内容 -->
+          <div class="detail-body">
+            <div v-if="viewMode === 'structured'" class="structured-view">
+              <div class="form-grid">
+                <div 
+                  v-for="(value, key) in selectedItem.content" 
+                  :key="key"
+                  class="form-item"
+                >
+                  <label>{{ formatKey(key) }}</label>
+                  <span class="value">{{ formatValue(value) }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-else class="raw-view">
+              <pre class="yaml-content">{{ formatYaml(selectedItem.content) }}</pre>
+            </div>
+          </div>
+
+          <!-- 同步状态提示 -->
+          <div v-if="selectedItem.hasDiff" class="diff-notification">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12" y2="16"/>
+            </svg>
+            <span>此配置与本地存在差异</span>
+            <button class="sync-btn" @click="syncItem">立即同步</button>
+          </div>
+        </div>
+        <div v-else-if="selectedNode" class="node-overview">
+          <div class="overview-header">
+            <div class="node-icon">
+              <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M8 15s1.5-2 4-2 4 2 4 2"/>
+                <circle cx="12" cy="9" r="3"/>
+              </svg>
+            </div>
+            <div class="node-info">
+              <h2>{{ selectedNode.name }}</h2>
+              <div class="info-row">
+                <span class="label">NodeID</span>
+                <span class="value mono">{{ truncateId(selectedNode.id) }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">IP</span>
+                <span class="value">{{ selectedNode.address }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">版本</span>
+                <span class="value">{{ selectedNode.version || 'N/A' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">延迟</span>
+                <span class="value" :class="{ high: selectedNode.latency > 100 }">{{ selectedNode.latency || 0 }}ms</span>
+              </div>
+            </div>
+            <div class="node-status-card" :class="selectedNode.status">
+              <span class="status-icon">{{ statusIcon(selectedNode.status) }}</span>
+              <span class="status-text">{{ statusText(selectedNode.status) }}</span>
+            </div>
+          </div>
+          <div class="overview-stats">
+            <div class="stat-item">
+              <span class="stat-value">{{ treeData.channels?.length || 0 }}</span>
+              <span class="stat-label">通道数</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ totalDevices }}</span>
+              <span class="stat-label">设备数</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ totalPoints }}</span>
+              <span class="stat-label">点位总数</span>
+            </div>
+            <div class="stat-item diff">
+              <span class="stat-value">{{ totalDiffs }}</span>
+              <span class="stat-label">配置差异</span>
+            </div>
+          </div>
+          <div class="overview-actions">
+            <button class="action-btn primary" @click="syncAll">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+              </svg>
+              同步全部配置
+            </button>
+            <button class="action-btn" @click="viewDiff">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18h6"/>
+                <path d="M3 6h18"/>
+                <path d="M18 6v12c0 1.66-1.34 3-3 3H3c-1.66 0-3-1.34-3-3V6"/>
+              </svg>
+              查看差异
+            </button>
+          </div>
+        </div>
+        <div v-else class="empty-detail">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <p>选择左侧配置项查看详情</p>
+        </div>
+      </main>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+// 节点列表
+const nodes = ref([
+  { id: 'local-' + Date.now(), name: 'Gateway-A', address: '192.168.1.100', status: 'online', version: 'v1.2.3', latency: 12, isLocal: true },
+  { id: 'QmSZ1CuR2t4eWHUeBywbs46MgbCLUBo7cTLgyRn6u6TMr4', name: 'Gateway-B', address: '192.168.1.101', status: 'online', version: 'v1.2.3', latency: 25, isLocal: false },
+  { id: 'QmXYZ1234567890abcdefghijklmnopqrstuvwxyz', name: 'Gateway-C', address: '192.168.1.102', status: 'degraded', version: 'v1.2.2', latency: 156, isLocal: false },
+  { id: 'QmABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890', name: 'Gateway-D', address: '192.168.1.103', status: 'offline', version: 'v1.2.1', latency: 0, isLocal: false }
+])
+
+// 当前选中的节点
+const selectedNode = ref(nodes.value[0])
+
+// 展开的节点
+const expandedNodes = ref(['root', 'channels'])
+
+// 当前选中的树项
+const selectedItem = ref(null)
+
+// 视图模式
+const viewMode = ref('structured')
+
+// 加载状态
+const loading = ref(false)
+
+// 树数据
+const treeData = ref({
+  channels: [
+    {
+      id: 'ch1',
+      name: 'Modbus-1',
+      protocol: 'modbus',
+      status: 'online',
+      hasDiff: false,
+      deviceCount: 2,
+      devices: null
+    },
+    {
+      id: 'ch2',
+      name: 'OPC-UA-1',
+      protocol: 'opcua',
+      status: 'online',
+      hasDiff: true,
+      deviceCount: 1,
+      devices: null
+    },
+    {
+      id: 'ch3',
+      name: 'BACnet-1',
+      protocol: 'bacnet',
+      status: 'offline',
+      hasDiff: false,
+      deviceCount: 1,
+      devices: null
+    }
+  ]
+})
+
+// 计算属性：总设备数
+const totalDevices = computed(() => {
+  return treeData.value.channels?.reduce((sum, ch) => sum + (ch.deviceCount || 0), 0) || 0
+})
+
+// 计算属性：总点数
+const totalPoints = computed(() => {
+  let count = 0
+  treeData.value.channels?.forEach(ch => {
+    ch.devices?.forEach(d => {
+      count += d.pointCount || 0
+    })
+  })
+  return count
+})
+
+// 计算属性：总差异数
+const totalDiffs = computed(() => {
+  let count = 0
+  treeData.value.channels?.forEach(ch => {
+    if (ch.hasDiff) count++
+    ch.devices?.forEach(d => {
+      if (d.hasDiff) count++
+      d.points?.forEach(p => {
+        if (p.hasDiff) count++
+      })
+    })
+  })
+  return count
+})
+
+// 面包屑
+const breadcrumbs = computed(() => {
+  if (!selectedItem.value) return []
+  const crumbs = [selectedNode.value?.name || '']
+  switch (selectedItem.value.type) {
+    case 'channel':
+      crumbs.push('通道', selectedItem.value.name)
+      break
+    case 'device':
+      crumbs.push('通道', selectedItem.value.channelName, '设备', selectedItem.value.name)
+      break
+    case 'point':
+      crumbs.push('通道', selectedItem.value.channelName, '设备', selectedItem.value.deviceName, '点位', selectedItem.value.name)
+      break
+  }
+  return crumbs
+})
+
+function statusText(status) {
+  const map = { online: '在线', offline: '离线', degraded: '延迟高', normal: '正常', warning: '警告' }
+  return map[status] || status
+}
+
+function statusIcon(status) {
+  const map = { online: '🟢', offline: '🔴', degraded: '🟡' }
+  return map[status] || '⚪'
+}
+
+function truncateId(id) {
+  if (id && id.length > 12) {
+    return id.slice(0, 6) + '...' + id.slice(-6)
+  }
+  return id
+}
+
+function toggleExpand(nodeId) {
+  const index = expandedNodes.value.indexOf(nodeId)
+  if (index === -1) {
+    expandedNodes.value.push(nodeId)
+  } else {
+    expandedNodes.value.splice(index, 1)
+  }
+}
+
+function selectNode(node) {
+  selectedNode.value = node
+  selectedItem.value = null
+  expandedNodes.value = ['root', 'channels']
+  loadNodeData(node.id)
+}
+
+function loadChannelDevices(channel) {
+  const expandId = 'channel-' + channel.id
+  const isExpanded = expandedNodes.value.includes(expandId)
+  
+  if (isExpanded && !channel.devices) {
+    // 懒加载设备数据
+    loading.value = true
+    setTimeout(() => {
+      const channelIndex = treeData.value.channels.findIndex(c => c.id === channel.id)
+      if (channelIndex !== -1) {
+        treeData.value.channels[channelIndex].devices = generateMockDevices(channel.name)
+      }
+      loading.value = false
+    }, 500)
+  }
+  
+  toggleExpand(expandId)
+}
+
+function loadDevicePoints(device, channel) {
+  const expandId = 'device-' + device.id
+  const isExpanded = expandedNodes.value.includes(expandId)
+  
+  if (isExpanded) {
+    const channelIndex = treeData.value.channels.findIndex(c => c.id === channel.id)
+    if (channelIndex !== -1) {
+      const deviceIndex = treeData.value.channels[channelIndex].devices?.findIndex(d => d.id === device.id)
+      if (deviceIndex !== -1 && !treeData.value.channels[channelIndex].devices[deviceIndex].points) {
+        // 懒加载点位数据
+        loading.value = true
+        setTimeout(() => {
+          treeData.value.channels[channelIndex].devices[deviceIndex].points = generateMockPoints(device.name)
+          loading.value = false
+        }, 300)
+      }
+    }
+  }
+  
+  toggleExpand(expandId)
+}
+
+function generateMockDevices(channelName) {
+  const devices = []
+  const count = Math.floor(Math.random() * 3) + 1
+  for (let i = 1; i <= count; i++) {
+    devices.push({
+      id: `dev-${channelName}-${i}`,
+      name: `${channelName.split('-')[0]}-Device-${i}`,
+      status: Math.random() > 0.1 ? 'online' : 'degraded',
+      hasDiff: Math.random() > 0.7,
+      pointCount: Math.floor(Math.random() * 20) + 5,
+      points: null
+    })
+  }
+  return devices
+}
+
+function generateMockPoints(deviceName) {
+  const points = []
+  const count = Math.floor(Math.random() * 10) + 3
+  const pointNames = ['temp', 'pressure', 'flow', 'level', 'status', 'speed', 'voltage', 'current', 'power', 'frequency']
+  for (let i = 0; i < count; i++) {
+    points.push({
+      id: `point-${deviceName}-${i}`,
+      name: pointNames[i % pointNames.length],
+      address: `4000${i + 1}`,
+      type: ['float', 'int', 'bool', 'double'][Math.floor(Math.random() * 4)],
+      scale: Math.random() * 10 + 0.1,
+      unit: ['°C', 'kPa', 'L/min', '%', 'V', 'A', 'W'][Math.floor(Math.random() * 7)],
+      status: Math.random() > 0.9 ? 'warning' : 'normal',
+      hasDiff: Math.random() > 0.8
+    })
+  }
+  return points
+}
+
+function selectTreeItem(type, item, parent = null, grandParent = null) {
+  let content = {}
+  let hasDiff = item.hasDiff || false
+  let locked = false
+
+  switch (type) {
+    case 'channel':
+      content = {
+        id: item.id,
+        name: item.name,
+        protocol: item.protocol,
+        status: item.status,
+        deviceCount: item.deviceCount,
+        hasDiff: item.hasDiff
+      }
+      break
+    case 'device':
+      content = {
+        id: item.id,
+        name: item.name,
+        protocol: parent?.protocol || 'unknown',
+        status: item.status,
+        pointCount: item.pointCount,
+        hasDiff: item.hasDiff
+      }
+      break
+    case 'point':
+      content = {
+        id: item.id,
+        name: item.name,
+        address: item.address,
+        type: item.type,
+        scale: item.scale?.toFixed(2) || '-',
+        unit: item.unit || '-',
+        status: item.status,
+        hasDiff: item.hasDiff
+      }
+      break
+  }
+
+  selectedItem.value = {
+    type,
+    id: item.id,
+    name: item.name,
+    label: item.name,
+    channelName: grandParent?.name || parent?.name,
+    deviceName: parent?.name,
+    content,
+    hasDiff,
+    locked
+  }
+}
+
+function formatKey(key) {
+  const keyMap = {
+    id: 'ID',
+    name: '名称',
+    protocol: '协议',
+    status: '状态',
+    deviceCount: '设备数量',
+    pointCount: '点位数量',
+    address: '地址',
+    type: '类型',
+    scale: '倍率',
+    unit: '单位',
+    enabled: '启用状态',
+    hasDiff: '是否有差异'
+  }
+  return keyMap[key] || key
+}
+
+function formatValue(value) {
+  if (typeof value === 'boolean') {
+    return value ? '是' : '否'
+  }
+  return value
+}
+
+function formatYaml(obj, indent = 0) {
+  let yaml = ''
+  const prefix = ' '.repeat(indent)
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === 'object' && value !== null) {
+      yaml += `${prefix}${key}:\n${formatYaml(value, indent + 2)}`
+    } else {
+      yaml += `${prefix}${key}: ${value}\n`
+    }
+  }
+  return yaml
+}
+
+function loadNodeData(nodeId) {
+  console.log('Loading data for node:', nodeId)
+}
+
+function refreshTree() {
+  loadNodeData(selectedNode.value?.id)
+}
+
+function syncAll() {
+  alert(`同步 ${selectedNode.value?.name} 的全部配置`)
+}
+
+function viewItem() {
+  alert('查看配置详情')
+}
+
+function compareItem() {
+  router.push('/config-diff')
+}
+
+function syncItem() {
+  if (selectedItem.value?.hasDiff) {
+    alert(`同步 ${selectedItem.value.name}`)
+  }
+}
+
+function viewDiff() {
+  router.push('/config-diff')
+}
+
+function toggleLock() {
+  if (selectedItem.value) {
+    selectedItem.value.locked = !selectedItem.value.locked
+  }
+}
+</script>
+
+<style scoped>
+.node-tree-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f5f5f5;
+}
+
+/* 顶部导航 */
+.tree-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: white;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1f1f1f;
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: #f5f5f5;
+}
+
+.action-btn.primary {
+  background: #1890ff;
+  border-color: #1890ff;
+  color: white;
+}
+
+.action-btn.primary:hover {
+  background: #40a9ff;
+}
+
+/* 主体布局 */
+.tree-layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* 左侧边栏 */
+.sidebar {
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-right: 1px solid #e8e8e8;
+}
+
+/* 节点选择器 */
+.node-selector {
+  padding: 12px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #595959;
+}
+
+.node-count {
+  background: #f0f0f0;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.node-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.node-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.node-item:hover {
+  background: #f5f5f5;
+}
+
+.node-item.active {
+  background: #e6f7ff;
+}
+
+.node-item.is-local.active {
+  border: 1px solid #1890ff;
+}
+
+.node-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.node-status-dot.online {
+  background: #52c41a;
+  box-shadow: 0 0 6px #52c41a;
+}
+
+.node-status-dot.offline {
+  background: #d9d9d9;
+}
+
+.node-status-dot.degraded {
+  background: #faad14;
+  box-shadow: 0 0 6px #faad14;
+}
+
+.node-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.node-name {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f1f1f;
+}
+
+.node-address {
+  display: block;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.local-tag {
+  font-size: 11px;
+  color: #1890ff;
+  background: #e6f7ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* 配置树 */
+.config-tree {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tree-header-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #595959;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.tree-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.tree-content {
+  padding: 8px;
+}
+
+.empty-tree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #bfbfbf;
+}
+
+.empty-tree svg {
+  margin-bottom: 12px;
+}
+
+.empty-tree p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* 树节点 */
+.tree-node {
+  margin-bottom: 2px;
+}
+
+.tree-node-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.tree-node-header:hover {
+  background: #f5f5f5;
+}
+
+.tree-node.item {
+  padding: 4px 0;
+}
+
+.tree-node-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.tree-node-row:hover {
+  background: #f5f5f5;
+}
+
+.tree-node.item.selected {
+  background: #e6f7ff;
+}
+
+.tree-node.item.selected .item-name {
+  color: #1890ff;
+}
+
+.tree-node.item.has-diff .item-name {
+  font-weight: 500;
+}
+
+.tree-node.item.warning {
+  background: #fff7e6;
+}
+
+.tree-children {
+  margin-left: 16px;
+}
+
+.spacer {
+  width: 12px;
+}
+
+.item-name {
+  flex: 1;
+  font-size: 13px;
+  color: #333;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.point-address {
+  font-size: 11px;
+  color: #8c8c8c;
+  font-family: 'Monaco', 'Menlo', monospace;
+  margin-right: auto;
+}
+
+.count-badge {
+  font-size: 11px;
+  color: #8c8c8c;
+  background: #f5f5f5;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.node-status-badge {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.node-status-badge.online {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.node-status-badge.offline {
+  background: #f5f5f5;
+  color: #8c8c8c;
+}
+
+.node-status-badge.degraded {
+  background: #fff7e6;
+  color: #fa8c16;
+}
+
+.status-badge {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.status-badge.offline {
+  background: #f5f5f5;
+  color: #8c8c8c;
+}
+
+.status-badge.degraded {
+  background: #fff7e6;
+  color: #fa8c16;
+}
+
+.diff-badge {
+  font-size: 10px;
+  color: #f5222d;
+  background: #fff1f0;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.warning-badge {
+  font-size: 12px;
+}
+
+.rotated {
+  transform: rotate(90deg);
+}
+
+/* 右侧详情面板 */
+.detail-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  overflow: hidden;
+}
+
+.detail-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.header-left h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.breadcrumbs {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.breadcrumbs span.active {
+  color: #1890ff;
+}
+
+.view-toggle {
+  padding: 6px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  background: white;
+}
+
+.view-toggle.active {
+  background: #1890ff;
+  color: white;
+  border-color: #1890ff;
+}
+
+.detail-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  background: white;
+  transition: all 0.2s;
+}
+
+.toolbar-btn:hover:not(.disabled) {
+  background: #f5f5f5;
+}
+
+.toolbar-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbar-btn.locked {
+  background: #fff1f0;
+  border-color: #ffccc7;
+  color: #f5222d;
+}
+
+.detail-body {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* 结构视图 */
+.structured-view {
+  height: 100%;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.form-item {
+  background: #fafafa;
+  padding: 12px 16px;
+  border-radius: 8px;
+}
+
+.form-item label {
+  display: block;
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 4px;
+}
+
+.form-item .value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f1f1f;
+}
+
+/* 原始视图 */
+.raw-view {
+  height: 100%;
+}
+
+.yaml-content {
+  background: #1f1f1f;
+  color: #e0e0e0;
+  padding: 16px;
+  border-radius: 8px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+/* 节点概览 */
+.node-overview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+
+.overview-header {
+  display: flex;
+  gap: 20px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.node-icon {
+  color: #1890ff;
+}
+
+.node-info {
+  flex: 1;
+}
+
+.node-info h2 {
+  margin: 0 0 16px 0;
+  font-size: 20px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.info-row .label {
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+.info-row .value {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.info-row .value.mono {
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.info-row .value.high {
+  color: #fa8c16;
+}
+
+.node-status-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 24px;
+  border-radius: 12px;
+  min-width: 100px;
+}
+
+.node-status-card.online {
+  background: #f6ffed;
+}
+
+.node-status-card.offline {
+  background: #f5f5f5;
+}
+
+.node-status-card.degraded {
+  background: #fff7e6;
+}
+
+.status-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.status-text {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.node-status-card.online .status-text {
+  color: #52c41a;
+}
+
+.node-status-card.offline .status-text {
+  color: #8c8c8c;
+}
+
+.node-status-card.degraded .status-text {
+  color: #fa8c16;
+}
+
+.overview-stats {
+  display: flex;
+  gap: 16px;
+  padding: 24px 0;
+}
+
+.stat-item {
+  flex: 1;
+  background: #fafafa;
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-item.diff {
+  background: #fff7e6;
+}
+
+.stat-value {
+  display: block;
+  font-size: 28px;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.stat-item.diff .stat-value {
+  color: #fa8c16;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+.overview-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.overview-actions .action-btn {
+  flex: 1;
+  justify-content: center;
+  padding: 12px;
+  font-size: 14px;
+  border-radius: 8px;
+}
+
+.overview-actions .action-btn.primary {
+  background: #1890ff;
+  color: white;
+  border: none;
+}
+
+/* 空详情 */
+.empty-detail {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #bfbfbf;
+}
+
+.empty-detail svg {
+  margin-bottom: 16px;
+}
+
+.empty-detail p {
+  margin: 0;
+}
+
+/* 差异通知 */
+.diff-notification {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: #fff7e6;
+  border-top: 1px solid #ffe58f;
+}
+
+.diff-notification svg {
+  color: #fa8c16;
+}
+
+.diff-notification span {
+  flex: 1;
+  color: #d46b08;
+  font-size: 13px;
+}
+
+.sync-btn {
+  background: #fa8c16;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.sync-btn:hover {
+  background: #d46b08;
+}
+</style>

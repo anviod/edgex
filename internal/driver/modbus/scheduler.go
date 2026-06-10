@@ -2,7 +2,6 @@ package modbus
 
 import (
 	"context"
-	"edge-gateway/internal/model"
 	"fmt"
 	"log"
 	"sort"
@@ -10,6 +9,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 // Scheduler 接口定义
@@ -674,7 +675,7 @@ func (s *PointScheduler) readGroup(ctx context.Context, group PointGroup) (map[s
 		// But limit to avoid excessive network requests
 		fallbackTimeout := time.NewTimer(5 * time.Second)
 		defer fallbackTimeout.Stop()
-		
+
 		for _, point := range group.Points {
 			select {
 			case <-ctx.Done():

@@ -2,9 +2,10 @@ package core
 
 import (
 	"context"
-	"edge-gateway/internal/model"
 	"testing"
 	"time"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 // Reusing MockDeviceWriter logic for this test file

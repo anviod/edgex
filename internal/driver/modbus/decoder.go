@@ -1,13 +1,14 @@
 package modbus
 
 import (
-	"edge-gateway/internal/model"
-	"edge-gateway/internal/pkg/dataformat"
 	"encoding/binary"
 	"fmt"
 	"math"
 	"strconv"
 	"strings"
+
+	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/pkg/dataformat"
 )
 
 // Decoder 接口定义
@@ -48,7 +49,7 @@ func (d *PointDecoder) EnableDataformatDecoder(enable bool) {
 // 3. 范围格式：如 "0-1" 表示从地址0开始的连续寄存器
 func (d *PointDecoder) ParseAddress(addr string) (model.RegisterType, uint16, error) {
 	addr = strings.TrimSpace(addr)
-	
+
 	// 处理范围地址格式，如 "0-1" 或 "1-2"
 	if strings.Contains(addr, "-") {
 		parts := strings.Split(addr, "-")
@@ -56,7 +57,7 @@ func (d *PointDecoder) ParseAddress(addr string) (model.RegisterType, uint16, er
 			addr = strings.TrimSpace(parts[0])
 		}
 	}
-	
+
 	addrInt, err := strconv.Atoi(addr)
 	if err != nil {
 		return model.RegHolding, 0, fmt.Errorf("invalid address format: %s", addr)

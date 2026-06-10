@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"edge-gateway/internal/model"
+	"github.com/anviod/edgex/internal/model"
 )
 
 // CSVPointConfig CSV导入的点位配置

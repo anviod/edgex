@@ -41,7 +41,7 @@ Command: `go test -v ./internal/server`
 === RUN   TestGetDevicePoints_ProtocolFields
 --- PASS: TestGetDevicePoints_ProtocolFields (0.01s)
 PASS
-ok      edge-gateway/internal/server    1.236s
+ok      github.com/anviod/edgex/internal/server    1.236s
 ```
 
 ## 5. Conclusion
@@ -51,5 +51,5 @@ The API correctly identifies the channel protocol and filters the response field
 - The `protocol` field is correctly added to all responses.
 
 ## 6. Code Reference
-- Test Implementation: [points_api_test.go](file:///d:/code/edgex/internal/server/points_api_test.go)
-- Server Logic: [server.go](file:///d:/code/edgex/internal/server/server.go)
+- Test Implementation: [points_api_test.go](file:///d:/code/github.com/anviod/edgex/internal/server/points_api_test.go)
+- Server Logic: [server.go](file:///d:/code/github.com/anviod/edgex/internal/server/server.go)

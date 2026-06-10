@@ -2,14 +2,15 @@ package dlt645
 
 import (
 	"context"
-	"edge-gateway/internal/driver"
-	"edge-gateway/internal/model"
 	"fmt"
 	"log"
 	"math/rand"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/anviod/edgex/internal/driver"
+	"github.com/anviod/edgex/internal/model"
 )
 
 func init() {

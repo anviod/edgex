@@ -1,9 +1,10 @@
 package network
 
 import (
-	"edge-gateway/internal/model"
 	"fmt"
 	"sync"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 // NetworkManager manages network configurations and operations

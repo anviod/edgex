@@ -2,11 +2,12 @@ package s7
 
 import (
 	"context"
-	"edge-gateway/internal/driver"
-	"edge-gateway/internal/model"
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/anviod/edgex/internal/driver"
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/anviod/gos7"
 	"go.uber.org/zap"
