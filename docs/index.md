@@ -50,10 +50,10 @@ description: EdgeX 项目的完整文档
 
 <section class="landing-section">
   <div class="shell shell--wide">
-    <div class="wide-panel" style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 35px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);">
-      <div class="section-kicker" style="color: #00d4ff;">计划方向</div>
-      <h2 style="color: #ffffff; margin-bottom: 15px;">即将推出</h2>
-      <p style="color: #b8c5d6; margin-bottom: 25px;">展示正在规划和开发中的功能，预计发布时间仅供参考。</p>
+    <div class="wide-panel" style="background: rgba(10, 25, 40, 0.65); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(100, 200, 255, 0.15); border-radius: 16px; padding: 35px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);">
+      <div class="section-kicker" style="color: #4fc3f7; font-weight: 600; letter-spacing: 0.5px;">计划方向</div>
+      <h2 style="color: #ffffff; margin-bottom: 15px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">即将推出</h2>
+      <p style="color: #c5d4e8; margin-bottom: 25px; font-weight: 400;">展示正在规划和开发中的功能，预计发布时间仅供参考。</p>
 
       <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
         <span style="background: linear-gradient(135deg, #00d4ff, #0099cc); color: white; padding: 6px 16px; border-radius: 20px; font-size: 14px; font-weight: 600;">Q3 2026</span>
@@ -63,154 +63,154 @@ description: EdgeX 项目的完整文档
 
       <div style="grid-template-columns: 1fr 1fr; gap: 30px; display: grid;">
         <div>
-          <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">核心定位：Hybrid Sync Model</h3>
-          <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8;">
+          <h3 style="color: #4fc3f7; margin-bottom: 15px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">核心定位：Hybrid Sync Model</h3>
+          <p style="color: #d0dbe8; font-size: 14px; line-height: 1.8;">
             <strong style="color: #ffffff;">分布式配置与控制权同步系统</strong>，基于 go-libp2p 构建，专用于多台边缘网关之间的自动发现与配置一致性维护。这是一个"逻辑状态同步系统"，而非传统文件同步，通过结构化的 ConfigSnapshot 实现语义级别的配置共享与冲突处理。
           </p>
-          <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8; margin-top: 10px;">
+          <p style="color: #d0dbe8; font-size: 14px; line-height: 1.8; margin-top: 10px;">
             <strong style="color: #ffffff;">为什么选择 Hybrid Sync Model？</strong><br/>
-            相比 Raft（太重、leader瓶颈、ARM无法运行）、全CRDT（实现复杂、不适合设备控制）、rsync文件同步（无语义），本方案在可控性、轻量级与工业适配之间取得最佳平衡。
+            相比 Raft（太重、leader 瓶颈、ARM 无法运行）、全 CRDT（实现复杂、不适合设备控制）、rsync 文件同步（无语义），本方案在可控性、轻量级与工业适配之间取得最佳平衡。
           </p>
         </div>
 
         <div>
-          <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">三层一致性模型</h3>
-          <ul style="color: #b8c5d6; font-size: 14px; line-height: 1.8; list-style-type: none; padding-left: 0;">
+          <h3 style="color: #4fc3f7; margin-bottom: 15px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">三层一致性模型</h3>
+          <ul style="color: #d0dbe8; font-size: 14px; line-height: 1.8; list-style-type: none; padding-left: 0;">
             <li style="padding-left: 20px; position: relative;">
-              <span style="position: absolute; left: 0; color: #00d4ff;">•</span>
+              <span style="position: absolute; left: 0; color: #4fc3f7;">•</span>
               <strong style="color: #ffffff;">Config 层</strong> → 最终一致 (Eventual Consistency)：通过 Announce + Pull 两阶段同步实现，允许延迟但保证最终一致
             </li>
             <li style="padding-left: 20px; position: relative;">
-              <span style="position: absolute; left: 0; color: #00d4ff;">•</span>
+              <span style="position: absolute; left: 0; color: #4fc3f7;">•</span>
               <strong style="color: #ffffff;">Ownership 层</strong> → 租约约束 (Lease)：设备控制权通过租约机制管理，防止多节点冲突抢占
             </li>
             <li style="padding-left: 20px; position: relative;">
-              <span style="position: absolute; left: 0; color: #00d4ff;">•</span>
+              <span style="position: absolute; left: 0; color: #4fc3f7;">•</span>
               <strong style="color: #ffffff;">Runtime 层</strong> → 单点主控 (Owner Only)：运行时数据仅允许主控节点写入，避免数据同步风暴
             </li>
           </ul>
         </div>
       </div>
 
-      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-        <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">技术架构特性</h3>
-        <ul style="color: #b8c5d6; font-size: 14px; line-height: 1.8; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px;">
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(100, 200, 255, 0.15);">
+        <h3 style="color: #4fc3f7; margin-bottom: 15px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">技术架构特性</h3>
+        <ul style="color: #d0dbe8; font-size: 14px; line-height: 1.8; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px;">
           <li style="padding-left: 20px; position: relative;">
-            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
-            <strong>0配置启动</strong>：无需 bootstrap、无证书、无手动配置，接入网络即可被发现
+            <span style="position: absolute; left: 0; color: #81c784;">✓</span>
+            <strong style="color: #ffffff;">0 配置启动</strong>：无需 bootstrap、无证书、无手动配置，接入网络即可被发现
           </li>
           <li style="padding-left: 20px; position: relative;">
-            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
-            <strong>局域网自动发现</strong>：基于 go-libp2p 的 P2P 网络能力，自动发现同网段节点并组建集群
+            <span style="position: absolute; left: 0; color: #81c784;">✓</span>
+            <strong style="color: #ffffff;">局域网自动发现</strong>：基于 go-libp2p 的 P2P 网络能力，自动发现同网段节点并组建集群
           </li>
           <li style="padding-left: 20px; position: relative;">
-            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
-            <strong>向量时钟版本控制</strong>：每个节点维护版本向量，解决并发修改冲突，支持冲突状态可视化
+            <span style="position: absolute; left: 0; color: #81c784;">✓</span>
+            <strong style="color: #ffffff;">向量时钟版本控制</strong>：每个节点维护版本向量，解决并发修改冲突，支持冲突状态可视化
           </li>
           <li style="padding-left: 20px; position: relative;">
-            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
-            <strong>两阶段同步</strong>：Announce（广播Hash变更） + Pull（按需拉取完整数据），避免全量广播导致网络风暴
+            <span style="position: absolute; left: 0; color: #81c784;">✓</span>
+            <strong style="color: #ffffff;">两阶段同步</strong>：Announce（广播 Hash 变更） + Pull（按需拉取完整数据），避免全量广播导致网络风暴
           </li>
           <li style="padding-left: 20px; position: relative;">
-            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
-            <strong>设备访问模式</strong>：Exclusive（独占）、Shared（共享）、Lease（租约）三种模式适配不同工业协议特性
+            <span style="position: absolute; left: 0; color: #81c784;">✓</span>
+            <strong style="color: #ffffff;">设备访问模式</strong>：Exclusive（独占）、Shared（共享）、Lease（租约）三种模式适配不同工业协议特性
           </li>
           <li style="padding-left: 20px; position: relative;">
-            <span style="position: absolute; left: 0; color: #00ff88;">✓</span>
-            <strong>ARMv7 友好</strong>：轻量级实现、限流保护、数据压缩，适合资源受限的边缘网关设备
+            <span style="position: absolute; left: 0; color: #81c784;">✓</span>
+            <strong style="color: #ffffff;">ARMv7 友好</strong>：轻量级实现、限流保护、数据压缩，适合资源受限的边缘网关设备
           </li>
         </ul>
       </div>
 
-      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-        <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">核心应用场景</h3>
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(100, 200, 255, 0.15);">
+        <h3 style="color: #4fc3f7; margin-bottom: 15px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">核心应用场景</h3>
         <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-          <span style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #00d4ff; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(0, 212, 255, 0.3); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">ARMv7 边缘网关</span>
-          <span style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #00d4ff; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(0, 212, 255, 0.3); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">PLC / OPC-UA / BACnet / Modbus</span>
-          <span style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #00d4ff; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(0, 212, 255, 0.3); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">分布式采集</span>
-          <span style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #00d4ff; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(0, 212, 255, 0.3); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">配置共享</span>
-          <span style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #00d4ff; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(0, 212, 255, 0.3); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">设备接管</span>
+          <span style="background: rgba(30, 60, 90, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #90caf9; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(79, 195, 247, 0.4); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); font-weight: 500;">ARMv7 边缘网关</span>
+          <span style="background: rgba(30, 60, 90, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #90caf9; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(79, 195, 247, 0.4); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); font-weight: 500;">PLC / OPC-UA / BACnet / Modbus</span>
+          <span style="background: rgba(30, 60, 90, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #90caf9; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(79, 195, 247, 0.4); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); font-weight: 500;">分布式采集</span>
+          <span style="background: rgba(30, 60, 90, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #90caf9; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(79, 195, 247, 0.4); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); font-weight: 500;">配置共享</span>
+          <span style="background: rgba(30, 60, 90, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #90caf9; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(79, 195, 247, 0.4); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); font-weight: 500;">设备接管</span>
         </div>
       </div>
 
-      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-        <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">核心目标：解决什么问题？</h3>
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(100, 200, 255, 0.15);">
+        <h3 style="color: #4fc3f7; margin-bottom: 15px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">核心目标：解决什么问题？</h3>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
-          <div style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);">
-            <h4 style="color: #00d4ff; margin-bottom: 10px; font-size: 16px;">目标一：0 配置运维</h4>
-            <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8; margin-bottom: 10px;">
-              <strong>问题：</strong>传统方案需要手动配置每个节点的 IP、端口、证书、bootstrap 节点，运维成本高。
+          <div style="background: rgba(30, 60, 90, 0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; border: 1px solid rgba(79, 195, 247, 0.3); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
+            <h4 style="color: #4fc3f7; margin-bottom: 10px; font-size: 16px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">目标一：0 配置运维</h4>
+            <p style="color: #c5d4e8; font-size: 14px; line-height: 1.8; margin-bottom: 10px;">
+              <strong style="color: #e3f2fd;">问题：</strong>传统方案需要手动配置每个节点的 IP、端口、证书、bootstrap 节点，运维成本高。
             </p>
-            <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8;">
-              <strong>解决方案：</strong>基于 go-libp2p 的 mDNS 自动发现，节点接入网络后自动组网，配置自动同步。<br/>
-              <strong>效果：</strong>新增节点无需任何配置，<strong>部署时间从小时级降至 5 分钟</strong>。
+            <p style="color: #c5d4e8; font-size: 14px; line-height: 1.8;">
+              <strong style="color: #e3f2fd;">解决方案：</strong>基于 go-libp2p 的 mDNS 自动发现，节点接入网络后自动组网，配置自动同步。<br/>
+              <strong style="color: #e3f2fd;">效果：</strong>新增节点无需任何配置，<strong style="color: #ffffff;">部署时间从小时级降至 5 分钟</strong>。
             </p>
           </div>
           
-          <div style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);">
-            <h4 style="color: #00ff88; margin-bottom: 10px; font-size: 16px;">目标二：高可用接管</h4>
-            <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8; margin-bottom: 10px;">
-              <strong>问题：</strong>单台边缘网关故障后，其采集的 PLC、Modbus TCP 等设备数据中断，需人工介入恢复。
+          <div style="background: rgba(30, 60, 90, 0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; border: 1px solid rgba(129, 199, 132, 0.3); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
+            <h4 style="color: #81c784; margin-bottom: 10px; font-size: 16px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">目标二：高可用接管</h4>
+            <p style="color: #c5d4e8; font-size: 14px; line-height: 1.8; margin-bottom: 10px;">
+              <strong style="color: #e3f2fd;">问题：</strong>单台边缘网关故障后，其采集的 PLC、Modbus TCP 等设备数据中断，需人工介入恢复。
             </p>
-            <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8;">
-              <strong>解决方案：</strong>通过配置同步 + 租约机制，其他节点自动接管故障网关的设备采集任务。<br/>
-              <strong>效果：</strong><strong>故障恢复时间从小时级降至秒级</strong>，实现 7×24 小时不间断采集。
+            <p style="color: #c5d4e8; font-size: 14px; line-height: 1.8;">
+              <strong style="color: #e3f2fd;">解决方案：</strong>通过配置同步 + 租约机制，其他节点自动接管故障网关的设备采集任务。<br/>
+              <strong style="color: #e3f2fd;">效果：</strong><strong style="color: #ffffff;">故障恢复时间从小时级降至秒级</strong>，实现 7×24 小时不间断采集。
             </p>
           </div>
         </div>
       </div>
 
-      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-        <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">核心场景：边缘网关故障接管</h3>
-        <div style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);">
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(100, 200, 255, 0.15);">
+        <h3 style="color: #4fc3f7; margin-bottom: 15px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">核心场景：边缘网关故障接管</h3>
+        <div style="background: rgba(30, 60, 90, 0.5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; border: 1px solid rgba(100, 200, 255, 0.2); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
             <div>
-              <h5 style="color: #00d4ff; margin-bottom: 8px; font-size: 15px;">正常运行时</h5>
-              <p style="color: #b8c5d6; font-size: 13px; line-height: 1.6;">
+              <h5 style="color: #64b5f6; margin-bottom: 8px; font-size: 15px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">正常运行时</h5>
+              <p style="color: #c5d4e8; font-size: 13px; line-height: 1.6;">
                 Gateway-A 采集 PLC-01（Modbus TCP），配置通过租约机制标记为"Gateway-A 主控"，其他节点（Gateway-B/C）仅同步配置但不采集。
               </p>
             </div>
             <div>
-              <h5 style="color: #ff6b6b; margin-bottom: 8px; font-size: 15px;">故障发生时</h5>
-              <p style="color: #b8c5d6; font-size: 13px; line-height: 1.6;">
+              <h5 style="color: #e57373; margin-bottom: 8px; font-size: 15px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">故障发生时</h5>
+              <p style="color: #c5d4e8; font-size: 13px; line-height: 1.6;">
                 Gateway-A 宕机或网络断开，租约超时（默认 30s），Gateway-B 检测到租约失效，自动发起接管流程。
               </p>
             </div>
             <div>
-              <h5 style="color: #00ff88; margin-bottom: 8px; font-size: 15px;">接管完成后</h5>
-              <p style="color: #b8c5d6; font-size: 13px; line-height: 1.6;">
-                Gateway-B 获取 PLC-01 的租约，启动采集任务，北向数据上报无缝切换，<strong>用户无感知</strong>。
+              <h5 style="color: #81c784; margin-bottom: 8px; font-size: 15px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">接管完成后</h5>
+              <p style="color: #c5d4e8; font-size: 13px; line-height: 1.6;">
+                Gateway-B 获取 PLC-01 的租约，启动采集任务，北向数据上报无缝切换，<strong style="color: #ffffff;">用户无感知</strong>。
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-        <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">为什么这样做？核心价值</h3>
-        <ul style="color: #b8c5d6; font-size: 14px; line-height: 1.8; list-style-type: none; padding-left: 0;">
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(100, 200, 255, 0.15);">
+        <h3 style="color: #4fc3f7; margin-bottom: 15px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">为什么这样做？核心价值</h3>
+        <ul style="color: #d0dbe8; font-size: 14px; line-height: 1.8; list-style-type: none; padding-left: 0;">
           <li style="padding-left: 20px; position: relative; margin-bottom: 10px;">
-            <span style="position: absolute; left: 0; color: #00d4ff;">✓</span>
-            <strong>0 配置运维</strong>：无需手动配置 IP/证书/bootstrap，节点接入网络即可自动组网与同步
+            <span style="position: absolute; left: 0; color: #4fc3f7;">✓</span>
+            <strong style="color: #ffffff;">0 配置运维</strong>：无需手动配置 IP/证书/bootstrap，节点接入网络即可自动组网与同步
           </li>
           <li style="padding-left: 20px; position: relative; margin-bottom: 10px;">
-            <span style="position: absolute; left: 0; color: #00d4ff;">✓</span>
-            <strong>高可用保障</strong>：单点故障不影响整体采集，其他节点秒级接管，数据不中断
+            <span style="position: absolute; left: 0; color: #4fc3f7;">✓</span>
+            <strong style="color: #ffffff;">高可用保障</strong>：单点故障不影响整体采集，其他节点秒级接管，数据不中断
           </li>
           <li style="padding-left: 20px; position: relative; margin-bottom: 10px;">
-            <span style="position: absolute; left: 0; color: #00d4ff;">✓</span>
-            <strong>工业协议适配</strong>：通过 AccessMode（Exclusive/Shared/Lease）尊重不同协议特性，避免多节点同时接入导致设备崩溃
+            <span style="position: absolute; left: 0; color: #4fc3f7;">✓</span>
+            <strong style="color: #ffffff;">工业协议适配</strong>：通过 AccessMode（Exclusive/Shared/Lease）尊重不同协议特性，避免多节点同时接入导致设备崩溃
           </li>
           <li style="padding-left: 20px; position: relative; margin-bottom: 10px;">
-            <span style="position: absolute; left: 0; color: #00d4ff;">✓</span>
-            <strong>轻量级实现</strong>：两阶段同步（Announce + Pull）减少 90% 网络流量，内存占用<50MB，ARMv7 设备流畅运行
+            <span style="position: absolute; left: 0; color: #4fc3f7;">✓</span>
+            <strong style="color: #ffffff;">轻量级实现</strong>：两阶段同步（Announce + Pull）减少 90% 网络流量，内存占用<50MB，ARMv7 设备流畅运行
           </li>
         </ul>
       </div>
 
-      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-        <p style="color: #b8c5d6; font-size: 13px; text-align: center;">
-          查看完整规划方案：<a href="TODO/基于go-libp2p%20同步通信规划方案.html" style="color: #00d4ff; text-decoration: none; border-bottom: 1px solid #00d4ff;">基于 go-libp2p 同步通信规划方案</a>
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(100, 200, 255, 0.15);">
+        <p style="color: #c5d4e8; font-size: 13px; text-align: center;">
+          查看完整规划方案：<a href="TODO/基于 go-libp2p%20同步通信规划方案.html" style="color: #90caf9; text-decoration: none; border-bottom: 1px solid rgba(144, 202, 249, 0.5); transition: all 0.3s;">基于 go-libp2p 同步通信规划方案</a>
         </p>
       </div>
     </div>
