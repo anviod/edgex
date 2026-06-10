@@ -134,6 +134,81 @@ description: EdgeX 项目的完整文档
       </div>
 
       <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+        <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">核心目标：解决什么问题？</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+          <div style="background: rgba(0,212,255,0.1); padding: 20px; border-radius: 8px; border-left: 3px solid #00d4ff;">
+            <h4 style="color: #00d4ff; margin-bottom: 10px; font-size: 16px;">🎯 目标一：0 配置运维</h4>
+            <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8; margin-bottom: 10px;">
+              <strong>问题：</strong>传统方案需要手动配置每个节点的 IP、端口、证书、bootstrap 节点，运维成本高。
+            </p>
+            <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8;">
+              <strong>解决方案：</strong>基于 go-libp2p 的 mDNS 自动发现，节点接入网络后自动组网，配置自动同步。<br/>
+              <strong>效果：</strong>新增节点无需任何配置，<strong>部署时间从小时级降至 5 分钟</strong>。
+            </p>
+          </div>
+          
+          <div style="background: rgba(0,212,255,0.1); padding: 20px; border-radius: 8px; border-left: 3px solid #00ff88;">
+            <h4 style="color: #00ff88; margin-bottom: 10px; font-size: 16px;">� 目标二：高可用接管</h4>
+            <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8; margin-bottom: 10px;">
+              <strong>问题：</strong>单台边缘网关故障后，其采集的 PLC、Modbus TCP 等设备数据中断，需人工介入恢复。
+            </p>
+            <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8;">
+              <strong>解决方案：</strong>通过配置同步 + 租约机制，其他节点自动接管故障网关的设备采集任务。<br/>
+              <strong>效果：</strong><strong>故障恢复时间从小时级降至秒级</strong>，实现 7×24 小时不间断采集。
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+        <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">核心场景：边缘网关故障接管</h3>
+        <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+            <div>
+              <h5 style="color: #00d4ff; margin-bottom: 8px; font-size: 15px;">� 正常运行时</h5>
+              <p style="color: #b8c5d6; font-size: 13px; line-height: 1.6;">
+                Gateway-A 采集 PLC-01（Modbus TCP），配置通过租约机制标记为"Gateway-A 主控"，其他节点（Gateway-B/C）仅同步配置但不采集。
+              </p>
+            </div>
+            <div>
+              <h5 style="color: #ff6b6b; margin-bottom: 8px; font-size: 15px;">⚠️ 故障发生时</h5>
+              <p style="color: #b8c5d6; font-size: 13px; line-height: 1.6;">
+                Gateway-A 宕机或网络断开，租约超时（默认 30s），Gateway-B 检测到租约失效，自动发起接管流程。
+              </p>
+            </div>
+            <div>
+              <h5 style="color: #00ff88; margin-bottom: 8px; font-size: 15px;">✅ 接管完成后</h5>
+              <p style="color: #b8c5d6; font-size: 13px; line-height: 1.6;">
+                Gateway-B 获取 PLC-01 的租约，启动采集任务，北向数据上报无缝切换，<strong>用户无感知</strong>。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+        <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">为什么这样做？核心价值</h3>
+        <ul style="color: #b8c5d6; font-size: 14px; line-height: 1.8; list-style-type: none; padding-left: 0;">
+          <li style="padding-left: 20px; position: relative; margin-bottom: 10px;">
+            <span style="position: absolute; left: 0; color: #00d4ff;">✓</span>
+            <strong>0 配置运维</strong>：无需手动配置 IP/证书/bootstrap，节点接入网络即可自动组网与同步
+          </li>
+          <li style="padding-left: 20px; position: relative; margin-bottom: 10px;">
+            <span style="position: absolute; left: 0; color: #00d4ff;">✓</span>
+            <strong>高可用保障</strong>：单点故障不影响整体采集，其他节点秒级接管，数据不中断
+          </li>
+          <li style="padding-left: 20px; position: relative; margin-bottom: 10px;">
+            <span style="position: absolute; left: 0; color: #00d4ff;">✓</span>
+            <strong>工业协议适配</strong>：通过 AccessMode（Exclusive/Shared/Lease）尊重不同协议特性，避免多节点同时接入导致设备崩溃
+          </li>
+          <li style="padding-left: 20px; position: relative; margin-bottom: 10px;">
+            <span style="position: absolute; left: 0; color: #00d4ff;">✓</span>
+            <strong>轻量级实现</strong>：两阶段同步（Announce + Pull）减少 90% 网络流量，内存占用<50MB，ARMv7 设备流畅运行
+          </li>
+        </ul>
+      </div>
+
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
         <p style="color: #b8c5d6; font-size: 13px; text-align: center;">
           查看完整规划方案：<a href="TODO/基于go-libp2p%20同步通信规划方案.html" style="color: #00d4ff; text-decoration: none; border-bottom: 1px solid #00d4ff;">基于 go-libp2p 同步通信规划方案</a>
         </p>
