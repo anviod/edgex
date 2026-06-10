@@ -50,7 +50,7 @@ description: EdgeX 项目的完整文档
 
 <section class="landing-section">
   <div class="shell shell--wide">
-    <div class="wide-panel" style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%); border: 1px solid #444; border-radius: 12px; padding: 35px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+    <div class="wide-panel" style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 35px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);">
       <div class="section-kicker" style="color: #00d4ff;">计划方向</div>
       <h2 style="color: #ffffff; margin-bottom: 15px;">即将推出</h2>
       <p style="color: #b8c5d6; margin-bottom: 25px;">展示正在规划和开发中的功能，预计发布时间仅供参考。</p>
@@ -125,19 +125,19 @@ description: EdgeX 项目的完整文档
       <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
         <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">核心应用场景</h3>
         <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">ARMv7 边缘网关</span>
-          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">PLC / OPC-UA / BACnet / Modbus</span>
-          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">分布式采集</span>
-          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">配置共享</span>
-          <span style="background: rgba(0,212,255,0.15); color: #00d4ff; padding: 8px 16px; border-radius: 8px; font-size: 14px; border: 1px solid rgba(0,212,255,0.3);">设备接管</span>
+          <span style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #00d4ff; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(0, 212, 255, 0.3); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">ARMv7 边缘网关</span>
+          <span style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #00d4ff; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(0, 212, 255, 0.3); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">PLC / OPC-UA / BACnet / Modbus</span>
+          <span style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #00d4ff; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(0, 212, 255, 0.3); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">分布式采集</span>
+          <span style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #00d4ff; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(0, 212, 255, 0.3); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">配置共享</span>
+          <span style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #00d4ff; padding: 8px 16px; border-radius: 12px; font-size: 14px; border: 1px solid rgba(0, 212, 255, 0.3); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">设备接管</span>
         </div>
       </div>
 
       <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
         <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">核心目标：解决什么问题？</h3>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
-          <div style="background: rgba(0,212,255,0.1); padding: 20px; border-radius: 8px; border-left: 3px solid #00d4ff;">
-            <h4 style="color: #00d4ff; margin-bottom: 10px; font-size: 16px;">🎯 目标一：0 配置运维</h4>
+          <div style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);">
+            <h4 style="color: #00d4ff; margin-bottom: 10px; font-size: 16px;">目标一：0 配置运维</h4>
             <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8; margin-bottom: 10px;">
               <strong>问题：</strong>传统方案需要手动配置每个节点的 IP、端口、证书、bootstrap 节点，运维成本高。
             </p>
@@ -147,8 +147,8 @@ description: EdgeX 项目的完整文档
             </p>
           </div>
           
-          <div style="background: rgba(0,212,255,0.1); padding: 20px; border-radius: 8px; border-left: 3px solid #00ff88;">
-            <h4 style="color: #00ff88; margin-bottom: 10px; font-size: 16px;">� 目标二：高可用接管</h4>
+          <div style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);">
+            <h4 style="color: #00ff88; margin-bottom: 10px; font-size: 16px;">目标二：高可用接管</h4>
             <p style="color: #b8c5d6; font-size: 14px; line-height: 1.8; margin-bottom: 10px;">
               <strong>问题：</strong>单台边缘网关故障后，其采集的 PLC、Modbus TCP 等设备数据中断，需人工介入恢复。
             </p>
@@ -162,22 +162,22 @@ description: EdgeX 项目的完整文档
 
       <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
         <h3 style="color: #00d4ff; margin-bottom: 15px; font-size: 18px;">核心场景：边缘网关故障接管</h3>
-        <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px;">
+        <div style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);">
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
             <div>
-              <h5 style="color: #00d4ff; margin-bottom: 8px; font-size: 15px;">� 正常运行时</h5>
+              <h5 style="color: #00d4ff; margin-bottom: 8px; font-size: 15px;">正常运行时</h5>
               <p style="color: #b8c5d6; font-size: 13px; line-height: 1.6;">
                 Gateway-A 采集 PLC-01（Modbus TCP），配置通过租约机制标记为"Gateway-A 主控"，其他节点（Gateway-B/C）仅同步配置但不采集。
               </p>
             </div>
             <div>
-              <h5 style="color: #ff6b6b; margin-bottom: 8px; font-size: 15px;">⚠️ 故障发生时</h5>
+              <h5 style="color: #ff6b6b; margin-bottom: 8px; font-size: 15px;">故障发生时</h5>
               <p style="color: #b8c5d6; font-size: 13px; line-height: 1.6;">
                 Gateway-A 宕机或网络断开，租约超时（默认 30s），Gateway-B 检测到租约失效，自动发起接管流程。
               </p>
             </div>
             <div>
-              <h5 style="color: #00ff88; margin-bottom: 8px; font-size: 15px;">✅ 接管完成后</h5>
+              <h5 style="color: #00ff88; margin-bottom: 8px; font-size: 15px;">接管完成后</h5>
               <p style="color: #b8c5d6; font-size: 13px; line-height: 1.6;">
                 Gateway-B 获取 PLC-01 的租约，启动采集任务，北向数据上报无缝切换，<strong>用户无感知</strong>。
               </p>
