@@ -38,7 +38,6 @@ func NewS7Scheduler(transport *S7Transport, decoder *S7Decoder, cfg map[string]a
 		pduSize:      getCfgInt(cfg, "pdu_size", 4096),
 		minInterval:  5 * time.Millisecond,
 	}
-	// AGReadMulti 最大支持20个项目
 	if s.batchReadMax > 20 {
 		s.batchReadMax = 20
 	}
@@ -62,6 +61,12 @@ type pointWithArea struct {
 func (s *S7Scheduler) ReadPoints(ctx context.Context, points []model.Point) (map[string]model.Value, error) {
 	results := make(map[string]model.Value)
 
+	// 低频采集场景补偿：检查是否需要轻量探测
+	if s.transport.NeedProbeCheck() {
+		zap.L().Debug("[S7] Performing probe check for low-frequency collection")
+		s.transport.ProbeConnection()
+	}
+
 	// 1. 解析所有点位地址
 	var parsed []pointWithArea
 	for _, p := range points {
@@ -72,7 +77,6 @@ func (s *S7Scheduler) ReadPoints(ctx context.Context, points []model.Point) (map
 				zap.String("address", p.Address),
 				zap.Error(err),
 			)
-			// 记录失败但继续处理其他点位
 			results[p.ID] = model.Value{
 				PointID: p.ID,
 				Quality: "Bad",
@@ -88,14 +92,29 @@ func (s *S7Scheduler) ReadPoints(ctx context.Context, points []model.Point) (map
 	groups := s.groupPoints(parsed)
 
 	// 3. 逐组批量读取
+	hasError := false
 	for _, group := range groups {
 		if err := s.readGroup(ctx, group, results); err != nil {
+			hasError = true
 			zap.L().Warn("[S7] Failed to read group",
 				zap.Int("area", group.Area),
 				zap.Int("dbNumber", group.DBNumber),
 				zap.Error(err),
 			)
 		}
+	}
+
+	// 根据采集结果更新连接健康状态
+	if hasError {
+		_, failCount, maxFailCount, _ := s.transport.GetHealthStatus()
+		if failCount > 0 && failCount < maxFailCount {
+			zap.L().Warn("[S7] Partial read failure, connection health may be degraded",
+				zap.Int32("failCount", failCount),
+				zap.Int32("maxFailCount", maxFailCount),
+			)
+		}
+	} else {
+		s.transport.RecordSuccess()
 	}
 
 	return results, nil
@@ -120,7 +139,6 @@ func (s *S7Scheduler) groupPoints(points []pointWithArea) []PointGroup {
 
 	groups := make([]PointGroup, 0, len(groupMap))
 	for _, g := range groupMap {
-		// 拆分超大组（AGReadMulti最大支持20个项目）
 		for len(g.Points) > s.batchReadMax {
 			groups = append(groups, PointGroup{
 				Area:     g.Area,
@@ -141,16 +159,17 @@ func (s *S7Scheduler) groupPoints(points []pointWithArea) []PointGroup {
 func (s *S7Scheduler) readGroup(ctx context.Context, group PointGroup, results map[string]model.Value) error {
 	client := s.transport.GetClient()
 	if client == nil {
-		return fmt.Errorf("S7 client not connected")
+		err := fmt.Errorf("S7 client not connected")
+		s.transport.RecordFailure(err)
+		return err
 	}
 
 	if len(group.Points) == 0 {
 		return nil
 	}
 
-	// 将点位转换为S7DataItem
 	dataItems := make([]gos7.S7DataItem, 0, len(group.Points))
-	pointIndexMap := make(map[int]int) // dataItems index -> group.Points index
+	pointIndexMap := make(map[int]int)
 
 	for i, pwa := range group.Points {
 		s.incTotal()
@@ -164,11 +183,10 @@ func (s *S7Scheduler) readGroup(ctx context.Context, group PointGroup, results m
 			DBNumber: area.DBNumber,
 			Start:    area.ByteOff,
 			Bit:      area.BitOff,
-			Amount:   1, // 单个元素
+			Amount:   1,
 			Data:     make([]byte, readSize),
 		}
 
-		// 字节类型使用readSize作为Amount
 		if area.WordLen == S7WLByte {
 			item.Amount = readSize
 		}
@@ -177,9 +195,7 @@ func (s *S7Scheduler) readGroup(ctx context.Context, group PointGroup, results m
 		dataItems = append(dataItems, item)
 	}
 
-	// 调用AGReadMulti批量读取
 	if err := client.AGReadMulti(dataItems, len(dataItems)); err != nil {
-		// 整个批量读取失败，所有点位标记为Bad
 		zap.L().Warn("[S7] AGReadMulti failed",
 			zap.Int("area", group.Area),
 			zap.Int("dbNumber", group.DBNumber),
@@ -194,10 +210,10 @@ func (s *S7Scheduler) readGroup(ctx context.Context, group PointGroup, results m
 			}
 			s.incFailure()
 		}
+		s.transport.RecordFailure(err)
 		return err
 	}
 
-	// 解码每个数据项的结果
 	for idx, item := range dataItems {
 		pwa := group.Points[pointIndexMap[idx]]
 
@@ -216,7 +232,6 @@ func (s *S7Scheduler) readGroup(ctx context.Context, group PointGroup, results m
 			continue
 		}
 
-		// 解码值
 		val, err := s.decoder.DecodeValue(item.Data, pwa.Area, pwa.Point.DataType)
 		if err != nil {
 			zap.L().Debug("[S7] Decode value failed",
@@ -242,7 +257,6 @@ func (s *S7Scheduler) readGroup(ctx context.Context, group PointGroup, results m
 		s.incSuccess()
 	}
 
-	// 指令间隔
 	if s.minInterval > 0 {
 		time.Sleep(s.minInterval)
 	}
@@ -278,7 +292,6 @@ func (s *S7Scheduler) readSinglePoint(client gos7.Client, pwa pointWithArea) (in
 		return nil, err
 	}
 
-	// 解码值
 	return s.decoder.DecodeValue(buffer, area, pwa.Point.DataType)
 }
 
@@ -286,7 +299,9 @@ func (s *S7Scheduler) readSinglePoint(client gos7.Client, pwa pointWithArea) (in
 func (s *S7Scheduler) WritePoint(ctx context.Context, p model.Point, value interface{}) error {
 	client := s.transport.GetClient()
 	if client == nil {
-		return fmt.Errorf("S7 client not connected")
+		err := fmt.Errorf("S7 client not connected")
+		s.transport.RecordFailure(err)
+		return err
 	}
 
 	area, err := s.decoder.ParseAddress(p.Address)
@@ -297,7 +312,6 @@ func (s *S7Scheduler) WritePoint(ctx context.Context, p model.Point, value inter
 	writeSize := s.decoder.ReadSizeForArea(area)
 	buffer := make([]byte, writeSize)
 
-	// 编码值
 	if err := s.decoder.EncodeValue(buffer, area, p.DataType, value); err != nil {
 		return fmt.Errorf("encode value failed: %w", err)
 	}
@@ -323,10 +337,12 @@ func (s *S7Scheduler) WritePoint(ctx context.Context, p model.Point, value inter
 
 	if err != nil {
 		s.incFailure()
+		s.transport.RecordFailure(err)
 		return err
 	}
 
 	s.incSuccess()
+	s.transport.RecordSuccess()
 	return nil
 }
 

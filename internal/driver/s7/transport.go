@@ -54,15 +54,17 @@ const (
 
 // PLC类型默认参数
 var plcDefaults = map[string]struct {
-	Rack        int
-	Slot        int
-	ConnType    int
+	Rack           int
+	Slot           int
+	ConnType       int
+	MaxFailCount   int
+	DefaultCycle   time.Duration
 }{
-	"s7-200smart": {Rack: 0, Slot: 1, ConnType: ConnTypeS7Basic},
-	"s7-1200":     {Rack: 0, Slot: 1, ConnType: ConnTypeS7Basic},
-	"s7-1500":     {Rack: 0, Slot: 0, ConnType: ConnTypeS7Basic},
-	"s7-300":      {Rack: 0, Slot: 2, ConnType: ConnTypePG},
-	"s7-400":      {Rack: 0, Slot: 3, ConnType: ConnTypePG},
+	"s7-200smart": {Rack: 0, Slot: 1, ConnType: ConnTypeS7Basic, MaxFailCount: 3, DefaultCycle: 60 * time.Second},
+	"s7-1200":     {Rack: 0, Slot: 1, ConnType: ConnTypeS7Basic, MaxFailCount: 5, DefaultCycle: 10 * time.Second},
+	"s7-1500":     {Rack: 0, Slot: 0, ConnType: ConnTypeS7Basic, MaxFailCount: 5, DefaultCycle: 10 * time.Second},
+	"s7-300":      {Rack: 0, Slot: 2, ConnType: ConnTypePG, MaxFailCount: 5, DefaultCycle: 10 * time.Second},
+	"s7-400":      {Rack: 0, Slot: 3, ConnType: ConnTypePG, MaxFailCount: 5, DefaultCycle: 10 * time.Second},
 }
 
 // S7Transport S7传输层，封装gos7连接管理
@@ -83,6 +85,7 @@ type S7Transport struct {
 	timeout      time.Duration
 	connType     int
 	pduSize      int
+	plcType      string
 
 	// 连接状态
 	connected    atomic.Bool
@@ -93,21 +96,23 @@ type S7Transport struct {
 	localAddr    string
 	remoteAddr   string
 
-	// 心跳
-	heartbeatInterval time.Duration
-	heartbeatTicker   *time.Ticker
-	stopHeartbeat     chan struct{}
-
-	// 会话健康
-	lastActivityTime   atomic.Value // time.Time
-	heartbeatFailCount atomic.Int32
-	heartbeatFailMax   int32
-	sessionTimeout     time.Duration
+	// 采集健康检测（替代独立心跳）
+	lastSuccessTime    atomic.Value // time.Time
+	collectFailCount   atomic.Int32
+	maxFailCount       int32
+	collectCycle       time.Duration
 
 	// 重试
 	maxRetries    int
 	retryInterval time.Duration
 	maxBackoff    time.Duration
+
+	// 指数退避参数
+	baseDelay    time.Duration
+	backoffFactor float64
+
+	// 连接管理器（状态机）
+	connMgr *ConnectionManager
 }
 
 // NewS7Transport 创建S7传输层实例
@@ -121,10 +126,12 @@ func NewS7Transport(cfg map[string]any) *S7Transport {
 		maxRetries:     1,
 		retryInterval:  100 * time.Millisecond,
 		maxBackoff:     30 * time.Second,
-		heartbeatFailMax: 3,
-		sessionTimeout:   90 * time.Second,
+		baseDelay:      100 * time.Millisecond,
+		backoffFactor:  2.0,
+		maxFailCount:   5,
+		collectCycle:   10 * time.Second,
 	}
-	t.lastActivityTime.Store(time.Time{})
+	t.lastSuccessTime.Store(time.Time{})
 
 	// 设置默认工厂函数
 	t.clientFactory = func(handler S7ClientHandler) gos7.Client {
@@ -138,6 +145,9 @@ func NewS7Transport(cfg map[string]any) *S7Transport {
 
 	// 解析配置
 	t.parseConfig()
+
+	// 创建连接管理器（状态机）
+	t.connMgr = NewConnectionManager(t.plcType)
 
 	return t
 }
@@ -157,14 +167,14 @@ func (t *S7Transport) parseConfig() {
 	t.slot = getCfgInt(t.cfg, "slot", -1)
 
 	// PLC Type
-	plcType := ""
+	t.plcType = ""
 	if v, ok := t.cfg["plcType"].(string); ok {
-		plcType = strings.ToLower(v)
+		t.plcType = strings.ToLower(v)
 	}
 
-	// 如果rack/slot未指定，从plcType推导
+	// 如果rack/slot未指定，从plcType推导，并设置默认参数
 	if t.rack < 0 || t.slot < 0 {
-		if defaults, ok := plcDefaults[plcType]; ok {
+		if defaults, ok := plcDefaults[t.plcType]; ok {
 			if t.rack < 0 {
 				t.rack = defaults.Rack
 			}
@@ -173,6 +183,12 @@ func (t *S7Transport) parseConfig() {
 			}
 			if _, exists := t.cfg["connect_type"]; !exists {
 				t.connType = defaults.ConnType
+			}
+			if _, exists := t.cfg["max_fail_count"]; !exists {
+				t.maxFailCount = int32(defaults.MaxFailCount)
+			}
+			if _, exists := t.cfg["collect_cycle"]; !exists {
+				t.collectCycle = defaults.DefaultCycle
 			}
 		} else {
 			// 默认值
@@ -214,16 +230,60 @@ func (t *S7Transport) parseConfig() {
 	// PDU size
 	t.pduSize = getCfgInt(t.cfg, "pdu_size", 4096)
 
-	// Heartbeat interval
-	heartbeatMs := getCfgInt(t.cfg, "heartbeat_interval", 30000)
-	t.heartbeatInterval = time.Duration(heartbeatMs) * time.Millisecond
+	// Max fail count (基于采集失败的连接健康检测)
+	t.maxFailCount = int32(getCfgInt(t.cfg, "max_fail_count", int(t.maxFailCount)))
 
-	// Max retries
-	t.maxRetries = getCfgInt(t.cfg, "max_retries", 1)
+	// Collect cycle
+	if v, ok := t.cfg["collect_cycle"]; ok {
+		switch val := v.(type) {
+		case float64:
+			t.collectCycle = time.Duration(val) * time.Millisecond
+		case int:
+			t.collectCycle = time.Duration(val) * time.Millisecond
+		case string:
+			if d, err := time.ParseDuration(val); err == nil {
+				t.collectCycle = d
+			}
+		}
+	}
 
-	// Retry interval
-	if t.maxRetries > 0 {
-		t.retryInterval = 100 * time.Millisecond
+	// Max retries (重连最大尝试次数)
+	maxRetries := getCfgInt(t.cfg, "max_retries", 64)
+	// S7-200Smart 最大重试次数为8
+	if t.plcType == "s7-200smart" {
+		t.maxRetries = 8
+	} else {
+		t.maxRetries = maxRetries
+	}
+
+	// Base delay for backoff
+	if v, ok := t.cfg["retry_base_delay"]; ok {
+		switch val := v.(type) {
+		case float64:
+			t.baseDelay = time.Duration(val) * time.Millisecond
+		case int:
+			t.baseDelay = time.Duration(val) * time.Millisecond
+		}
+	}
+	if t.baseDelay <= 0 {
+		t.baseDelay = 100 * time.Millisecond
+	}
+
+	// Max backoff delay
+	if v, ok := t.cfg["retry_max_delay"]; ok {
+		switch val := v.(type) {
+		case float64:
+			t.maxBackoff = time.Duration(val) * time.Millisecond
+		case int:
+			t.maxBackoff = time.Duration(val) * time.Millisecond
+		case string:
+			if d, err := time.ParseDuration(val); err == nil {
+				t.maxBackoff = d
+			}
+		}
+	}
+	if t.maxBackoff <= 0 {
+		t.maxBackoff = 30 * time.Second
 	}
 }
 
@@ -243,33 +303,43 @@ func (t *S7Transport) Connect(ctx context.Context) error {
 	addr := fmt.Sprintf("%s:%d", t.ip, t.port)
 	t.remoteAddr = addr
 
-	// 带重试的连接
-	var lastErr error
-	base := t.retryInterval
-	if base <= 0 {
-		base = 100 * time.Millisecond
+	if t.connMgr != nil {
+		t.connMgr.SetState(StateConnecting)
 	}
 
-	for attempt := 0; attempt <= t.maxRetries; attempt++ {
+	var lastErr error
+	attempt := 0
+
+	for {
 		if attempt > 0 {
-			wait := base * time.Duration(1<<(attempt-1))
-			if wait > t.maxBackoff {
-				wait = t.maxBackoff
+			if t.connMgr != nil {
+				canRetry, wait := t.connMgr.CanRetry()
+				if !canRetry {
+					return fmt.Errorf("S7 transport: connection retry limit exceeded")
+				}
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(wait):
+				}
+				zap.L().Info("[S7] Retrying connection",
+					zap.Int("attempt", attempt),
+					zap.Duration("backoff", wait),
+					zap.String("addr", addr),
+				)
+			} else {
+				wait := t.calculateBackoff(attempt)
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(wait):
+				}
 			}
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(wait):
-			}
-			zap.L().Info("[S7] Retrying connection",
-				zap.Int("attempt", attempt),
-				zap.String("addr", addr),
-			)
 		}
 
 		handler := t.handlerFactory(addr, t.rack, t.slot, t.connType)
 		handler.SetTimeout(t.timeout)
-		handler.SetIdleTimeout(t.heartbeatInterval * 2)
+		handler.SetIdleTimeout(t.collectCycle * 2)
 
 		if err := handler.Connect(); err != nil {
 			lastErr = err
@@ -277,20 +347,36 @@ func (t *S7Transport) Connect(ctx context.Context) error {
 				zap.Error(err),
 				zap.Int("attempt", attempt),
 				zap.String("addr", addr),
+				zap.String("plcType", t.plcType),
 			)
 			handler.Close()
+
+			if t.connMgr != nil {
+				shouldRetry, _ := t.connMgr.RecordFailure()
+				if !shouldRetry {
+					return fmt.Errorf("S7 transport: connection failed, entering coolDown state: %w", lastErr)
+				}
+			}
+
+			attempt++
+			if t.connMgr == nil && attempt > t.maxRetries {
+				return fmt.Errorf("S7 transport: connection failed after %d attempts: %w", t.maxRetries+1, lastErr)
+			}
 			continue
 		}
 
-		// 连接成功
 		t.handler = handler
 		t.client = t.clientFactory(handler)
 		t.connected.Store(true)
 		t.connectTime = time.Now()
 		t.reconnectCount.Add(1)
+		t.collectFailCount.Store(0)
 
-		// 获取本地地址
 		t.localAddr = t.getLocalAddr()
+
+		if t.connMgr != nil {
+			t.connMgr.RecordSuccess()
+		}
 
 		zap.L().Info("[S7] TCP connection established",
 			zap.String("addr", addr),
@@ -298,15 +384,22 @@ func (t *S7Transport) Connect(ctx context.Context) error {
 			zap.Int("slot", t.slot),
 			zap.Int("connType", t.connType),
 			zap.Duration("timeout", t.timeout),
+			zap.String("plcType", t.plcType),
+			zap.Int("maxFailCount", int(t.maxFailCount)),
+			zap.Duration("collectCycle", t.collectCycle),
 		)
-
-		// 启动心跳
-		t.startHeartbeat()
 
 		return nil
 	}
+}
 
-	return fmt.Errorf("S7 transport: connection failed after %d attempts: %w", t.maxRetries+1, lastErr)
+// calculateBackoff 计算指数退避时间
+func (t *S7Transport) calculateBackoff(attempt int) time.Duration {
+	backoff := t.baseDelay * time.Duration(t.backoffFactor*float64(attempt))
+	if backoff > t.maxBackoff {
+		backoff = t.maxBackoff
+	}
+	return backoff
 }
 
 // Disconnect 断开连接
@@ -316,9 +409,6 @@ func (t *S7Transport) Disconnect() error {
 
 	wasConnected := t.connected.Load()
 
-	// 停止心跳
-	t.stopHeartbeatLoop()
-
 	if t.handler != nil {
 		_ = t.handler.Close()
 		t.handler = nil
@@ -326,6 +416,10 @@ func (t *S7Transport) Disconnect() error {
 	t.client = nil
 	t.connected.Store(false)
 	t.lastDisconnectTime = time.Now()
+
+	if t.connMgr != nil {
+		t.connMgr.SetState(StateDisconnected)
+	}
 
 	if wasConnected {
 		zap.L().Info("[S7] Disconnected")
@@ -344,10 +438,74 @@ func (t *S7Transport) GetClient() gos7.Client {
 	return t.client
 }
 
-// RecordActivity 记录成功通信活动
-func (t *S7Transport) RecordActivity() {
-	t.lastActivityTime.Store(time.Now())
-	t.heartbeatFailCount.Store(0)
+// RecordSuccess 记录采集成功，重置失败计数
+func (t *S7Transport) RecordSuccess() {
+	t.lastSuccessTime.Store(time.Now())
+	t.collectFailCount.Store(0)
+	if t.connMgr != nil {
+		t.connMgr.RecordSuccess()
+	}
+}
+
+// RecordFailure 记录采集失败，达到阈值时断开连接
+func (t *S7Transport) RecordFailure(err error) {
+	failCount := t.collectFailCount.Add(1)
+	zap.L().Warn("[S7] Collect failed",
+		zap.Error(err),
+		zap.Int32("failCount", failCount),
+		zap.Int32("maxFailCount", t.maxFailCount),
+		zap.String("addr", t.remoteAddr),
+	)
+
+	if t.connMgr != nil {
+		t.connMgr.RecordFailure()
+	}
+
+	if failCount >= t.maxFailCount {
+		zap.L().Error("[S7] Collect failed max times, disconnecting",
+			zap.Int32("failCount", failCount),
+			zap.Int32("maxFailCount", t.maxFailCount),
+			zap.String("plcType", t.plcType),
+		)
+		t.Disconnect()
+	}
+}
+
+// NeedProbeCheck 检查是否需要轻量探测（低频采集场景补偿）
+func (t *S7Transport) NeedProbeCheck() bool {
+	if !t.connected.Load() {
+		return false
+	}
+	lastSuccess := t.lastSuccessTime.Load().(time.Time)
+	if lastSuccess.IsZero() {
+		return true
+	}
+	return time.Since(lastSuccess) > t.collectCycle*3
+}
+
+// ProbeConnection 轻量探测连接是否存活
+func (t *S7Transport) ProbeConnection() bool {
+	if !t.connected.Load() {
+		return false
+	}
+
+	t.mu.Lock()
+	client := t.client
+	t.mu.Unlock()
+
+	if client == nil {
+		return false
+	}
+
+	buf := make([]byte, 1)
+	err := client.AGReadMB(0, 1, buf)
+	if err != nil {
+		zap.L().Debug("[S7] Probe failed", zap.Error(err))
+		return false
+	}
+
+	t.RecordSuccess()
+	return true
 }
 
 // GetConnectionMetrics 获取连接指标
@@ -366,92 +524,9 @@ func (t *S7Transport) GetConnectionMetrics() (connectionSeconds int64, reconnect
 	return
 }
 
-// startHeartbeat 启动心跳检测
-func (t *S7Transport) startHeartbeat() {
-	t.stopHeartbeatLoop()
-
-	if t.heartbeatInterval <= 0 {
-		return
-	}
-
-	t.heartbeatTicker = time.NewTicker(t.heartbeatInterval)
-	t.stopHeartbeat = make(chan struct{})
-
-	zap.L().Info("[S7] Heartbeat started",
-		zap.Duration("interval", t.heartbeatInterval),
-		zap.Duration("sessionTimeout", t.sessionTimeout),
-	)
-
-	ticker := t.heartbeatTicker
-	stopCh := t.stopHeartbeat
-	go func() {
-		for {
-			select {
-			case <-stopCh:
-				return
-			case <-ticker.C:
-				t.doHeartbeat()
-			}
-		}
-	}()
-}
-
-// stopHeartbeatLoop 停止心跳
-func (t *S7Transport) stopHeartbeatLoop() {
-	// 先关闭stopCh通知goroutine退出，再停止ticker
-	if t.stopHeartbeat != nil {
-		close(t.stopHeartbeat)
-		t.stopHeartbeat = nil
-	}
-	if t.heartbeatTicker != nil {
-		t.heartbeatTicker.Stop()
-		t.heartbeatTicker = nil
-	}
-}
-
-// doHeartbeat 执行一次心跳检测
-func (t *S7Transport) doHeartbeat() {
-	if !t.connected.Load() {
-		return
-	}
-
-	// 如果近期有活动，跳过心跳
-	lastActivity := t.lastActivityTime.Load().(time.Time)
-	if !lastActivity.IsZero() && time.Since(lastActivity) < t.sessionTimeout {
-		t.heartbeatFailCount.Store(0)
-		return
-	}
-
-	// 读取一个轻量级地址来验证连接存活
-	// 读取M区1个字节作为心跳探测
-	t.mu.Lock()
-	client := t.client
-	t.mu.Unlock()
-
-	if client == nil {
-		return
-	}
-
-	buf := make([]byte, 1)
-	err := client.AGReadMB(0, 1, buf)
-
-	if err != nil {
-		failCount := t.heartbeatFailCount.Add(1)
-		zap.L().Warn("[S7] Heartbeat failed",
-			zap.Error(err),
-			zap.Int32("failCount", failCount),
-		)
-
-		if failCount >= t.heartbeatFailMax {
-			zap.L().Warn("[S7] Heartbeat failed max times, disconnecting",
-				zap.Int32("failCount", failCount),
-			)
-			t.Disconnect()
-		}
-	} else {
-		t.heartbeatFailCount.Store(0)
-		t.RecordActivity()
-	}
+// GetHealthStatus 获取健康状态信息
+func (t *S7Transport) GetHealthStatus() (connected bool, failCount int32, maxFailCount int32, lastSuccess time.Time) {
+	return t.connected.Load(), t.collectFailCount.Load(), t.maxFailCount, t.lastSuccessTime.Load().(time.Time)
 }
 
 // getLocalAddr 获取本地地址
@@ -459,7 +534,6 @@ func (t *S7Transport) getLocalAddr() string {
 	if t.handler == nil {
 		return ""
 	}
-	// 尝试通过UDP拨号获取本地IP
 	udpConn, err := net.DialTimeout("udp", t.remoteAddr, 1*time.Second)
 	if err == nil {
 		addr, _, _ := net.SplitHostPort(udpConn.LocalAddr().String())
@@ -475,10 +549,11 @@ func (t *S7Transport) withRetry(ctx context.Context, fn func(client gos7.Client)
 
 	for i := 0; i <= t.maxRetries; i++ {
 		if i > 0 {
+			wait := t.calculateBackoff(i)
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(t.retryInterval):
+			case <-time.After(wait):
 			}
 		}
 
@@ -500,21 +575,22 @@ func (t *S7Transport) withRetry(ctx context.Context, fn func(client gos7.Client)
 
 		err := fn(client)
 		if err == nil {
-			t.RecordActivity()
+			t.RecordSuccess()
 			return nil
 		}
 
 		lastErr = err
 		errMsg := err.Error()
 
-		// 判断是否为网络错误需要重连
 		isNetworkError := containsAny(errMsg, "timeout", "connection", "broken pipe", "reset", "eof")
 		if isNetworkError {
-			zap.L().Warn("[S7] Network error, will reconnect",
+			zap.L().Warn("[S7] Network error",
 				zap.Error(err),
 				zap.Int("attempt", i),
+				zap.String("remoteAddr", t.remoteAddr),
+				zap.String("localAddr", t.localAddr),
 			)
-			t.Disconnect()
+			t.RecordFailure(err)
 		}
 	}
 
@@ -579,7 +655,6 @@ func (d *defaultS7ClientHandler) SetIdleTimeout(timeout time.Duration) {
 	d.handler.IdleTimeout = timeout
 }
 
-// 实现gos7.ClientHandler接口（通过实现Verify和Send）
 func (d *defaultS7ClientHandler) Verify(request []byte, response []byte) (err error) {
 	return d.handler.Verify(request, response)
 }

@@ -285,12 +285,11 @@ func TestParseConfig(t *testing.T) {
 				timeout:      2 * time.Second,
 				connType:     ConnTypeS7Basic,
 				pduSize:      4096,
-				maxRetries:   1,
+				maxRetries:   64,
 				retryInterval: 100 * time.Millisecond,
 				maxBackoff:   30 * time.Second,
-				heartbeatFailMax: 3,
-				sessionTimeout:   90 * time.Second,
-				heartbeatInterval: 30 * time.Second,
+				maxFailCount: 5,
+				collectCycle: 10 * time.Second,
 			},
 		},
 		{
@@ -303,8 +302,9 @@ func TestParseConfig(t *testing.T) {
 				"timeout":          5000,
 				"connect_type":     "pg",
 				"pdu_size":         2048,
-				"heartbeat_interval": 60000,
 				"max_retries":      3,
+				"max_fail_count":   3,
+				"collect_cycle":    60000,
 			},
 			expected: &S7Transport{
 				ip:           "192.168.1.100",
@@ -317,9 +317,8 @@ func TestParseConfig(t *testing.T) {
 				maxRetries:   3,
 				retryInterval: 100 * time.Millisecond,
 				maxBackoff:   30 * time.Second,
-				heartbeatFailMax: 3,
-				sessionTimeout:   90 * time.Second,
-				heartbeatInterval: 60 * time.Second,
+				maxFailCount: 3,
+				collectCycle: 60 * time.Second,
 			},
 		},
 		{
@@ -335,12 +334,11 @@ func TestParseConfig(t *testing.T) {
 				timeout:      2 * time.Second,
 				connType:     ConnTypeS7Basic,
 				pduSize:      4096,
-				maxRetries:   1,
+				maxRetries:   64,
 				retryInterval: 100 * time.Millisecond,
 				maxBackoff:   30 * time.Second,
-				heartbeatFailMax: 3,
-				sessionTimeout:   90 * time.Second,
-				heartbeatInterval: 30 * time.Second,
+				maxFailCount: 5,
+				collectCycle: 10 * time.Second,
 			},
 		},
 	}
@@ -358,9 +356,8 @@ func TestParseConfig(t *testing.T) {
 			assert.Equal(t, tt.expected.maxRetries, transport.maxRetries)
 			assert.Equal(t, tt.expected.retryInterval, transport.retryInterval)
 			assert.Equal(t, tt.expected.maxBackoff, transport.maxBackoff)
-			assert.Equal(t, tt.expected.heartbeatFailMax, transport.heartbeatFailMax)
-			assert.Equal(t, tt.expected.sessionTimeout, transport.sessionTimeout)
-			assert.Equal(t, tt.expected.heartbeatInterval, transport.heartbeatInterval)
+			assert.Equal(t, tt.expected.maxFailCount, transport.maxFailCount)
+			assert.Equal(t, tt.expected.collectCycle, transport.collectCycle)
 		})
 	}
 }
@@ -369,8 +366,7 @@ func TestParseConfig(t *testing.T) {
 func TestConnectDisconnect(t *testing.T) {
 	t.Run("successful connection", func(t *testing.T) {
 		transport := NewS7Transport(map[string]any{
-			"ip":                 "127.0.0.1",
-			"heartbeat_interval": 0, // 禁用心跳以避免goroutine泄漏
+			"ip": "127.0.0.1",
 		})
 
 		mockHandler := &mockS7ClientHandler{
@@ -397,8 +393,7 @@ func TestConnectDisconnect(t *testing.T) {
 
 	t.Run("connection failure", func(t *testing.T) {
 		transport := NewS7Transport(map[string]any{
-			"ip":                 "127.0.0.1",
-			"heartbeat_interval": 0, // 禁用心跳
+			"ip": "127.0.0.1",
 		})
 
 		mockHandler := &mockS7ClientHandler{
@@ -415,9 +410,7 @@ func TestConnectDisconnect(t *testing.T) {
 	})
 
 	t.Run("missing IP", func(t *testing.T) {
-		transport := NewS7Transport(map[string]any{
-			"heartbeat_interval": 0, // 禁用心跳
-		})
+		transport := NewS7Transport(map[string]any{})
 		err := transport.Connect(context.Background())
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "IP address not configured")
@@ -427,8 +420,7 @@ func TestConnectDisconnect(t *testing.T) {
 // 测试指标记录
 func TestMetrics(t *testing.T) {
 	transport := NewS7Transport(map[string]any{
-		"ip":                 "127.0.0.1",
-		"heartbeat_interval": 0, // 禁用心跳
+		"ip": "127.0.0.1",
 	})
 
 	// 初始状态
@@ -453,7 +445,7 @@ func TestMetrics(t *testing.T) {
 	require.NoError(t, err)
 
 	// 记录活动
-	transport.RecordActivity()
+	transport.RecordSuccess()
 
 	// 获取指标
 	connSec, reconCount, localAddr, remoteAddr, lastDisc = transport.GetConnectionMetrics()
@@ -552,9 +544,8 @@ func TestContainsAny(t *testing.T) {
 func TestWithRetry(t *testing.T) {
 	t.Run("success on first attempt", func(t *testing.T) {
 		transport := NewS7Transport(map[string]any{
-			"ip":                 "127.0.0.1",
-			"max_retries":        2,
-			"heartbeat_interval": 0, // 禁用心跳
+			"ip":          "127.0.0.1",
+			"max_retries": 2,
 		})
 
 		mockHandler := &mockS7ClientHandler{}
@@ -587,9 +578,8 @@ func TestWithRetry(t *testing.T) {
 
 	t.Run("retry on network error", func(t *testing.T) {
 		transport := NewS7Transport(map[string]any{
-			"ip":                 "127.0.0.1",
-			"max_retries":        2,
-			"heartbeat_interval": 0, // 禁用心跳
+			"ip":          "127.0.0.1",
+			"max_retries": 2,
 		})
 
 		callCount := 0
@@ -627,9 +617,8 @@ func TestWithRetry(t *testing.T) {
 
 	t.Run("failure after max retries", func(t *testing.T) {
 		transport := NewS7Transport(map[string]any{
-			"ip":                 "127.0.0.1",
-			"max_retries":        1,
-			"heartbeat_interval": 0, // 禁用心跳
+			"ip":          "127.0.0.1",
+			"max_retries": 1,
 		})
 
 		mockHandler := &mockS7ClientHandler{}
@@ -660,23 +649,22 @@ func TestWithRetry(t *testing.T) {
 	})
 }
 
-// 测试心跳（简化，不实际启动goroutine）
-func TestHeartbeatControl(t *testing.T) {
+// 测试采集健康检测
+func TestCollectHealthDetection(t *testing.T) {
 	transport := NewS7Transport(map[string]any{
-		"ip":                 "127.0.0.1",
-		"heartbeat_interval": 1000, // 1秒
+		"ip": "127.0.0.1",
 	})
 
-	// 启动心跳前，确保没有ticker
-	assert.Nil(t, transport.heartbeatTicker)
+	// 初始状态
+	connected, failCount, maxFailCount, lastSuccess := transport.GetHealthStatus()
+	assert.False(t, connected)
+	assert.Equal(t, int32(0), failCount)
+	assert.Equal(t, int32(5), maxFailCount)
+	assert.True(t, lastSuccess.IsZero())
 
 	// 模拟连接
 	mockHandler := &mockS7ClientHandler{}
-	mockClient := &mockClient{
-		agReadMBFunc: func(start int, size int, buffer []byte) error {
-			return nil
-		},
-	}
+	mockClient := &mockClient{}
 	transport.handlerFactory = func(address string, rack, slot, connType int) S7ClientHandler {
 		return mockHandler
 	}
@@ -686,17 +674,21 @@ func TestHeartbeatControl(t *testing.T) {
 
 	err := transport.Connect(context.Background())
 	require.NoError(t, err)
-	defer transport.Disconnect()
 
-	// 连接后应该启动心跳
-	assert.NotNil(t, transport.heartbeatTicker)
+	// 连接后状态
+	connected, _, _, _ = transport.GetHealthStatus()
+	assert.True(t, connected)
 
-	// 断开连接
-	err = transport.Disconnect()
-	require.NoError(t, err)
+	// 记录成功
+	transport.RecordSuccess()
+	_, failCount, _, lastSuccess = transport.GetHealthStatus()
+	assert.Equal(t, int32(0), failCount)
+	assert.False(t, lastSuccess.IsZero())
 
-	// 断开后应该停止心跳
-	assert.Nil(t, transport.heartbeatTicker)
+	// 记录失败
+	transport.RecordFailure(fmt.Errorf("test error"))
+	_, failCount, _, _ = transport.GetHealthStatus()
+	assert.Equal(t, int32(1), failCount)
 }
 
 // 测试PLC类型默认参数
