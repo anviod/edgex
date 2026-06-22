@@ -118,175 +118,175 @@ description: EdgeX 项目的完整文档
       </div>
     </div>
 
-    <div class="roadmap-intro" style="background: rgba(230, 240, 255, 0.08); border-left: 4px solid #4fc3f7; padding: 20px 25px; border-radius: 0 8px 8px 0; margin-bottom: 35px;">
-      <h4 style="color: #ffffff; margin: 0 0 10px 0; font-size: 16px;">规划说明</h4>
-      <p style="color: #b0bec5; margin: 0; font-size: 14px; line-height: 1.7;">
+    <div class="roadmap-intro" style="background: #e8f4fc; border-left: 4px solid #1565c0; padding: 20px 25px; border-radius: 0 8px 8px 0; margin-bottom: 35px;">
+      <h4 style="color: #0d47a1; margin: 0 0 10px 0; font-size: 16px; font-weight: 600;">规划说明</h4>
+      <p style="color: #424242; margin: 0; font-size: 14px; line-height: 1.7;">
         本路线图基于当前产品发展战略制定，旨在扩展协议支持范围、提升系统可靠性与可扩展性。
         各阶段交付内容可能根据技术预研进展和客户需求反馈进行动态调整。
-        优先级标记：<span style="color: #81c784; font-weight: 600;">高优先级</span> / 
-        <span style="color: #ffb74d; font-weight: 600;">中优先级</span> / 
-        <span style="color: #64b5f6; font-weight: 600;">规划中</span>。
+        优先级标记：<span style="color: #2e7d32; font-weight: 600;">高优先级</span> / 
+        <span style="color: #e65100; font-weight: 600;">中优先级</span> / 
+        <span style="color: #1565c0; font-weight: 600;">规划中</span>。
       </p>
     </div>
 
     <div style="margin-bottom: 40px;">
-      <div class="quarter-header" style="display: flex; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid rgba(79, 195, 247, 0.3);">
-        <h3 style="color: #4fc3f7; margin: 0; font-size: 20px; font-weight: 600;">Q3 2026 交付计划</h3>
-        <span style="margin-left: 15px; background: rgba(129, 199, 132, 0.15); color: #81c784; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 500;">进行中</span>
+      <div class="quarter-header" style="display: flex; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #1565c0;">
+        <h3 style="color: #0d47a1; margin: 0; font-size: 20px; font-weight: 600;">Q3 2026 交付计划</h3>
+        <span style="margin-left: 15px; background: #e8f5e9; color: #2e7d32; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">进行中</span>
       </div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
         <thead>
-          <tr style="background: rgba(30, 60, 90, 0.6);">
-            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">功能模块</th>
-            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">功能描述</th>
-            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">预计交付</th>
-            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">负责团队</th>
-            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">优先级</th>
-            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">状态</th>
+          <tr style="background: #1565c0;">
+            <th style="text-align: left; padding: 14px 16px; color: #ffffff; font-weight: 600; border-bottom: 2px solid #0d47a1;">功能模块</th>
+            <th style="text-align: left; padding: 14px 16px; color: #ffffff; font-weight: 600; border-bottom: 2px solid #0d47a1;">功能描述</th>
+            <th style="text-align: left; padding: 14px 16px; color: #ffffff; font-weight: 600; border-bottom: 2px solid #0d47a1;">预计交付</th>
+            <th style="text-align: left; padding: 14px 16px; color: #ffffff; font-weight: 600; border-bottom: 2px solid #0d47a1;">负责团队</th>
+            <th style="text-align: left; padding: 14px 16px; color: #ffffff; font-weight: 600; border-bottom: 2px solid #0d47a1;">优先级</th>
+            <th style="text-align: left; padding: 14px 16px; color: #ffffff; font-weight: 600; border-bottom: 2px solid #0d47a1;">状态</th>
           </tr>
         </thead>
         <tbody>
-          <tr style="border-bottom: 1px solid rgba(100, 200, 255, 0.1);">
-            <td style="padding: 14px 15px; color: #ffffff; font-weight: 500;">Omron FINS TCP 驱动</td>
-            <td style="padding: 14px 15px; color: #b0bec5;">欧姆龙 PLC 通信协议支持，覆盖 CS/CJ/CP/NX 系列，支持 DM/EM/HR/IR 内存区域读写</td>
-            <td style="padding: 14px 15px; color: #90caf9;">2026-07</td>
-            <td style="padding: 14px 15px; color: #b0bec5;">驱动开发组</td>
-            <td style="padding: 14px 15px;"><span style="background: rgba(129, 199, 132, 0.15); color: #81c784; padding: 3px 10px; border-radius: 4px; font-size: 12px;">高</span></td>
-            <td style="padding: 14px 15px;"><span style="background: rgba(255, 183, 77, 0.15); color: #ffb74d; padding: 3px 10px; border-radius: 4px; font-size: 12px;">开发中</span></td>
+          <tr style="background: #ffffff;">
+            <td style="padding: 14px 16px; color: #1a237e; font-weight: 600; border-bottom: 1px solid #e8eaf6;">Omron FINS TCP 驱动</td>
+            <td style="padding: 14px 16px; color: #424242; border-bottom: 1px solid #e8eaf6;">欧姆龙 PLC 通信协议支持，覆盖 CS/CJ/CP/NX 系列，支持 DM/EM/HR/IR 内存区域读写</td>
+            <td style="padding: 14px 16px; color: #1565c0; font-weight: 500; border-bottom: 1px solid #e8eaf6;">2026-07</td>
+            <td style="padding: 14px 16px; color: #424242; border-bottom: 1px solid #e8eaf6;">驱动开发组</td>
+            <td style="padding: 14px 16px; border-bottom: 1px solid #e8eaf6;"><span style="background: #e8f5e9; color: #2e7d32; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">高</span></td>
+            <td style="padding: 14px 16px; border-bottom: 1px solid #e8eaf6;"><span style="background: #fff3e0; color: #e65100; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">开发中</span></td>
           </tr>
-          <tr style="border-bottom: 1px solid rgba(100, 200, 255, 0.1);">
-            <td style="padding: 14px 15px; color: #ffffff; font-weight: 500;">DL/T 645-2007 驱动</td>
-            <td style="padding: 14px 15px; color: #b0bec5;">多功能电能表通信协议，支持数据读取、参数配置、事件记录采集，适配主流电表厂商</td>
-            <td style="padding: 14px 15px; color: #90caf9;">2026-08</td>
-            <td style="padding: 14px 15px; color: #b0bec5;">驱动开发组</td>
-            <td style="padding: 14px 15px;"><span style="background: rgba(129, 199, 132, 0.15); color: #81c784; padding: 3px 10px; border-radius: 4px; font-size: 12px;">高</span></td>
-            <td style="padding: 14px 15px;"><span style="background: rgba(255, 183, 77, 0.15); color: #ffb74d; padding: 3px 10px; border-radius: 4px; font-size: 12px;">开发中</span></td>
+          <tr style="background: #f8fafc;">
+            <td style="padding: 14px 16px; color: #1a237e; font-weight: 600; border-bottom: 1px solid #e8eaf6;">DL/T 645-2007 驱动</td>
+            <td style="padding: 14px 16px; color: #424242; border-bottom: 1px solid #e8eaf6;">多功能电能表通信协议，支持数据读取、参数配置、事件记录采集，适配主流电表厂商</td>
+            <td style="padding: 14px 16px; color: #1565c0; font-weight: 500; border-bottom: 1px solid #e8eaf6;">2026-08</td>
+            <td style="padding: 14px 16px; color: #424242; border-bottom: 1px solid #e8eaf6;">驱动开发组</td>
+            <td style="padding: 14px 16px; border-bottom: 1px solid #e8eaf6;"><span style="background: #e8f5e9; color: #2e7d32; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">高</span></td>
+            <td style="padding: 14px 16px; border-bottom: 1px solid #e8eaf6;"><span style="background: #fff3e0; color: #e65100; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">开发中</span></td>
           </tr>
-          <tr style="border-bottom: 1px solid rgba(100, 200, 255, 0.1);">
-            <td style="padding: 14px 15px; color: #ffffff; font-weight: 500;">多节点同步通信</td>
-            <td style="padding: 14px 15px; color: #b0bec5;">基于 go-libp2p 的分布式配置同步，支持多网关集群部署，配置变更自动分发与一致性保证</td>
-            <td style="padding: 14px 15px; color: #90caf9;">2026-09</td>
-            <td style="padding: 14px 15px; color: #b0bec5;">平台架构组</td>
-            <td style="padding: 14px 15px;"><span style="background: rgba(255, 183, 77, 0.15); color: #ffb74d; padding: 3px 10px; border-radius: 4px; font-size: 12px;">中</span></td>
-            <td style="padding: 14px 15px;"><span style="background: rgba(100, 181, 246, 0.15); color: #64b5f6; padding: 3px 10px; border-radius: 4px; font-size: 12px;">预研中</span></td>
+          <tr style="background: #ffffff;">
+            <td style="padding: 14px 16px; color: #1a237e; font-weight: 600; border-bottom: 1px solid #e8eaf6;">多节点同步通信</td>
+            <td style="padding: 14px 16px; color: #424242; border-bottom: 1px solid #e8eaf6;">基于 go-libp2p 的分布式配置同步，支持多网关集群部署，配置变更自动分发与一致性保证</td>
+            <td style="padding: 14px 16px; color: #1565c0; font-weight: 500; border-bottom: 1px solid #e8eaf6;">2026-09</td>
+            <td style="padding: 14px 16px; color: #424242; border-bottom: 1px solid #e8eaf6;">平台架构组</td>
+            <td style="padding: 14px 16px; border-bottom: 1px solid #e8eaf6;"><span style="background: #fff3e0; color: #e65100; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">中</span></td>
+            <td style="padding: 14px 16px; border-bottom: 1px solid #e8eaf6;"><span style="background: #e3f2fd; color: #1565c0; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">预研中</span></td>
           </tr>
-          <tr>
-            <td style="padding: 14px 15px; color: #ffffff; font-weight: 500;">高可用接管</td>
-            <td style="padding: 14px 15px; color: #b0bec5;">故障自动接管与租约机制，主备节点自动切换，采集任务无缝迁移，保障业务连续性</td>
-            <td style="padding: 14px 15px; color: #90caf9;">2026-09</td>
-            <td style="padding: 14px 15px; color: #b0bec5;">平台架构组</td>
-            <td style="padding: 14px 15px;"><span style="background: rgba(255, 183, 77, 0.15); color: #ffb74d; padding: 3px 10px; border-radius: 4px; font-size: 12px;">中</span></td>
-            <td style="padding: 14px 15px;"><span style="background: rgba(100, 181, 246, 0.15); color: #64b5f6; padding: 3px 10px; border-radius: 4px; font-size: 12px;">预研中</span></td>
+          <tr style="background: #f8fafc;">
+            <td style="padding: 14px 16px; color: #1a237e; font-weight: 600;">高可用接管</td>
+            <td style="padding: 14px 16px; color: #424242;">故障自动接管与租约机制，主备节点自动切换，采集任务无缝迁移，保障业务连续性</td>
+            <td style="padding: 14px 16px; color: #1565c0; font-weight: 500;">2026-09</td>
+            <td style="padding: 14px 16px; color: #424242;">平台架构组</td>
+            <td style="padding: 14px 16px;"><span style="background: #fff3e0; color: #e65100; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">中</span></td>
+            <td style="padding: 14px 16px;"><span style="background: #e3f2fd; color: #1565c0; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">预研中</span></td>
           </tr>
         </tbody>
       </table>
     </div>
 
     <div style="margin-bottom: 40px;">
-      <div class="quarter-header" style="display: flex; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid rgba(186, 104, 200, 0.3);">
-        <h3 style="color: #ba68c8; margin: 0; font-size: 20px; font-weight: 600;">Q4 2026 交付计划</h3>
-        <span style="margin-left: 15px; background: rgba(100, 181, 246, 0.15); color: #64b5f6; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 500;">规划中</span>
+      <div class="quarter-header" style="display: flex; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #6a1b9a;">
+        <h3 style="color: #4a148c; margin: 0; font-size: 20px; font-weight: 600;">Q4 2026 交付计划</h3>
+        <span style="margin-left: 15px; background: #e3f2fd; color: #1565c0; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">规划中</span>
       </div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
         <thead>
-          <tr style="background: rgba(30, 60, 90, 0.6);">
-            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">功能模块</th>
-            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">功能描述</th>
-            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">预计交付</th>
-            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">负责团队</th>
-            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">优先级</th>
-            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">状态</th>
+          <tr style="background: #4a148c;">
+            <th style="text-align: left; padding: 14px 16px; color: #ffffff; font-weight: 600; border-bottom: 2px solid #311b92;">功能模块</th>
+            <th style="text-align: left; padding: 14px 16px; color: #ffffff; font-weight: 600; border-bottom: 2px solid #311b92;">功能描述</th>
+            <th style="text-align: left; padding: 14px 16px; color: #ffffff; font-weight: 600; border-bottom: 2px solid #311b92;">预计交付</th>
+            <th style="text-align: left; padding: 14px 16px; color: #ffffff; font-weight: 600; border-bottom: 2px solid #311b92;">负责团队</th>
+            <th style="text-align: left; padding: 14px 16px; color: #ffffff; font-weight: 600; border-bottom: 2px solid #311b92;">优先级</th>
+            <th style="text-align: left; padding: 14px 16px; color: #ffffff; font-weight: 600; border-bottom: 2px solid #311b92;">状态</th>
           </tr>
         </thead>
         <tbody>
-          <tr style="border-bottom: 1px solid rgba(100, 200, 255, 0.1);">
-            <td style="padding: 14px 15px; color: #ffffff; font-weight: 500;">IEC 60870-5-104 驱动</td>
-            <td style="padding: 14px 15px; color: #b0bec5;">电力自动化通信协议，支持远动设备通信，数据采集与遥信遥控，适配电力调度系统</td>
-            <td style="padding: 14px 15px; color: #90caf9;">2026-10</td>
-            <td style="padding: 14px 15px; color: #b0bec5;">驱动开发组</td>
-            <td style="padding: 14px 15px;"><span style="background: rgba(100, 181, 246, 0.15); color: #64b5f6; padding: 3px 10px; border-radius: 4px; font-size: 12px;">规划中</span></td>
-            <td style="padding: 14px 15px;"><span style="background: rgba(158, 158, 158, 0.15); color: #9e9e9e; padding: 3px 10px; border-radius: 4px; font-size: 12px;">待启动</span></td>
+          <tr style="background: #ffffff;">
+            <td style="padding: 14px 16px; color: #311b92; font-weight: 600; border-bottom: 1px solid #f3e5f5;">IEC 60870-5-104 驱动</td>
+            <td style="padding: 14px 16px; color: #424242; border-bottom: 1px solid #f3e5f5;">电力自动化通信协议，支持远动设备通信，数据采集与遥信遥控，适配电力调度系统</td>
+            <td style="padding: 14px 16px; color: #4a148c; font-weight: 500; border-bottom: 1px solid #f3e5f5;">2026-10</td>
+            <td style="padding: 14px 16px; color: #424242; border-bottom: 1px solid #f3e5f5;">驱动开发组</td>
+            <td style="padding: 14px 16px; border-bottom: 1px solid #f3e5f5;"><span style="background: #e3f2fd; color: #1565c0; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">规划中</span></td>
+            <td style="padding: 14px 16px; border-bottom: 1px solid #f3e5f5;"><span style="background: #f5f5f5; color: #616161; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">待启动</span></td>
           </tr>
-          <tr>
-            <td style="padding: 14px 15px; color: #ffffff; font-weight: 500;">SNMP 驱动</td>
-            <td style="padding: 14px 15px; color: #b0bec5;">简单网络管理协议，支持网络设备监控、性能指标采集、故障告警，适配主流网络设备厂商</td>
-            <td style="padding: 14px 15px; color: #90caf9;">2026-12</td>
-            <td style="padding: 14px 15px; color: #b0bec5;">驱动开发组</td>
-            <td style="padding: 14px 15px;"><span style="background: rgba(100, 181, 246, 0.15); color: #64b5f6; padding: 3px 10px; border-radius: 4px; font-size: 12px;">规划中</span></td>
-            <td style="padding: 14px 15px;"><span style="background: rgba(158, 158, 158, 0.15); color: #9e9e9e; padding: 3px 10px; border-radius: 4px; font-size: 12px;">待启动</span></td>
+          <tr style="background: #f8fafc;">
+            <td style="padding: 14px 16px; color: #311b92; font-weight: 600;">SNMP 驱动</td>
+            <td style="padding: 14px 16px; color: #424242;">简单网络管理协议，支持网络设备监控、性能指标采集、故障告警，适配主流网络设备厂商</td>
+            <td style="padding: 14px 16px; color: #4a148c; font-weight: 500;">2026-12</td>
+            <td style="padding: 14px 16px; color: #424242;">驱动开发组</td>
+            <td style="padding: 14px 16px;"><span style="background: #e3f2fd; color: #1565c0; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">规划中</span></td>
+            <td style="padding: 14px 16px;"><span style="background: #f5f5f5; color: #616161; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">待启动</span></td>
           </tr>
         </tbody>
       </table>
     </div>
 
     <div style="margin-bottom: 30px;">
-      <div class="quarter-header" style="display: flex; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid rgba(129, 199, 132, 0.3);">
-        <h3 style="color: #81c784; margin: 0; font-size: 20px; font-weight: 600;">已交付里程碑</h3>
+      <div class="quarter-header" style="display: flex; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #2e7d32;">
+        <h3 style="color: #1b5e20; margin: 0; font-size: 20px; font-weight: 600;">已交付里程碑</h3>
       </div>
       <div class="milestone-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px;">
-        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(79, 195, 247, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
-          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+        <div class="milestone-item" style="background: #ffffff; border: 1px solid #e8eaf6; border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+          <div style="width: 10px; height: 10px; background: #4caf50; border-radius: 50%; flex-shrink: 0;"></div>
           <div>
-            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">Modbus TCP/RTU</div>
-            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-02 发布</div>
+            <div style="color: #1a237e; font-weight: 600; font-size: 14px;">Modbus TCP/RTU</div>
+            <div style="color: #616161; font-size: 12px; margin-top: 2px;">2026-02 发布</div>
           </div>
         </div>
-        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(79, 195, 247, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
-          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+        <div class="milestone-item" style="background: #ffffff; border: 1px solid #e8eaf6; border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+          <div style="width: 10px; height: 10px; background: #4caf50; border-radius: 50%; flex-shrink: 0;"></div>
           <div>
-            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">BACnet IP</div>
-            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-02 发布</div>
+            <div style="color: #1a237e; font-weight: 600; font-size: 14px;">BACnet IP</div>
+            <div style="color: #616161; font-size: 12px; margin-top: 2px;">2026-02 发布</div>
           </div>
         </div>
-        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(79, 195, 247, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
-          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+        <div class="milestone-item" style="background: #ffffff; border: 1px solid #e8eaf6; border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+          <div style="width: 10px; height: 10px; background: #4caf50; border-radius: 50%; flex-shrink: 0;"></div>
           <div>
-            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">OPC UA 客户端</div>
-            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-03 发布</div>
+            <div style="color: #1a237e; font-weight: 600; font-size: 14px;">OPC UA 客户端</div>
+            <div style="color: #616161; font-size: 12px; margin-top: 2px;">2026-03 发布</div>
           </div>
         </div>
-        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(79, 195, 247, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
-          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+        <div class="milestone-item" style="background: #ffffff; border: 1px solid #e8eaf6; border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+          <div style="width: 10px; height: 10px; background: #4caf50; border-radius: 50%; flex-shrink: 0;"></div>
           <div>
-            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">Siemens S7</div>
-            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-05 发布</div>
+            <div style="color: #1a237e; font-weight: 600; font-size: 14px;">Siemens S7</div>
+            <div style="color: #616161; font-size: 12px; margin-top: 2px;">2026-05 发布</div>
           </div>
         </div>
-        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(79, 195, 247, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
-          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+        <div class="milestone-item" style="background: #ffffff; border: 1px solid #e8eaf6; border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+          <div style="width: 10px; height: 10px; background: #4caf50; border-radius: 50%; flex-shrink: 0;"></div>
           <div>
-            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">EtherNet/IP</div>
-            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-06 发布</div>
+            <div style="color: #1a237e; font-weight: 600; font-size: 14px;">EtherNet/IP</div>
+            <div style="color: #616161; font-size: 12px; margin-top: 2px;">2026-06 发布</div>
           </div>
         </div>
-        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(129, 199, 132, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
-          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+        <div class="milestone-item" style="background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+          <div style="width: 10px; height: 10px; background: #2e7d32; border-radius: 50%; flex-shrink: 0;"></div>
           <div>
-            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">连接管理系统</div>
-            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-06 发布</div>
+            <div style="color: #1b5e20; font-weight: 600; font-size: 14px;">连接管理系统</div>
+            <div style="color: #388e3c; font-size: 12px; margin-top: 2px;">2026-06 发布</div>
           </div>
         </div>
-        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(129, 199, 132, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
-          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+        <div class="milestone-item" style="background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+          <div style="width: 10px; height: 10px; background: #2e7d32; border-radius: 50%; flex-shrink: 0;"></div>
           <div>
-            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">采集健康检测</div>
-            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-06 发布</div>
+            <div style="color: #1b5e20; font-weight: 600; font-size: 14px;">采集健康检测</div>
+            <div style="color: #388e3c; font-size: 12px; margin-top: 2px;">2026-06 发布</div>
           </div>
         </div>
-        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(129, 199, 132, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
-          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+        <div class="milestone-item" style="background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+          <div style="width: 10px; height: 10px; background: #2e7d32; border-radius: 50%; flex-shrink: 0;"></div>
           <div>
-            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">指数退避 + 冷却期</div>
-            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-06 发布</div>
+            <div style="color: #1b5e20; font-weight: 600; font-size: 14px;">指数退避 + 冷却期</div>
+            <div style="color: #388e3c; font-size: 12px; margin-top: 2px;">2026-06 发布</div>
           </div>
         </div>
       </div>
     </div>
 
-    <div style="text-align: center; padding-top: 20px; border-top: 1px solid rgba(100, 200, 255, 0.15);">
-      <p style="color: #78909c; font-size: 13px; margin: 0;">
+    <div style="text-align: center; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+      <p style="color: #616161; font-size: 13px; margin: 0;">
         详细开发计划与技术方案请查阅
-        <a href="development_plan/index.html" style="color: #4fc3f7; text-decoration: none; font-weight: 500;">开发计划总览</a>
+        <a href="development_plan/index.html" style="color: #1565c0; text-decoration: none; font-weight: 600;">开发计划总览</a>
       </p>
     </div>
   </div>
