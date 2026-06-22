@@ -110,74 +110,184 @@ description: EdgeX 项目的完整文档
 
 <section class="landing-section">
   <div class="shell shell--wide">
-    <div class="wide-panel" style="background: rgba(10, 25, 40, 0.65); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(100, 200, 255, 0.15); border-radius: 16px; padding: 35px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);">
-      <div class="section-kicker" style="color: #4fc3f7; font-weight: 600; letter-spacing: 0.5px;">TODO 任务清单</div>
-      <h2 style="color: #ffffff; margin-bottom: 15px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">开发计划与路线图</h2>
-      <p style="color: #c5d4e8; margin-bottom: 25px; font-weight: 400;">展示正在规划和开发中的功能，预计发布时间仅供参考。</p>
+    <div class="section-heading">
+      <div>
+        <div class="section-kicker">产品路线图</div>
+        <h2>开发计划与里程碑</h2>
+        <p>EdgeX 边缘网关产品演进路线，按季度规划核心功能交付，确保工业现场接入能力持续增强。</p>
+      </div>
+    </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
-        <div>
-          <h3 style="color: #4fc3f7; margin-bottom: 15px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">🚀 Q3 2026 计划</h3>
-          <ul style="color: #d0dbe8; font-size: 14px; line-height: 1.8; list-style-type: none; padding-left: 0;">
-            <li style="padding-left: 24px; position: relative; margin-bottom: 8px;">
-              <span style="position: absolute; left: 0; color: #81c784;">●</span>
-              <strong style="color: #ffffff;">Omron FINS TCP 驱动</strong>
-              <br /><span style="color: #90a4ae; font-size: 13px;">欧姆龙 PLC 通信协议支持</span>
-            </li>
-            <li style="padding-left: 24px; position: relative; margin-bottom: 8px;">
-              <span style="position: absolute; left: 0; color: #81c784;">●</span>
-              <strong style="color: #ffffff;">DL/T 645-2007 驱动</strong>
-              <br /><span style="color: #90a4ae; font-size: 13px;">多功能电能表通信协议</span>
-            </li>
-            <li style="padding-left: 24px; position: relative; margin-bottom: 8px;">
-              <span style="position: absolute; left: 0; color: #ffb74d;">●</span>
-              <strong style="color: #ffffff;">多节点同步通信</strong>
-              <br /><span style="color: #90a4ae; font-size: 13px;">基于 go-libp2p 的分布式配置同步</span>
-            </li>
-            <li style="padding-left: 24px; position: relative; margin-bottom: 8px;">
-              <span style="position: absolute; left: 0; color: #ffb74d;">●</span>
-              <strong style="color: #ffffff;">高可用接管</strong>
-              <br /><span style="color: #90a4ae; font-size: 13px;">故障自动接管与租约机制</span>
-            </li>
-          </ul>
+    <div class="roadmap-intro" style="background: rgba(230, 240, 255, 0.08); border-left: 4px solid #4fc3f7; padding: 20px 25px; border-radius: 0 8px 8px 0; margin-bottom: 35px;">
+      <h4 style="color: #ffffff; margin: 0 0 10px 0; font-size: 16px;">规划说明</h4>
+      <p style="color: #b0bec5; margin: 0; font-size: 14px; line-height: 1.7;">
+        本路线图基于当前产品发展战略制定，旨在扩展协议支持范围、提升系统可靠性与可扩展性。
+        各阶段交付内容可能根据技术预研进展和客户需求反馈进行动态调整。
+        优先级标记：<span style="color: #81c784; font-weight: 600;">高优先级</span> / 
+        <span style="color: #ffb74d; font-weight: 600;">中优先级</span> / 
+        <span style="color: #64b5f6; font-weight: 600;">规划中</span>。
+      </p>
+    </div>
+
+    <div style="margin-bottom: 40px;">
+      <div class="quarter-header" style="display: flex; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid rgba(79, 195, 247, 0.3);">
+        <h3 style="color: #4fc3f7; margin: 0; font-size: 20px; font-weight: 600;">Q3 2026 交付计划</h3>
+        <span style="margin-left: 15px; background: rgba(129, 199, 132, 0.15); color: #81c784; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 500;">进行中</span>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <thead>
+          <tr style="background: rgba(30, 60, 90, 0.6);">
+            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">功能模块</th>
+            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">功能描述</th>
+            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">预计交付</th>
+            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">负责团队</th>
+            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">优先级</th>
+            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">状态</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid rgba(100, 200, 255, 0.1);">
+            <td style="padding: 14px 15px; color: #ffffff; font-weight: 500;">Omron FINS TCP 驱动</td>
+            <td style="padding: 14px 15px; color: #b0bec5;">欧姆龙 PLC 通信协议支持，覆盖 CS/CJ/CP/NX 系列，支持 DM/EM/HR/IR 内存区域读写</td>
+            <td style="padding: 14px 15px; color: #90caf9;">2026-07</td>
+            <td style="padding: 14px 15px; color: #b0bec5;">驱动开发组</td>
+            <td style="padding: 14px 15px;"><span style="background: rgba(129, 199, 132, 0.15); color: #81c784; padding: 3px 10px; border-radius: 4px; font-size: 12px;">高</span></td>
+            <td style="padding: 14px 15px;"><span style="background: rgba(255, 183, 77, 0.15); color: #ffb74d; padding: 3px 10px; border-radius: 4px; font-size: 12px;">开发中</span></td>
+          </tr>
+          <tr style="border-bottom: 1px solid rgba(100, 200, 255, 0.1);">
+            <td style="padding: 14px 15px; color: #ffffff; font-weight: 500;">DL/T 645-2007 驱动</td>
+            <td style="padding: 14px 15px; color: #b0bec5;">多功能电能表通信协议，支持数据读取、参数配置、事件记录采集，适配主流电表厂商</td>
+            <td style="padding: 14px 15px; color: #90caf9;">2026-08</td>
+            <td style="padding: 14px 15px; color: #b0bec5;">驱动开发组</td>
+            <td style="padding: 14px 15px;"><span style="background: rgba(129, 199, 132, 0.15); color: #81c784; padding: 3px 10px; border-radius: 4px; font-size: 12px;">高</span></td>
+            <td style="padding: 14px 15px;"><span style="background: rgba(255, 183, 77, 0.15); color: #ffb74d; padding: 3px 10px; border-radius: 4px; font-size: 12px;">开发中</span></td>
+          </tr>
+          <tr style="border-bottom: 1px solid rgba(100, 200, 255, 0.1);">
+            <td style="padding: 14px 15px; color: #ffffff; font-weight: 500;">多节点同步通信</td>
+            <td style="padding: 14px 15px; color: #b0bec5;">基于 go-libp2p 的分布式配置同步，支持多网关集群部署，配置变更自动分发与一致性保证</td>
+            <td style="padding: 14px 15px; color: #90caf9;">2026-09</td>
+            <td style="padding: 14px 15px; color: #b0bec5;">平台架构组</td>
+            <td style="padding: 14px 15px;"><span style="background: rgba(255, 183, 77, 0.15); color: #ffb74d; padding: 3px 10px; border-radius: 4px; font-size: 12px;">中</span></td>
+            <td style="padding: 14px 15px;"><span style="background: rgba(100, 181, 246, 0.15); color: #64b5f6; padding: 3px 10px; border-radius: 4px; font-size: 12px;">预研中</span></td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 15px; color: #ffffff; font-weight: 500;">高可用接管</td>
+            <td style="padding: 14px 15px; color: #b0bec5;">故障自动接管与租约机制，主备节点自动切换，采集任务无缝迁移，保障业务连续性</td>
+            <td style="padding: 14px 15px; color: #90caf9;">2026-09</td>
+            <td style="padding: 14px 15px; color: #b0bec5;">平台架构组</td>
+            <td style="padding: 14px 15px;"><span style="background: rgba(255, 183, 77, 0.15); color: #ffb74d; padding: 3px 10px; border-radius: 4px; font-size: 12px;">中</span></td>
+            <td style="padding: 14px 15px;"><span style="background: rgba(100, 181, 246, 0.15); color: #64b5f6; padding: 3px 10px; border-radius: 4px; font-size: 12px;">预研中</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-bottom: 40px;">
+      <div class="quarter-header" style="display: flex; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid rgba(186, 104, 200, 0.3);">
+        <h3 style="color: #ba68c8; margin: 0; font-size: 20px; font-weight: 600;">Q4 2026 交付计划</h3>
+        <span style="margin-left: 15px; background: rgba(100, 181, 246, 0.15); color: #64b5f6; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 500;">规划中</span>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <thead>
+          <tr style="background: rgba(30, 60, 90, 0.6);">
+            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">功能模块</th>
+            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">功能描述</th>
+            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">预计交付</th>
+            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">负责团队</th>
+            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">优先级</th>
+            <th style="text-align: left; padding: 12px 15px; color: #e0e0e0; font-weight: 600; border-bottom: 1px solid rgba(100, 200, 255, 0.2);">状态</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid rgba(100, 200, 255, 0.1);">
+            <td style="padding: 14px 15px; color: #ffffff; font-weight: 500;">IEC 60870-5-104 驱动</td>
+            <td style="padding: 14px 15px; color: #b0bec5;">电力自动化通信协议，支持远动设备通信，数据采集与遥信遥控，适配电力调度系统</td>
+            <td style="padding: 14px 15px; color: #90caf9;">2026-10</td>
+            <td style="padding: 14px 15px; color: #b0bec5;">驱动开发组</td>
+            <td style="padding: 14px 15px;"><span style="background: rgba(100, 181, 246, 0.15); color: #64b5f6; padding: 3px 10px; border-radius: 4px; font-size: 12px;">规划中</span></td>
+            <td style="padding: 14px 15px;"><span style="background: rgba(158, 158, 158, 0.15); color: #9e9e9e; padding: 3px 10px; border-radius: 4px; font-size: 12px;">待启动</span></td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 15px; color: #ffffff; font-weight: 500;">SNMP 驱动</td>
+            <td style="padding: 14px 15px; color: #b0bec5;">简单网络管理协议，支持网络设备监控、性能指标采集、故障告警，适配主流网络设备厂商</td>
+            <td style="padding: 14px 15px; color: #90caf9;">2026-12</td>
+            <td style="padding: 14px 15px; color: #b0bec5;">驱动开发组</td>
+            <td style="padding: 14px 15px;"><span style="background: rgba(100, 181, 246, 0.15); color: #64b5f6; padding: 3px 10px; border-radius: 4px; font-size: 12px;">规划中</span></td>
+            <td style="padding: 14px 15px;"><span style="background: rgba(158, 158, 158, 0.15); color: #9e9e9e; padding: 3px 10px; border-radius: 4px; font-size: 12px;">待启动</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-bottom: 30px;">
+      <div class="quarter-header" style="display: flex; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid rgba(129, 199, 132, 0.3);">
+        <h3 style="color: #81c784; margin: 0; font-size: 20px; font-weight: 600;">已交付里程碑</h3>
+      </div>
+      <div class="milestone-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px;">
+        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(79, 195, 247, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+          <div>
+            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">Modbus TCP/RTU</div>
+            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-02 发布</div>
+          </div>
         </div>
-
-        <div>
-          <h3 style="color: #ba68c8; margin-bottom: 15px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">📅 Q4 2026 计划</h3>
-          <ul style="color: #d0dbe8; font-size: 14px; line-height: 1.8; list-style-type: none; padding-left: 0;">
-            <li style="padding-left: 24px; position: relative; margin-bottom: 8px;">
-              <span style="position: absolute; left: 0; color: #64b5f6;">○</span>
-              <strong style="color: #ffffff;">IEC 60870-5-104 驱动</strong>
-              <br /><span style="color: #90a4ae; font-size: 13px;">电力自动化通信协议</span>
-            </li>
-            <li style="padding-left: 24px; position: relative; margin-bottom: 8px;">
-              <span style="position: absolute; left: 0; color: #64b5f6;">○</span>
-              <strong style="color: #ffffff;">SNMP 驱动</strong>
-              <br /><span style="color: #90a4ae; font-size: 13px;">简单网络管理协议</span>
-            </li>
-          </ul>
+        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(79, 195, 247, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+          <div>
+            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">BACnet IP</div>
+            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-02 发布</div>
+          </div>
+        </div>
+        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(79, 195, 247, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+          <div>
+            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">OPC UA 客户端</div>
+            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-03 发布</div>
+          </div>
+        </div>
+        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(79, 195, 247, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+          <div>
+            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">Siemens S7</div>
+            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-05 发布</div>
+          </div>
+        </div>
+        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(79, 195, 247, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+          <div>
+            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">EtherNet/IP</div>
+            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-06 发布</div>
+          </div>
+        </div>
+        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(129, 199, 132, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+          <div>
+            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">连接管理系统</div>
+            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-06 发布</div>
+          </div>
+        </div>
+        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(129, 199, 132, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+          <div>
+            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">采集健康检测</div>
+            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-06 发布</div>
+          </div>
+        </div>
+        <div class="milestone-item" style="background: rgba(30, 60, 90, 0.5); border: 1px solid rgba(129, 199, 132, 0.2); border-radius: 8px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+          <div style="width: 8px; height: 8px; background: #81c784; border-radius: 50%; flex-shrink: 0;"></div>
+          <div>
+            <div style="color: #ffffff; font-weight: 500; font-size: 14px;">指数退避 + 冷却期</div>
+            <div style="color: #78909c; font-size: 12px; margin-top: 2px;">2026-06 发布</div>
+          </div>
         </div>
       </div>
+    </div>
 
-      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(100, 200, 255, 0.15);">
-        <h3 style="color: #4fc3f7; margin-bottom: 15px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">✅ 已完成</h3>
-        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-          <span style="background: rgba(30, 60, 90, 0.7); color: #90caf9; padding: 6px 14px; border-radius: 8px; font-size: 13px; border: 1px solid rgba(79, 195, 247, 0.3);">Modbus TCP/RTU</span>
-          <span style="background: rgba(30, 60, 90, 0.7); color: #90caf9; padding: 6px 14px; border-radius: 8px; font-size: 13px; border: 1px solid rgba(79, 195, 247, 0.3);">BACnet IP</span>
-          <span style="background: rgba(30, 60, 90, 0.7); color: #90caf9; padding: 6px 14px; border-radius: 8px; font-size: 13px; border: 1px solid rgba(79, 195, 247, 0.3);">OPC UA 客户端</span>
-          <span style="background: rgba(30, 60, 90, 0.7); color: #90caf9; padding: 6px 14px; border-radius: 8px; font-size: 13px; border: 1px solid rgba(79, 195, 247, 0.3);">Siemens S7</span>
-          <span style="background: rgba(30, 60, 90, 0.7); color: #90caf9; padding: 6px 14px; border-radius: 8px; font-size: 13px; border: 1px solid rgba(79, 195, 247, 0.3);">EtherNet/IP</span>
-          <span style="background: rgba(30, 60, 90, 0.7); color: #a5d6a7; padding: 6px 14px; border-radius: 8px; font-size: 13px; border: 1px solid rgba(129, 199, 132, 0.3);">连接管理系统</span>
-          <span style="background: rgba(30, 60, 90, 0.7); color: #a5d6a7; padding: 6px 14px; border-radius: 8px; font-size: 13px; border: 1px solid rgba(129, 199, 132, 0.3);">采集健康检测</span>
-          <span style="background: rgba(30, 60, 90, 0.7); color: #a5d6a7; padding: 6px 14px; border-radius: 8px; font-size: 13px; border: 1px solid rgba(129, 199, 132, 0.3);">指数退避 + 冷却期</span>
-        </div>
-      </div>
-
-      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(100, 200, 255, 0.15);">
-        <p style="color: #c5d4e8; font-size: 13px; text-align: center;">
-          查看完整开发计划：<a href="development_plan/index.html" style="color: #90caf9; text-decoration: none; border-bottom: 1px solid rgba(144, 202, 249, 0.5); transition: all 0.3s;">开发计划总览</a>
-        </p>
-      </div>
+    <div style="text-align: center; padding-top: 20px; border-top: 1px solid rgba(100, 200, 255, 0.15);">
+      <p style="color: #78909c; font-size: 13px; margin: 0;">
+        详细开发计划与技术方案请查阅
+        <a href="development_plan/index.html" style="color: #4fc3f7; text-decoration: none; font-weight: 500;">开发计划总览</a>
+      </p>
     </div>
   </div>
 </section>
