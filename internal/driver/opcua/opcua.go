@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/anviod/edgex/internal/driver"
@@ -21,6 +22,14 @@ import (
 	"github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/ua"
 	"go.uber.org/zap"
+)
+
+const (
+	StateDisconnected driver.ConnState = driver.StateDisconnected
+	StateConnecting   driver.ConnState = driver.StateConnecting
+	StateConnected    driver.ConnState = driver.StateConnected
+	StateRetrying     driver.ConnState = driver.StateRetrying
+	StateDead         driver.ConnState = driver.StateDead
 )
 
 func init() {
@@ -66,6 +75,13 @@ type ClientWrapper struct {
 	Config        map[string]any
 	mu            sync.Mutex
 	Subscriptions map[string]*DeviceSubscription // DeviceID -> Subscription
+
+	connMgr *driver.ConnectionManager
+
+	lastActivityTime atomic.Value
+	collectFailCount atomic.Int32
+	maxFailCount     int32
+	collectCycle     time.Duration
 }
 
 func NewOpcUaDriver() driver.Driver {
@@ -149,11 +165,21 @@ func (d *OpcUaDriver) SetDeviceConfig(config map[string]any) error {
 		return nil
 	}
 
-	// Create new client
 	wrapper := &ClientWrapper{
-		Endpoint:      endpoint,
-		Config:        config,
-		Subscriptions: make(map[string]*DeviceSubscription),
+		Endpoint:         endpoint,
+		Config:           config,
+		Subscriptions:    make(map[string]*DeviceSubscription),
+		connMgr:          driver.NewConnectionManager("opcua"),
+		maxFailCount:     5,
+		collectCycle:     10 * time.Second,
+	}
+	wrapper.lastActivityTime.Store(time.Time{})
+
+	if v, ok := config["max_fail_count"].(float64); ok {
+		wrapper.maxFailCount = int32(v)
+	}
+	if v, ok := config["collect_cycle"].(float64); ok {
+		wrapper.collectCycle = time.Duration(v) * time.Millisecond
 	}
 
 	opts, err := d.buildClientOptions(config)
@@ -167,16 +193,17 @@ func (d *OpcUaDriver) SetDeviceConfig(config map[string]any) error {
 	}
 	wrapper.Client = c
 
-	// Initial connect
+	wrapper.connMgr.SetState(StateConnecting)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := c.Connect(ctx); err != nil {
 		zap.L().Warn("[OPC UA] Failed to connect", zap.String("endpoint", endpoint), zap.Error(err))
-		// We still register the client, but it's disconnected
 		wrapper.Connected = false
+		wrapper.connMgr.RecordFailure()
 	} else {
 		wrapper.Connected = true
-		//zap.L().Info("[OPC UA] Connected", zap.String("endpoint", endpoint))
+		wrapper.connMgr.RecordSuccess()
 	}
 
 	d.clients[endpoint] = wrapper
@@ -425,18 +452,42 @@ func (d *OpcUaDriver) reconnect(w *ClientWrapper) {
 		d.mu.Unlock()
 		return
 	}
+	w.connMgr.SetState(StateRetrying)
 	d.mu.Unlock()
 
 	zap.L().Info("[OPC UA] Reconnecting", zap.String("endpoint", w.Endpoint))
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := w.Client.Connect(ctx); err == nil {
-		d.mu.Lock()
-		w.Connected = true
-		d.mu.Unlock()
-		zap.L().Info("[OPC UA] Reconnected", zap.String("endpoint", w.Endpoint))
-	} else {
-		zap.L().Warn("[OPC UA] Reconnection failed", zap.Error(err))
+
+	for {
+		canRetry, waitTime := w.connMgr.CanRetry()
+		if !canRetry {
+			zap.L().Error("[OPC UA] Reconnection not allowed")
+			return
+		}
+
+		if waitTime > 0 {
+			time.Sleep(waitTime)
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		err := w.Client.Connect(ctx)
+		cancel()
+
+		if err == nil {
+			d.mu.Lock()
+			w.Connected = true
+			w.connMgr.RecordSuccess()
+			d.mu.Unlock()
+			zap.L().Info("[OPC UA] Reconnected", zap.String("endpoint", w.Endpoint))
+			return
+		}
+
+		shouldRetry, _ := w.connMgr.RecordFailure()
+		if !shouldRetry {
+			zap.L().Error("[OPC UA] Reconnection failed, entering coolDown", zap.Error(err))
+			return
+		}
+
+		zap.L().Warn("[OPC UA] Reconnection failed, will retry", zap.Error(err))
 	}
 }
 
@@ -499,13 +550,23 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 		return nil, fmt.Errorf("no active client")
 	}
 	if !client.Connected {
-		// Try to reconnect synchronously
+		canRetry, waitTime := client.connMgr.CanRetry()
+		if !canRetry {
+			d.failureCount++
+			return nil, fmt.Errorf("client not connected, cannot retry")
+		}
+		if waitTime > 0 {
+			time.Sleep(waitTime)
+		}
+
 		if err := client.Client.Connect(ctx); err != nil {
 			d.failureCount++
+			client.connMgr.RecordFailure()
 			return nil, fmt.Errorf("client not connected: %v", err)
 		}
 		d.mu.Lock()
 		client.Connected = true
+		client.connMgr.RecordSuccess()
 		d.mu.Unlock()
 	}
 
@@ -513,7 +574,6 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 		return nil, nil
 	}
 
-	// Increment total requests
 	d.totalRequests++
 
 	deviceID := points[0].DeviceID
@@ -677,12 +737,19 @@ func (d *OpcUaDriver) subscriptionLoop(sub *DeviceSubscription) {
 			}
 			if res.Error != nil {
 				zap.L().Error("[OPC UA] Subscription error", zap.Error(res.Error))
+				d.mu.RLock()
+				client := d.activeClient
+				d.mu.RUnlock()
+				if client != nil {
+					client.RecordFailure(res.Error)
+				}
 				continue
 			}
 
 			switch x := res.Value.(type) {
 			case *ua.DataChangeNotification:
 				sub.mu.Lock()
+				allGood := true
 				for _, item := range x.MonitoredItems {
 					pointID, ok := sub.HandleMap[item.ClientHandle]
 					if !ok {
@@ -711,6 +778,7 @@ func (d *OpcUaDriver) subscriptionLoop(sub *DeviceSubscription) {
 							}
 						} else {
 							val.Quality = "Bad"
+							allGood = false
 							zap.L().Warn("[OPC UA] Subscription update bad status", zap.String("point_id", pointID), zap.Any("status", item.Value.Status))
 						}
 					}
@@ -718,6 +786,15 @@ func (d *OpcUaDriver) subscriptionLoop(sub *DeviceSubscription) {
 					sub.Cache[pointID] = val
 				}
 				sub.mu.Unlock()
+
+				d.mu.RLock()
+				client := d.activeClient
+				d.mu.RUnlock()
+				if client != nil {
+					if allGood {
+						client.RecordSuccess()
+					}
+				}
 			}
 		}
 	}
@@ -2255,6 +2332,65 @@ func parseByteStringValue(val any) ([]byte, error) {
 		}
 	default:
 		return nil, fmt.Errorf("cannot cast %T to bytestring", val)
+	}
+}
+
+func (w *ClientWrapper) RecordSuccess() {
+	w.connMgr.RecordSuccess()
+	w.collectFailCount.Store(0)
+	w.lastActivityTime.Store(time.Now())
+}
+
+func (w *ClientWrapper) RecordFailure(err error) {
+	w.collectFailCount.Add(1)
+	w.lastActivityTime.Store(time.Now())
+	w.connMgr.RecordFailure()
+
+	if w.collectFailCount.Load() >= w.maxFailCount {
+		zap.L().Warn("[OPC UA] Max fail count reached, triggering reconnect",
+			zap.String("endpoint", w.Endpoint),
+			zap.Int32("fail_count", w.collectFailCount.Load()),
+			zap.Int32("max_fail", w.maxFailCount),
+		)
+		w.Connected = false
+	}
+}
+
+func (w *ClientWrapper) NeedProbeCheck() bool {
+	lastActivity := w.lastActivityTime.Load()
+	if lastActivity == nil {
+		return false
+	}
+
+	lastTime, ok := lastActivity.(time.Time)
+	if !ok || lastTime.IsZero() {
+		return false
+	}
+
+	return time.Since(lastTime) > w.collectCycle*3
+}
+
+func (w *ClientWrapper) ProbeConnection() {
+	if !w.Connected || w.Client == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := w.Client.Read(ctx, &ua.ReadRequest{
+		NodesToRead: []*ua.ReadValueID{
+			{
+				NodeID:      ua.NewNumericNodeID(0, 2253),
+				AttributeID: ua.AttributeIDBrowseName,
+			},
+		},
+	})
+
+	if err != nil {
+		w.RecordFailure(err)
+	} else {
+		w.RecordSuccess()
 	}
 }
 

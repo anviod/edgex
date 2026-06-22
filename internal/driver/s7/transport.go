@@ -9,8 +9,18 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/anviod/edgex/internal/driver"
+
 	"github.com/anviod/gos7"
 	"go.uber.org/zap"
+)
+
+const (
+	StateDisconnected driver.ConnState = driver.StateDisconnected
+	StateConnecting   driver.ConnState = driver.StateConnecting
+	StateConnected    driver.ConnState = driver.StateConnected
+	StateRetrying     driver.ConnState = driver.StateRetrying
+	StateDead         driver.ConnState = driver.StateDead
 )
 
 // S7ClientHandler 扩展gos7.ClientHandler，添加连接管理方法
@@ -112,7 +122,7 @@ type S7Transport struct {
 	backoffFactor float64
 
 	// 连接管理器（状态机）
-	connMgr *ConnectionManager
+	connMgr *driver.ConnectionManager
 }
 
 // NewS7Transport 创建S7传输层实例
@@ -147,7 +157,11 @@ func NewS7Transport(cfg map[string]any) *S7Transport {
 	t.parseConfig()
 
 	// 创建连接管理器（状态机）
-	t.connMgr = NewConnectionManager(t.plcType)
+	t.connMgr = driver.NewConnectionManager("s7")
+	if t.plcType == "s7-200smart" {
+		t.connMgr.SetMaxRetries(8)
+		t.connMgr.SetMaxFailCount(3)
+	}
 
 	return t
 }

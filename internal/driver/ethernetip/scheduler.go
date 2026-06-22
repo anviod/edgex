@@ -97,19 +97,27 @@ type tagWithPoint struct {
 func (s *ENIPScheduler) ReadPoints(ctx context.Context, points []model.Point) (map[string]model.Value, error) {
 	results := make(map[string]model.Value)
 
+	if s.transport.NeedProbeCheck() {
+		zap.L().Debug("[ENIP] Performing probe check for low-frequency collection")
+		s.transport.ProbeConnection()
+	}
+
 	tcp := s.transport.GetClient()
 	if tcp == nil {
 		// 尝试自动重连
 		zap.L().Warn("[ENIP] Client not connected, attempting reconnect")
 		if err := s.transport.Connect(ctx); err != nil {
 			zap.L().Error("[ENIP] Reconnect failed", zap.Error(err))
+			s.transport.RecordFailure(err)
 			return nil, fmt.Errorf("ENIP client not connected: %w", err)
 		}
 		tcp = s.transport.GetClient()
 		if tcp == nil {
+			s.transport.RecordFailure(fmt.Errorf("failed to get client after reconnect"))
 			return nil, fmt.Errorf("ENIP client not connected after reconnect attempt")
 		}
 		zap.L().Info("[ENIP] Reconnect successful")
+		s.transport.RecordSuccess()
 	}
 
 	var parsed []pointWithTag
@@ -264,6 +272,7 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 		zap.L().Warn("[ENIP] Connection lost during readGroup, attempting to reconnect")
 		if err := s.transport.Connect(ctx); err != nil {
 			zap.L().Error("[ENIP] Reconnect failed in readGroup", zap.Error(err))
+			s.transport.RecordFailure(err)
 			for _, pwt := range points {
 				results[pwt.Point.ID] = model.Value{
 					PointID: pwt.Point.ID,
@@ -277,6 +286,7 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 		tcp = s.transport.GetClient()
 		if tcp == nil {
 			zap.L().Error("[ENIP] Failed to get client after reconnect")
+			s.transport.RecordFailure(fmt.Errorf("failed to get client after reconnect"))
 			for _, pwt := range points {
 				results[pwt.Point.ID] = model.Value{
 					PointID: pwt.Point.ID,
@@ -288,6 +298,7 @@ func (s *ENIPScheduler) readGroup(ctx context.Context, tcp *go_ethernet_ip.EIPTC
 			return nil, fmt.Errorf("failed to get client after reconnect")
 		}
 		zap.L().Info("[ENIP] Reconnect successful in readGroup")
+		s.transport.RecordSuccess()
 	}
 
 	// 使用 TagGroup 进行批量读取优化

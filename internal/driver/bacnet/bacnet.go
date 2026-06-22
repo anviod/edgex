@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net"
 	"strconv"
 	"strings"
@@ -112,6 +113,7 @@ type DeviceContext struct {
 	SubscribedPoints    map[string]model.Point
 	CacheMu             sync.RWMutex
 	StopPolling         chan struct{}
+	lastReset           time.Time
 }
 
 func NewBACnetDriver() driver.Driver {
@@ -460,7 +462,6 @@ func (d *BACnetDriver) checkRecovery(deviceID int) {
 	d.mu.Unlock()
 
 	go func() {
-		// 1. Get Config (Short Lock)
 		d.mu.Lock()
 		client := d.client
 		var currentIP string
@@ -469,7 +470,6 @@ func (d *BACnetDriver) checkRecovery(deviceID int) {
 			currentIP = ctx.Config.IP
 			currentPort = ctx.Config.Port
 		} else {
-			// Device removed?
 			d.mu.Unlock()
 			return
 		}
@@ -479,41 +479,38 @@ func (d *BACnetDriver) checkRecovery(deviceID int) {
 			return
 		}
 
-		zap.L().Info("Auto-recovering BACnet connection", zap.Int("device_id", deviceID))
+		zap.L().Info("BACnet auto-recovery starting", zap.Int("device_id", deviceID))
 
-		// 2. Perform Discovery (No Lock held here!)
-		// Note: discoverDevice itself logs and returns error.
-		// However, discoverDevice updates d.deviceContexts, so it needs lock inside!
-		// Let's check discoverDevice implementation.
-		// It calls d.client.WhoIs (Network I/O - Slow) -> Then locks to update context.
-		// Wait, discoverDevice in this file DOES NOT lock! It assumes caller holds lock?
-		// Let's check discoverDevice source again.
-
-		// Looking at discoverDevice (lines 221+):
-		// It does NOT have d.mu.Lock() at start.
-		// It calls d.client.WhoIs (Slow).
-		// Then it updates d.deviceContexts directly! -> RACE CONDITION if not locked!
-		// BUT if we lock around discoverDevice, we block everyone.
-
-		// REFACTOR: Split discoverDevice into "Probe" (I/O) and "UpdateContext" (Lock).
-
-		err := d.probeDevice(client, deviceID, currentIP, currentPort)
-		if err != nil {
-			zap.L().Error("Auto-recovery failed", zap.Error(err))
-		} else {
+		success := d.probeDevice(client, deviceID, currentIP, currentPort)
+		if success {
 			d.mu.Lock()
 			d.connected = true
 			d.mu.Unlock()
-			zap.L().Info("Auto-recovery successful", zap.Int("device_id", deviceID))
+			zap.L().Info("BACnet auto-recovery successful", zap.Int("device_id", deviceID))
+		} else {
+			zap.L().Warn("BACnet auto-recovery failed, extending isolation", zap.Int("device_id", deviceID))
+			d.mu.Lock()
+			if devCtx, ok := d.deviceContexts[deviceID]; ok && devCtx.State == DeviceStateIsolated {
+				backoff := d.calculateBackoff(devCtx.IsolationCount + 1)
+				jitter := time.Duration(rand.Intn(5000)) * time.Millisecond
+				totalBackoff := backoff + jitter
+				if totalBackoff > 1*time.Hour {
+					totalBackoff = 1 * time.Hour
+				}
+				devCtx.IsolationUntil = time.Now().Add(totalBackoff)
+				devCtx.IsolationCount++
+				zap.L().Warn("BACnet isolation extended", zap.Int("device_id", deviceID), zap.Duration("backoff", totalBackoff), zap.Int("isolation_count", devCtx.IsolationCount))
+			}
+			d.mu.Unlock()
 		}
 	}()
 }
 
 // probeDevice performs network discovery without holding global lock
-func (d *BACnetDriver) probeDevice(client Client, deviceID int, ip string, port int) error {
-	zap.L().Info("Probing BACnet device", zap.Int("device_id", deviceID), zap.String("ip", ip), zap.Int("port", port))
+// Returns true if probe succeeded, false if failed
+func (d *BACnetDriver) probeDevice(client Client, deviceID int, ip string, port int) bool {
+	zap.L().Debug("Probing BACnet device", zap.Int("device_id", deviceID), zap.String("ip", ip), zap.Int("port", port))
 
-	// WhoIs
 	whois := &WhoIsOpts{
 		Low:  deviceID,
 		High: deviceID,
@@ -531,71 +528,36 @@ func (d *BACnetDriver) probeDevice(client Client, deviceID int, ip string, port 
 	}
 
 	devices, err := client.WhoIs(whois)
-	if err != nil {
-		return fmt.Errorf("WhoIs failed: %v", err)
-	}
-
-	if len(devices) == 0 {
-		// Retry with Broadcast
-		whois.Destination = nil
-		time.Sleep(1 * time.Second)
-		devices, err = client.WhoIs(whois)
-		if err != nil || len(devices) == 0 {
-			// Fallback logic for IP/Port...
-			if ip != "" && port != 0 {
-				parsedIP := net.ParseIP(ip)
-				if parsedIP != nil {
-					addr := datalink.IPPortToAddress(parsedIP, port)
-					fakeDevice := btypes.Device{
-						Addr:         *addr,
-						ID:           btypes.ObjectID{Type: btypes.DeviceType, Instance: btypes.ObjectInstance(deviceID)},
-						DeviceID:     deviceID,
-						MaxApdu:      1476,
-						Segmentation: btypes.Enumerated(3),
-					}
-					devices = []btypes.Device{fakeDevice}
-				} else {
-					return fmt.Errorf("device %d not found", deviceID)
-				}
-			} else {
-				return fmt.Errorf("device %d not found", deviceID)
-			}
-		}
+	if err != nil || len(devices) == 0 {
+		zap.L().Debug("BACnet probe failed", zap.Int("device_id", deviceID), zap.Error(err))
+		return false
 	}
 
 	foundDev := devices[0]
 
-	// Update Context (Lock required)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	// Re-check existence
 	devCtx, ok := d.deviceContexts[deviceID]
 	if !ok {
-		return fmt.Errorf("context gone for device %d", deviceID)
+		zap.L().Debug("BACnet probe: context gone for device", zap.Int("device_id", deviceID))
+		return false
 	}
 
 	devCtx.Device = foundDev
 	devCtx.LastDiscovery = time.Now()
-	// Update Scheduler target
 	devCtx.Scheduler = NewPointScheduler(d.client, devCtx.Device, 20, 10*time.Millisecond, 10*time.Second, d.useDataformatDecoder)
 
-	// If device was isolated, and probe succeeded, we should probably clear isolation?
-	// But ReadPoints logic clears it on next successful Read.
-	// Probe is just to refresh address.
-	// However, if Probe found it, it's likely online.
-	// Let's rely on ReadPoints to clear it, or we can clear it here.
-	// If we clear it here, ReadPoints will try to read immediately.
-	// Let's clear it to speed up recovery.
 	if devCtx.State == DeviceStateIsolated {
-		zap.L().Info("Device probe successful, clearing isolation state", zap.Int("device_id", deviceID))
-		devCtx.State = DeviceStateOnline // Or Unstable? Online seems fine.
+		zap.L().Info("BACnet device probe successful, clearing isolation", zap.Int("device_id", deviceID))
+		devCtx.State = DeviceStateOnline
 		devCtx.ConsecutiveFailures = 0
 		devCtx.IsolationCount = 0
 		devCtx.IsolationUntil = time.Time{}
 	}
 
-	return nil
+	return true
 }
 
 func (d *BACnetDriver) WritePoint(ctx context.Context, point model.Point, value any) error {

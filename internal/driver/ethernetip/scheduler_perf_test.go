@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/driver"
 )
 
 // BenchmarkGroupTags 测试分组逻辑性能
@@ -266,28 +266,22 @@ func TestMetricsCollection(t *testing.T) {
 	}
 }
 
-// TestHeartbeatConfiguration 测试心跳配置
-func TestHeartbeatConfiguration(t *testing.T) {
+// TestConnectionManagerConfiguration 测试连接管理器配置
+func TestConnectionManagerConfiguration(t *testing.T) {
 	testCases := []struct {
-		name         string
-		cfg          map[string]any
-		wantInterval time.Duration
-		wantMaxFail  int32
+		name      string
+		cfg       map[string]any
+		wantState driver.ConnState
 	}{
-		{"default", map[string]any{}, 30 * time.Second, 3},
-		{"custom_interval", map[string]any{"heartbeat_interval": 15000}, 15 * time.Second, 3},
-		{"custom_max_fail", map[string]any{"heartbeat_fail_max": 5}, 30 * time.Second, 3}, // 当前不支持配置
+		{"default", map[string]any{}, StateDisconnected},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			transport := NewENIPTransport(tc.cfg)
 
-			if transport.heartbeatInterval != tc.wantInterval {
-				t.Errorf("期望心跳间隔 %v, 实际 %v", tc.wantInterval, transport.heartbeatInterval)
-			}
-			if transport.heartbeatFailMax != tc.wantMaxFail {
-				t.Errorf("期望最大失败次数 %d, 实际 %d", tc.wantMaxFail, transport.heartbeatFailMax)
+			if transport.connMgr.GetState() != tc.wantState {
+				t.Errorf("期望状态 %v, 实际 %v", tc.wantState, transport.connMgr.GetState())
 			}
 		})
 	}

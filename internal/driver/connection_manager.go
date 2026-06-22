@@ -1,4 +1,4 @@
-package s7
+package driver
 
 import (
 	"math"
@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// ConnState 连接状态
+
 type ConnState int
 
 const (
@@ -37,7 +37,6 @@ func (s ConnState) String() string {
 	}
 }
 
-// ConnectionManager 连接管理器，实现状态机和重连策略
 type ConnectionManager struct {
 	mu               sync.Mutex
 	state            ConnState
@@ -54,33 +53,26 @@ type ConnectionManager struct {
 	maxDelay      time.Duration
 	backoffFactor float64
 
-	plcType     string
 	maxFailCount int
 
-	// 每日清零
 	dailyResetTimer   *time.Timer
 	dailyResetEnabled bool
+
+	driverName string
 }
 
-// NewConnectionManager 创建连接管理器
-func NewConnectionManager(plcType string) *ConnectionManager {
+func NewConnectionManager(driverName string) *ConnectionManager {
 	cm := &ConnectionManager{
-		state:            StateDisconnected,
-		baseDelay:        100 * time.Millisecond,
-		maxDelay:         30 * time.Second,
-		backoffFactor:    2.0,
-		coolDownBase:     1 * time.Minute,
-		coolDownDuration: 1 * time.Minute,
-		plcType:          plcType,
+		state:             StateDisconnected,
+		baseDelay:         100 * time.Millisecond,
+		maxDelay:          30 * time.Second,
+		backoffFactor:     2.0,
+		coolDownBase:      1 * time.Minute,
+		coolDownDuration:  1 * time.Minute,
+		maxRetries:        64,
+		maxFailCount:      5,
 		dailyResetEnabled: true,
-	}
-
-	if plcType == "s7-200smart" {
-		cm.maxRetries = 8
-		cm.maxFailCount = 3
-	} else {
-		cm.maxRetries = 64
-		cm.maxFailCount = 5
+		driverName:        driverName,
 	}
 
 	cm.startDailyReset()
@@ -88,7 +80,6 @@ func NewConnectionManager(plcType string) *ConnectionManager {
 	return cm
 }
 
-// startDailyReset 启动每日清零定时器
 func (cm *ConnectionManager) startDailyReset() {
 	if !cm.dailyResetEnabled {
 		return
@@ -104,7 +95,6 @@ func (cm *ConnectionManager) startDailyReset() {
 	})
 }
 
-// ResetDaily 每日清零
 func (cm *ConnectionManager) ResetDaily() {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -113,12 +103,11 @@ func (cm *ConnectionManager) ResetDaily() {
 	cm.coolDownAttempts = 0
 	cm.coolDownDuration = 1 * time.Minute
 
-	zap.L().Info("[S7] Daily reset of connection manager",
-		zap.String("plcType", cm.plcType),
+	zap.L().Info("[ConnMgr] Daily reset",
+		zap.String("driver", cm.driverName),
 	)
 }
 
-// SetState 设置状态
 func (cm *ConnectionManager) SetState(state ConnState) {
 	cm.mu.Lock()
 	oldState := cm.state
@@ -126,22 +115,20 @@ func (cm *ConnectionManager) SetState(state ConnState) {
 	cm.mu.Unlock()
 
 	if oldState != state {
-		zap.L().Info("[S7] Connection state changed",
+		zap.L().Info("[ConnMgr] Connection state changed",
+			zap.String("driver", cm.driverName),
 			zap.String("from", oldState.String()),
 			zap.String("to", state.String()),
-			zap.String("plcType", cm.plcType),
 		)
 	}
 }
 
-// GetState 获取当前状态
 func (cm *ConnectionManager) GetState() ConnState {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 	return cm.state
 }
 
-// RecordSuccess 记录成功，重置重试计数
 func (cm *ConnectionManager) RecordSuccess() {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -153,13 +140,12 @@ func (cm *ConnectionManager) RecordSuccess() {
 
 	if cm.state != StateConnected {
 		cm.state = StateConnected
-		zap.L().Info("[S7] Connection recovered",
-			zap.String("plcType", cm.plcType),
+		zap.L().Info("[ConnMgr] Connection recovered",
+			zap.String("driver", cm.driverName),
 		)
 	}
 }
 
-// RecordFailure 记录失败，计算退避时间
 func (cm *ConnectionManager) RecordFailure() (shouldRetry bool, backoff time.Duration) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -181,7 +167,6 @@ func (cm *ConnectionManager) RecordFailure() (shouldRetry bool, backoff time.Dur
 	return true, backoff
 }
 
-// calculateBackoff 计算指数退避时间
 func (cm *ConnectionManager) calculateBackoff(attempt int) time.Duration {
 	backoff := cm.baseDelay * time.Duration(math.Pow(cm.backoffFactor, float64(attempt)))
 	if backoff > cm.maxDelay {
@@ -192,7 +177,6 @@ func (cm *ConnectionManager) calculateBackoff(attempt int) time.Duration {
 	return backoff + jitter
 }
 
-// enterCoolDown 进入冷却期
 func (cm *ConnectionManager) enterCoolDown() {
 	cm.coolDownAttempts++
 
@@ -204,8 +188,8 @@ func (cm *ConnectionManager) enterCoolDown() {
 
 	cm.coolDownUntil = time.Now().Add(cm.coolDownDuration)
 
-	zap.L().Error("[S7] Entering coolDown state",
-		zap.String("plcType", cm.plcType),
+	zap.L().Error("[ConnMgr] Entering coolDown",
+		zap.String("driver", cm.driverName),
 		zap.Int("retryCount", cm.retryCount),
 		zap.Int("maxRetries", cm.maxRetries),
 		zap.Duration("coolDownDuration", cm.coolDownDuration),
@@ -213,7 +197,6 @@ func (cm *ConnectionManager) enterCoolDown() {
 	)
 }
 
-// CanRetry 检查是否可以重试
 func (cm *ConnectionManager) CanRetry() (canRetry bool, waitTime time.Duration) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -251,7 +234,6 @@ func (cm *ConnectionManager) CanRetry() (canRetry bool, waitTime time.Duration) 
 	}
 }
 
-// AttemptHalfOpen 尝试Half-Open探测
 func (cm *ConnectionManager) AttemptHalfOpen(success bool) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -263,22 +245,21 @@ func (cm *ConnectionManager) AttemptHalfOpen(success bool) {
 		cm.coolDownDuration = 1 * time.Minute
 		cm.lastSuccessTime = time.Now()
 
-		zap.L().Info("[S7] Half-Open probe succeeded, connection recovered",
-			zap.String("plcType", cm.plcType),
+		zap.L().Info("[ConnMgr] Half-Open probe succeeded",
+			zap.String("driver", cm.driverName),
 			zap.Int("coolDownAttempts", cm.coolDownAttempts),
 		)
 	} else {
 		cm.enterCoolDown()
 
-		zap.L().Warn("[S7] Half-Open probe failed, extending coolDown",
-			zap.String("plcType", cm.plcType),
+		zap.L().Warn("[ConnMgr] Half-Open probe failed",
+			zap.String("driver", cm.driverName),
 			zap.Int("coolDownAttempts", cm.coolDownAttempts),
 			zap.Duration("coolDownDuration", cm.coolDownDuration),
 		)
 	}
 }
 
-// GetStatus 获取状态信息
 func (cm *ConnectionManager) GetStatus() (state ConnState, retryCount int, maxRetries int, coolDownRemaining time.Duration, lastSuccess time.Time) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -291,21 +272,24 @@ func (cm *ConnectionManager) GetStatus() (state ConnState, retryCount int, maxRe
 	return cm.state, cm.retryCount, cm.maxRetries, remaining, cm.lastSuccessTime
 }
 
-// Close 关闭管理器
 func (cm *ConnectionManager) Close() {
 	if cm.dailyResetTimer != nil {
 		cm.dailyResetTimer.Stop()
 	}
 }
 
-// SetMaxRetries 设置最大重试次数
 func (cm *ConnectionManager) SetMaxRetries(max int) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 	cm.maxRetries = max
 }
 
-// SetBackoffParams 设置退避参数
+func (cm *ConnectionManager) SetMaxFailCount(max int) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+	cm.maxFailCount = max
+}
+
 func (cm *ConnectionManager) SetBackoffParams(base, max time.Duration, factor float64) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()

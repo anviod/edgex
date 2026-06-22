@@ -12,9 +12,18 @@ import (
 	"unsafe"
 
 	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/driver"
 
 	"github.com/simonvetter/modbus"
 	"go.uber.org/zap"
+)
+
+const (
+	StateDisconnected driver.ConnState = driver.StateDisconnected
+	StateConnecting   driver.ConnState = driver.StateConnecting
+	StateConnected    driver.ConnState = driver.StateConnected
+	StateRetrying     driver.ConnState = driver.StateRetrying
+	StateDead         driver.ConnState = driver.StateDead
 )
 
 // Transport 接口定义
@@ -48,31 +57,24 @@ type MetricsRecorder interface {
 
 // ModbusTransport 实现 Transport 接口
 type ModbusTransport struct {
-	cfg            model.DriverConfig
-	client         *modbus.ModbusClient
-	connected      atomic.Bool
-	mu             sync.Mutex
-	timeout        time.Duration
-	maxRetries     int
-	retryInterval  time.Duration
-	heartbeatAddr  *uint16
-	heartbeatTimer *time.Ticker
-	stopHeartbeat  chan struct{}
-	// backoff max for connect
-	maxBackoff time.Duration
+	cfg           model.DriverConfig
+	client        *modbus.ModbusClient
+	connected     atomic.Bool
+	mu            sync.Mutex
+	timeout       time.Duration
+	maxRetries    int
+	maxBackoff    time.Duration
 
-	// 会话健康状态 - 工业Modbus TCP采集惯例
-	// 只要有任何设备正常应答，就认为会话正常，无需断开TCP连接
-	lastActivityTime   atomic.Value  // time.Time - 最后任何成功通信的时间
-	heartbeatFailCount atomic.Int32  // 心跳失败计数器
-	heartbeatFailMax   int32         // 最大允许失败次数（默认3次）
-	sessionTimeout     time.Duration // 会话超时时间（默认90s）
+	connMgr *driver.ConnectionManager
 
-	// 监控指标收集器
+	lastActivityTime atomic.Value
+	collectFailCount atomic.Int32
+	maxFailCount     int32
+	collectCycle     time.Duration
+
 	metricsRecorder MetricsRecorder
 	channelID       string
 
-	// 连接时间
 	connectTime        time.Time
 	lastDisconnectTime time.Time
 	reconnectCount     atomic.Int32
@@ -90,7 +92,6 @@ func NewModbusTransport(cfg model.DriverConfig) *ModbusTransport {
 	// Defaults
 	timeout := 2 * time.Second
 	maxRetries := 3
-	retryInterval := 100 * time.Millisecond
 
 	// Parse config
 	if tVal, ok := cfg.Config["timeout"]; ok {
@@ -113,151 +114,109 @@ func NewModbusTransport(cfg model.DriverConfig) *ModbusTransport {
 		}
 	}
 
-	if v, ok := cfg.Config["retry_interval"]; ok {
+	maxBackoff := 30 * time.Second
+	if v, ok := cfg.Config["max_backoff"]; ok {
 		if f, ok := v.(float64); ok {
-			retryInterval = time.Duration(f) * time.Millisecond
+			maxBackoff = time.Duration(f) * time.Millisecond
 		} else if i, ok := v.(int); ok {
-			retryInterval = time.Duration(i) * time.Millisecond
+			maxBackoff = time.Duration(i) * time.Millisecond
 		}
 	}
 
-	var heartbeatAddr *uint16
-	if v, ok := cfg.Config["heartbeatAddress"]; ok {
+	maxFailCount := int32(5)
+	if v, ok := cfg.Config["max_fail_count"]; ok {
 		if f, ok := v.(float64); ok {
-			addr := uint16(f)
-			heartbeatAddr = &addr
+			maxFailCount = int32(f)
 		} else if i, ok := v.(int); ok {
-			addr := uint16(i)
-			heartbeatAddr = &addr
+			maxFailCount = int32(i)
 		}
 	}
 
-	// 会话超时配置（心跳间隔 * 最大失败次数 + 缓冲）
-	sessionTimeout := 90 * time.Second
-	if v, ok := cfg.Config["sessionTimeout"]; ok {
+	collectCycle := 10 * time.Second
+	if v, ok := cfg.Config["collect_cycle"]; ok {
 		if f, ok := v.(float64); ok {
-			sessionTimeout = time.Duration(f) * time.Second
+			collectCycle = time.Duration(f) * time.Millisecond
 		} else if i, ok := v.(int); ok {
-			sessionTimeout = time.Duration(i) * time.Second
-		}
-	}
-
-	heartbeatFailMax := int32(3)
-	if v, ok := cfg.Config["heartbeatFailMax"]; ok {
-		if f, ok := v.(float64); ok {
-			heartbeatFailMax = int32(f)
-		} else if i, ok := v.(int); ok {
-			heartbeatFailMax = int32(i)
+			collectCycle = time.Duration(i) * time.Millisecond
 		}
 	}
 
 	mt := &ModbusTransport{
-		cfg:              cfg,
-		timeout:          timeout,
-		maxRetries:       maxRetries,
-		retryInterval:    retryInterval,
-		heartbeatAddr:    heartbeatAddr,
-		maxBackoff:       300 * time.Second,
-		sessionTimeout:   sessionTimeout,
-		heartbeatFailMax: heartbeatFailMax,
+		cfg:           cfg,
+		timeout:       timeout,
+		maxRetries:    maxRetries,
+		maxBackoff:    maxBackoff,
+		maxFailCount:  maxFailCount,
+		collectCycle:  collectCycle,
 	}
 	mt.lastActivityTime.Store(time.Now())
+	mt.connMgr = driver.NewConnectionManager("modbus")
+	mt.connMgr.SetMaxRetries(maxRetries)
 	return mt
 }
 
-// RecordActivity 记录成功通信活动，用于会话保活判断
-func (t *ModbusTransport) RecordActivity() {
+func (t *ModbusTransport) RecordSuccess() {
+	t.connMgr.RecordSuccess()
+	t.collectFailCount.Store(0)
 	t.lastActivityTime.Store(time.Now())
-	t.heartbeatFailCount.Store(0)
 }
 
-// IsSessionHealthy 检查会话是否健康
-// 工业Modbus TCP采集惯例：只要有任何设备正常应答，会话即视为正常
-func (t *ModbusTransport) IsSessionHealthy() bool {
-	lastActivity := t.lastActivityTime.Load().(time.Time)
-	// 如果在会话超时时间内有成功通信，则认为会话正常
-	if time.Since(lastActivity) < t.sessionTimeout {
-		return true
+func (t *ModbusTransport) RecordFailure(err error) {
+	t.collectFailCount.Add(1)
+	t.lastActivityTime.Store(time.Now())
+
+	if t.collectFailCount.Load() >= t.maxFailCount {
+		go t.reconnect()
 	}
-	return false
 }
 
-func (t *ModbusTransport) startHeartbeatLoop() {
-	if t.heartbeatAddr == nil {
+func (t *ModbusTransport) NeedProbeCheck() bool {
+	lastSuccess, _ := t.lastActivityTime.Load().(time.Time)
+	if lastSuccess.IsZero() {
+		return false
+	}
+	return time.Since(lastSuccess) > t.collectCycle*3
+}
+
+func (t *ModbusTransport) ProbeConnection() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if !t.connected.Load() || t.client == nil {
 		return
 	}
 
-	interval := 30 * time.Second // 默认30秒心跳周期
-	if v, ok := t.cfg.Config["heartbeatInterval"]; ok {
-		if f, ok := v.(float64); ok {
-			interval = time.Duration(f) * time.Millisecond
-		} else if i, ok := v.(int); ok {
-			interval = time.Duration(i) * time.Millisecond
-		}
+	_, cancel := context.WithTimeout(context.Background(), t.timeout)
+	defer cancel()
+
+	_, err := t.client.ReadCoil(0)
+	if err != nil {
+		t.RecordFailure(err)
+	} else {
+		t.RecordSuccess()
+	}
+}
+
+func (t *ModbusTransport) reconnect() {
+	t.mu.Lock()
+	if !t.connected.Load() {
+		t.mu.Unlock()
+		return
 	}
 
-	t.mu.Lock()
-	if t.heartbeatTimer != nil {
-		t.heartbeatTimer.Stop()
+	if t.client != nil {
+		t.client.Close()
 	}
-	t.heartbeatTimer = time.NewTicker(interval)
-	t.stopHeartbeat = make(chan struct{})
+	t.connected.Store(false)
+	t.connMgr.SetState(StateRetrying)
 	t.mu.Unlock()
 
-	zap.L().Info("[Modbus] Heartbeat loop started",
-		zap.Duration("interval", interval),
-		zap.Duration("sessionTimeout", t.sessionTimeout),
-		zap.Int32("heartbeatFailMax", t.heartbeatFailMax),
-	)
+	ctx, cancel := context.WithTimeout(context.Background(), t.timeout*time.Duration(t.maxRetries))
+	defer cancel()
 
-	go func() {
-		for {
-			select {
-			case <-t.stopHeartbeat:
-				return
-			case <-t.heartbeatTimer.C:
-				if !t.IsConnected() {
-					continue
-				}
-
-				// 工业Modbus TCP采集惯例：
-				// 如果在会话超时时间窗口内有任何成功通信，则认为会话正常
-				if t.IsSessionHealthy() {
-					// 重置心跳失败计数，因为有正常业务通信
-					t.heartbeatFailCount.Store(0)
-					zap.L().Debug("[Modbus] Session is healthy (recent activity detected), skipping heartbeat check")
-					continue
-				}
-
-				// 会话超时时间内无活动，执行心跳检测
-				ctx, cancel := context.WithTimeout(context.Background(), t.timeout)
-				_, err := t.ReadRegisters(ctx, "HOLDING_REGISTER", *t.heartbeatAddr, 1)
-				cancel()
-
-				if err != nil {
-					failCount := t.heartbeatFailCount.Add(1)
-					zap.L().Warn("[Modbus] Heartbeat failed",
-						zap.Error(err),
-						zap.Int32("failCount", failCount),
-						zap.Int32("heartbeatFailMax", t.heartbeatFailMax),
-					)
-
-					// 只有达到最大失败次数且会话无活动时才断开连接
-					if failCount >= t.heartbeatFailMax && !t.IsSessionHealthy() {
-						zap.L().Warn("[Modbus] Heartbeat failed max times and no recent activity, closing TCP connection",
-							zap.Int32("failCount", failCount),
-						)
-						t.Disconnect()
-					}
-				} else {
-					// 心跳成功，重置失败计数并记录活动时间
-					t.heartbeatFailCount.Store(0)
-					t.RecordActivity()
-					zap.L().Debug("[Modbus] Heartbeat success")
-				}
-			}
-		}
-	}()
+	if err := t.Connect(ctx); err != nil {
+		zap.L().Error("[Modbus] Reconnection failed", zap.Error(err))
+	}
 }
 
 func (t *ModbusTransport) Connect(ctx context.Context) error {
@@ -345,107 +304,104 @@ func (t *ModbusTransport) Connect(ctx context.Context) error {
 	//	zap.Duration("timeout", t.timeout),
 	//)
 
-	// Exponential backoff attempts for Open
+	t.connMgr.SetState(StateConnecting)
+
 	var lastErr error
-	base := t.retryInterval
-	if base <= 0 {
-		base = 1 * time.Second
-	}
-	maxBackoff := t.maxBackoff
-	for attempt := 0; attempt <= t.maxRetries; attempt++ {
+	for {
+		canRetry, waitTime := t.connMgr.CanRetry()
+		if !canRetry {
+			return fmt.Errorf("Modbus connection not allowed to retry")
+		}
+
+		if waitTime > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(waitTime):
+			}
+		}
+
 		client, err := modbus.NewClient(&modbus.ClientConfiguration{
 			URL:     url,
 			Timeout: t.timeout,
 		})
 		if err != nil {
 			lastErr = err
-			zap.L().Warn("[Modbus] Create client failed", zap.Error(err), zap.Int("attempt", attempt))
-		} else {
-			if err := client.Open(); err != nil {
-				lastErr = err
-				zap.L().Warn("[Modbus] Open TCP connection failed", zap.Error(err), zap.Int("attempt", attempt))
-				_ = client.Close()
-			} else {
-				// success
-				t.client = client
-				// Set initial Unit ID
-				if slaveID, ok := t.cfg.Config["slave_id"]; ok {
-					var sid uint8
-					switch v := slaveID.(type) {
-					case int:
-						sid = uint8(v)
-					case float64:
-						sid = uint8(v)
-					case uint8:
-						sid = v
-					default:
-						sid = 1
+			zap.L().Warn("[Modbus] Create client failed", zap.Error(err))
+			_, _ = t.connMgr.RecordFailure()
+			continue
+		}
+
+		if err := client.Open(); err != nil {
+			lastErr = err
+			zap.L().Warn("[Modbus] Open TCP connection failed", zap.Error(err))
+			_ = client.Close()
+			shouldRetry, _ := t.connMgr.RecordFailure()
+			if !shouldRetry {
+				return fmt.Errorf("Modbus connection failed, entering coolDown: %w", lastErr)
+			}
+			continue
+		}
+
+		t.client = client
+		if slaveID, ok := t.cfg.Config["slave_id"]; ok {
+			var sid uint8
+			switch v := slaveID.(type) {
+			case int:
+				sid = uint8(v)
+			case float64:
+				sid = uint8(v)
+			case uint8:
+				sid = v
+			default:
+				sid = 1
+			}
+			t.client.SetUnitId(sid)
+		}
+
+		t.connected.Store(true)
+		t.connectTime = time.Now()
+		t.connMgr.RecordSuccess()
+
+		if t.client != nil {
+			t.remoteAddr = url
+			if strings.HasPrefix(t.remoteAddr, "tcp://") {
+				t.remoteAddr = strings.TrimPrefix(t.remoteAddr, "tcp://")
+			} else if strings.HasPrefix(t.remoteAddr, "rtuovertcp://") {
+				t.remoteAddr = strings.TrimPrefix(t.remoteAddr, "rtuovertcp://")
+			}
+
+			t.localAddr = getLocalAddr(t.client)
+			if t.localAddr == "" {
+				if strings.Contains(url, "://") && !strings.HasPrefix(url, "rtu://") {
+					hostPort := url
+					if strings.HasPrefix(url, "tcp://") {
+						hostPort = strings.TrimPrefix(url, "tcp://")
+					} else if strings.HasPrefix(url, "rtuovertcp://") {
+						hostPort = strings.TrimPrefix(url, "rtuovertcp://")
 					}
-					t.client.SetUnitId(sid)
-				}
 
-				t.connected.Store(true)
-				t.connectTime = time.Now()
-
-				// 获取并记录连接信息
-				if t.client != nil {
-					// 记录远程地址（去掉协议前缀）
-					t.remoteAddr = url
-					if strings.HasPrefix(t.remoteAddr, "tcp://") {
-						t.remoteAddr = strings.TrimPrefix(t.remoteAddr, "tcp://")
-					} else if strings.HasPrefix(t.remoteAddr, "rtuovertcp://") {
-						t.remoteAddr = strings.TrimPrefix(t.remoteAddr, "rtuovertcp://")
+					udpConn, err := net.DialTimeout("udp", hostPort, 1*time.Second)
+					if err == nil {
+						localAddr, _, _ := net.SplitHostPort(udpConn.LocalAddr().String())
+						t.localAddr = localAddr
+						udpConn.Close()
+					} else {
+						t.localAddr = "Local IP: (Auto)"
 					}
-
-					// 获取并记录真实的本地地址（包含端口）
-					t.localAddr = getLocalAddr(t.client)
-					if t.localAddr == "" {
-						// 降级逻辑：如果无法获取真实地址，对于网络连接尝试获取 IP
-						if strings.Contains(url, "://") && !strings.HasPrefix(url, "rtu://") {
-							hostPort := url
-							if strings.HasPrefix(url, "tcp://") {
-								hostPort = strings.TrimPrefix(url, "tcp://")
-							} else if strings.HasPrefix(url, "rtuovertcp://") {
-								hostPort = strings.TrimPrefix(url, "rtuovertcp://")
-							}
-
-							udpConn, err := net.DialTimeout("udp", hostPort, 1*time.Second)
-							if err == nil {
-								localAddr, _, _ := net.SplitHostPort(udpConn.LocalAddr().String())
-								t.localAddr = localAddr
-								udpConn.Close()
-							} else {
-								t.localAddr = "Local IP: (Auto)"
-							}
-						} else {
-							t.localAddr = "Serial Port"
-						}
-					}
+				} else {
+					t.localAddr = "Serial Port"
 				}
-
-				// 记录连接指标
-				if t.metricsRecorder != nil && t.channelID != "" {
-					t.metricsRecorder.RecordConnectionStart(t.channelID)
-				}
-
-				zap.L().Info("[Modbus] TCP connection established", zap.String("url", url))
-				t.startHeartbeatLoop()
-				return nil
 			}
 		}
 
-		// backoff
-		wait := base * (1 << attempt)
-		if wait > maxBackoff {
-			wait = maxBackoff
+		if t.metricsRecorder != nil && t.channelID != "" {
+			t.metricsRecorder.RecordConnectionStart(t.channelID)
 		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(wait):
-		}
+
+		zap.L().Info("[Modbus] TCP connection established", zap.String("url", url))
+		return nil
 	}
-	return lastErr
 }
 
 // DetectMTU performs a simple binary-search-like probe to determine a safely readable register count
@@ -488,19 +444,10 @@ func (t *ModbusTransport) Disconnect() error {
 		t.client = nil
 	}
 
-	if t.heartbeatTimer != nil {
-		t.heartbeatTimer.Stop()
-		t.heartbeatTimer = nil
-	}
-	if t.stopHeartbeat != nil {
-		close(t.stopHeartbeat)
-		t.stopHeartbeat = nil
-	}
-
 	t.connected.Store(false)
 	t.lastDisconnectTime = time.Now()
+	t.connMgr.SetState(StateDisconnected)
 
-	// 记录断开连接指标
 	if wasConnected && t.metricsRecorder != nil && t.channelID != "" {
 		t.reconnectCount.Add(1)
 		t.metricsRecorder.RecordReconnect(t.channelID)
@@ -548,14 +495,17 @@ func (t *ModbusTransport) withRetry(ctx context.Context, fn func() (any, error))
 
 	for i := 0; i <= t.maxRetries; i++ {
 		if i > 0 {
+			canRetry, waitTime := t.connMgr.CanRetry()
+			if !canRetry {
+				return nil, fmt.Errorf("cannot retry connection")
+			}
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
-			case <-time.After(t.retryInterval):
+			case <-time.After(waitTime):
 			}
 		}
 
-		// Check connection
 		if !t.connected.Load() {
 			if err := t.Connect(ctx); err != nil {
 				lastErr = err
@@ -567,10 +517,8 @@ func (t *ModbusTransport) withRetry(ctx context.Context, fn func() (any, error))
 		duration := time.Since(startTime)
 
 		if err == nil {
-			// 记录成功通信活动时间 - 用于会话保活判断
-			t.RecordActivity()
+			t.RecordSuccess()
 
-			// 记录成功指标
 			if t.metricsRecorder != nil && t.channelID != "" {
 				t.metricsRecorder.RecordRequest(t.channelID, true, duration, "")
 			}
@@ -590,7 +538,6 @@ func (t *ModbusTransport) withRetry(ctx context.Context, fn func() (any, error))
 		errorType := "network"
 
 		if len(errMsg) > 0 {
-			// Check for common Modbus protocol errors that don't require reconnect
 			if contains(errMsg, "illegal") || contains(errMsg, "exception") || contains(errMsg, "busy") {
 				errorType = "exception"
 			} else if contains(errMsg, "crc") || contains(errMsg, "CRC") {
@@ -600,37 +547,31 @@ func (t *ModbusTransport) withRetry(ctx context.Context, fn func() (any, error))
 			}
 		}
 
-		// 对于超时错误，允许至少重试一次，以应对网络抖动
 		if isTimeout && i >= 1 {
 			zap.L().Warn("[Modbus] Skipping further retries on timeout after initial retry for performance", zap.Int("attempt", i+1))
-			// Record error metrics before breaking
 			if t.metricsRecorder != nil && t.channelID != "" {
 				t.metricsRecorder.RecordRequest(t.channelID, false, duration, errorType)
 				t.metricsRecorder.RecordError(t.channelID, errorType, "", errMsg)
 			}
+			t.RecordFailure(err)
 			break
 		}
 
-		// 工业Modbus TCP采集惯例：
-		// 现场串口总线一个串口下多个设备，只要有一个正常报文应答则代表该会话正常
-		// 对于协议错误（如非法地址、设备异常），不应断开TCP连接
-		// 只有网络/IO错误才需要断开重连
 		isProtocolError := false
 		if errorType == "exception" || errorType == "crc" {
 			isProtocolError = true
 		}
 
-		// 记录错误指标 (只有最后一次重试才记录，对于非超时错误)
 		if t.metricsRecorder != nil && t.channelID != "" && i == t.maxRetries && !isTimeout {
 			t.metricsRecorder.RecordRequest(t.channelID, false, duration, errorType)
 			t.metricsRecorder.RecordError(t.channelID, errorType, "", errMsg)
 		}
 
 		if !isProtocolError {
-			// Force disconnect to trigger reconnect on next attempt
 			zap.L().Warn("[Modbus] Network/IO error detected, forcing disconnect to ensure clean session before reconnect",
 				zap.String("error", errMsg),
 			)
+			t.RecordFailure(err)
 			t.Disconnect()
 		} else {
 			zap.L().Debug("[Modbus] Protocol error detected, keeping TCP connection alive for other devices on same bus",

@@ -9,11 +9,21 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/anviod/edgex/internal/driver"
+
 	go_ethernet_ip "github.com/anviod/ethernet-ip"
 	"go.uber.org/zap"
 )
 
 type ENIPClient = go_ethernet_ip.EIPTCP
+
+const (
+	StateDisconnected driver.ConnState = driver.StateDisconnected
+	StateConnecting   driver.ConnState = driver.StateConnecting
+	StateConnected    driver.ConnState = driver.StateConnected
+	StateRetrying     driver.ConnState = driver.StateRetrying
+	StateDead         driver.ConnState = driver.StateDead
+)
 
 type ENIPTransport struct {
 	cfg map[string]any
@@ -28,7 +38,6 @@ type ENIPTransport struct {
 	connectionType string
 	timeout        time.Duration
 	maxRetries     int
-	retryInterval  time.Duration
 
 	connected          atomic.Bool
 	mu                 sync.Mutex
@@ -38,26 +47,23 @@ type ENIPTransport struct {
 	localAddr          string
 	remoteAddr         string
 
-	heartbeatInterval time.Duration
-	heartbeatTicker   *time.Ticker
-	stopHeartbeat     chan struct{}
+	connMgr *driver.ConnectionManager
 
-	lastActivityTime   atomic.Value
-	heartbeatFailCount atomic.Int32
-	heartbeatFailMax   int32
+	lastActivityTime atomic.Value
+	collectFailCount atomic.Int32
+	maxFailCount     int32
+	collectCycle     time.Duration
 }
 
 func NewENIPTransport(cfg map[string]any) *ENIPTransport {
 	t := &ENIPTransport{
-		cfg:               cfg,
-		port:              44818,
-		slot:              0,
-		timeout:           2 * time.Second,
-		maxRetries:        3,
-		retryInterval:     100 * time.Millisecond,
-		heartbeatInterval: 30 * time.Second,
-		heartbeatFailMax:  3,
-		stopHeartbeat:     make(chan struct{}),
+		cfg:          cfg,
+		port:         44818,
+		slot:         0,
+		timeout:      2 * time.Second,
+		maxRetries:   64,
+		maxFailCount: 5,
+		collectCycle: 10 * time.Second,
 	}
 
 	t.tcpFactory = func(address string, cfg *go_ethernet_ip.Config) (*go_ethernet_ip.EIPTCP, error) {
@@ -66,6 +72,9 @@ func NewENIPTransport(cfg map[string]any) *ENIPTransport {
 
 	t.parseConfig()
 	t.lastActivityTime.Store(time.Time{})
+
+	t.connMgr = driver.NewConnectionManager("ethernetip")
+	t.connMgr.SetMaxRetries(t.maxRetries)
 
 	return t
 }
@@ -99,16 +108,16 @@ func (t *ENIPTransport) parseConfig() {
 		t.maxRetries = v
 	}
 
-	if v, ok := t.cfg["retry_interval"].(float64); ok {
-		t.retryInterval = time.Duration(v) * time.Millisecond
-	} else if v, ok := t.cfg["retry_interval"].(int); ok {
-		t.retryInterval = time.Duration(v) * time.Millisecond
+	if v, ok := t.cfg["max_fail_count"].(float64); ok {
+		t.maxFailCount = int32(v)
+	} else if v, ok := t.cfg["max_fail_count"].(int); ok {
+		t.maxFailCount = int32(v)
 	}
 
-	if v, ok := t.cfg["heartbeat_interval"].(float64); ok {
-		t.heartbeatInterval = time.Duration(v) * time.Millisecond
-	} else if v, ok := t.cfg["heartbeat_interval"].(int); ok {
-		t.heartbeatInterval = time.Duration(v) * time.Millisecond
+	if v, ok := t.cfg["collect_cycle"].(float64); ok {
+		t.collectCycle = time.Duration(v) * time.Millisecond
+	} else if v, ok := t.cfg["collect_cycle"].(int); ok {
+		t.collectCycle = time.Duration(v) * time.Millisecond
 	}
 
 	if v, ok := t.cfg["connection_type"].(string); ok {
@@ -132,18 +141,21 @@ func (t *ENIPTransport) Connect(ctx context.Context) error {
 
 	t.remoteAddr = fmt.Sprintf("%s:%d", t.ip, t.port)
 
+	t.connMgr.SetState(StateConnecting)
+
 	var lastErr error
-	for attempt := 0; attempt <= t.maxRetries; attempt++ {
-		if attempt > 0 {
+	for {
+		canRetry, waitTime := t.connMgr.CanRetry()
+		if !canRetry {
+			return fmt.Errorf("ENIP connection not allowed to retry")
+		}
+
+		if waitTime > 0 {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(t.retryInterval * time.Duration(attempt)):
+			case <-time.After(waitTime):
 			}
-			zap.L().Info("[ENIP] Retrying connection",
-				zap.Int("attempt", attempt),
-				zap.String("addr", t.remoteAddr),
-			)
 		}
 
 		tcp, err := t.tcpFactory(t.ip, nil)
@@ -153,6 +165,7 @@ func (t *ENIPTransport) Connect(ctx context.Context) error {
 				zap.Error(err),
 				zap.String("addr", t.remoteAddr),
 			)
+			_, _ = t.connMgr.RecordFailure()
 			continue
 		}
 
@@ -165,9 +178,12 @@ func (t *ENIPTransport) Connect(ctx context.Context) error {
 			lastErr = fmt.Errorf("ENIP connection failed: %w", err)
 			zap.L().Warn("[ENIP] Connection failed",
 				zap.Error(err),
-				zap.Int("attempt", attempt),
 				zap.String("addr", t.remoteAddr),
 			)
+			shouldRetry, _ := t.connMgr.RecordFailure()
+			if !shouldRetry {
+				return fmt.Errorf("ENIP connection failed, entering coolDown: %w", lastErr)
+			}
 			continue
 		}
 
@@ -177,8 +193,7 @@ func (t *ENIPTransport) Connect(ctx context.Context) error {
 		t.reconnectCount.Add(1)
 		t.localAddr = t.getLocalAddr()
 		t.lastActivityTime.Store(time.Now())
-
-		t.startHeartbeat()
+		t.connMgr.RecordSuccess()
 
 		zap.L().Info("[ENIP] TCP connection established",
 			zap.String("addr", t.remoteAddr),
@@ -187,8 +202,6 @@ func (t *ENIPTransport) Connect(ctx context.Context) error {
 		)
 		return nil
 	}
-
-	return fmt.Errorf("ENIP connection failed after %d retries: %w", t.maxRetries, lastErr)
 }
 
 func (t *ENIPTransport) Disconnect() error {
@@ -199,14 +212,14 @@ func (t *ENIPTransport) Disconnect() error {
 		return nil
 	}
 
-	t.stopHeartbeat <- struct{}{}
-
 	if t.tcp != nil {
 		t.tcp.Close()
 	}
 
 	t.connected.Store(false)
 	t.lastDisconnectTime = time.Now()
+	t.connMgr.SetState(StateDisconnected)
+	t.connMgr.Close()
 
 	zap.L().Info("[ENIP] Disconnected")
 	return nil
@@ -223,33 +236,43 @@ func (t *ENIPTransport) GetClient() *ENIPClient {
 	return t.tcp
 }
 
-func (t *ENIPTransport) startHeartbeat() {
-	t.heartbeatTicker = time.NewTicker(t.heartbeatInterval)
+func (t *ENIPTransport) RecordSuccess() {
+	t.connMgr.RecordSuccess()
+	t.collectFailCount.Store(0)
+	t.lastActivityTime.Store(time.Now())
+}
 
-	go func() {
-		for {
-			select {
-			case <-t.stopHeartbeat:
-				t.heartbeatTicker.Stop()
-				return
-			case <-t.heartbeatTicker.C:
-				if t.connected.Load() && t.tcp != nil {
-					t.mu.Lock()
-					_, err := t.tcp.ListIdentity()
-					if err != nil {
-						t.heartbeatFailCount.Add(1)
-						if t.heartbeatFailCount.Load() >= t.heartbeatFailMax {
-							go t.reconnect()
-						}
-					} else {
-						t.heartbeatFailCount.Store(0)
-						t.lastActivityTime.Store(time.Now())
-					}
-					t.mu.Unlock()
-				}
-			}
-		}
-	}()
+func (t *ENIPTransport) RecordFailure(err error) {
+	t.collectFailCount.Add(1)
+	t.lastActivityTime.Store(time.Now())
+
+	if t.collectFailCount.Load() >= t.maxFailCount {
+		go t.reconnect()
+	}
+}
+
+func (t *ENIPTransport) NeedProbeCheck() bool {
+	lastSuccess, _ := t.lastActivityTime.Load().(time.Time)
+	if lastSuccess.IsZero() {
+		return false
+	}
+	return time.Since(lastSuccess) > t.collectCycle*3
+}
+
+func (t *ENIPTransport) ProbeConnection() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if !t.connected.Load() || t.tcp == nil {
+		return
+	}
+
+	_, err := t.tcp.ListIdentity()
+	if err != nil {
+		t.RecordFailure(err)
+	} else {
+		t.RecordSuccess()
+	}
 }
 
 func (t *ENIPTransport) reconnect() {
@@ -262,16 +285,15 @@ func (t *ENIPTransport) reconnect() {
 	if t.tcp != nil {
 		t.tcp.Close()
 	}
+	t.connected.Store(false)
+	t.connMgr.SetState(StateRetrying)
 	t.mu.Unlock()
 
-	ctx, cancel := context.WithTimeout(context.Background(), t.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), t.timeout*time.Duration(t.maxRetries))
 	defer cancel()
 
-	for i := 0; i < t.maxRetries; i++ {
-		if err := t.Connect(ctx); err == nil {
-			return
-		}
-		time.Sleep(t.retryInterval * time.Duration(i+1))
+	if err := t.Connect(ctx); err != nil {
+		zap.L().Error("[ENIP] Reconnection failed", zap.Error(err))
 	}
 }
 
