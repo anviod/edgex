@@ -28,8 +28,8 @@ func (s *Server) generateDeviceRegisters(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "channel id and device id are required"})
 	}
 
-	var req generateRegistersRequest
-	if err := c.BodyParser(&req); err != nil {
+	req, err := parseGenerateRegistersRequest(c.Body())
+	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid request body"})
 	}
 	if req.End < req.Start {
@@ -61,10 +61,85 @@ func (s *Server) generateDeviceRegisters(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"device_id":    dev.ID,
-		"points_count": len(dev.Points),
-		"points":       dev.Points,
+		"device_id":     dev.ID,
+		"points_count":  len(dev.Points),
+		"points":        dev.Points,
+		"register_type": regType.ShortString(),
+		"function_code": fc,
 	})
+}
+
+func parseGenerateRegistersRequest(body []byte) (generateRegistersRequest, error) {
+	var req generateRegistersRequest
+	if len(body) == 0 {
+		return req, nil
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		return req, err
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return req, nil
+	}
+
+	readInt := func(keys ...string) (int, bool) {
+		for _, key := range keys {
+			v, ok := raw[key]
+			if !ok {
+				continue
+			}
+			var n int
+			if err := json.Unmarshal(v, &n); err == nil {
+				return n, true
+			}
+			var f float64
+			if err := json.Unmarshal(v, &f); err == nil {
+				return int(f), true
+			}
+		}
+		return 0, false
+	}
+
+	if _, ok := raw["start"]; ok {
+		if n, ok := readInt("start"); ok {
+			req.Start = n
+		}
+	}
+	if _, ok := raw["end"]; ok {
+		if n, ok := readInt("end"); ok {
+			req.End = n
+		}
+	}
+	if req.Datatype == "" {
+		if v, ok := raw["datatype"]; ok {
+			_ = json.Unmarshal(v, &req.Datatype)
+		}
+	}
+	if req.ReadWrite == "" {
+		if v, ok := raw["readwrite"]; ok {
+			_ = json.Unmarshal(v, &req.ReadWrite)
+		}
+	}
+	if req.Mode == "" {
+		if v, ok := raw["mode"]; ok {
+			_ = json.Unmarshal(v, &req.Mode)
+		}
+	}
+	if req.RegisterType == "" {
+		if v, ok := raw["register_type"]; ok {
+			_ = json.Unmarshal(v, &req.RegisterType)
+		} else if v, ok := raw["registerType"]; ok {
+			_ = json.Unmarshal(v, &req.RegisterType)
+		}
+	}
+	if req.FunctionCode == 0 {
+		if n, ok := readInt("function_code", "functionCode"); ok {
+			req.FunctionCode = byte(n)
+		}
+	}
+
+	return req, nil
 }
 
 type batchModbusSlavesRequest struct {

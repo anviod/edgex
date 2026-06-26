@@ -1,0 +1,32 @@
+const MESSAGE_TYPES = ["info", "success", "warning", "error"];
+const INPUT_EVENTS = [
+  "onFocus",
+  "onFocusin",
+  "onFocusout",
+  "onBlur",
+  "onChange",
+  "onBeforeinput",
+  "onInput",
+  "onReset",
+  "onSubmit",
+  "onInvalid",
+  "onKeydown",
+  "onKeypress",
+  "onKeyup",
+  "onCopy",
+  "onCut",
+  "onPaste",
+  "onCompositionstart",
+  "onCompositionupdate",
+  "onCompositionend",
+  "onSelect",
+  "autocomplete",
+  "autofocus",
+  "maxlength",
+  "minlength",
+  "name",
+  "pattern",
+  "readonly",
+  "required"
+];
+export { INPUT_EVENTS, MESSAGE_TYPES };

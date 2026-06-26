@@ -1,14 +1,14 @@
 <template>
-  <a-modal 
-    v-model:visible="visible" 
-    title="OPC UA 服务端" 
-    :width="720" 
-    @ok="saveSettings" 
-    :ok-loading="loading" 
+  <a-modal
+    v-model:visible="visible"
+    title="OPC UA 服务端"
+    :width="720"
+    modal-class="northbound-settings-modal"
     unmount-on-close
     :footer="true"
     :mask-closable="false"
-    class="industrial-modal"
+    :ok-loading="loading"
+    @ok="saveSettings"
   >
     <div class="nb-mode-banner nb-mode-banner--passive">
       <span class="nb-mode-banner__tag">被动读取</span>
@@ -445,31 +445,6 @@ const saveSettings = async () => {
 </script>
 
 <style scoped>
-@import '@/styles/northbound-form.css';
-
-.btn-primary { background-color: #722ed1 !important; }
-
-.cert-upload-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.trusted-cert-list {
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  padding: 4px 8px;
-  max-height: 120px;
-  overflow-y: auto;
-}
-
-.trusted-cert-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  padding: 2px 0;
-}
+/* v3.0 — styles in src/styles/ */
 </style>
 

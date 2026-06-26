@@ -1,0 +1,17 @@
+export declare const SIZES: readonly ["mini", "small", "medium", "large"];
+export declare type Size = typeof SIZES[number];
+export declare const BORDER_SHAPES: readonly ["square", "round", "circle"];
+export declare type BorderShape = typeof BORDER_SHAPES[number];
+export declare const STATUSES: readonly ["normal", "success", "warning", "danger"];
+export declare type Status = typeof STATUSES[number];
+export declare const MESSAGE_TYPES: readonly ["info", "success", "warning", "error"];
+export declare type MessageType = typeof MESSAGE_TYPES[number];
+export declare const TRIGGER_POSITIONS: readonly ["top", "tl", "tr", "bottom", "bl", "br", "left", "lt", "lb", "right", "rt", "rb"];
+export declare type TriggerPosition = typeof TRIGGER_POSITIONS[number];
+export declare const TRIGGER_EVENTS: readonly ["hover", "click", "focus", "contextMenu"];
+export declare type TriggerEvent = typeof TRIGGER_EVENTS[number];
+export declare const DIRECTIONS: readonly ["horizontal", "vertical"];
+export declare type Direction = typeof DIRECTIONS[number];
+export declare const INPUT_EVENTS: string[];
+export declare const TEXT_ALIGNS: readonly ["left", "center", "right"];
+export declare type TextAlign = typeof TEXT_ALIGNS[number];

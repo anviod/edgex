@@ -1,0 +1,357 @@
+/*
+ * EdgeX v3.0 — Config modals (Channel / Device / Point dialogs)
+ */
+
+.channel-config-modal.arco-modal {
+  max-width: calc(100vw - 48px);
+}
+
+.channel-config-modal .arco-modal-header {
+  padding: var(--space-4) var(--space-6);
+}
+
+.channel-config-modal .arco-modal-header .arco-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.channel-config-modal .arco-modal-body {
+  padding: var(--space-6);
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--surface);
+}
+
+.channel-config-modal .arco-modal-footer {
+  padding: var(--space-4) var(--space-6);
+  background: var(--bg);
+}
+
+/* ── Form: vertical flow ── */
+.channel-config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.channel-config-form > .arco-form-item {
+  margin-bottom: var(--space-4);
+}
+
+.channel-config-form .arco-form-item-label-col {
+  padding-bottom: 6px;
+  margin-bottom: 0;
+}
+
+.channel-config-form .arco-form-item-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.channel-config-form .arco-form-item-wrapper-col {
+  min-height: auto;
+}
+
+/* ── Section titles (spacing-first) ── */
+.channel-config-modal .modal-section__title {
+  margin: var(--space-4) 0 var(--space-3);
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+
+.channel-config-modal .config-section > .modal-section__title:first-child,
+.channel-config-modal .config-section > .modal-section__title--sub:first-child {
+  margin-top: 0;
+}
+
+.channel-config-modal .modal-section__title--sub {
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.channel-config-modal .advanced-block .modal-section__title--sub {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  margin-bottom: var(--space-3);
+}
+
+.channel-config-modal .arco-divider {
+  display: none;
+}
+
+/* ── Protocol config block ── */
+.channel-config-modal .config-section {
+  margin-top: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.channel-config-modal .config-section .arco-form-item {
+  margin-bottom: var(--space-4);
+}
+
+.channel-config-modal .advanced-block {
+  margin-top: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+.channel-config-modal .field-grid .arco-col .arco-form-item {
+  margin-bottom: var(--space-4);
+}
+
+.channel-config-modal .form-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.channel-config-modal .section-header {
+  margin-bottom: var(--space-4);
+  padding: 0;
+  justify-content: flex-start;
+  min-height: auto;
+}
+
+.channel-config-modal .section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.channel-config-form > .modal-section__title:first-child {
+  margin-top: 0;
+}
+
+/* ── Modal intro & batch preview ── */
+.channel-config-modal .modal-intro {
+  margin: 0 0 var(--space-4);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── Shared flow form layout (config modals) ── */
+.channel-config-modal .batch-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.channel-config-modal .batch-form-fields--nested {
+  display: contents;
+}
+
+.channel-config-modal .batch-form-fields .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.channel-config-modal .batch-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.channel-config-modal .batch-range-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.channel-config-modal .batch-range-control .arco-input-number {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+.channel-config-modal .batch-range-sep {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1;
+}
+
+.channel-config-modal .batch-form-fields .arco-input-wrapper,
+.channel-config-modal .batch-form-fields .arco-select-view-single,
+.channel-config-modal .batch-form-fields .arco-input-number {
+  width: 100%;
+}
+
+.channel-config-modal .point-config-form .field-error {
+  margin-top: 2px;
+}
+
+.channel-config-modal .point-advanced-block {
+  margin-top: 0;
+}
+
+.channel-config-modal .point-advanced-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.channel-config-modal .point-advanced-fields .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.channel-config-modal .point-advanced-fields .arco-input-wrapper,
+.channel-config-modal .point-advanced-fields .arco-select-view-single,
+.channel-config-modal .point-advanced-fields .arco-input-number {
+  width: 100%;
+}
+
+.channel-config-modal .point-config-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+/* ── Batch modbus dialog — compact variant ── */
+.channel-config-modal--batch .arco-modal-body {
+  padding: var(--space-6);
+}
+
+.channel-config-modal--batch .modal-intro--compact {
+  margin-bottom: var(--space-4);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.channel-config-modal--batch .batch-modbus-form {
+  gap: 0;
+}
+
+.channel-config-modal--batch .batch-preview-block {
+  margin-top: var(--space-2);
+  padding: var(--space-4);
+}
+
+.channel-config-modal--batch .batch-preview-block__label {
+  margin-bottom: var(--space-3);
+}
+
+.channel-config-modal--batch .batch-preview-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+.channel-config-modal--batch .batch-preview-stat {
+  min-width: 0;
+}
+
+.channel-config-modal--batch .batch-preview-stat__value {
+  font-size: 20px;
+}
+
+.channel-config-modal--batch .register-block-mode {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.channel-config-modal--batch .register-block-mode .arco-radio {
+  align-items: flex-start;
+  line-height: 1.5;
+}
+
+.channel-config-modal--batch .batch-preview-stats--single {
+  grid-template-columns: 1fr;
+  max-width: 160px;
+}
+
+@media (max-width: 640px) {
+  .channel-config-modal .batch-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .channel-config-modal--batch .batch-preview-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+.channel-config-modal .batch-preview-block {
+  margin-top: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+.channel-config-modal .batch-preview-block__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.channel-config-modal .batch-preview-stats {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.channel-config-modal .batch-preview-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 72px;
+}
+
+.channel-config-modal .batch-preview-stat__value {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.channel-config-modal .batch-preview-stat--accent .batch-preview-stat__value {
+  color: var(--primary);
+}
+
+.channel-config-modal .batch-preview-stat__label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.config-modal.arco-modal .arco-modal-body {
+  padding: var(--space-6);
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--surface);
+}

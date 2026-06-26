@@ -1,0 +1,87 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+/**********************************************
+ * status: disabled / readonly
+ **********************************************/
+.arco-rate {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  font-size: 24px;
+  line-height: 1;
+  user-select: none;
+}
+.arco-rate-disabled {
+  cursor: not-allowed;
+}
+.arco-rate-character {
+  position: relative;
+  color: var(--color-fill-3);
+  transition: transform 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.arco-rate-character:not(:last-child) {
+  margin-right: 8px;
+}
+.arco-rate-character-left,
+.arco-rate-character-right {
+  transition: inherit;
+}
+.arco-rate-character-left > *,
+.arco-rate-character-right > * {
+  float: left;
+}
+.arco-rate-character-left {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+}
+.arco-rate-character-scale {
+  animation: arco-rate-scale 0.4s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.arco-rate-character-full .arco-rate-character-right {
+  color: rgb(var(--gold-6));
+}
+.arco-rate-character-half .arco-rate-character-left {
+  color: rgb(var(--gold-6));
+  opacity: 1;
+}
+.arco-rate-character-disabled {
+  cursor: not-allowed;
+}
+.arco-rate:not(.arco-rate-readonly):not(.arco-rate-disabled) .arco-rate-character {
+  cursor: pointer;
+}
+.arco-rate:not(.arco-rate-readonly):not(.arco-rate-disabled) .arco-rate-character:hover,
+.arco-rate:not(.arco-rate-readonly):not(.arco-rate-disabled) .arco-rate-character:focus {
+  transform: scale(1.2);
+}
+@keyframes arco-rate-scale {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

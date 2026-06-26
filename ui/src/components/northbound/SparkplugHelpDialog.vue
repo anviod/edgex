@@ -1,5 +1,5 @@
 <template>
-  <a-modal v-model:visible="visible" title="Sparkplug B 接入文档" :width="900" :footer="false" unmount-on-close>
+  <a-modal v-model:visible="visible" title="Sparkplug B 接入文档" :width="900" :footer="false" modal-class="northbound-help-modal" unmount-on-close>
     <a-tabs v-model:active-key="activeTab" type="line">
       <a-tab-pane key="overview" title="协议概述">
         <div style="margin-bottom: 16px">
@@ -14,7 +14,7 @@
         </a-alert>
 
         <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">Topic 结构</div>
-        <pre style="background: var(--edgex-surface-inset); padding: 12px; border-radius: 0; font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; margin-bottom: 16px; overflow-x: auto">namespace/group_id/message_type/edge_node_id/[device_id]</pre>
+        <pre style="background: var(--edgex-surface-inset); padding: 12px; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; margin-bottom: 16px; overflow-x: auto">namespace/group_id/message_type/edge_node_id/[device_id]</pre>
 
         <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">消息类型</div>
         <a-table :data="messageTypes" :bordered="false" size="small" :pagination="false">
@@ -62,7 +62,7 @@
         </a-card>
 
         <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">Payload 结构 (Protobuf)</div>
-        <pre style="background: var(--edgex-surface-inset); padding: 12px; border-radius: 0; font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; overflow-x: auto">{
+        <pre style="background: var(--edgex-surface-inset); padding: 12px; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; overflow-x: auto">{
   "timestamp": 1678888888888,
   "metrics": [
     {
@@ -112,7 +112,7 @@
         </a-card>
 
         <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">命令 Payload (Protobuf)</div>
-        <pre style="background: var(--edgex-surface-inset); padding: 12px; border-radius: 0; font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; overflow-x: auto">{
+        <pre style="background: var(--edgex-surface-inset); padding: 12px; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; overflow-x: auto">{
   "timestamp": 1678888888888,
   "metrics": [
     {
@@ -166,7 +166,7 @@
         </a-alert>
 
         <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">状态 Payload (Protobuf)</div>
-        <pre style="background: var(--edgex-surface-inset); padding: 12px; border-radius: 0; font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; overflow-x: auto">{
+        <pre style="background: var(--edgex-surface-inset); padding: 12px; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; overflow-x: auto">{
   "timestamp": 1678888888888,
   "seq": 255
 }</pre>

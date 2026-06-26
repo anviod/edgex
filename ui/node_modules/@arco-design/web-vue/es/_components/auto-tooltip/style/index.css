@@ -1,0 +1,23 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-auto-tooltip {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

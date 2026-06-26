@@ -1,0 +1,328 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.fade-in-standard-enter-from,
+.fade-in-standard-appear-from {
+  opacity: 0;
+}
+.fade-in-standard-enter-to,
+.fade-in-standard-appear-to {
+  opacity: 1;
+}
+.fade-in-standard-enter-active,
+.fade-in-standard-appear-active {
+  transition: opacity 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.fade-in-standard-leave-from {
+  opacity: 1;
+}
+.fade-in-standard-leave-to {
+  opacity: 0;
+}
+.fade-in-standard-leave-active {
+  transition: opacity 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.fade-in-enter-from,
+.fade-in-appear-from {
+  opacity: 0;
+}
+.fade-in-enter-to,
+.fade-in-appear-to {
+  opacity: 1;
+}
+.fade-in-enter-active,
+.fade-in-appear-active {
+  transition: opacity 0.1s cubic-bezier(0, 0, 1, 1);
+}
+.fade-in-leave-from {
+  opacity: 1;
+}
+.fade-in-leave-to {
+  opacity: 0;
+}
+.fade-in-leave-active {
+  transition: opacity 0.1s cubic-bezier(0, 0, 1, 1);
+}
+.zoom-in-enter-from,
+.zoom-in-appear-from {
+  transform: scale(0.5, 0.5);
+  opacity: 0;
+}
+.zoom-in-enter-to,
+.zoom-in-appear-to {
+  transform: scale(1, 1);
+  opacity: 1;
+}
+.zoom-in-enter-active,
+.zoom-in-appear-active {
+  transition: opacity 0.3s cubic-bezier(0.34, 0.69, 0.1, 1), transform 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.zoom-in-leave-from {
+  transform: scale(1, 1);
+  opacity: 1;
+}
+.zoom-in-leave-to {
+  transform: scale(0.5, 0.5);
+  opacity: 0;
+}
+.zoom-in-leave-active {
+  transition: opacity 0.3s cubic-bezier(0.34, 0.69, 0.1, 1), transform 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.zoom-in-fade-out-enter-from,
+.zoom-in-fade-out-appear-from {
+  transform: scale(0.5, 0.5);
+  opacity: 0;
+}
+.zoom-in-fade-out-enter-to,
+.zoom-in-fade-out-appear-to {
+  transform: scale(1, 1);
+  opacity: 1;
+}
+.zoom-in-fade-out-enter-active,
+.zoom-in-fade-out-appear-active {
+  transition: opacity 0.3s cubic-bezier(0.3, 1.3, 0.3, 1), transform 0.3s cubic-bezier(0.3, 1.3, 0.3, 1);
+}
+.zoom-in-fade-out-leave-from {
+  transform: scale(1, 1);
+  opacity: 1;
+}
+.zoom-in-fade-out-leave-to {
+  transform: scale(0.5, 0.5);
+  opacity: 0;
+}
+.zoom-in-fade-out-leave-active {
+  transition: opacity 0.3s cubic-bezier(0.3, 1.3, 0.3, 1), transform 0.3s cubic-bezier(0.3, 1.3, 0.3, 1);
+}
+.zoom-in-big-enter-from,
+.zoom-in-big-appear-from {
+  transform: scale(0.5, 0.5);
+  opacity: 0;
+}
+.zoom-in-big-enter-to,
+.zoom-in-big-appear-to {
+  transform: scale(1, 1);
+  opacity: 1;
+}
+.zoom-in-big-enter-active,
+.zoom-in-big-appear-active {
+  transition: opacity 0.2s cubic-bezier(0, 0, 1, 1), transform 0.2s cubic-bezier(0, 0, 1, 1);
+}
+.zoom-in-big-leave-from {
+  transform: scale(1, 1);
+  opacity: 1;
+}
+.zoom-in-big-leave-to {
+  transform: scale(0.2, 0.2);
+  opacity: 0;
+}
+.zoom-in-big-leave-active {
+  transition: opacity 0.2s cubic-bezier(0, 0, 1, 1), transform 0.2s cubic-bezier(0, 0, 1, 1);
+}
+.zoom-in-left-enter-from,
+.zoom-in-left-appear-from {
+  transform: scale(0.1, 0.1);
+  opacity: 0.1;
+}
+.zoom-in-left-enter-to,
+.zoom-in-left-appear-to {
+  transform: scale(1, 1);
+  opacity: 1;
+}
+.zoom-in-left-enter-active,
+.zoom-in-left-appear-active {
+  transform-origin: 0 50%;
+  transition: opacity 0.3s cubic-bezier(0, 0, 1, 1), transform 0.3s cubic-bezier(0.3, 1.3, 0.3, 1);
+}
+.zoom-in-left-leave-from {
+  transform: scale(1, 1);
+  opacity: 1;
+}
+.zoom-in-left-leave-to {
+  transform: scale(0.1, 0.1);
+  opacity: 0.1;
+}
+.zoom-in-left-leave-active {
+  transform-origin: 0 50%;
+  transition: opacity 0.3s cubic-bezier(0, 0, 1, 1), transform 0.3s cubic-bezier(0.3, 1.3, 0.3, 1);
+}
+.zoom-in-top-enter-from,
+.zoom-in-top-appear-from {
+  transform: scaleY(0.8) translateZ(0);
+  opacity: 0;
+}
+.zoom-in-top-enter-to,
+.zoom-in-top-appear-to {
+  transform: scaleY(1) translateZ(0);
+  opacity: 1;
+}
+.zoom-in-top-enter-active,
+.zoom-in-top-appear-active {
+  transform-origin: 0 0;
+  transition: transform 0.3s cubic-bezier(0.3, 1.3, 0.3, 1), opacity 0.3s cubic-bezier(0.3, 1.3, 0.3, 1);
+}
+.zoom-in-top-leave-from {
+  transform: scaleY(1) translateZ(0);
+  opacity: 1;
+}
+.zoom-in-top-leave-to {
+  transform: scaleY(0.8) translateZ(0);
+  opacity: 0;
+}
+.zoom-in-top-leave-active {
+  transform-origin: 0 0;
+  transition: transform 0.3s cubic-bezier(0.3, 1.3, 0.3, 1), opacity 0.3s cubic-bezier(0.3, 1.3, 0.3, 1);
+}
+.zoom-in-bottom-enter-from,
+.zoom-in-bottom-appear-from {
+  transform: scaleY(0.8) translateZ(0);
+  opacity: 0;
+}
+.zoom-in-bottom-enter-to,
+.zoom-in-bottom-appear-to {
+  transform: scaleY(1) translateZ(0);
+  opacity: 1;
+}
+.zoom-in-bottom-enter-active,
+.zoom-in-bottom-appear-active {
+  transform-origin: 100% 100%;
+  transition: transform 0.3s cubic-bezier(0.3, 1.3, 0.3, 1), opacity 0.3s cubic-bezier(0.3, 1.3, 0.3, 1);
+}
+.zoom-in-bottom-leave-from {
+  transform: scaleY(1) translateZ(0);
+  opacity: 1;
+}
+.zoom-in-bottom-leave-to {
+  transform: scaleY(0.8) translateZ(0);
+  opacity: 0;
+}
+.zoom-in-bottom-leave-active {
+  transform-origin: 100% 100%;
+  transition: transform 0.3s cubic-bezier(0.3, 1.3, 0.3, 1), opacity 0.3s cubic-bezier(0.3, 1.3, 0.3, 1);
+}
+.slide-dynamic-origin-enter-from,
+.slide-dynamic-origin-appear-from {
+  transform: scaleY(0.9);
+  transform-origin: 0 0;
+  opacity: 0;
+}
+.slide-dynamic-origin-enter-to,
+.slide-dynamic-origin-appear-to {
+  transform: scaleY(1);
+  transform-origin: 0 0;
+  opacity: 1;
+}
+.slide-dynamic-origin-enter-active,
+.slide-dynamic-origin-appear-active {
+  transition: transform 0.2s cubic-bezier(0.34, 0.69, 0.1, 1), opacity 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.slide-dynamic-origin-leave-from {
+  transform: scaleY(1);
+  transform-origin: 0 0;
+  opacity: 1;
+}
+.slide-dynamic-origin-leave-to {
+  transform: scaleY(0.9);
+  transform-origin: 0 0;
+  opacity: 0;
+}
+.slide-dynamic-origin-leave-active {
+  transition: transform 0.2s cubic-bezier(0.34, 0.69, 0.1, 1), opacity 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.slide-left-enter-from,
+.slide-left-appear-from {
+  transform: translateX(-100%);
+}
+.slide-left-enter-to,
+.slide-left-appear-to {
+  transform: translateX(0);
+}
+.slide-left-enter-active,
+.slide-left-appear-active {
+  transition: transform 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.slide-left-leave-from {
+  transform: translateX(0);
+}
+.slide-left-leave-to {
+  transform: translateX(-100%);
+}
+.slide-left-leave-active {
+  transition: transform 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.slide-right-enter-from,
+.slide-right-appear-from {
+  transform: translateX(100%);
+}
+.slide-right-enter-to,
+.slide-right-appear-to {
+  transform: translateX(0);
+}
+.slide-right-enter-active,
+.slide-right-appear-active {
+  transition: transform 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.slide-right-leave-from {
+  transform: translateX(0);
+}
+.slide-right-leave-to {
+  transform: translateX(100%);
+}
+.slide-right-leave-active {
+  transition: transform 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.slide-top-enter-from,
+.slide-top-appear-from {
+  transform: translateY(-100%);
+}
+.slide-top-enter-to,
+.slide-top-appear-to {
+  transform: translateY(0);
+}
+.slide-top-enter-active,
+.slide-top-appear-active {
+  transition: transform 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.slide-top-leave-from {
+  transform: translateY(0);
+}
+.slide-top-leave-to {
+  transform: translateY(-100%);
+}
+.slide-top-leave-active {
+  transition: transform 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.slide-bottom-enter-from,
+.slide-bottom-appear-from {
+  transform: translateY(100%);
+}
+.slide-bottom-enter-to,
+.slide-bottom-appear-to {
+  transform: translateY(0);
+}
+.slide-bottom-enter-active,
+.slide-bottom-appear-active {
+  transition: transform 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.slide-bottom-leave-from {
+  transform: translateY(0);
+}
+.slide-bottom-leave-to {
+  transform: translateY(100%);
+}
+.slide-bottom-leave-active {
+  transition: transform 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
+}

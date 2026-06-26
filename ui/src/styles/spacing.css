@@ -1,0 +1,456 @@
+/*
+ * EdgeX v3.0 Spacing System — 全局呼吸感 / 节奏 enforcement
+ * 规范：8px 内部 · 16px 组件 · 24px 模块 · 32px 页面 section
+ */
+
+/* ═══════════════════════════════════════
+   Page flow
+   ═══════════════════════════════════════ */
+.page-header {
+  align-items: center;
+  row-gap: var(--space-4);
+}
+
+.page-header > .header-title {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.page-header .page-title {
+  margin-bottom: 0;
+}
+
+.page-header .page-subtitle {
+  margin-top: 0;
+}
+
+.page-shell > .section + .section,
+.page-shell > .channel-section + .channel-section {
+  margin-top: 0;
+}
+
+/* ═══════════════════════════════════════
+   Section blocks（标题区 ↔ 内容区 24px）
+   ═══════════════════════════════════════ */
+.section,
+.channel-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.section-header:not(.section-header--push):not(.section-header--passive) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  row-gap: var(--space-3);
+  padding: var(--space-1) 0;
+  margin-bottom: 0 !important;
+  min-height: 32px;
+}
+
+.section-title {
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+.section-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+.section-header__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.section-header--push,
+.section-header--passive {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  padding: var(--space-4) var(--space-5) !important;
+  margin-bottom: 0 !important;
+}
+
+.section-header__title {
+  line-height: 1.4;
+}
+
+.section-header__desc {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.form-section:last-child {
+  margin-bottom: 0;
+}
+
+/* ═══════════════════════════════════════
+   Headers · toolbars · actions
+   ═══════════════════════════════════════ */
+.header-actions,
+.dashboard-actions,
+.detail-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.toolbar,
+.table-toolbar,
+.table-toolbar-industrial,
+.log-toolbar,
+.scan-toolbar,
+.point-picker-toolbar,
+.formula-toolbar {
+  gap: var(--space-3) !important;
+}
+
+.toolbar__left,
+.toolbar-left,
+.toolbar__right,
+.toolbar-right {
+  gap: var(--space-3) !important;
+}
+
+.table-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.table-container > .table-toolbar,
+.table-container > .table-toolbar-industrial,
+.table-container > .toolbar {
+  margin-bottom: 0 !important;
+  padding: var(--space-4) 0 var(--space-2);
+}
+
+.toolbar--standalone,
+.log-toolbar {
+  margin-bottom: var(--space-6);
+  gap: var(--space-4);
+}
+
+/* ═══════════════════════════════════════
+   Grids（卡片间距 ≥ 24px）
+   ═══════════════════════════════════════ */
+.stats-grid,
+.channels-grid,
+.northbound-grid,
+.metrics-grid {
+  gap: var(--space-6) !important;
+}
+
+.channel-section > .arco-row {
+  row-gap: var(--space-6) !important;
+}
+
+.mode-legend {
+  gap: var(--space-4) !important;
+  margin-bottom: var(--space-6);
+}
+
+/* ═══════════════════════════════════════
+   Cards — internal flow（gap 16px）
+   ═══════════════════════════════════════ */
+.channel-card,
+.northbound-card,
+.edge-compute-card,
+.minimal-line-card,
+.nb-channel-card,
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.stat-card {
+  gap: var(--space-3);
+}
+
+.channel-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: 0 !important;
+}
+
+.channel-header .channel-icon {
+  margin-right: 0 !important;
+}
+
+.channel-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.channel-name {
+  gap: var(--space-2) !important;
+}
+
+.channel-stats {
+  margin-bottom: 0 !important;
+  padding: var(--space-4) 0;
+  gap: var(--space-4) !important;
+}
+
+.channel-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) !important;
+}
+
+.metrics-header {
+  gap: var(--space-3);
+}
+
+.northbound-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.northbound-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.northbound-type {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.northbound-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.edge-compute-card {
+  padding: 20px 24px;
+  cursor: pointer;
+}
+
+.edge-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.edge-stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.edge-stat-value {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.empty-card {
+  gap: var(--space-4);
+  padding: var(--space-12) var(--space-6) !important;
+}
+
+.empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* ═══════════════════════════════════════
+   Status · badges · tags
+   ═══════════════════════════════════════ */
+.status-badge {
+  gap: var(--space-2) !important;
+  padding: 6px 12px !important;
+  line-height: 1.4;
+}
+
+.section-status .status-badge {
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════
+   List / channel pages
+   ═══════════════════════════════════════ */
+.config-section {
+  margin-top: var(--space-6);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.card-info-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+}
+
+.card-title-content {
+  gap: var(--space-3) !important;
+}
+
+.info-item {
+  gap: var(--space-4);
+}
+
+.header-left {
+  gap: var(--space-4) !important;
+}
+
+.header-info {
+  gap: var(--space-2) !important;
+}
+
+.header-actions {
+  gap: var(--space-3) !important;
+}
+
+/* ═══════════════════════════════════════
+   Forms（field 16px · group 28px）
+   ═══════════════════════════════════════ */
+.page-shell .arco-form-item,
+.flow-form .arco-form-item {
+  margin-bottom: var(--space-4);
+}
+
+.page-shell .arco-form-item:last-child,
+.flow-form .arco-form-item:last-child {
+  margin-bottom: 0;
+}
+
+.industrial-form .arco-form-item {
+  margin-bottom: var(--space-4) !important;
+}
+
+.page-shell .arco-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.page-shell .arco-form-item-label-col {
+  padding-bottom: 6px;
+}
+
+/* ═══════════════════════════════════════
+   Arco / modal spacing
+   ═══════════════════════════════════════ */
+.page-shell .arco-tabs-content {
+  padding-top: var(--space-4);
+}
+
+.arco-modal-body .flow-form,
+.arco-modal-body .form-controls-md {
+  gap: var(--space-4);
+}
+
+.arco-modal-footer {
+  gap: var(--space-2);
+  padding-top: var(--space-4) !important;
+}
+
+.page-shell .arco-space-horizontal {
+  gap: var(--space-2) !important;
+}
+
+.page-shell .arco-btn + .arco-btn {
+  margin-left: 0;
+}
+
+/* ═══════════════════════════════════════
+   Settings / help sections
+   ═══════════════════════════════════════ */
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.help-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.help-section + .help-section {
+  margin-top: var(--space-6);
+}
+
+.panel-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ═══════════════════════════════════════
+   Responsive
+   ═══════════════════════════════════════ */
+@media (max-width: 768px) {
+  .section-header:not(.section-header--push):not(.section-header--passive) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .section-status {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .section-header--push,
+  .section-header--passive {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .section-header__desc {
+    margin-left: 0;
+  }
+}

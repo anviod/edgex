@@ -1,0 +1,62 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-resizebox {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+.arco-resizebox-direction-left,
+.arco-resizebox-direction-right,
+.arco-resizebox-direction-top,
+.arco-resizebox-direction-bottom {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  user-select: none;
+}
+.arco-resizebox-direction-right {
+  right: 0;
+  left: unset;
+}
+.arco-resizebox-direction-bottom {
+  top: unset;
+  bottom: 0;
+}
+.arco-resizebox-trigger-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-1);
+  font-size: 12px;
+  line-height: 1;
+  background-color: var(--color-neutral-3);
+}
+.arco-resizebox-trigger-icon {
+  display: inline-block;
+  margin: -3px;
+}
+.arco-resizebox-trigger-vertical {
+  height: 100%;
+  cursor: col-resize;
+}
+.arco-resizebox-trigger-horizontal {
+  width: 100%;
+  cursor: row-resize;
+}

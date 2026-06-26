@@ -1,0 +1,47 @@
+import type { ComponentPublicInstance, Ref } from 'vue';
+import { FilterOption, SelectOption, SelectFieldNames } from '../interface';
+import { VirtualListRef } from '../../_components/virtual-list-v2/interface';
+export declare const useSelect: ({ multiple, options, extraOptions, inputValue, filterOption, showExtraOptions, component, valueKey, fieldNames, loading, popupVisible, valueKeys, dropdownRef, optionRefs, virtualListRef, onSelect, onPopupVisibleChange, enterToOpen, defaultActiveFirstOption, }: {
+    multiple?: Ref<boolean, boolean> | undefined;
+    options?: Ref<SelectOption[], SelectOption[]> | undefined;
+    extraOptions?: Ref<SelectOption[], SelectOption[]> | undefined;
+    inputValue?: Ref<string, string> | undefined;
+    filterOption?: Ref<FilterOption, FilterOption> | undefined;
+    showExtraOptions?: Ref<boolean, boolean> | undefined;
+    component?: Ref<"div" | "li", "div" | "li"> | undefined;
+    valueKey?: Ref<string, string> | undefined;
+    fieldNames?: Ref<import("../../_utils/types").FieldString<import("../interface").SelectOptionData> | undefined, import("../../_utils/types").FieldString<import("../interface").SelectOptionData> | undefined> | undefined;
+    loading?: Ref<boolean, boolean> | undefined;
+    popupVisible: Ref<boolean>;
+    valueKeys: Ref<string[]>;
+    dropdownRef?: Ref<ComponentPublicInstance<{}, {}, {}, {}, {}, {}, {}, {}, false, import("vue").ComponentOptionsBase<any, any, any, any, any, any, any, any, any, {}, {}, string, {}, {}, {}, string, import("vue").ComponentProvideOptions>, {}, {}, "", {}, any> | undefined, ComponentPublicInstance<{}, {}, {}, {}, {}, {}, {}, {}, false, import("vue").ComponentOptionsBase<any, any, any, any, any, any, any, any, any, {}, {}, string, {}, {}, {}, string, import("vue").ComponentProvideOptions>, {}, {}, "", {}, any> | undefined> | undefined;
+    optionRefs?: Ref<Record<string | number, HTMLElement>, Record<string | number, HTMLElement>> | undefined;
+    virtualListRef?: Ref<VirtualListRef, VirtualListRef> | undefined;
+    onSelect: (key: string, ev: Event) => void;
+    onPopupVisibleChange: (visible: boolean) => void;
+    enterToOpen?: boolean | undefined;
+    defaultActiveFirstOption?: Ref<boolean, boolean> | undefined;
+}) => {
+    validOptions: import("vue").ComputedRef<(import("../interface").SelectOptionInfo | import("../interface").SelectOptionGroupInfo)[]>;
+    optionInfoMap: import("vue").Reactive<Map<string, import("../interface").SelectOptionInfo>>;
+    validOptionInfos: import("vue").ComputedRef<{
+        [x: string]: any;
+        raw: Record<string, unknown>;
+        key: string;
+        index?: number | undefined;
+        origin: "slot" | "options" | "extraOptions";
+        value: import("../interface").SelectOptionValue;
+        label: string;
+        disabled?: boolean | undefined;
+        tagProps?: any;
+        render?: import("vue").RenderFunction | undefined;
+    }[]>;
+    enabledOptionKeys: import("vue").ComputedRef<string[]>;
+    activeKey: Ref<string | undefined, string | undefined>;
+    setActiveKey: (key?: string | undefined) => void;
+    addSlotOptionInfo: (id: number, optionInfo: import("../interface").SelectOptionInfo) => void;
+    removeSlotOptionInfo: (id: number) => void;
+    getNextActiveKey: (direction: 'up' | 'down') => string | undefined;
+    scrollIntoView: (key: string) => void;
+    handleKeyDown: (event: KeyboardEvent) => void;
+};

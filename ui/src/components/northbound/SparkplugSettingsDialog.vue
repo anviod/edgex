@@ -1,13 +1,14 @@
 <template>
-  <a-modal 
-    v-model:visible="visible" 
-    title="Sparkplug B" 
-    :width="960" 
-    @ok="saveSettings" 
-    :ok-loading="loading" 
+  <a-modal
+    v-model:visible="visible"
+    title="Sparkplug B"
+    :width="960"
+    modal-class="northbound-settings-modal"
     unmount-on-close
     :footer="true"
     :mask-closable="false"
+    :ok-loading="loading"
+    @ok="saveSettings"
   >
     <div class="nb-mode-banner nb-mode-banner--push">
       <span class="nb-mode-banner__tag">主动上报</span>
@@ -120,8 +121,11 @@
             <a-button type="outline" size="small" @click="autoFillDevices">全部启用 (10s)</a-button>
           </div>
         </div>
-        <div class="table-container">
-          <a-table :columns="deviceColumns" :data="deviceTableData" size="small" :pagination="false" class="industrial-table-inline">
+        <div class="table-container saas-table nb-device-table">
+          <a-table :columns="deviceColumns" :data="deviceTableData" size="small" :bordered="false" :pagination="false" class="industrial-table-inline">
+            <template #empty>
+              <a-empty description="暂无南向设备，请先在通道管理中创建设备" />
+            </template>
             <template #state="{ record }">
               <a-tag v-if="record.state === 0" color="green" size="small">在线</a-tag>
               <a-tag v-else-if="record.state === 1" color="orangered" size="small">不稳定</a-tag>
@@ -346,5 +350,5 @@ const saveSettings = async () => {
 </script>
 
 <style scoped>
-@import '@/styles/northbound-form.css';
+/* v3.0 — styles in src/styles/ */
 </style>

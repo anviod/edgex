@@ -1,0 +1,277 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+/******** 基础配置项 end *******/
+/******** 基础配置项 end *******/
+/******** 高级配置项 *******/
+/******** 高级配置项 end *******/
+.arco-color-picker {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  background-color: var(--color-fill-2);
+  border-radius: 2px;
+}
+.arco-color-picker-preview {
+  box-sizing: border-box;
+  border: 1px solid var(--color-border-2);
+}
+.arco-color-picker-value {
+  margin-left: 4px;
+  color: var(--color-text-1);
+  font-weight: 400;
+}
+.arco-color-picker-input {
+  display: none;
+}
+.arco-color-picker:hover {
+  background-color: var(--color-fill-3);
+  cursor: pointer;
+}
+.arco-color-picker-size-medium {
+  height: 32px;
+  padding: 4px 4px;
+}
+.arco-color-picker-size-medium .arco-color-picker-preview {
+  width: 24px;
+  height: 24px;
+}
+.arco-color-picker-size-medium .arco-color-picker-value {
+  font-size: 14px;
+}
+.arco-color-picker-size-mini {
+  height: 24px;
+  padding: 4px 4px;
+}
+.arco-color-picker-size-mini .arco-color-picker-preview {
+  width: 16px;
+  height: 16px;
+}
+.arco-color-picker-size-mini .arco-color-picker-value {
+  font-size: 12px;
+}
+.arco-color-picker-size-small {
+  height: 28px;
+  padding: 3px 4px;
+}
+.arco-color-picker-size-small .arco-color-picker-preview {
+  width: 22px;
+  height: 22px;
+}
+.arco-color-picker-size-small .arco-color-picker-value {
+  font-size: 14px;
+}
+.arco-color-picker-size-large {
+  height: 36px;
+  padding: 5px 5px;
+}
+.arco-color-picker-size-large .arco-color-picker-preview {
+  width: 26px;
+  height: 26px;
+}
+.arco-color-picker-size-large .arco-color-picker-value {
+  font-size: 14px;
+}
+.arco-color-picker.arco-color-picker-disabled {
+  background-color: var(--color-fill-2);
+  cursor: not-allowed;
+}
+.arco-color-picker.arco-color-picker-disabled .arco-color-picker-value {
+  color: var(--color-text-4);
+}
+.arco-color-picker-panel {
+  width: 260px;
+  background-color: var(--color-bg-1);
+  border-radius: 2px;
+  box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.1);
+}
+.arco-color-picker-panel .arco-color-picker-palette {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 178px;
+  overflow: hidden;
+  background-image: linear-gradient(0deg, #000000, transparent), linear-gradient(90deg, #ffffff, rgba(255, 255, 255, 0));
+  border-top: 1px solid var(--color-border-2);
+  border-right: 1px solid var(--color-border-2);
+  border-left: 1px solid var(--color-border-2);
+  cursor: pointer;
+}
+.arco-color-picker-panel .arco-color-picker-palette .arco-color-picker-handler {
+  position: absolute;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  background-color: transparent;
+  border: 2px solid var(--color-bg-white);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.arco-color-picker-panel .arco-color-picker-panel-control {
+  padding: 12px;
+}
+.arco-color-picker-panel .arco-color-picker-panel-control .arco-color-picker-control-wrapper {
+  display: flex;
+  align-items: center;
+}
+.arco-color-picker-panel .arco-color-picker-panel-control .arco-color-picker-control-wrapper .arco-color-picker-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 40px;
+  height: 40px;
+  margin-left: auto;
+  color: #fff;
+  font-size: 20px;
+  border: 1px solid var(--color-border-2);
+  border-radius: 4px;
+}
+.arco-color-picker-panel .arco-color-picker-panel-control .arco-color-picker-control-wrapper .arco-color-picker-control-bar-alpha {
+  margin-top: 12px;
+}
+.arco-color-picker-panel .arco-color-picker-panel-control .arco-color-picker-input-wrapper {
+  display: flex;
+  margin-top: 12px;
+}
+.arco-color-picker-panel .arco-color-picker-panel-control .arco-color-picker-input-wrapper .arco-color-picker-group-wrapper {
+  display: flex;
+  flex: 1;
+  margin-left: 12px;
+}
+.arco-color-picker-panel .arco-color-picker-panel-control .arco-color-picker-input-wrapper .arco-select-view,
+.arco-color-picker-panel .arco-color-picker-panel-control .arco-color-picker-input-wrapper .arco-input-wrapper {
+  margin-right: 0;
+  padding: 0 6px;
+}
+.arco-color-picker-panel .arco-color-picker-panel-control .arco-color-picker-input-wrapper .arco-input-suffix,
+.arco-color-picker-panel .arco-color-picker-panel-control .arco-color-picker-input-wrapper .arco-input-prefix,
+.arco-color-picker-panel .arco-color-picker-panel-control .arco-color-picker-input-wrapper .arco-select-view-suffix {
+  padding: 0;
+  font-size: 12px;
+}
+.arco-color-picker-panel .arco-color-picker-panel-colors {
+  padding: 12px;
+  border-top: 1px solid var(--color-fill-3);
+}
+.arco-color-picker-panel .arco-color-picker-panel-colors .arco-color-picker-colors-section:not(:first-child) {
+  margin-top: 12px;
+}
+.arco-color-picker-panel .arco-color-picker-panel-colors .arco-color-picker-colors-text {
+  color: var(--color-text-1);
+  font-weight: 400;
+  font-size: 12px;
+}
+.arco-color-picker-panel .arco-color-picker-panel-colors .arco-color-picker-colors-empty {
+  margin: 12px 0;
+  color: var(--color-text-3);
+  font-size: 12px;
+}
+.arco-color-picker-panel .arco-color-picker-panel-colors .arco-color-picker-colors-wrapper {
+  margin-top: 8px;
+}
+.arco-color-picker-panel .arco-color-picker-panel-colors .arco-color-picker-colors-list {
+  display: flex;
+  flex-wrap: wrap;
+  margin: -8px -4px 0;
+}
+.arco-color-picker-panel .arco-color-picker-panel-colors .arco-color-picker-color-block {
+  width: 16px;
+  height: 16px;
+  margin: 6px 3px 0;
+  overflow: hidden;
+  background-image: conic-gradient(rgba(0, 0, 0, 0.06) 0 25%, transparent 0 50%, rgba(0, 0, 0, 0.06) 0 75%, transparent 0);
+  background-size: 8px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: transform ease-out 60ms;
+}
+.arco-color-picker-panel .arco-color-picker-panel-colors .arco-color-picker-color-block .arco-color-picker-block {
+  width: 100%;
+  height: 100%;
+}
+.arco-color-picker-panel .arco-color-picker-panel-colors .arco-color-picker-color-block:hover {
+  transform: scale(1.1);
+}
+.arco-color-picker-panel .arco-color-picker-control-bar-bg {
+  background-image: conic-gradient(rgba(0, 0, 0, 0.06) 0 25%, transparent 0 50%, rgba(0, 0, 0, 0.06) 0 75%, transparent 0);
+  background-size: 8px 8px;
+  border-radius: 10px;
+}
+.arco-color-picker-panel .arco-color-picker-control-bar {
+  position: relative;
+  box-sizing: border-box;
+  width: 182px;
+  height: 14px;
+  border: 1px solid var(--color-border-2);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.arco-color-picker-panel .arco-color-picker-control-bar .arco-color-picker-handler {
+  position: absolute;
+  top: -2px;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  background-color: var(--color-bg-white);
+  border: 1px solid var(--color-border-2);
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+.arco-color-picker-panel .arco-color-picker-control-bar .arco-color-picker-handler::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--color-bg-white);
+  border-radius: 50%;
+  content: '';
+}
+.arco-color-picker-panel .arco-color-picker-control-bar .arco-color-picker-handler::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: currentColor;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  content: '';
+}
+.arco-color-picker-panel .arco-color-picker-control-bar-hue {
+  background: linear-gradient(90deg, #f00 0, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00);
+}
+.arco-color-picker-panel .arco-color-picker-select {
+  width: 58px;
+}
+.arco-color-picker-panel .arco-color-picker-input-alpha {
+  flex: 0 0 auto;
+  width: 52px;
+}
+.arco-color-picker-panel .arco-color-picker-input-hex .arco-input {
+  padding-left: 4px;
+}
+.arco-color-picker-panel.arco-color-picker-panel-disabled .arco-color-picker-palette,
+.arco-color-picker-panel.arco-color-picker-panel-disabled .arco-color-picker-control-bar,
+.arco-color-picker-panel.arco-color-picker-panel-disabled .arco-color-picker-color-block,
+.arco-color-picker-panel.arco-color-picker-panel-disabled .arco-color-picker-preview {
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+.arco-color-picker-select-popup .arco-select-option {
+  font-size: 12px !important;
+  line-height: 24px !important;
+}

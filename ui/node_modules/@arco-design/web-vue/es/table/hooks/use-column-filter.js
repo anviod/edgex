@@ -1,0 +1,78 @@
+import { computed, ref, watch } from "vue";
+import { isArray } from "../../_utils/is.js";
+const useColumnFilter = ({
+  column,
+  tableCtx
+}) => {
+  const filterValue = computed(() => {
+    var _a;
+    if (column.value.dataIndex && ((_a = tableCtx.filters) == null ? void 0 : _a[column.value.dataIndex])) {
+      return tableCtx.filters[column.value.dataIndex];
+    }
+    return [];
+  });
+  const filterPopupVisible = ref(false);
+  const isFilterActive = computed(() => filterValue.value.length > 0);
+  const isMultipleFilter = computed(
+    () => {
+      var _a;
+      return Boolean((_a = column.value.filterable) == null ? void 0 : _a.multiple);
+    }
+  );
+  const columnFilterValue = ref(filterValue.value);
+  watch(filterValue, (value) => {
+    if (isArray(value) && String(value) !== String(columnFilterValue.value)) {
+      columnFilterValue.value = value;
+    }
+  });
+  const handleFilterPopupVisibleChange = (value) => {
+    filterPopupVisible.value = value;
+  };
+  const setFilterValue = (filterValue2) => {
+    columnFilterValue.value = filterValue2;
+  };
+  const handleCheckboxFilterChange = (values) => {
+    setFilterValue(values);
+  };
+  const handleRadioFilterChange = (value) => {
+    setFilterValue([value]);
+  };
+  const handleFilterConfirm = (ev) => {
+    var _a;
+    if (column.value.dataIndex) {
+      (_a = tableCtx.onFilterChange) == null ? void 0 : _a.call(
+        tableCtx,
+        column.value.dataIndex,
+        columnFilterValue.value,
+        ev
+      );
+    }
+    handleFilterPopupVisibleChange(false);
+  };
+  const handleFilterReset = (ev) => {
+    var _a;
+    setFilterValue([]);
+    if (column.value.dataIndex) {
+      (_a = tableCtx.onFilterChange) == null ? void 0 : _a.call(
+        tableCtx,
+        column.value.dataIndex,
+        columnFilterValue.value,
+        ev
+      );
+    }
+    handleFilterPopupVisibleChange(false);
+  };
+  return {
+    filterPopupVisible,
+    isFilterActive,
+    isMultipleFilter,
+    columnFilterValue,
+    handleFilterPopupVisibleChange,
+    setFilterValue,
+    handleCheckboxFilterChange,
+    handleRadioFilterChange,
+    handleFilterConfirm,
+    handleFilterReset
+  };
+};
+export { useColumnFilter };

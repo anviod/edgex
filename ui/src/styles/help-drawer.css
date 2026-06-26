@@ -1,0 +1,355 @@
+/*
+ * EdgeX v3.0 — Help documentation drawer (doc reading layout)
+ * 节奏：section 32px · 卡片内 20–24px · 行间距 16px
+ */
+
+.help-drawer.arco-drawer {
+  box-shadow: var(--shadow-md);
+}
+
+.help-drawer .arco-drawer-header {
+  min-height: 48px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.help-drawer .arco-drawer-body {
+  padding: 24px;
+  background: var(--surface);
+}
+
+.help-drawer__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+/* ── Document root ── */
+.help-doc {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding-bottom: 16px;
+}
+
+.help-doc__hero {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.help-doc__lead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.help-doc__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* ── Section ── */
+.help-doc-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.help-doc-section__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+.help-doc-section__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+}
+
+/* ── Spec card (single container, rows inside) ── */
+.help-doc-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+}
+
+.help-doc-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 0;
+}
+
+.help-doc-row:first-child {
+  padding-top: 0;
+}
+
+.help-doc-row:last-child {
+  padding-bottom: 0;
+}
+
+.help-doc-row:not(:last-child) {
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.help-doc-row__label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.help-doc-row__label strong {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.help-doc-row__label span {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+.help-doc-row__value {
+  flex-shrink: 0;
+  margin: 0;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+/* ── FAQ ── */
+.help-doc-faq {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 8px 16px;
+}
+
+.help-drawer .help-doc-faq.arco-collapse {
+  border: none;
+  background: transparent;
+}
+
+.help-drawer .help-doc-faq .arco-collapse-item {
+  border-bottom: 1px solid var(--border);
+}
+
+.help-drawer .help-doc-faq .arco-collapse-item:last-child {
+  border-bottom: none;
+}
+
+.help-drawer .help-doc-faq .arco-collapse-item-header {
+  padding: 14px 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.5;
+  background: transparent;
+}
+
+.help-drawer .help-doc-faq .arco-collapse-item-content {
+  padding: 0 8px 16px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.help-drawer .help-doc-faq .arco-collapse-item-content-box {
+  padding: 0;
+}
+
+.help-drawer .help-doc-faq .arco-collapse-item-active > .arco-collapse-item-header {
+  padding-bottom: 8px;
+}
+
+/* ── Page header trigger (ChannelList / PointList) ── */
+.help-trigger-btn {
+  color: var(--text-secondary) !important;
+  white-space: nowrap;
+}
+
+.help-trigger-btn:hover {
+  color: var(--primary) !important;
+}
+
+/* ── Channel protocol help drawer ── */
+.channel-protocol-help-drawer.arco-drawer {
+  max-width: calc(100vw - var(--space-8));
+}
+
+.channel-protocol-help-drawer .arco-drawer-header {
+  padding: 16px 28px;
+}
+
+.channel-protocol-help-drawer .arco-drawer-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.channel-help-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.channel-help-nav {
+  flex-shrink: 0;
+  width: 200px;
+  padding: var(--space-5) var(--space-4);
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  overflow-y: auto;
+}
+
+.channel-help-nav__item {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  white-space: normal;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.channel-help-nav__item:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.channel-help-nav__item.is-active {
+  background: rgba(14, 165, 233, 0.1);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.channel-help-content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: var(--space-8) 32px;
+  background: var(--surface);
+}
+
+.channel-help-content .help-doc {
+  gap: var(--space-8);
+}
+
+.channel-help-content .help-doc__hero {
+  gap: var(--space-3);
+}
+
+.channel-help-content .help-doc__lead {
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.channel-help-content .help-doc__sections {
+  gap: var(--space-8);
+}
+
+.channel-help-content .help-doc-section {
+  gap: var(--space-3);
+}
+
+.channel-help-content .help-doc-section__text {
+  line-height: 1.75;
+}
+
+.channel-help-content .help-doc-card {
+  padding: 22px 28px;
+}
+
+.channel-help-content .help-doc-row {
+  gap: 24px;
+  padding: 18px 0;
+}
+
+.channel-help-content .help-doc-row__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.channel-help-content .help-doc-row__value {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.help-doc-row__desc {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.help-doc-row--stack {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.help-doc-row--stack .help-doc-row__desc {
+  margin-top: var(--space-1);
+}
+
+.help-doc-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+}
+
+.help-doc-steps li + li {
+  margin-top: var(--space-2);
+}
+
+.help-doc-steps code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.dark-theme .channel-help-nav {
+  background: var(--bg);
+}
+
+.dark-theme .channel-help-nav__item.is-active {
+  background: rgba(14, 165, 233, 0.15);
+}

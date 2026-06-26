@@ -56,6 +56,10 @@ token: <JWT>
 - `mode: merge` — 保留同 ID 现有点位配置，补充新区间
 - `mode: replace` — 仅保留本次区间生成的点位
 
+`register_type` 可选值：`holding`（0x03）、`input`（0x04）、`coil`（0x01）、`discrete`（0x02）。未传 `function_code` 时按寄存器类型自动推断。
+
+生成点位 ID 前缀：`hr_` / `ir_` / `coil_` / `di_`。
+
 ## 3. 单设备创建（带 auto_points_range）
 
 ```http

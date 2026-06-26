@@ -1,7 +1,7 @@
 ﻿<template>
-  <a-card class="mb-4">
+  <a-card class="settings-panel">
     <a-card-header>
-      <div class="card-title"></div>
+      <div class="card-title">时间同步</div>
     </a-card-header>
     <a-card-body>
       <a-form :model="timeConfig" layout="vertical" class="industrial-form">
@@ -89,29 +89,5 @@ const timeConfig = reactive({
 </script>
 
 <style scoped>
-.card-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-gray-900);
-  letter-spacing: 0.5px;
-}
-
-.industrial-form :deep(.arco-form-item) {
-  margin-bottom: 16px;
-}
-
-.industrial-form :deep(.arco-form-item-label) {
-  font-size: 11px;
-  color: var(--color-gray-50);
-  font-weight: 500;
-}
-
-.rect-input {
-  border-radius: 0 !important;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.form-footer {
-  margin-top: 16px;
-}
+/* v3.0 — styles in src/styles/ */
 </style>

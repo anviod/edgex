@@ -1,13 +1,13 @@
 ﻿<template>
-  <a-card class="mb-4">
+  <a-card class="settings-panel">
     <a-card-header>
-      <div class="card-title"></div>
+      <div class="card-title">主机设置</div>
     </a-card-header>
     <a-card-body>
       <a-form :model="hostnameConfig" layout="vertical" class="industrial-form">
         <a-form-item field="name" label="设备名称">
           <a-input v-model="hostnameConfig.name" placeholder="输入设备名称" class="rect-input" />
-          <div class="form-hint">访问地址: http://device-name</div>
+          <div class="form-hint">访问地址: http://{{ hostnameConfig.name || 'device-name' }}</div>
         </a-form-item>
         
         <a-row :gutter="16">
@@ -51,10 +51,10 @@
         </div>
       </a-form>
 
-      <a-divider class="my-4" />
+      <a-divider />
 
       <div class="card-title">访问状态</div>
-      <a-tag color="success" size="small" class="mb-4">广播状态: 正常</a-tag>
+      <a-tag color="green" size="small" class="mb-4">广播状态：正常</a-tag>
       <div class="access-list">
         <div class="access-item">
           <div class="access-title">HTTP 访问</div>
@@ -102,55 +102,5 @@ const hostnameConfig = reactive({
 </script>
 
 <style scoped>
-.card-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #374151;
-  letter-spacing: 0.5px;
-}
-
-.industrial-form :deep(.arco-form-item) {
-  margin-bottom: 16px;
-}
-
-.industrial-form :deep(.arco-form-item-label) {
-  font-size: 11px;
-  color: #6b7280;
-  font-weight: 500;
-}
-
-.rect-input {
-  border-radius: 0 !important;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.form-hint {
-  font-size: 11px;
-  color: #6b7280;
-  margin-top: 4px;
-}
-
-.form-footer {
-  margin-top: 16px;
-}
-
-.access-list {
-  margin-top: 16px;
-}
-
-.access-item {
-  margin-bottom: 12px;
-}
-
-.access-title {
-  font-size: 12px;
-  font-weight: bold;
-  margin-bottom: 4px;
-}
-
-.access-subtitle {
-  margin-left: 16px;
-}
-
-.mono-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+/* v3.0 — styles in src/styles/ */
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="page-shell page-shell--compact">
+  <div class="page-shell page-shell--compact virtual-shadow-page">
     <div class="page-header">
       <div>
         <h2 class="title-text">虚拟影子设备</h2>
@@ -24,38 +24,62 @@
       ① 搜索并选择<strong>源设备</strong> → ② 勾选点位（可批量）→ ③ 拖入右侧<strong>批量映射区</strong>自动生成映射积木，或拖入单个积木精调。
     </a-alert>
 
-    <div class="table-container">
+    <div class="table-container saas-table">
       <a-table
+        class="virtual-shadow-table"
         :columns="columns"
         :data="devices"
         :loading="loading"
         row-key="id"
         size="small"
+        :bordered="false"
         :pagination="{ showTotal: true }"
         :expandable="expandable"
+        :scroll="{ x: 960 }"
       >
+        <template #id="{ record }">
+          <a-tooltip :content="record.id">
+            <span class="cell-ellipsis mono-cell">{{ record.id }}</span>
+          </a-tooltip>
+        </template>
+        <template #name="{ record }">
+          <a-tooltip :content="nameTooltip(record)">
+            <span class="cell-ellipsis">{{ displayName(record) }}</span>
+          </a-tooltip>
+        </template>
+        <template #channel="{ record }">
+          <a-tooltip :content="record.channel_id">
+            <span class="cell-ellipsis">{{ record.channel_id }}</span>
+          </a-tooltip>
+        </template>
         <template #enable="{ record }">
-          <a-tag :color="record.enable ? 'green' : 'gray'" size="small">
-            {{ record.enable ? '启用' : '禁用' }}
-          </a-tag>
+          <span class="table-cell-semantic">
+            <a-tag :color="record.enable ? 'green' : 'gray'" size="small" bordered>
+              {{ record.enable ? '启用' : '禁用' }}
+            </a-tag>
+          </span>
         </template>
         <template #points="{ record }">
-          {{ record.points?.length || 0 }} 个点位
+          <a-tooltip :content="`${record.points?.length || 0} 个点位`">
+            <span class="table-cell-count">{{ record.points?.length || 0 }}</span>
+          </a-tooltip>
         </template>
         <template #runtime="{ record }">
-          <span v-if="runtimeMap[record.id]" class="runtime-badge">
-            v{{ runtimeMap[record.id].version }}
+          <span class="table-cell-semantic">
+            <span v-if="runtimeMap[record.id]" class="runtime-badge">
+              v{{ runtimeMap[record.id].version }}
+            </span>
+            <span v-else class="text-muted">—</span>
           </span>
-          <span v-else class="text-muted">—</span>
         </template>
         <template #ops="{ record }">
-          <a-space>
+          <div class="table-ops">
             <a-button type="text" size="small" @click="openDetail(record)">查看值</a-button>
             <a-button type="text" size="small" @click="openBuilder(record)">编辑</a-button>
             <a-popconfirm content="确定删除该虚拟设备？" @ok="removeDevice(record.id)">
               <a-button type="text" size="small" status="danger">删除</a-button>
             </a-popconfirm>
-          </a-space>
+          </div>
         </template>
         <template #expand-row="{ record }">
           <div class="expand-points">
@@ -84,6 +108,7 @@
       v-model:visible="builderVisible"
       :title="editingId ? '编辑虚拟影子设备' : '新建虚拟影子设备'"
       width="1140px"
+      modal-class="virtual-shadow-builder-modal"
       :mask-closable="false"
       unmount-on-close
       ok-text="保存"
@@ -255,18 +280,33 @@
                     selected: selectedPointRefs.has(src.ref),
                     'is-dragging': draggingRefs.has(src.ref)
                   }"
-                  draggable="true"
-                  @dragstart="onPointDragStart($event, src)"
-                  @dragend="onDragEnd"
                   @click="togglePointSelection(src.ref)"
                 >
-                  <span class="drag-grip" title="拖拽"><icon-drag-dot-vertical /></span>
+                  <span
+                    class="drag-grip"
+                    title="拖拽"
+                    draggable="true"
+                    @dragstart="onPointDragStart($event, src)"
+                    @dragend="onDragEnd"
+                    @click.stop
+                    @mousedown.stop
+                  >
+                    <icon-drag-dot-vertical />
+                  </span>
                   <a-checkbox
                     :model-value="selectedPointRefs.has(src.ref)"
+                    @mousedown.stop
                     @click.stop
                     @change="togglePointSelection(src.ref)"
                   />
-                  <div class="point-chip-body">
+                  <div
+                    class="point-chip-body point-chip-drag"
+                    draggable="true"
+                    @dragstart="onPointDragStart($event, src)"
+                    @dragend="onDragEnd"
+                    @mousedown.stop
+                    @click.stop
+                  >
                     <span class="point-chip-id">{{ src.point_name || src.point_id }}</span>
                     <span class="point-chip-sub">{{ src.point_id }}</span>
                   </div>
@@ -342,7 +382,7 @@
                 class="point-block"
                 :class="{ active: activePointIndex === idx, 'drop-hover': dropHoverIndex === idx }"
                 @click="activePointIndex = idx"
-                @dragover.prevent="onBlockDragOver(idx)"
+                @dragover.prevent="onBlockDragOver(idx, $event)"
                 @dragleave="onBlockDragLeave"
                 @drop.prevent="onBlockDrop($event, idx)"
               >
@@ -377,7 +417,7 @@
                   <div
                     class="map-drop-zone"
                     :class="{ filled: !!pt.source_ref, 'drop-hover': mapDropHoverIndex === idx }"
-                    @dragover.prevent.stop="onMapZoneDragOver(idx)"
+                    @dragover.prevent.stop="onMapZoneDragOver(idx, $event)"
                     @dragleave.stop="onMapZoneDragLeave"
                     @drop.prevent.stop="onMapZoneDrop($event, idx)"
                   >
@@ -428,38 +468,43 @@
       </div>
     </a-modal>
 
-    <!-- 运行时详情 -->
+    <!-- 运行时详情（teleport 到 body，须独立 drawer class） -->
     <a-drawer
       v-model:visible="detailVisible"
+      class="virtual-shadow-detail-drawer"
       :title="detailDevice ? `虚拟设备 · ${detailDevice.name || detailDevice.id}` : '虚拟设备'"
       width="520px"
       unmount-on-close
     >
       <template v-if="detailDevice">
-        <a-descriptions :column="1" size="small" bordered class="mb-4">
+        <a-descriptions :column="1" size="small" bordered class="detail-drawer-desc mb-4">
           <a-descriptions-item label="ID">{{ detailDevice.id }}</a-descriptions-item>
           <a-descriptions-item label="通道">{{ detailDevice.channel_id }}</a-descriptions-item>
           <a-descriptions-item label="状态">
-            <a-tag :color="detailDevice.enable ? 'green' : 'gray'" size="small">
+            <a-tag :color="detailDevice.enable ? 'green' : 'gray'" size="small" bordered>
               {{ detailDevice.enable ? '启用' : '禁用' }}
             </a-tag>
           </a-descriptions-item>
         </a-descriptions>
 
         <a-table
+          class="virtual-shadow-detail-table"
           :columns="detailColumns"
           :data="detailRows"
           size="small"
+          :bordered="false"
           :pagination="false"
           row-key="point_id"
         >
           <template #mode="{ record }">
-            <a-tag :color="record.mode === 'formula' ? 'arcoblue' : 'green'" size="small">
+            <a-tag :color="record.mode === 'formula' ? 'arcoblue' : 'green'" size="small" bordered>
               {{ record.mode === 'formula' ? '计算' : '映射' }}
             </a-tag>
           </template>
           <template #expr="{ record }">
-            <code class="expr-code">{{ record.expr }}</code>
+            <a-tooltip :content="record.expr">
+              <code class="expr-code cell-ellipsis">{{ record.expr }}</code>
+            </a-tooltip>
           </template>
           <template #value="{ record }">
             <span v-if="record.runtime">{{ formatValue(record.runtime) }}</span>
@@ -468,7 +513,7 @@
         </a-table>
 
         <div class="drawer-footer">
-          <a-button size="small" @click="refreshDetailRuntime" :loading="detailLoading">
+          <a-button type="outline" size="small" @click="refreshDetailRuntime" :loading="detailLoading">
             <template #icon><icon-refresh /></template>
             刷新实时值
           </a-button>
@@ -553,6 +598,7 @@ const dragState = reactive({
   count: 0,
   label: ''
 })
+let dragGhostEl = null
 const draggingRefs = reactive(new Set())
 
 const detailVisible = ref(false)
@@ -563,19 +609,31 @@ const detailLoading = ref(false)
 const operators = FORMULA_OPERATORS
 
 const columns = [
-  { title: 'ID', dataIndex: 'id', width: 160 },
-  { title: '名称', dataIndex: 'name' },
-  { title: '通道', dataIndex: 'channel_id', width: 120 },
-  { title: '点位', slotName: 'points', width: 100 },
-  { title: '启用', slotName: 'enable', width: 80 },
-  { title: '运行时', slotName: 'runtime', width: 90 },
-  { title: '操作', slotName: 'ops', width: 200 }
+  { title: 'ID', slotName: 'id', dataIndex: 'id', width: 140, ellipsis: true, tooltip: true },
+  { title: '名称', slotName: 'name', dataIndex: 'name', width: 168, ellipsis: true, tooltip: true },
+  { title: '通道', slotName: 'channel', dataIndex: 'channel_id', width: 112, ellipsis: true, tooltip: true },
+  { title: '点位', slotName: 'points', width: 64, align: 'center' },
+  { title: '启用', slotName: 'enable', width: 88 },
+  { title: '运行时', slotName: 'runtime', width: 96 },
+  { title: '操作', slotName: 'ops', width: 220, fixed: 'right' }
 ]
 
+function displayName(record) {
+  const name = (record?.name || '').trim()
+  return name || record?.id || '—'
+}
+
+function nameTooltip(record) {
+  const name = (record?.name || '').trim()
+  const id = record?.id || ''
+  if (name && name !== id) return `${name}\nID: ${id}`
+  return name || id || '—'
+}
+
 const detailColumns = [
-  { title: '点位', dataIndex: 'point_id', width: 100 },
-  { title: '模式', slotName: 'mode', width: 70 },
-  { title: '表达式', slotName: 'expr' },
+  { title: '点位', dataIndex: 'point_id', width: 100, ellipsis: true, tooltip: true },
+  { title: '模式', slotName: 'mode', width: 72 },
+  { title: '表达式', slotName: 'expr', ellipsis: true },
   { title: '当前值', slotName: 'value', width: 100 }
 ]
 
@@ -1039,6 +1097,8 @@ function refsForDrag(src) {
 }
 
 function setDragPayload(e, refs, label) {
+  if (!e.dataTransfer) return
+  e.stopPropagation()
   e.dataTransfer.effectAllowed = 'copy'
   e.dataTransfer.setData(DRAG_MIME, encodeDragRefs(refs))
   e.dataTransfer.setData('text/plain', refs[0] || '')
@@ -1049,27 +1109,32 @@ function setDragPayload(e, refs, label) {
   draggingRefs.clear()
   for (const r of refs) draggingRefs.add(r)
 
+  if (dragGhostEl) {
+    dragGhostEl.remove()
+    dragGhostEl = null
+  }
   const ghost = document.createElement('div')
-  const text = refs.length > 1 ? `📦 ${refs.length} 个点位` : (label || refs[0])
+  const text = refs.length > 1 ? `${refs.length} 个点位` : (label || refs[0])
   ghost.textContent = text
   Object.assign(ghost.style, {
     position: 'fixed',
     top: '-1000px',
     left: '-1000px',
     padding: '10px 16px',
-    background: 'rgb(var(--primary-6))',
+    background: '#0ea5e9',
     color: '#fff',
     borderRadius: '10px',
     fontSize: '13px',
     fontWeight: '600',
     boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-    border: '2px solid #fff',
+    border: '2px solid rgba(255,255,255,0.9)',
     zIndex: '99999',
-    whiteSpace: 'nowrap'
+    whiteSpace: 'nowrap',
+    pointerEvents: 'none'
   })
   document.body.appendChild(ghost)
+  dragGhostEl = ghost
   e.dataTransfer.setDragImage(ghost, 24, 20)
-  requestAnimationFrame(() => ghost.remove())
 }
 
 function onPointDragStart(e, src) {
@@ -1096,10 +1161,16 @@ function clearDragVisualState() {
 }
 
 function onDragEnd() {
+  if (dragGhostEl) {
+    dragGhostEl.remove()
+    dragGhostEl = null
+  }
   clearDragVisualState()
 }
 
-function onBatchZoneDragOver() {
+function onBatchZoneDragOver(e) {
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
   batchDropActive.value = true
 }
 
@@ -1117,7 +1188,9 @@ function onBatchZoneDrop(e) {
   else Message.info('点位均已映射，未重复添加')
 }
 
-function onMapZoneDragOver(idx) {
+function onMapZoneDragOver(idx, e) {
+  e?.preventDefault?.()
+  if (e?.dataTransfer) e.dataTransfer.dropEffect = 'copy'
   mapDropHoverIndex.value = idx
   dropHoverIndex.value = idx
 }
@@ -1157,7 +1230,9 @@ function applyRefToPoint(idx, src) {
   }
 }
 
-function onBlockDragOver(idx) {
+function onBlockDragOver(idx, e) {
+  e?.preventDefault?.()
+  if (e?.dataTransfer) e.dataTransfer.dropEffect = 'copy'
   dropHoverIndex.value = idx
 }
 
@@ -1419,572 +1494,3 @@ onBeforeUnmount(() => {
   }
 })
 </script>
-
-<style scoped>
-.virtual-shadow-page {
-  /* page-shell 提供布局 */
-}
-.point-filter-field {
-  margin-bottom: 8px;
-}
-.field-label {
-  margin-bottom: 6px;
-}
-.req {
-  color: rgb(var(--danger-6));
-}
-.field-error {
-  font-size: 11px;
-  color: rgb(var(--danger-6));
-  margin-top: 2px;
-}
-.enable-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-top: 22px;
-}
-.builder-split {
-  display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: 16px;
-  min-height: 480px;
-}
-.source-panel,
-.points-panel {
-  border: 1px solid var(--color-border-2);
-  border-radius: 8px;
-  padding: 12px;
-  background: var(--color-fill-1);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-.device-list {
-  flex: 1;
-  overflow: auto;
-  max-height: 400px;
-}
-.point-list,
-.blocks-scroll {
-  flex: 1;
-  overflow: auto;
-  min-height: 0;
-}
-.search-placeholder {
-  text-align: center;
-  padding: 32px 12px;
-  color: var(--color-text-4);
-}
-.search-placeholder p {
-  margin: 8px 0 4px;
-  font-size: 13px;
-  color: var(--color-text-3);
-}
-.search-placeholder span {
-  font-size: 11px;
-}
-.search-result-tip {
-  font-size: 11px;
-  color: var(--color-text-3);
-  margin-bottom: 8px;
-}
-.device-list-spin {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-.device-list-spin :deep(.arco-spin) {
-  flex: 1;
-  min-height: 0;
-}
-.device-name :deep(mark),
-.device-id :deep(mark) {
-  background: rgba(var(--primary-6), 0.2);
-  color: inherit;
-  padding: 0 1px;
-  border-radius: 2px;
-}
-.point-list {
-  max-height: 280px;
-}
-.blocks-scroll {
-  max-height: 320px;
-  margin-top: 8px;
-}
-.device-card {
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border-2);
-  background: var(--edgex-surface-raised);
-  margin-bottom: 8px;
-  cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.device-card:hover {
-  border-color: rgb(var(--primary-6));
-  box-shadow: 0 2px 8px rgba(var(--primary-6), 0.12);
-}
-.device-card-main {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-.device-name {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--color-text-1);
-}
-.device-card-sub {
-  font-size: 11px;
-  color: var(--color-text-3);
-  margin-top: 4px;
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-}
-.device-id {
-  font-family: monospace;
-}
-.point-picker-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  margin-bottom: 8px;
-}
-.point-picker-title {
-  flex: 1;
-  min-width: 0;
-}
-.point-picker-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-.sel-count {
-  font-size: 12px;
-  color: rgb(var(--primary-6));
-  font-weight: 600;
-}
-.builder-form {
-  position: relative;
-  --drop-soft: rgb(var(--green-4));
-  --drop-soft-deep: rgb(var(--green-6));
-  --drop-soft-bg: rgba(var(--green-2), 0.55);
-  --drop-soft-border: rgba(var(--green-4), 0.45);
-  --drop-soft-glow: rgba(var(--green-3), 0.18);
-}
-.builder-form.is-dragging .points-panel {
-  outline: 2px dashed rgba(var(--primary-6), 0.35);
-  outline-offset: 2px;
-  border-radius: 8px;
-}
-.drag-floating-badge {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 16px;
-  margin-bottom: 12px;
-  background: linear-gradient(90deg, rgb(var(--primary-6)), rgb(var(--arcoblue-5)));
-  color: #fff;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  box-shadow: 0 4px 16px rgba(var(--primary-6), 0.35);
-  animation: drag-badge-pulse 1.2s ease-in-out infinite;
-}
-.drag-arrow {
-  opacity: 0.9;
-  font-size: 12px;
-}
-@keyframes drag-badge-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.02); }
-}
-.drag-grip {
-  color: var(--color-text-4);
-  cursor: grab;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-}
-.point-chip:hover .drag-grip {
-  color: rgb(var(--primary-6));
-}
-.point-chip.is-dragging {
-  opacity: 0.45;
-  transform: scale(0.98);
-  border-style: dashed;
-  border-color: rgb(var(--primary-6));
-  background: var(--color-primary-light-1);
-}
-.point-chip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border-2);
-  background: var(--edgex-surface-raised);
-  margin-bottom: 6px;
-  cursor: grab;
-  transition: border-color 0.15s, background 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
-}
-.point-chip:hover {
-  border-color: rgb(var(--primary-6));
-  box-shadow: 0 2px 8px rgba(var(--primary-6), 0.12);
-}
-.point-chip:active {
-  cursor: grabbing;
-  transform: scale(0.97);
-}
-.point-chip.selected {
-  border-color: rgb(var(--primary-6));
-  background: var(--color-primary-light-1);
-  box-shadow: 0 0 0 1px rgba(var(--primary-6), 0.2);
-}
-.point-chip-body {
-  flex: 1;
-  min-width: 0;
-}
-.point-chip-id {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-}
-.point-chip-sub {
-  font-size: 11px;
-  color: var(--color-text-4);
-  font-family: monospace;
-}
-.point-chip-val {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgb(var(--success-6));
-  white-space: nowrap;
-}
-.batch-drag-handle {
-  margin-top: 10px;
-  padding: 12px 14px;
-  border: 2px dashed rgb(var(--primary-6));
-  border-radius: 10px;
-  background: rgba(var(--primary-6), 0.08);
-  text-align: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: rgb(var(--primary-6));
-  cursor: grab;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
-}
-.batch-drag-handle:hover {
-  background: rgba(var(--primary-6), 0.14);
-  box-shadow: 0 4px 12px rgba(var(--primary-6), 0.2);
-  transform: translateY(-1px);
-}
-.batch-drag-handle.is-dragging,
-.batch-drag-handle:active {
-  cursor: grabbing;
-  background: rgba(var(--primary-6), 0.2);
-  transform: scale(0.98);
-}
-.batch-drop-canvas {
-  border: 2px dashed var(--color-border-3);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 12px;
-  background: var(--edgex-surface-raised);
-  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.2s;
-  position: relative;
-  min-height: 100px;
-}
-.batch-drop-canvas.drop-idle-hint {
-  border-color: rgba(var(--primary-6), 0.5);
-  background: rgba(var(--primary-6), 0.03);
-  animation: drop-idle-glow 1.5s ease-in-out infinite;
-}
-.batch-drop-canvas.drop-active {
-  border: 2px solid var(--drop-soft-border);
-  background: var(--drop-soft-bg);
-  box-shadow: 0 0 0 3px var(--drop-soft-glow);
-  transform: scale(1.005);
-  animation: drop-active-pulse 1.2s ease-in-out infinite;
-}
-.drop-release-hint {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(4px);
-  color: var(--drop-soft-deep);
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: 10px;
-  border: 2px dashed var(--drop-soft-border);
-  animation: drop-release-pop 0.3s ease;
-}
-.batch-drop-inner.dimmed {
-  opacity: 0.25;
-  pointer-events: none;
-}
-@keyframes drop-idle-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--primary-6), 0.15); }
-  50% { box-shadow: 0 0 0 6px rgba(var(--primary-6), 0.08); }
-}
-@keyframes drop-active-pulse {
-  0%, 100% { box-shadow: 0 0 0 2px var(--drop-soft-glow); }
-  50% { box-shadow: 0 0 0 5px rgba(var(--green-3), 0.1); }
-}
-@keyframes drop-release-pop {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-@keyframes drop-icon-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-}
-.drop-icon-bounce {
-  display: inline-block;
-  vertical-align: middle;
-  margin-right: 4px;
-  animation: drop-icon-bounce 0.6s ease infinite;
-  color: var(--drop-soft-deep);
-}
-.batch-drop-inner {
-  text-align: center;
-}
-.batch-drop-icon {
-  font-size: 24px;
-  color: var(--color-text-4);
-  margin-bottom: 4px;
-}
-.batch-drop-canvas.drop-active .batch-drop-icon {
-  color: var(--drop-soft);
-}
-.batch-drop-title {
-  font-weight: 600;
-  font-size: 14px;
-  margin-bottom: 4px;
-}
-.batch-drop-hint {
-  font-size: 12px;
-  color: var(--color-text-3);
-  line-height: 1.5;
-}
-.batch-drop-stat {
-  margin-top: 8px;
-  font-size: 11px;
-  color: rgb(var(--primary-6));
-}
-.empty-blocks-hint {
-  font-size: 12px;
-  color: var(--color-text-4);
-  text-align: center;
-  padding: 8px;
-}
-.point-list.drag-over {
-  background: rgba(var(--primary-6), 0.08);
-  border-radius: 8px;
-  outline: 2px dashed rgba(var(--primary-6), 0.4);
-  outline-offset: -2px;
-}
-.panel-title {
-  font-weight: 600;
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.panel-hint {
-  font-size: 11px;
-  color: var(--color-text-4);
-  margin-bottom: 12px;
-  line-height: 1.5;
-}
-.panel-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-.panel-title-row .panel-title {
-  margin-bottom: 0;
-  flex: 1;
-}
-.map-drop-zone.drop-hover {
-  border-color: var(--drop-soft-border);
-  border-width: 2px;
-  background: var(--drop-soft-bg);
-  box-shadow: 0 0 0 2px var(--drop-soft-glow);
-}
-.point-block {
-  border: 1px solid var(--color-border-2);
-  border-radius: 8px;
-  padding: 10px;
-  margin-bottom: 10px;
-  background: var(--edgex-surface-raised);
-  cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s, background 0.15s;
-}
-.point-block.active {
-  border-color: rgb(var(--primary-6));
-  box-shadow: 0 0 0 1px rgba(var(--primary-6), 0.15);
-}
-.point-block.drop-hover {
-  border-color: var(--drop-soft-border);
-  background: var(--drop-soft-bg);
-  box-shadow: 0 0 0 1px var(--drop-soft-glow);
-}
-.point-block-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-.block-badge {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: 600;
-}
-.block-badge.map {
-  background: rgba(var(--green-2), 0.65);
-  color: var(--drop-soft-deep);
-}
-.block-badge.formula {
-  background: rgba(var(--primary-6), 0.12);
-  color: rgb(var(--primary-6));
-}
-.block-index {
-  font-size: 12px;
-  color: var(--color-text-3);
-}
-.block-actions {
-  margin-left: auto;
-}
-.map-drop-zone {
-  min-height: 40px;
-  border: 2px dashed var(--color-border-3);
-  border-radius: 8px;
-  padding: 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
-}
-.map-drop-zone.filled {
-  border-style: solid;
-  background: var(--color-fill-2);
-}
-.drop-placeholder {
-  font-size: 12px;
-  color: var(--color-text-4);
-  display: flex;
-  align-items: center;
-  width: 100%;
-  justify-content: center;
-  padding: 4px 0;
-}
-.builder-form.is-dragging .drop-placeholder {
-  color: var(--drop-soft-deep);
-  font-weight: 500;
-}
-.inline-live {
-  font-size: 12px;
-  color: rgb(var(--success-6));
-}
-.formula-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 6px;
-}
-.formula-deps {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  margin-top: 6px;
-}
-.deps-label {
-  font-size: 11px;
-  color: var(--color-text-4);
-}
-.dep-val {
-  margin-left: 2px;
-  color: rgb(var(--success-6));
-}
-.hint {
-  font-size: 11px;
-  color: var(--color-text-4);
-  margin-top: 4px;
-}
-.preview-row {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--color-border-2);
-  font-size: 12px;
-  color: var(--color-text-2);
-}
-.runtime-badge {
-  font-family: monospace;
-  font-size: 12px;
-}
-.text-muted {
-  color: var(--color-text-4);
-}
-.expand-points {
-  padding: 8px 12px 8px 48px;
-}
-.expand-point-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 0;
-  font-size: 12px;
-  flex-wrap: wrap;
-}
-.ep-id {
-  font-weight: 600;
-  min-width: 80px;
-}
-.ep-name {
-  color: var(--color-text-3);
-  min-width: 80px;
-}
-.ep-expr {
-  font-family: monospace;
-  font-size: 11px;
-  color: var(--color-primary-6);
-}
-.ep-value {
-  color: rgb(var(--success-6));
-  font-weight: 600;
-}
-.expr-code {
-  font-size: 11px;
-  word-break: break-all;
-}
-.drawer-footer {
-  margin-top: 16px;
-  text-align: right;
-}
-</style>

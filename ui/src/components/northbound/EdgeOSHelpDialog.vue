@@ -3,6 +3,8 @@
     v-model:visible="visible"
     title="edgeOS 通信协议帮助"
     width="800px"
+    modal-class="northbound-help-modal"
+    :footer="false"
     @cancel="handleCancel"
   >
     <template #icon>
@@ -263,88 +265,5 @@ const handleCancel = () => {
 </script>
 
 <style scoped>
-.help-content {
-  padding: 16px;
-}
-
-.help-content h3 {
-  font-size: 16px;
-  font-weight: 600;
-  margin-top: 16px;
-  margin-bottom: 8px;
-  color: var(--edgex-text-primary);
-}
-
-.help-content h3:first-child {
-  margin-top: 0;
-}
-
-.help-content p {
-  color: #64748b;
-  line-height: 1.6;
-  margin-bottom: 12px;
-}
-
-.help-content ul {
-  padding-left: 20px;
-  color: #64748b;
-}
-
-.help-content ul li {
-  margin-bottom: 8px;
-}
-
-.help-content pre {
-  background: var(--edgex-surface-muted);
-  padding: 16px;
-  border-radius: 8px;
-  overflow-x: auto;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #334155;
-  margin: 12px 0;
-}
-
-.help-content code {
-  background: var(--edgex-surface-muted);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: 'Monaco', 'Menlo', monospace;
-  font-size: 13px;
-  color: #334155;
-}
-
-.topic-table,
-.config-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 16px 0;
-}
-
-.topic-table th,
-.topic-table td,
-.config-table th,
-.config-table td {
-  border: 1px solid #e2e8f0;
-  padding: 10px 12px;
-  text-align: left;
-  font-size: 13px;
-}
-
-.topic-table th,
-.config-table th {
-  background: var(--edgex-surface-inset);
-  font-weight: 600;
-  color: var(--edgex-text-primary);
-}
-
-.topic-table tr:nth-child(even),
-.config-table tr:nth-child(even) {
-  background: var(--edgex-surface-inset);
-}
-
-.topic-table tr:hover,
-.config-table tr:hover {
-  background: #e2e8f0;
-}
+/* v3.0 — styles in src/styles/ */
 </style>

@@ -1,0 +1,96 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-anchor {
+  position: relative;
+  width: 150px;
+  overflow: auto;
+}
+.arco-anchor-line-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 2px;
+  height: 12px;
+  margin-top: 9.0005px;
+  background-color: rgb(var(--primary-6));
+  transition: top 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.arco-anchor-list {
+  position: relative;
+  margin-top: 0;
+  margin-bottom: 0;
+  margin-left: 4px;
+  padding-left: 0;
+  list-style: none;
+}
+.arco-anchor-list::before {
+  position: absolute;
+  left: -4px;
+  width: 2px;
+  height: 100%;
+  background-color: var(--color-fill-3);
+  content: '';
+}
+.arco-anchor-sublist {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-left: 0;
+  list-style: none;
+}
+.arco-anchor-link-item {
+  margin-bottom: 2px;
+}
+.arco-anchor-link-item .arco-anchor-link {
+  display: block;
+  margin-bottom: 2px;
+  padding: 4px 8px;
+  overflow: hidden;
+  color: var(--color-text-2);
+  font-size: 14px;
+  line-height: 1.5715;
+  white-space: nowrap;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+}
+.arco-anchor-link-item .arco-anchor-link:hover {
+  color: var(--color-text-1);
+  font-weight: 500;
+  background-color: var(--color-fill-2);
+}
+.arco-anchor-link-active > .arco-anchor-link {
+  color: var(--color-text-1);
+  font-weight: 500;
+  transition: all 0.1s cubic-bezier(0, 0, 1, 1);
+}
+.arco-anchor-link-item .arco-anchor-link-item {
+  margin-left: 16px;
+}
+.arco-anchor-line-less .arco-anchor-list {
+  margin-left: 0;
+}
+.arco-anchor-line-less .arco-anchor-list::before {
+  display: none;
+}
+.arco-anchor-line-less .arco-anchor-link-active > .arco-anchor-link {
+  color: rgb(var(--primary-6));
+  font-weight: 500;
+  background-color: var(--color-fill-2);
+}

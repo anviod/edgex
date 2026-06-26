@@ -316,58 +316,6 @@ const formatRtt = (micros) => {
 </script>
 
 <style scoped>
-.device-metrics-card {
-  transition: all 0.3s ease;
-  border-left: 3px solid transparent;
-}
-
-.device-metrics-card.degraded {
-  border-left-color: rgb(var(--v-theme-warning));
-  background: rgba(var(--v-theme-warning), 0.05);
-}
-
-.health-indicator {
-  position: relative;
-}
-
-.health-ring {
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-}
-
-.metrics-row {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 8px 0;
-}
-
-.metric-box {
-  padding: 8px 4px;
-  border-radius: 0;
-  transition: all 0.2s;
-}
-
-.metric-box:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.metric-box.has-issue {
-  background: rgba(var(--v-theme-error), 0.05);
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: 0;
-}
-
-.detail-row:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.border-t {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
+/* v3.0 — styles in src/styles/ */
 </style>
 

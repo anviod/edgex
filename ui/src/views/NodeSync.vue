@@ -1,40 +1,30 @@
 <template>
-  <div class="page-shell node-sync-container">
-    <!-- Tab 导航 -->
-    <a-tabs v-model:active-key="activeTab" class="main-tabs">
+  <div class="page-shell node-sync-page">
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">节点同步</h2>
+        <p class="page-subtitle">管理边缘节点配置同步、网络发现与集群状态</p>
+      </div>
+    </div>
+
+    <a-tabs v-model:active-key="activeTab" type="rounded" size="small" class="main-tabs">
       <a-tab-pane key="sync" title="同步控制" />
       <a-tab-pane key="cluster" title="集群总览" />
       <a-tab-pane key="tree" title="配置树" />
       <a-tab-pane key="diff" title="配置差异" />
     </a-tabs>
 
-    <!-- 同步控制 -->
-    <SyncControl 
-      v-if="activeTab === 'sync'" 
-      @refresh="refreshData"
-    />
-
-    <!-- 集群总览 -->
-    <ClusterView 
-      v-if="activeTab === 'cluster'" 
-    />
-
-    <!-- 配置树 -->
-    <NodeTree 
-      v-if="activeTab === 'tree'" 
-    />
-
-    <!-- 配置差异 -->
-    <ConfigDiffView 
-      v-if="activeTab === 'diff'" 
-    />
+    <div class="node-sync-body">
+      <SyncControl v-if="activeTab === 'sync'" @refresh="refreshData" />
+      <ClusterView v-if="activeTab === 'cluster'" />
+      <NodeTree v-if="activeTab === 'tree'" />
+      <ConfigDiffView v-if="activeTab === 'diff'" />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
-
-// 导入子组件
+import { ref } from 'vue'
 import SyncControl from './components/SyncControl.vue'
 import ClusterView from './components/ClusterView.vue'
 import NodeTree from './sync/NodeTree.vue'
@@ -42,37 +32,9 @@ import ConfigDiffView from './components/ConfigDiffView.vue'
 
 const activeTab = ref('sync')
 
-const refreshData = () => {
-  console.log('Refreshing data...')
-}
-
-watch(activeTab, (newTab) => {
-  console.log('Switched to tab:', newTab)
-})
-
-onMounted(() => {
-  console.log('NodeSync page mounted')
-})
+const refreshData = () => {}
 </script>
 
 <style scoped>
-.node-sync-container {
-  /* page-shell 提供布局 */
-}
-
-.main-tabs {
-  padding: 0;
-  margin: 0 0 16px;
-  background: transparent;
-  border: none;
-}
-
-.main-tabs :deep(.arco-tabs-tab) {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.main-tabs :deep(.arco-tabs-tab-active) {
-  color: #0ea5e9;
-}
+/* v3.0 — styles in src/styles/node-sync.css */
 </style>

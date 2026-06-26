@@ -1,0 +1,478 @@
+/*
+ * EdgeX v3.0 — 系统设置页（SystemSettings + 子组件）
+ */
+
+.system-settings-page {
+  gap: var(--space-6);
+}
+
+.system-settings-page .page-header {
+  margin-bottom: var(--space-2);
+}
+
+.system-settings-page > .main-tabs {
+  flex-shrink: 0;
+}
+
+.system-settings-page > .main-tabs .arco-tabs-nav-tab {
+  white-space: nowrap;
+}
+
+.system-settings-page > .main-tabs .arco-tabs-nav-scroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.system-settings-page > .main-tabs > .arco-tabs-content {
+  display: none;
+}
+
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-gap);
+  padding-top: var(--space-6);
+  min-width: 0;
+}
+
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+/* ── 通用设置面板（Arco Card） ── */
+.system-settings-page .settings-panel.arco-card,
+.system-settings-page .settings-panel > .arco-card {
+  background: var(--bg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+.system-settings-page .settings-panel > .arco-card-header,
+.system-settings-page .settings-panel.arco-card > .arco-card-header {
+  padding: var(--space-5) var(--space-6) !important;
+  border-bottom: 1px solid var(--border);
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+}
+
+.system-settings-page .settings-panel > .arco-card-body,
+.system-settings-page .settings-panel.arco-card > .arco-card-body {
+  padding: var(--space-6) !important;
+}
+
+.system-settings-page .settings-panel .card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  line-height: 1.4;
+}
+
+.system-settings-page .settings-panel .card-title .title-icon {
+  color: var(--text-secondary);
+}
+
+.system-settings-page .form-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--border);
+}
+
+.system-settings-page .form-footer--plain {
+  margin-top: var(--space-4);
+  padding-top: 0;
+  border-top: none;
+}
+
+.system-settings-page .mb-block {
+  margin-bottom: var(--space-6) !important;
+}
+
+.system-settings-page .database-management .arco-card-header {
+  padding: var(--space-5) var(--space-6) !important;
+  border-bottom: 1px solid var(--border);
+}
+
+.system-settings-page .database-management .arco-card-body {
+  padding: var(--space-6) !important;
+}
+
+.system-settings-page .database-management .arco-card-header-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.system-settings-page .form-hint {
+  margin-top: var(--space-2);
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.system-settings-page .industrial-form .arco-form-item {
+  margin-bottom: var(--space-5);
+}
+
+.system-settings-page .industrial-form .arco-form-item:last-child {
+  margin-bottom: 0;
+}
+
+.system-settings-page .industrial-form .arco-form-item-label {
+  padding-bottom: var(--space-2);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* ── 表格区域 ── */
+.system-settings-page .table-toolbar-industrial {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4) 0;
+  margin-bottom: var(--space-4);
+}
+
+.system-settings-page .toolbar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.system-settings-page .subscribers-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+}
+
+.system-settings-page .subscribers-line .sub-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.system-settings-page .table-container,
+.system-settings-page .saas-table {
+  margin-top: var(--space-2);
+}
+
+.system-settings-page .arco-table {
+  border-spacing: 0 !important;
+}
+
+.system-settings-page .arco-divider {
+  margin: var(--space-6) 0 !important;
+}
+
+/* ── 主机设置 · 访问列表 ── */
+.system-settings-page .access-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.system-settings-page .access-item {
+  padding: var(--space-5) var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.system-settings-page .access-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-2);
+}
+
+.system-settings-page .access-subtitle {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 系统维护 ── */
+.system-settings-page .system-maintenance-card .maintenance-card {
+  height: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.system-settings-page .system-maintenance-card .maintenance-card:hover {
+  border-color: rgba(14, 165, 233, 0.25);
+  transform: translateY(-1px);
+}
+
+.system-settings-page .system-maintenance-card .maintenance-card .arco-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-6) !important;
+  min-height: 180px;
+}
+
+.system-settings-page .system-maintenance-card .card-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+
+.system-settings-page .system-maintenance-card .restart-card .card-icon {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.1);
+}
+
+.system-settings-page .system-maintenance-card .reset-card .card-icon {
+  color: var(--edgex-error);
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.system-settings-page .system-maintenance-card .card-title-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.system-settings-page .system-maintenance-card .card-description {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.system-settings-page .system-maintenance-card .card-actions {
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+.system-settings-page .status-alert {
+  margin-bottom: var(--space-6) !important;
+}
+
+.system-settings-page .metrics-col {
+  margin-bottom: var(--space-4);
+}
+
+/* ── 数据管理 ── */
+.database-management.settings-stack > .settings-panel.arco-card,
+.database-management.settings-stack > .arco-card.settings-panel {
+  margin-top: 0 !important;
+}
+
+.database-management .overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+.database-management .overview-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  min-width: 0;
+}
+
+.database-management .overview-item.config-db {
+  border-color: rgba(220, 38, 38, 0.2);
+  background: rgba(220, 38, 38, 0.04);
+}
+
+.database-management .overview-item.runtime-db {
+  border-color: rgba(22, 163, 74, 0.2);
+  background: rgba(22, 163, 74, 0.04);
+}
+
+.database-management .overview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: nowrap;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.database-management .overview-header .db-type {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.database-management .overview-header .arco-tag {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.database-management .overview-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.database-management .overview-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+
+.database-management .overview-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.database-management .overview-value.text-warning {
+  color: #d97706;
+}
+
+.database-management .overview-fields-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+}
+
+.database-management .action-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.database-management .action-desc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.database-management .action-desc .arco-alert {
+  margin: 0 !important;
+}
+
+.database-management .backup-result,
+.database-management .compact-result,
+.database-management .migrate-result {
+  margin-top: var(--space-4);
+}
+
+.database-management .confirm-buckets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.database-management .table-wrap {
+  margin: var(--space-4) 0 var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.database-management .table-wrap .arco-table {
+  border: none !important;
+}
+
+.database-management .section-divider {
+  margin: var(--space-6) 0 var(--space-5) !important;
+}
+
+.database-management .section-divider .arco-divider-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ── Dark ── */
+.dark-theme .system-settings-page .settings-panel.arco-card,
+.dark-theme .system-settings-page .access-item,
+.dark-theme .database-management .overview-item {
+  background: var(--bg);
+}
+
+.dark-theme .database-management .overview-item.config-db {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.dark-theme .database-management .overview-item.runtime-db {
+  background: rgba(22, 163, 74, 0.08);
+}
+
+.dark-theme .system-settings-page .subscribers-line .sub-item {
+  background: var(--surface-2);
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .database-management .overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .database-management .overview-fields-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .system-settings-page .access-list {
+    grid-template-columns: 1fr;
+  }
+
+  .database-management .overview-header {
+    flex-wrap: wrap;
+  }
+}

@@ -1,0 +1,24 @@
+import type { ComponentPublicInstance, VNodeNormalizedChildren } from 'vue';
+import { Dayjs } from 'dayjs';
+import { VNode } from 'vue';
+export declare function isArray(obj: any): obj is any[];
+export declare function isNull(obj: any): obj is null;
+export declare function isBoolean(obj: unknown): obj is boolean;
+export declare function isObject<T extends unknown>(obj: T): obj is Extract<T, Record<string, any>>;
+export declare const isPromise: <T>(obj: unknown) => obj is Promise<T>;
+export declare function isString(obj: any): obj is string;
+export declare function isNumber(obj: any): obj is number;
+export declare function isRegExp(obj: any): boolean;
+export declare function isDate(obj: any): boolean;
+export declare function isColor(color: any): boolean;
+export declare function isUndefined(obj: any): obj is undefined;
+export declare function isFunction(obj: any): obj is (...args: any[]) => any;
+export declare function isEmptyObject(obj: any): boolean;
+export declare function isExist(obj: any): boolean;
+export declare function isWindow(el: any): el is Window;
+export declare const isComponentInstance: (value: any) => value is ComponentPublicInstance<{}, {}, {}, {}, {}, {}, {}, {}, false, import("vue").ComponentOptionsBase<any, any, any, any, any, any, any, any, any, {}, {}, string, {}, {}, {}, string, import("vue").ComponentProvideOptions>, {}, {}, "", {}, any>;
+export declare const isArrayChildren: (children: VNodeNormalizedChildren) => children is VNode<import("vue").RendererNode, import("vue").RendererElement, {
+    [key: string]: any;
+}>[];
+export declare const isQuarter: (fromat: string) => boolean;
+export declare function isDayjs(time: any): time is Dayjs;

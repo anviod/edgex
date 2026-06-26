@@ -114,23 +114,6 @@ defineExpose({ open })
 </script>
 
 <style scoped>
-/* 修改密码对话框样式 */
-:deep(.arco-form-item-label) {
-  font-weight: 500;
-  white-space: nowrap !important;
-}
-
-:deep(.arco-form-item-control) {
-  min-height: 32px;
-}
-
-:deep(.arco-input-wrapper) {
-  height: 32px;
-}
-
-:deep(.arco-input) {
-  height: 32px;
-  line-height: 32px;
-}
+/* v3.0 — styles in src/styles/ */
 </style>
 

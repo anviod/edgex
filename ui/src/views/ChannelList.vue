@@ -67,6 +67,16 @@
                 </svg>
               </template>添加通道
             </a-button>
+            <a-button type="text" size="small" class="help-trigger-btn" @click="openChannelHelp">
+              <template #icon>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </template>
+              帮助说明
+            </a-button>
           </a-space>
         </a-space>
       </div>
@@ -161,15 +171,21 @@
           </template>
 
           <template #enable="{ record }">
-            <a-tag :color="record.enableColor" size="small" bordered>{{ record.enableText }}</a-tag>
+            <span class="table-cell-semantic">
+              <a-tag :color="record.enableColor" size="small" bordered>{{ record.enableText }}</a-tag>
+            </span>
           </template>
 
           <template #runtime="{ record }">
-            <a-badge :status="record.runtimeArcoStatus" :text="record.runtimeText" />
+            <span class="table-cell-semantic">
+              <a-badge :status="record.runtimeArcoStatus" :text="record.runtimeText" />
+            </span>
           </template>
 
           <template #deviceCount="{ record }">
-            <span style="font-weight: 500">{{ record.deviceCount }}</span>
+            <a-tooltip :content="`${record.deviceCount} 台设备`">
+              <span class="table-cell-count">{{ record.deviceCount }}</span>
+            </a-tooltip>
           </template>
 
           <template #actions="{ record }">
@@ -219,10 +235,11 @@
     <a-modal 
       v-model:visible="dialog.show" 
       :title="dialog.isEdit ? '编辑通道' : '添加通道'"
-      :width="900"
+      :width="760"
+      modal-class="channel-config-modal"
       @ok="saveChannel"
     >
-      <a-form :model="dialog.form" layout="horizontal" class="industrial-form form-controls-md" :label-col-props="{ span: 6 }" :wrapper-col-props="{ span: 18 }">
+      <a-form :model="dialog.form" layout="vertical" class="channel-config-form flow-form form-controls-md">
         <a-form-item field="id" label="ID" required>
           <a-input v-model="dialog.form.id" :disabled="dialog.isEdit" placeholder="请输入ID">
             <template #append v-if="!dialog.isEdit">
@@ -246,26 +263,10 @@
         </a-form-item>
 
         <a-form-item field="enable" label="启用">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <a-switch v-model="dialog.form.enable" />
-            <a-button 
-              v-if="dialog.form.protocol === 'ethernet-ip'" 
-              type="text" 
-              @click="showENIPHelp = true" 
-              style="padding: 0; height: auto; line-height: 1;"
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#1890ff" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
-                <path d="M12 17h.01"/>
-              </svg>
-              <span style="color: #1890ff; margin-left: 4px; font-size: 12px;">查看帮助说明</span>
-            </a-button>
-          </div>
+          <a-switch v-model="dialog.form.enable" />
         </a-form-item>
 
-        <!-- Protocol specific config -->
-        <a-divider orientation="left">协议配置</a-divider>
+        <div class="modal-section__title">协议配置</div>
 
         <!-- Modbus TCP & Modbus RTU Over TCP Config -->
         <div v-if="dialog.form.protocol === 'modbus-tcp' || dialog.form.protocol === 'modbus-rtu-over-tcp'" class="config-section">
@@ -276,11 +277,9 @@
             <a-input-number v-model="dialog.form.config.timeout" :min="100" :max="60000" placeholder="2000" />
           </a-form-item>
 
-          <a-divider class="my-4"></a-divider>
-          <div class="section-header">
-            <span class="section-title">高级配置</span>
-          </div>
-          <a-row :gutter="12">
+          <div class="advanced-block">
+            <div class="modal-section__title modal-section__title--sub">高级配置</div>
+            <a-row :gutter="[24, 16]" class="field-grid">
             <a-col :span="12">
               <a-form-item field="config.max_retries" label="最大重试次数">
                 <a-input-number v-model="dialog.form.config.max_retries" :min="0" :max="10" placeholder="3" />
@@ -340,6 +339,7 @@
               </a-form-item>
             </a-col>
           </a-row>
+          </div>
         </div>
 
         <!-- DLT645 Config -->
@@ -368,7 +368,7 @@
           <a-form-item field="config.port" label="串口设备">
             <a-input v-model="dialog.form.config.port" placeholder="/dev/ttyS1" />
           </a-form-item>
-          <a-row :gutter="12">
+          <a-row :gutter="[24, 16]" class="field-grid">
             <a-col :span="6">
               <a-form-item field="config.baudRate" label="波特率">
                 <a-select v-model="dialog.form.config.baudRate" placeholder="9600">
@@ -416,12 +416,9 @@
           </a-form-item>
 
           <!-- Modbus RTU Advanced Config -->
-          <div v-if="dialog.form.protocol === 'modbus-rtu'">
-            <a-divider class="my-4"></a-divider>
-            <div class="section-header">
-              <span class="section-title">高级配置</span>
-            </div>
-            <a-row :gutter="12">
+          <div v-if="dialog.form.protocol === 'modbus-rtu'" class="advanced-block">
+            <div class="modal-section__title modal-section__title--sub">高级配置</div>
+            <a-row :gutter="[24, 16]" class="field-grid">
               <a-col :span="12">
                 <a-form-item field="config.max_retries" label="最大重试次数">
                   <a-input-number v-model="dialog.form.config.max_retries" :min="0" :max="10" placeholder="3" />
@@ -467,10 +464,8 @@
           <a-form-item field="config.port" label="端口">
             <a-input-number v-model="dialog.form.config.port" :min="1" :max="65535" placeholder="47808 (默认)" />
           </a-form-item>
-          <a-divider class="my-4"></a-divider>
-          <div class="section-header">
-            <span class="section-title">加密参数 (可选)</span>
-          </div>
+          <div class="advanced-block">
+            <div class="modal-section__title modal-section__title--sub">加密参数 (可选)</div>
           <a-form-item field="config.key" label="密钥">
             <a-input v-model="dialog.form.config.key" type="password" />
           </a-form-item>
@@ -480,6 +475,7 @@
           <a-form-item field="config.ca" label="CA证书路径">
             <a-input v-model="dialog.form.config.ca" />
           </a-form-item>
+          </div>
         </div>
 
         <!-- OPC UA Config -->
@@ -491,14 +487,14 @@
 
         <!-- S7 Config -->
         <div v-if="dialog.form.protocol === 's7'" class="config-section">
-          <a-divider orientation="left" :size="2">基础连接</a-divider>
+          <div class="modal-section__title modal-section__title--sub">基础连接</div>
           <a-form-item field="config.ip" label="PLC IP 地址" required>
             <a-input v-model="dialog.form.config.ip" placeholder="192.168.1.10" />
           </a-form-item>
           <a-form-item field="config.port" label="PLC 端口">
             <a-input-number v-model="dialog.form.config.port" :min="1" :max="65535" placeholder="102 (默认)" />
           </a-form-item>
-          <a-row :gutter="12">
+          <a-row :gutter="[24, 16]" class="field-grid">
             <a-col :span="8">
               <a-form-item field="config.plcType" label="PLC 型号">
                 <a-select v-model="dialog.form.config.plcType" placeholder="请选择" allow-clear>
@@ -521,7 +517,7 @@
               </a-form-item>
             </a-col>
           </a-row>
-          <a-row :gutter="12">
+          <a-row :gutter="[24, 16]" class="field-grid">
             <a-col :span="8">
               <a-form-item field="config.connect_type" label="连接类型">
                 <a-select v-model="dialog.form.config.connect_type" placeholder="自动" allow-clear>
@@ -546,8 +542,8 @@
             </a-col>
           </a-row>
 
-          <a-divider orientation="left" :size="2">通信参数</a-divider>
-          <a-row :gutter="12">
+          <div class="modal-section__title modal-section__title--sub">通信参数</div>
+          <a-row :gutter="[24, 16]" class="field-grid">
             <a-col :span="8">
               <a-form-item field="config.timeout" label="超时时间 (ms)">
                 <a-input-number v-model="dialog.form.config.timeout" :min="500" :max="30000" placeholder="2000" />
@@ -564,7 +560,7 @@
               </a-form-item>
             </a-col>
           </a-row>
-          <a-row :gutter="12">
+          <a-row :gutter="[24, 16]" class="field-grid">
             <a-col :span="8">
               <a-form-item field="config.pdu_size" label="PDU缓冲区 (字节)">
                 <a-input-number v-model="dialog.form.config.pdu_size" :min="240" :max="960" placeholder="4096" />
@@ -585,7 +581,7 @@
               </a-form-item>
             </a-col>
           </a-row>
-          <a-row :gutter="12">
+          <a-row :gutter="[24, 16]" class="field-grid">
             <a-col :span="8">
               <a-form-item field="config.batch_read_max" label="批量读取上限">
                 <a-input-number v-model="dialog.form.config.batch_read_max" :min="1" :max="500" placeholder="100" />
@@ -596,7 +592,7 @@
 
         <!-- EtherNet/IP Config -->
         <div v-if="dialog.form.protocol === 'ethernet-ip'" class="config-section">
-          <a-divider orientation="left" :size="2">基础连接</a-divider>
+          <div class="modal-section__title modal-section__title--sub">基础连接</div>
           <a-form-item field="config.ip" label="PLC IP 地址" required>
             <a-input v-model="dialog.form.config.ip" placeholder="192.168.1.10" />
           </a-form-item>
@@ -613,8 +609,8 @@
             </a-select>
           </a-form-item>
 
-          <a-divider orientation="left" :size="2">通信参数</a-divider>
-          <a-row :gutter="12">
+          <div class="modal-section__title modal-section__title--sub">通信参数</div>
+          <a-row :gutter="[24, 16]" class="field-grid">
             <a-col :span="8">
               <a-form-item field="config.timeout" label="超时时间 (ms)">
                 <a-input-number v-model="dialog.form.config.timeout" :min="500" :max="30000" placeholder="2000" />
@@ -631,7 +627,7 @@
               </a-form-item>
             </a-col>
           </a-row>
-          <a-row :gutter="12">
+          <a-row :gutter="[24, 16]" class="field-grid">
             <a-col :span="8">
               <a-form-item field="config.heartbeat_interval" label="心跳间隔 (ms)">
                 <a-input-number v-model="dialog.form.config.heartbeat_interval" :min="0" :max="300000" placeholder="30000" />
@@ -650,19 +646,6 @@
           </a-row>
         </div>
 
-        <!-- Help button -->
-        <div class="mt-4 d-flex justify-end">
-          <a-button type="text" status="info" @click="showHelp = true" v-if="!dialog.isEdit">
-            <template #icon>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-            </template>
-            查看帮助说明
-          </a-button>
-        </div>
       </a-form>
     </a-modal>
 
@@ -711,134 +694,34 @@
     <!-- Channel Metrics Modal -->
     <a-modal
       v-model:visible="metricsDialog.show"
-      :title="`通道监控指标 - ${metricsDialog.channel?.name || ''}`"
       :width="800"
-      :footer="false"
+      modal-class="channel-metrics-modal"
       unmount-on-close
     >
-      <div v-if="metricsDialog.loading" class="metrics-loading">
-        <a-spin tip="加载监控指标中..." size="large" />
-      </div>
-      <div v-else-if="metricsDialog.error" class="metrics-error">
-        <a-alert type="error" :title="metricsDialog.error" show-icon />
-      </div>
-      <div v-else-if="metricsDialog.metrics" class="metrics-content">
-        <!-- 质量评分 -->
-        <div class="metrics-header">
-          <div class="quality-score-section">
-            <div class="quality-score-circle" :class="getQualityClass(qualityScore)">
-              <div class="quality-score-value">{{ qualityScore }}</div>
-              <div class="quality-score-label">质量评分</div>
-              <div class="quality-score-level">{{ getQualityLabel(qualityScore) }}</div>
-            </div>
-            <div class="quality-info">
-              <div class="info-item">
-                <a-badge :status="getQualityStatus(qualityScore)" :text="`通道状态: ${getQualityLabel(qualityScore)}`" />
-              </div>
-              <div v-if="metricsDialog.metrics.reconnectCount > 0" class="info-item">
-                <a-tag status="warning">重连 {{ metricsDialog.metrics.reconnectCount }} 次</a-tag>
-              </div>
-              <div class="info-item">
-                <span class="info-label">连接时长：</span>
-                <span class="info-value">{{ connectionDuration }}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">网络连接：</span>
-                <span class="info-value">
-                  {{ getNetworkConnectionText() }}
-                </span>
-              </div>
-            </div>
-          </div>
+      <template #title>
+        <div class="channel-metrics-modal__title">
+          <span class="protocol-tag" v-if="metricsDialog.channel?.protocol">
+            {{ formatProtocolTag(metricsDialog.channel.protocol) }}
+          </span>
+          <span class="channel-metrics-modal__title-text">通道监控 · {{ metricsDialog.channel?.name || '' }}</span>
         </div>
+      </template>
 
-        <!-- 核心指标 -->
-        <div class="metrics-core">
-          <div class="metrics-grid">
-            <div class="metric-card">
-              <div class="metric-label">成功率</div>
-              <div class="metric-value" :class="getSuccessRateClass(metricsDialog.metrics?.successRate)">
-                {{ formatPercent(metricsDialog.metrics?.successRate) }}
-              </div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-label">平均 RTT</div>
-              <div class="metric-value">
-                {{ formatDuration(metricsDialog.metrics?.avgRtt) }}
-              </div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-label">丢包率</div>
-              <div class="metric-value" :class="getPacketLossClass(metricsDialog.metrics?.packetLoss)">
-                {{ formatPercent(metricsDialog.metrics?.packetLoss) }}
-              </div>
-            </div>
-          </div>
-        </div>
+      <ChannelMetricsPanel
+        :loading="metricsDialog.loading"
+        :error="metricsDialog.error"
+        :metrics="metricsDialog.metrics"
+      />
 
-        <!-- 详细指标 -->
-        <div class="metrics-details">
-          <a-collapse v-model="metricsDialog.expandedDetails" class="metrics-collapse">
-            <a-collapse-item name="details" title="详细指标">
-              <a-descriptions :column="2" size="small" bordered>
-                <a-descriptions-item label="CRC错误率">
-                  {{ formatPercent(metricsDialog.metrics?.crcErrorRate) }}
-                </a-descriptions-item>
-                <a-descriptions-item label="重试率">
-                  {{ formatPercent(metricsDialog.metrics?.retryRate) }}
-                </a-descriptions-item>
-                <a-descriptions-item label="总请求数">
-                  {{ metricsDialog.metrics?.totalRequests || 0 }}
-                </a-descriptions-item>
-                <a-descriptions-item label="成功请求数">
-                  {{ metricsDialog.metrics?.successRequests || 0 }}
-                </a-descriptions-item>
-                <a-descriptions-item label="失败请求数">
-                  {{ metricsDialog.metrics?.failedRequests || 0 }}
-                </a-descriptions-item>
-                <a-descriptions-item label="重连次数">
-                  {{ metricsDialog.metrics?.reconnectCount || 0 }}
-                </a-descriptions-item>
-              </a-descriptions>
-            </a-collapse-item>
-          </a-collapse>
-        </div>
-      </div>
-      <div v-else class="metrics-empty">
-        <a-empty description="暂无监控指标数据" />
-      </div>
-      <div class="modal-footer">
+      <template #footer>
         <a-button type="primary" @click="metricsDialog.show = false">关闭</a-button>
-      </div>
+      </template>
     </a-modal>
 
-    <!-- EtherNet/IP Help Dialog -->
-    <a-modal
-      v-model:visible="showENIPHelp"
-      title="EtherNet/IP 协议配置帮助"
-      :width="700"
-      @ok="showENIPHelp = false"
-    >
-      <div class="help-content">
-        <div v-for="section in ENIPHelpContent.sections" :key="section.title" class="help-section">
-          <h3 class="help-section-title">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#1890ff" stroke-width="2" style="margin-right: 8px;">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
-              <path d="M12 17h.01"/>
-            </svg>
-            {{ section.title }}
-          </h3>
-          <p v-if="section.content" class="help-content-text">{{ section.content }}</p>
-          <div v-if="section.items" class="help-items">
-            <div v-for="item in section.items" :key="item.label" class="help-item">
-              <span class="help-item-label">{{ item.label }}</span>
-              <span class="help-item-desc">{{ item.desc }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </a-modal>
+    <ChannelProtocolHelpDrawer
+      v-model:visible="channelHelpVisible"
+      :initial-protocol="helpProtocol"
+    />
   </div>
 </template>
 
@@ -848,6 +731,9 @@ import { useRouter } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
 import request from '@/utils/request'
 import { formatProtocolTag } from '@/utils/protocolLabel'
+import ChannelProtocolHelpDrawer from '@/components/channel-help/ChannelProtocolHelpDrawer.vue'
+import ChannelMetricsPanel from '@/components/channel/ChannelMetricsPanel.vue'
+import { computeQualityScore, runtimeFromQualityScore } from '@/utils/channelMetrics'
 
 // 恢复使用 SVG 图标以避免导入问题
 
@@ -881,10 +767,15 @@ const metricsDialog = reactive({
   error: null,
   channel: null,
   metrics: null,
-  expandedDetails: ['details']
 })
 
-const showENIPHelp = ref(false)
+const channelHelpVisible = ref(false)
+
+const helpProtocol = computed(() => dialog.form.protocol || 'modbus-tcp')
+
+const openChannelHelp = () => {
+  channelHelpVisible.value = true
+}
 
 const protocols = [
   { label: 'Modbus TCP', value: 'modbus-tcp' },
@@ -900,9 +791,9 @@ const protocols = [
 const tableColumns = [
   { title: '通道名称', slotName: 'name', width: 200 },
   { title: '协议类型', dataIndex: 'protocol', width: 140, customRender: ({ record }) => formatProtocolTag(record?.protocol) },
-  { title: '启用状态', slotName: 'enable', width: 100 },
+  { title: '启用状态', slotName: 'enable', width: 108 },
   { title: '运行状态', slotName: 'runtime', width: 120 },
-  { title: '关联设备', slotName: 'deviceCount', width: 100, align: 'center' },
+  { title: '关联设备', slotName: 'deviceCount', width: 72, align: 'center' },
   { title: '操作', slotName: 'actions', width: 220, fixed: 'right' },
 ]
 
@@ -1085,190 +976,6 @@ const getRuntimeText = (state) => {
   return textMap[state] || '未知'
 }
 
-// 监控指标相关计算属性和函数
-const qualityScore = computed(() => {
-  if (!metricsDialog.metrics) return 0
-  
-  let score = 100
-  const m = metricsDialog.metrics
-  
-  if (m.successRate !== undefined)
-    score -= (1 - m.successRate) * 40
-  
-  if (m.crcErrorRate !== undefined)
-    score -= m.crcErrorRate * 20
-  
-  if (m.retryRate !== undefined)
-    score -= m.retryRate * 20
-  
-  if (m.avgRtt > 100)
-    score -= Math.min(10, (m.avgRtt - 100) / 50)
-  
-  return Math.max(0, Math.round(score))
-})
-
-const connectionDuration = computed(() => {
-  if (!metricsDialog.metrics) return '暂无连接信息'
-  const seconds = metricsDialog.metrics.connectionSeconds || 0
-  if (seconds === 0) return '已连接 0s（刚建立连接）'
-  if (seconds < 60) return `已连接 ${seconds}s`
-  if (seconds < 3600) return `已连接 ${Math.floor(seconds / 60)}m`
-  return `已连接 ${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`
-})
-
-// 解析网络地址信息
-const networkInfo = computed(() => {
-  if (!metricsDialog.metrics) {
-    return { localIp: '-', localPort: '-', remoteIp: '-', remotePort: '-' }
-  }
-  
-  // 优先使用分开的字段
-  let localIp = metricsDialog.metrics.localIp || metricsDialog.metrics.local_ip
-  let localPort = metricsDialog.metrics.localPort || metricsDialog.metrics.local_port
-  let remoteIp = metricsDialog.metrics.remoteIp || metricsDialog.metrics.remote_ip
-  let remotePort = metricsDialog.metrics.remotePort || metricsDialog.metrics.remote_port
-  
-  // 辅助函数：解析地址字符串（处理IP:Port格式）
-  const parseAddressString = (addrStr) => {
-    if (!addrStr) return { ip: '-', port: '-' }
-    
-    // 去掉协议前缀
-    let addr = addrStr
-    if (addr.includes('://')) {
-      addr = addr.split('://')[1] || addr
-    }
-    
-    // 提取IP和端口
-    // 处理IPv6 [::1]:8080 这种格式
-    if (addr.startsWith('[')) {
-      const bracketIdx = addr.indexOf(']')
-      if (bracketIdx > 0) {
-        const ip = addr.substring(1, bracketIdx)
-        const rest = addr.substring(bracketIdx + 1)
-        if (rest.startsWith(':')) {
-          return { ip, port: rest.substring(1).split('/')[0] }
-        }
-        return { ip, port: '-' }
-      }
-    }
-    
-    // 处理普通IPv4格式 IP:Port 或 包含路径的格式 IP:Port/Path
-    const colonIdx = addr.lastIndexOf(':')
-    if (colonIdx > 0) {
-      const ip = addr.substring(0, colonIdx)
-      let port = addr.substring(colonIdx + 1)
-      
-      // 处理包含路径的情况
-      const slashIdx = port.indexOf('/')
-      if (slashIdx > 0) {
-        port = port.substring(0, slashIdx)
-      }
-      
-      return { ip, port }
-    }
-    
-    // 如果找不到冒号，整个字符串作为IP
-    return { ip: addr, port: '-' }
-  }
-  
-  // 如果没有分开的字段，尝试解析 localAddr 和 remoteAddr
-  if (!localIp && metricsDialog.metrics.localAddr) {
-    const parsed = parseAddressString(metricsDialog.metrics.localAddr)
-    localIp = parsed.ip
-    localPort = parsed.port
-  }
-  
-  if (!remoteIp && metricsDialog.metrics.remoteAddr) {
-    const parsed = parseAddressString(metricsDialog.metrics.remoteAddr)
-    remoteIp = parsed.ip
-    remotePort = parsed.port
-  }
-  
-  return {
-    localIp: localIp || '-',
-    localPort: localPort || '-',
-    remoteIp: remoteIp || '-',
-    remotePort: remotePort || '-'
-  }
-})
-
-const getQualityLabel = (score) => {
-  if (score >= 90) return '优秀'
-  if (score >= 75) return '良好'
-  if (score >= 60) return '一般'
-  return '较差'
-}
-
-const getQualityClass = (score) => {
-  if (score >= 90) return 'quality-excellent'
-  if (score >= 75) return 'quality-good'
-  if (score >= 60) return 'quality-warning'
-  return 'quality-poor'
-}
-
-const getNetworkConnectionText = () => {
-  if (!metricsDialog.metrics) {
-    return '暂无网络连接信息'
-  }
-  
-  // 获取网络信息，确保没有undefined
-  const info = networkInfo
-  const localIp = info.localIp || '-'
-  const localPort = info.localPort || '-'
-  const remoteIp = info.remoteIp || '-'
-  const remotePort = info.remotePort || '-'
-  
-  const local = `${localIp}:${localPort}`
-  
-  // 检查remoteAddr是否是IP:Port格式
-  const remoteAddr = metricsDialog.metrics.remoteAddr
-  if (remoteAddr && remoteAddr.includes(':')) {
-    const parts = remoteAddr.split(':')
-    if (parts.length >= 2 && !isNaN(parts[1])) {
-      // 是IP:Port格式
-      return `本地 ${local} → 目标 ${remoteIp}:${remotePort}`
-    }
-  }
-  
-  // 不是标准IP:Port格式，直接显示remoteAddr作为描述
-  if (remoteAddr && remoteAddr !== '') {
-    return `本地 ${local} → ${remoteAddr}`
-  }
-  
-  return `本地 ${local} → 目标 -:-`
-}
-
-const getQualityStatus = (score) => {
-  if (score >= 90) return 'success'
-  if (score >= 75) return 'info'
-  if (score >= 60) return 'warning'
-  return 'danger'
-}
-
-const getSuccessRateClass = (rate) => {
-  if (rate >= 0.99) return 'metric-success'
-  if (rate >= 0.95) return 'metric-warning'
-  return 'metric-danger'
-}
-
-const getPacketLossClass = (rate) => {
-  if (rate < 0.01) return 'metric-success'
-  if (rate < 0.05) return 'metric-warning'
-  return 'metric-danger'
-}
-
-const formatPercent = (val) => {
-  if (val === undefined || val === null) return '-'
-  return (val * 100).toFixed(1) + '%'
-}
-
-const formatDuration = (ms) => {
-  if (ms === undefined || ms === null) return '-'
-  if (ms < 1) return '<1ms'
-  if (ms < 1000) return ms.toFixed(2) + 'ms'
-  return (ms / 1000).toFixed(2) + 's'
-}
-
 const fetchChannels = async () => {
   loading.value = true
   try {
@@ -1319,40 +1026,20 @@ const fetchChannels = async () => {
         }
       })
     ).then((metricsResults) => {
-      // 更新通道指标
       metricsResults.forEach((result) => {
         const channelIndex = channels.value.findIndex(ch => ch.id === result.channelId)
         if (channelIndex >= 0) {
           const metrics = result.metrics
           
-          // 基于监控指标更新状态
-          if (metrics && metrics.qualityScore !== undefined && metrics.qualityScore !== null) {
-            const qualityScore = metrics.qualityScore
-            let runtimeText = '运行中'
-            let runtimeArcoStatus = 'success'
-            
-            if (qualityScore >= 90) {
-              runtimeText = '运行中 (优秀)'
-              runtimeArcoStatus = 'success'
-            } else if (qualityScore >= 75) {
-              runtimeText = '运行中 (良好)'
-              runtimeArcoStatus = 'success'
-            } else if (qualityScore >= 60) {
-              runtimeText = '运行中 (一般)'
-              runtimeArcoStatus = 'warning'
-            } else if (qualityScore > 0) {
-              runtimeText = '运行中 (较差)'
-              runtimeArcoStatus = 'danger'
-            } else {
-              runtimeText = '离线'
-              runtimeArcoStatus = 'normal'
-            }
-            
+          if (metrics) {
+            const score = computeQualityScore(metrics)
+            const runtime = runtimeFromQualityScore(score)
+
             channels.value[channelIndex] = {
               ...channels.value[channelIndex],
               metrics,
-              runtimeText,
-              runtimeArcoStatus
+              runtimeText: runtime.text,
+              runtimeArcoStatus: runtime.status,
             }
           }
         }
@@ -1369,751 +1056,8 @@ const fetchChannels = async () => {
 onMounted(() => {
   fetchChannels()
 })
-
-// EtherNet/IP 帮助说明组件
-const ENIPHelpContent = {
-  title: 'EtherNet/IP 协议配置帮助',
-  sections: [
-    {
-      title: '协议概述',
-      content: 'EtherNet/IP 是一种工业以太网通信协议，基于 CIP（Common Industrial Protocol）技术，主要用于 Allen-Bradley 系列 PLC 的通信。'
-    },
-    {
-      title: '基础连接配置',
-      items: [
-        { label: 'PLC IP 地址', desc: '目标 PLC 设备的 IP 地址，支持 IPv4 格式（如 192.168.1.10）' },
-        { label: 'PLC 端口', desc: 'EtherNet/IP 默认端口为 44818，某些设备可能使用 47818' },
-        { label: '槽号 (Slot)', desc: 'PLC CPU 所在的槽位，通常为 0 或 1' }
-      ]
-    },
-    {
-      title: '连接类型选择',
-      items: [
-        { label: '标准 CIP 模式', desc: '适用于大多数 Allen-Bradley PLC 设备，使用标准 CIP 协议进行通信' },
-        { label: 'Logix 模式', desc: '专门针对 Allen-Bradley Logix 系列控制器优化，支持更高级的功能' }
-      ]
-    },
-    {
-      title: '通信参数',
-      items: [
-        { label: '超时时间', desc: '单次通信超时时间，建议设置为 2000-5000ms' },
-        { label: '重试次数', desc: '通信失败后的重试次数，建议设置为 3-5 次' },
-        { label: '重试间隔', desc: '重试之间的等待时间，建议设置为 200-500ms' }
-      ]
-    },
-    {
-      title: '高级配置',
-      items: [
-        { label: '心跳间隔', desc: '连接心跳检测间隔，建议设置为 30000ms（30秒）' },
-        { label: '最大失败次数', desc: '心跳失败多少次后断开连接并重连' },
-        { label: '数据包大小', desc: '通信数据包大小，默认 4096 字节' }
-      ]
-    },
-    {
-      title: '支持的数据类型',
-      content: 'INT, DINT, UINT, UDINT, REAL, LREAL, BOOL, SINT, USINT, LINT, ULINT, STRING'
-    },
-    {
-      title: '标签地址格式',
-      content: '完整标签路径格式：Program:ProgramName.TagName（如 Program:MainProgram.IntTag）'
-    },
-    {
-      title: '故障排除',
-      items: [
-        { label: '连接失败', desc: '检查网络连通性、PLC IP 地址和端口是否正确' },
-        { label: '标签读取失败', desc: '确认标签名称和路径正确，检查 PLC 程序是否运行' },
-        { label: '通信超时', desc: '增加超时时间，检查网络质量' }
-      ]
-    }
-  ]
-}
 </script>
 
 <style scoped>
-.channel-list-container {
-  /* page-shell 提供布局与背景 */
-}
-
-.dark-theme .channel-list-container {
-  background: transparent !important;
-}
-
-.dark-theme .channel-header {
-  background: transparent !important;
-  border: none !important;
-}
-
-.dark-theme .title-text,
-.dark-theme .title-subtitle,
-.dark-theme .header-actions,
-.dark-theme .protocol-tag,
-.dark-theme .name-text,
-.dark-theme .info-item .label,
-.dark-theme .info-item .value,
-.dark-theme .stat-label,
-.dark-theme .stat-value,
-.dark-theme .channel-meta,
-.dark-theme .status-text,
-.dark-theme .quality-score {
-  color: #f8fafc !important;
-}
-
-.dark-theme .minimal-line-card,
-.dark-theme .card-info-body,
-.dark-theme .config-section,
-.dark-theme .section-header,
-.dark-theme .section-title {
-  background: #111827 !important;
-  border-color: #334155 !important;
-}
-
-.dark-theme .info-item {
-  border-color: #334155 !important;
-}
-
-.dark-theme .arco-table-small .arco-table-th,
-.dark-theme .arco-table-small .arco-table-td {
-  background: #0f172a !important;
-  color: #f8fafc !important;
-  border-color: #334155 !important;
-}
-
-.channel-header {
-  /* 继承全局 .page-header：无框无线 */
-}
-
-.header-title {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.title-text {
-  font-size: 20px;
-  font-weight: 600;
-  color: #0f172a;
-  margin: 0;
-  letter-spacing: 0.5px;
-}
-
-.title-subtitle {
-  font-size: 14px;
-  color: #64748b;
-  margin: 0;
-  font-weight: 400;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-/* 卡片样式 */
-.minimal-line-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 0;
-  transition: all 0.2s ease;
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.9);
-  overflow: hidden;
-}
-
-.minimal-line-card:hover {
-  border-color: var(--arco-primary, #0ea5e9);
-  box-shadow: 0 1px 3px rgba(14, 165, 233, 0.1);
-}
-
-.minimal-line-card.is-selected {
-  border-color: var(--arco-primary, #0ea5e9);
-  background: rgba(14, 165, 233, 0.05);
-  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.2);
-}
-
-.card-title-content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-}
-
-.protocol-tag {
-  padding: 2px 8px;
-  background: var(--edgex-surface-muted);
-  border: 1px solid #e2e8f0;
-  border-radius: 0;
-  font-size: 12px;
-  font-weight: 500;
-  color: #475569;
-  white-space: nowrap;
-}
-
-.name-text {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--edgex-text-primary);
-  flex: 1;
-  min-width: 0;
-}
-
-.card-info-body {
-  padding: 16px 0;
-  border-top: 1px solid #f1f5f9;
-  margin-top: 8px;
-}
-
-.info-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  font-size: 13px;
-}
-
-.info-item:last-child {
-  margin-bottom: 0;
-}
-
-.info-item .label {
-  color: #64748b;
-  font-weight: 400;
-}
-
-.info-item .value {
-  color: #334155;
-  font-weight: 500;
-}
-
-.info-item .value-highlight {
-  color: var(--arco-primary, #0ea5e9);
-  font-weight: 600;
-  font-size: 14px;
-}
-
-/* 表格样式 */
-:deep(.arco-table-small) {
-  font-size: 13px;
-}
-
-:deep(.arco-table-small .arco-table-th) {
-  font-weight: 600;
-  color: #334155;
-  background: var(--edgex-surface-inset);
-  border-bottom: 2px solid #e2e8f0;
-}
-
-:deep(.arco-table-small .arco-table-td) {
-  padding: 10px 12px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-:deep(.arco-table-small .arco-table-tr:hover) {
-  background: var(--edgex-surface-inset);
-}
-
-:deep(.arco-table-small .arco-table-tr.arco-table-tr-selected) {
-  background: rgba(14, 165, 233, 0.05);
-  border-left: 3px solid var(--arco-primary, #0ea5e9);
-}
-
-/* 空状态 */
-.empty-placeholder {
-  margin: 60px 0;
-  text-align: center;
-}
-
-:deep(.arco-empty-icon) {
-  font-size: 48px;
-  color: #cbd5e1;
-}
-
-:deep(.arco-empty-description) {
-  color: #94a3b8;
-  font-size: 14px;
-  margin-top: 16px;
-}
-
-/* 配置区域 */
-.config-section {
-  margin-top: 16px;
-  padding: 20px;
-  background: var(--edgex-surface-inset);
-  border: 1px solid #e2e8f0;
-  border-radius: 0;
-}
-
-.section-header {
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.section-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--edgex-text-primary);
-}
-
-/* 帮助对话框 */
-.smart-probe-help {
-  padding: 24px 0;
-}
-
-.help-section {
-  margin-bottom: 32px;
-}
-
-.help-section h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--edgex-text-primary);
-  margin-bottom: 12px;
-}
-
-.help-section p {
-  margin-bottom: 12px;
-  line-height: 1.6;
-  color: #475569;
-}
-
-.help-section ul {
-  margin-left: 20px;
-}
-
-/* 监控指标对话框样式 */
-.metrics-loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 300px;
-}
-
-.metrics-error {
-  margin: 20px 0;
-}
-
-.metrics-content {
-  padding: 20px 0;
-}
-
-.metrics-header {
-  margin-bottom: 24px;
-}
-
-.quality-score-section {
-  display: flex;
-  align-items: flex-start;
-  gap: 24px;
-}
-
-.quality-score-circle {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.quality-score-circle::before {
-  content: '';
-  position: absolute;
-  inset: 4px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.05);
-  z-index: 1;
-}
-
-.quality-score-value {
-  font-size: 32px;
-  font-weight: 700;
-  z-index: 2;
-  position: relative;
-}
-
-.quality-score-label {
-  font-size: 12px;
-  opacity: 0.8;
-  margin-top: 4px;
-  z-index: 2;
-  position: relative;
-}
-
-.quality-score-level {
-  font-size: 14px;
-  font-weight: 600;
-  margin-top: 4px;
-  z-index: 2;
-  position: relative;
-}
-
-.quality-excellent {
-  border: 3px solid var(--arco-success-6, #52c41a);
-}
-
-.quality-excellent .quality-score-value,
-.quality-excellent .quality-score-level {
-  color: var(--arco-success-6, #52c41a);
-}
-
-.quality-good {
-  border: 3px solid var(--arco-info-6, #1890ff);
-}
-
-.quality-good .quality-score-value,
-.quality-good .quality-score-level {
-  color: var(--arco-info-6, #1890ff);
-}
-
-.quality-warning {
-  border: 3px solid var(--arco-warning-6, #faad14);
-}
-
-.quality-warning .quality-score-value,
-.quality-warning .quality-score-level {
-  color: var(--arco-warning-6, #faad14);
-}
-
-.quality-poor {
-  border: 3px solid var(--arco-danger-6, #ff4d4f);
-}
-
-.quality-poor .quality-score-value,
-.quality-poor .quality-score-level {
-  color: var(--arco-danger-6, #ff4d4f);
-}
-
-.quality-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.info-label {
-  color: #64748b;
-  font-size: 14px;
-}
-
-.info-value {
-  color: var(--edgex-text-primary);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.metrics-core {
-  margin-bottom: 24px;
-}
-
-.metrics-grid {
-  display: flex;
-  gap: 16px;
-  width: 100%;
-}
-
-.metric-card {
-  flex: 1;
-  min-width: 0;
-  background: var(--edgex-surface-inset);
-  border: 1px solid #e2e8f0;
-  border-radius: 0;
-  padding: 20px;
-  text-align: center;
-  transition: all 0.2s ease;
-}
-
-.metric-card:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  transform: translateY(-2px);
-}
-
-.metric-label {
-  font-size: 14px;
-  color: #64748b;
-  margin-bottom: 8px;
-}
-
-.metric-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--edgex-text-primary);
-}
-
-.metric-success {
-  color: var(--arco-success-6, #52c41a);
-}
-
-.metric-warning {
-  color: var(--arco-warning-6, #faad14);
-}
-
-.metric-danger {
-  color: var(--arco-danger-6, #ff4d4f);
-}
-
-.metrics-details {
-  margin-top: 24px;
-}
-
-.metrics-collapse :deep(.arco-collapse-item-content) {
-  padding: 16px;
-}
-
-.metrics-empty {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 300px;
-}
-
-/* 暗黑主题适配 */
-.dark-theme .metric-card {
-  background: #1e293b;
-  border-color: #334155;
-  flex: 1;
-  min-width: 0;
-}
-
-.dark-theme .metric-label {
-  color: #94a3b8;
-}
-
-.dark-theme .metric-value {
-  color: #f8fafc;
-}
-
-.dark-theme .info-label {
-  color: #94a3b8;
-}
-
-.dark-theme .info-value {
-  color: #f8fafc;
-}
-
-.dark-theme .quality-score-circle {
-  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-
-.dark-theme .quality-score-circle::before {
-  background: rgba(255,255,255,0.02);
-}
-
-.help-section li {
-  margin-bottom: 8px;
-  color: #475569;
-}
-
-.principle-section h4 {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--edgex-text-primary);
-  margin-top: 16px;
-  margin-bottom: 8px;
-}
-
-.modal-footer {
-  margin-top: 24px;
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 20px;
-  border-top: 1px solid #e2e8f0;
-}
-
-/* 响应式调整 */
-@media (max-width: 768px) {
-  .channel-list-container {
-    padding: 12px;
-  }
-  
-  .channel-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-    padding: 16px;
-  }
-  
-  .header-actions {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-  
-  .header-actions > * {
-    flex: 1;
-    min-width: 120px;
-  }
-  
-  .title-text {
-    font-size: 18px;
-  }
-  
-  .card-title-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-  
-  .protocol-tag {
-    align-self: flex-start;
-  }
-  
-  .info-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    text-align: left;
-  }
-  
-  .info-item .value {
-    align-self: flex-start;
-  }
-}
-
-/* 工业风增强 */
-.channel-list-container::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: repeating-linear-gradient(
-    90deg,
-    rgba(0, 0, 0, 0.02),
-    rgba(0, 0, 0, 0.02) 1px,
-    transparent 1px,
-    transparent 20px
-  );
-  pointer-events: none;
-  z-index: 0;
-}
-
-.channel-list-container {
-  position: relative;
-  z-index: 1;
-}
-
-/* 按钮增强 */
-:deep(.arco-btn) {
-  transition: all 0.2s ease;
-}
-
-:deep(.arco-btn:hover) {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-:deep(.arco-btn:active) {
-  transform: translateY(0);
-}
-
-/* 标签增强 */
-:deep(.arco-tag) {
-  font-weight: 500;
-  letter-spacing: 0.5px;
-}
-
-/* 徽章增强 */
-:deep(.arco-badge-status) {
-  font-weight: 500;
-  letter-spacing: 0.5px;
-}
-
-/* 表单标签 */
-:deep(.arco-form-item-label) {
-  font-weight: 500;
-  color: #334155;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 140px;
-}
-
-/* 确保图标居中 */
-:deep(.arco-btn-icon) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* 工具提示增强 */
-:deep(.arco-tooltip-content) {
-  font-size: 12px;
-  padding: 6px 10px;
-  border-radius: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* EtherNet/IP 帮助对话框样式 */
-.help-content {
-  max-height: 500px;
-  overflow-y: auto;
-  padding: 16px 0;
-}
-
-.help-section {
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.help-section:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding-bottom: 0;
-}
-
-.help-section-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--edgex-text-primary);
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-}
-
-.help-content-text {
-  margin-bottom: 12px;
-  line-height: 1.6;
-  color: #475569;
-  font-size: 13px;
-}
-
-.help-items {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.help-item {
-  display: flex;
-  flex-direction: column;
-  padding: 12px;
-  background: var(--edgex-surface-inset);
-  border-radius: 4px;
-}
-
-.help-item-label {
-  font-weight: 600;
-  color: var(--edgex-text-primary);
-  font-size: 13px;
-  margin-bottom: 4px;
-}
-
-.help-item-desc {
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.5;
-}
+/* v3.0 — styles in src/styles/ */
 </style>

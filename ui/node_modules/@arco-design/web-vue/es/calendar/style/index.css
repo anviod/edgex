@@ -1,0 +1,391 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-calendar {
+  box-sizing: border-box;
+  border: 1px solid var(--color-neutral-3);
+}
+.arco-calendar-header {
+  display: flex;
+  padding: 24px 24px;
+}
+.arco-calendar-header-left {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  height: 28px;
+  line-height: 28px;
+}
+.arco-calendar-header-right {
+  position: relative;
+  height: 28px;
+}
+.arco-calendar-header-value {
+  color: var(--color-text-1);
+  font-weight: 500;
+  font-size: 20px;
+}
+.arco-calendar-header-icon {
+  width: 28px;
+  height: 28px;
+  margin-right: 12px;
+  color: var(--color-text-2);
+  font-size: 12px;
+  line-height: 28px;
+  text-align: center;
+  background-color: var(--color-bg-5);
+  border-radius: 50%;
+  transition: all 0.1s cubic-bezier(0, 0, 1, 1);
+  user-select: none;
+}
+.arco-calendar-header-icon:not(:first-child) {
+  margin: 0 12px;
+}
+.arco-calendar-header-icon:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-primary-light-3);
+}
+.arco-calendar-header-icon:not(.arco-calendar-header-icon-hidden) {
+  cursor: pointer;
+}
+.arco-calendar-header-icon:not(.arco-calendar-header-icon-hidden):hover {
+  background-color: var(--color-fill-3);
+}
+.arco-calendar .arco-calendar-header-value-year {
+  width: 100px;
+  margin-right: 8px;
+}
+.arco-calendar .arco-calendar-header-value-month {
+  width: 76px;
+  margin-right: 32px;
+}
+.arco-calendar-month {
+  width: 100%;
+}
+.arco-calendar-month-row {
+  display: flex;
+  height: 100px;
+}
+.arco-calendar-month-row .arco-calendar-cell {
+  flex: 1;
+  overflow: hidden;
+  border-bottom: 1px solid var(--color-neutral-3);
+}
+.arco-calendar-month-row:last-child .arco-calendar-cell {
+  border-bottom: unset;
+}
+.arco-calendar-month-cell-body {
+  box-sizing: border-box;
+}
+.arco-calendar-mode-month:not(.arco-calendar-panel) .arco-calendar-cell:not(:last-child) {
+  border-right: 1px solid var(--color-neutral-3);
+}
+.arco-calendar-week-list {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0;
+  border-bottom: 1px solid var(--color-neutral-3);
+}
+.arco-calendar-week-list-item {
+  flex: 1;
+  padding: 20px 16px;
+  color: #7d7d7f;
+  text-align: left;
+}
+.arco-calendar-cell .arco-calendar-date {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  cursor: pointer;
+}
+.arco-calendar-cell .arco-calendar-date-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+.arco-calendar-date-content {
+  height: 70px;
+  overflow-y: auto;
+}
+.arco-calendar-cell-today .arco-calendar-date-circle {
+  box-sizing: border-box;
+  border: 1px solid rgb(var(--primary-6));
+}
+.arco-calendar-date-value {
+  color: var(--color-text-4);
+  font-weight: 500;
+  font-size: 16px;
+}
+.arco-calendar-cell-in-view .arco-calendar-date-value {
+  color: var(--color-text-1);
+}
+.arco-calendar-mode-month .arco-calendar-cell-selected .arco-calendar-date-circle {
+  box-sizing: border-box;
+  color: #fff;
+  background-color: rgb(var(--primary-6));
+  border: 1px solid rgb(var(--primary-6));
+}
+.arco-calendar-mode-year .arco-calendar-cell-selected .arco-calendar-cell-selected .arco-calendar-date-circle {
+  box-sizing: border-box;
+  color: #fff;
+  background-color: rgb(var(--primary-6));
+  border: 1px solid rgb(var(--primary-6));
+}
+.arco-calendar-mode-year:not(.arco-calendar-panel) {
+  min-width: 820px;
+}
+.arco-calendar-mode-year .arco-calendar-header {
+  border-bottom: 1px solid var(--color-neutral-3);
+}
+.arco-calendar-mode-year .arco-calendar-body {
+  padding: 12px;
+}
+.arco-calendar-mode-year .arco-calendar-year-row {
+  display: flex;
+}
+.arco-calendar-year-row > .arco-calendar-cell {
+  flex: 1;
+  padding: 20px 8px;
+}
+.arco-calendar-year-row > .arco-calendar-cell:not(:last-child) {
+  border-right: 1px solid var(--color-neutral-3);
+}
+.arco-calendar-year-row:not(:last-child) > .arco-calendar-cell {
+  border-bottom: 1px solid var(--color-neutral-3);
+}
+.arco-calendar-month-with-days .arco-calendar-month-row {
+  height: 26px;
+}
+.arco-calendar-month-with-days .arco-calendar-cell {
+  border-bottom: 0;
+}
+.arco-calendar-month-with-days .arco-calendar-month-cell-body {
+  padding: 0;
+}
+.arco-calendar-month-with-days .arco-calendar-month-title {
+  padding: 10px 6px;
+  color: var(--color-text-1);
+  font-weight: 500;
+  font-size: 16px;
+}
+.arco-calendar-month-cell {
+  width: 100%;
+  font-size: 12px;
+}
+.arco-calendar-month-cell .arco-calendar-week-list {
+  padding: 0;
+  border-bottom: unset;
+}
+.arco-calendar-month-cell .arco-calendar-week-list-item {
+  padding: 6px;
+  color: #7d7d7f;
+  text-align: center;
+}
+.arco-calendar-month-cell .arco-calendar-cell {
+  text-align: center;
+}
+.arco-calendar-month-cell .arco-calendar-date {
+  padding: 2px;
+}
+.arco-calendar-month-cell .arco-calendar-date-value {
+  font-size: 14px;
+}
+.arco-calendar-month-cell .arco-calendar-date-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+.arco-calendar-panel {
+  background-color: var(--color-bg-5);
+  border: 1px solid var(--color-neutral-3);
+}
+.arco-calendar-panel .arco-calendar-header {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-neutral-3);
+}
+.arco-calendar-panel .arco-calendar-header-value {
+  flex: 1;
+  font-size: 14px;
+  line-height: 24px;
+  text-align: center;
+}
+.arco-calendar-panel .arco-calendar-header-icon {
+  width: 24px;
+  height: 24px;
+  margin-right: 2px;
+  margin-left: 2px;
+  line-height: 24px;
+}
+.arco-calendar-panel .arco-calendar-body {
+  padding: 14px 16px;
+}
+.arco-calendar-panel .arco-calendar-month-cell-body {
+  padding: 0;
+}
+.arco-calendar-panel .arco-calendar-month-row {
+  height: unset;
+}
+.arco-calendar-panel .arco-calendar-week-list {
+  padding: 0;
+  border-bottom: unset;
+}
+.arco-calendar-panel .arco-calendar-week-list-item {
+  height: 32px;
+  padding: 0;
+  font-weight: 400;
+  line-height: 32px;
+  text-align: center;
+}
+.arco-calendar-panel .arco-calendar-cell,
+.arco-calendar-panel .arco-calendar-year-row .arco-calendar-cell {
+  box-sizing: border-box;
+  padding: 2px 0;
+  text-align: center;
+  border-right: 0;
+  border-bottom: 0;
+}
+.arco-calendar-panel .arco-calendar-cell .arco-calendar-date {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+}
+.arco-calendar-panel .arco-calendar-cell .arco-calendar-date-value {
+  min-width: 24px;
+  height: 24px;
+  font-size: 14px;
+  line-height: 24px;
+  cursor: pointer;
+}
+.arco-calendar-panel.arco-calendar-mode-year .arco-calendar-cell {
+  padding: 4px 0;
+}
+.arco-calendar-panel.arco-calendar-mode-year .arco-calendar-cell .arco-calendar-date {
+  padding: 4px;
+}
+.arco-calendar-panel.arco-calendar-mode-year .arco-calendar-cell .arco-calendar-date-value {
+  width: 100%;
+  border-radius: 12px;
+}
+.arco-calendar-panel .arco-calendar-cell-selected .arco-calendar-date-value {
+  color: var(--color-white);
+  background-color: rgb(var(--primary-6));
+  border-radius: 50%;
+}
+.arco-calendar-panel .arco-calendar-cell:not(.arco-calendar-cell-selected):not(.arco-calendar-cell-range-start):not(.arco-calendar-cell-range-end):not(.arco-calendar-cell-hover-range-start):not(.arco-calendar-cell-hover-range-end):not(.arco-calendar-cell-disabled):not(.arco-calendar-cell-week) .arco-calendar-date-value:hover {
+  color: rgb(var(--primary-6));
+  background-color: var(--color-primary-light-1);
+  border-radius: 50%;
+}
+.arco-calendar-panel.arco-calendar-mode-year .arco-calendar-cell:not(.arco-calendar-cell-selected):not(.arco-calendar-cell-range-start):not(.arco-calendar-cell-range-end):not(.arco-calendar-cell-hover-range-start):not(.arco-calendar-cell-hover-range-end):not(.arco-calendar-cell-disabled) .arco-calendar-date-value:hover {
+  border-radius: 12px;
+}
+.arco-calendar-panel .arco-calendar-cell-today {
+  position: relative;
+}
+.arco-calendar-panel .arco-calendar-cell-today::after {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  display: block;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  background-color: rgb(var(--primary-6));
+  border-radius: 50%;
+  content: '';
+}
+.arco-calendar-cell-in-range .arco-calendar-date {
+  background-color: var(--color-primary-light-1);
+}
+.arco-calendar-cell-range-start .arco-calendar-date {
+  border-radius: 16px 0 0 16px;
+}
+.arco-calendar-cell-range-end .arco-calendar-date {
+  border-radius: 0 16px 16px 0;
+}
+.arco-calendar-cell-in-range-near-hover .arco-calendar-date {
+  border-radius: 0;
+}
+.arco-calendar-cell-range-start .arco-calendar-date-value,
+.arco-calendar-cell-range-end .arco-calendar-date-value {
+  color: var(--color-white);
+  background-color: rgb(var(--primary-6));
+  border-radius: 50%;
+}
+.arco-calendar-cell-hover-in-range .arco-calendar-date {
+  background-color: var(--color-primary-light-1);
+}
+.arco-calendar-cell-hover-range-start .arco-calendar-date {
+  border-radius: 16px 0 0 16px;
+}
+.arco-calendar-cell-hover-range-end .arco-calendar-date {
+  border-radius: 0 16px 16px 0;
+}
+.arco-calendar-cell-hover-range-start .arco-calendar-date-value,
+.arco-calendar-cell-hover-range-end .arco-calendar-date-value {
+  color: var(--color-text-1);
+  background-color: var(--color-primary-light-2);
+  border-radius: 50%;
+}
+.arco-calendar-panel .arco-calendar-cell-disabled > .arco-calendar-date {
+  background-color: var(--color-fill-1);
+  cursor: not-allowed;
+}
+.arco-calendar-panel .arco-calendar-cell-disabled > .arco-calendar-date > .arco-calendar-date-value {
+  color: var(--color-text-4);
+  background-color: var(--color-fill-1);
+  cursor: not-allowed;
+}
+.arco-calendar-panel .arco-calendar-footer-btn-wrapper {
+  height: 38px;
+  color: var(--color-text-1);
+  line-height: 38px;
+  text-align: center;
+  border-top: 1px solid var(--color-neutral-3);
+  cursor: pointer;
+}
+.arco-calendar-rtl {
+  direction: rtl;
+}
+.arco-calendar-rtl .arco-calendar-header-icon {
+  margin-right: 0;
+  margin-left: 12px;
+  transform: scaleX(-1);
+}
+.arco-calendar-rtl .arco-calendar-week-list-item {
+  text-align: right;
+}
+.arco-calendar-rtl.arco-calendar-mode-month:not(.arco-calendar-panel) .arco-calendar-cell:not(:last-child) {
+  border-right: 0;
+  border-left: 1px solid var(--color-neutral-3);
+}
+.arco-calendar-rtl .arco-calendar-header-value-year {
+  margin-right: 0;
+  margin-left: 8px;
+}
+.arco-calendar-rtl .arco-calendar-header-value-month {
+  margin-right: 0;
+  margin-left: 32px;
+}

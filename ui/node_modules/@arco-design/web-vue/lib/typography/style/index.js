@@ -1,0 +1,7 @@
+"use strict";
+require("../../style/index.less");
+require("../../input/style/index.less");
+require("../../trigger/style/index.less");
+require("../../popover/style/index.less");
+require("../../tooltip/style/index.less");
+require("./index.less");

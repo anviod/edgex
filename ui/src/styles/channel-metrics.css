@@ -1,0 +1,290 @@
+/*
+ * EdgeX v3.0 — 通道监控指标（统一规范）
+ */
+
+.channel-metrics-modal.arco-modal {
+  border-radius: var(--radius-xl);
+}
+
+.channel-metrics-modal .arco-modal-header {
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--border);
+}
+
+.channel-metrics-modal .arco-modal-body {
+  padding: var(--space-6);
+  background: var(--surface);
+}
+
+.channel-metrics-modal .arco-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-4) var(--space-6) var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+.channel-metrics-modal__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.channel-metrics-modal__title-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Panel ── */
+.channel-metrics-panel {
+  min-height: 200px;
+}
+
+.channel-metrics-panel__loading,
+.channel-metrics-panel__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+}
+
+.channel-metrics-panel__error {
+  padding: var(--space-4) 0;
+}
+
+.channel-metrics-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* ── Hero: 评分 + 元信息 ── */
+.channel-metrics-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-6);
+  padding: var(--space-5) var(--space-6);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.channel-metrics-score {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.channel-metrics-score__ring {
+  position: relative;
+  width: 112px;
+  height: 112px;
+}
+
+.channel-metrics-score__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.channel-metrics-score__value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.channel-metrics-score__label {
+  margin-top: var(--space-1);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.channel-metrics-score__badge {
+  margin-top: var(--space-1);
+}
+
+.channel-metrics-meta {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-6);
+  align-content: start;
+}
+
+.channel-metrics-meta__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.channel-metrics-meta__item--wide {
+  grid-column: span 1;
+}
+
+.channel-metrics-meta__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.channel-metrics-meta__value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.channel-metrics-meta__mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 4px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* ── KPI 三列 ── */
+.channel-metrics-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.channel-metric-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-6);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  transition: border-color var(--transition-fast);
+}
+
+.channel-metric-stat:hover {
+  border-color: rgba(14, 165, 233, 0.2);
+}
+
+.channel-metric-stat__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.channel-metric-stat__value {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.channel-metric-stat__value.is-success,
+.channel-metrics-detail__val.is-success {
+  color: var(--edgex-success);
+}
+
+.channel-metric-stat__value.is-warning,
+.channel-metrics-detail__val.is-warning {
+  color: #d97706;
+}
+
+.channel-metric-stat__value.is-danger,
+.channel-metrics-detail__val.is-danger {
+  color: var(--edgex-error);
+}
+
+/* ── 详细指标 ── */
+.channel-metrics-detail__title {
+  margin: 0 0 var(--space-4);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.channel-metrics-detail__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.channel-metrics-detail__cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.channel-metrics-detail__label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.channel-metrics-detail__val {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── Dark ── */
+.dark-theme .channel-metrics-hero,
+.dark-theme .channel-metric-stat,
+.dark-theme .channel-metrics-detail__cell {
+  background: var(--bg);
+}
+
+.dark-theme .channel-metrics-meta__mono {
+  background: var(--surface-2);
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .channel-metrics-hero {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .channel-metrics-meta {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  .channel-metrics-kpis,
+  .channel-metrics-detail__grid {
+    grid-template-columns: 1fr;
+  }
+}

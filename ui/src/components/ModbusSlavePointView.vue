@@ -19,14 +19,15 @@
           v-else
           :columns="columns"
           :data="group.points"
-          :row-selection="rowSelectionFor(group.key)"
+          :row-selection="rowSelectionConfig"
+          v-model:selected-keys="groupSelectedKeys[group.key]"
           row-key="id"
           :pagination="paginationFor(group.points.length)"
           size="small"
           class="industrial-table-fluid modbus-group-table"
           :bordered="{ wrapper: true, cell: true }"
           :scroll="{ x: 960 }"
-          @selection-change="(keys) => onGroupSelectionChange(group.key, keys)"
+          @selection-change="emitConsolidatedSelection"
         >
           <template #offset="{ record }">
             <span class="font-mono text-xs">{{ formatOffsetAddress(record.address) }}</span>
@@ -162,34 +163,26 @@ const paginationFor = (total) => ({
   size: 'small'
 })
 
-const groupRowSelections = {}
+const groupSelectedKeys = reactive(
+  Object.fromEntries(MODBUS_REGISTER_GROUPS.map((g) => [g.key, []]))
+)
 
-const rowSelectionFor = (groupKey) => {
-  if (!groupRowSelections[groupKey]) {
-    groupRowSelections[groupKey] = reactive({
-      type: 'checkbox',
-      showCheckedAll: true,
-      onlyCurrent: false,
-      selectedRowKeys: []
-    })
-  }
-  return groupRowSelections[groupKey]
+const rowSelectionConfig = {
+  type: 'checkbox',
+  showCheckedAll: true,
+  onlyCurrent: false,
 }
 
 const syncGroupSelectionsFromProps = () => {
   for (const g of MODBUS_REGISTER_GROUPS) {
     const pts = grouped.value[g.key] || []
-    const keys = props.selectedIds.filter(id => pts.some(p => p.id === id))
-    rowSelectionFor(g.key).selectedRowKeys = keys
+    groupSelectedKeys[g.key] = props.selectedIds.filter((id) => pts.some((p) => p.id === id))
   }
 }
 
-const onGroupSelectionChange = (groupKey, keys) => {
-  rowSelectionFor(groupKey).selectedRowKeys = keys
-  const otherIds = props.selectedIds.filter(id => {
-    return !(grouped.value[groupKey] || []).some(p => p.id === id)
-  })
-  emit('selection-change', [...otherIds, ...keys])
+const emitConsolidatedSelection = () => {
+  const allKeys = MODBUS_REGISTER_GROUPS.flatMap((g) => groupSelectedKeys[g.key] || [])
+  emit('selection-change', allKeys)
 }
 
 watch(() => props.selectedIds, syncGroupSelectionsFromProps, { deep: true })
@@ -220,43 +213,5 @@ const valueTooltip = (record) => {
 </script>
 
 <style scoped>
-.modbus-slave-view {
-  width: 100%;
-}
-
-.group-meta {
-  font-size: 11px;
-  color: #64748b;
-}
-
-.group-empty {
-  padding: 24px;
-  text-align: center;
-  color: #94a3b8;
-  background: var(--edgex-surface-inset);
-  border: 1px dashed #cbd5e1;
-}
-
-.modbus-group-table :deep(.arco-table-pagination) {
-  margin-top: 8px;
-}
-
-.value-cell {
-  max-width: 120px;
-}
-
-.value-unit {
-  margin-left: 4px;
-  font-size: 11px;
-  color: #64748b;
-}
-
-:deep(.arco-collapse-item-header) {
-  font-weight: 600;
-  background: var(--edgex-surface-muted);
-}
-
-:deep(.arco-collapse-item-content) {
-  background: var(--edgex-surface-raised);
-}
+/* v3.0 — styles in src/styles/ */
 </style>

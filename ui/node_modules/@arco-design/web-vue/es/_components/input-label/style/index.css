@@ -1,0 +1,228 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+/******** 基础配置项 end *******/
+/******** 基础配置项 end *******/
+/******** 高级配置项 *******/
+/******** 高级配置项 end *******/
+.arco-input-label {
+  display: inline-flex;
+  box-sizing: border-box;
+  width: 100%;
+  padding-right: 12px;
+  padding-left: 12px;
+  color: var(--color-text-1);
+  font-size: 14px;
+  background-color: var(--color-fill-2);
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-small);
+  cursor: text;
+  transition: color 0.1s cubic-bezier(0, 0, 1, 1), border-color 0.1s cubic-bezier(0, 0, 1, 1), background-color 0.1s cubic-bezier(0, 0, 1, 1);
+  cursor: pointer;
+}
+.arco-input-label.arco-input-label-search {
+  cursor: text;
+}
+.arco-input-label.arco-input-label-search .arco-input-label-value {
+  pointer-events: none;
+}
+.arco-input-label:hover {
+  background-color: var(--color-fill-3);
+  border-color: transparent;
+}
+.arco-input-label:focus-within,
+.arco-input-label.arco-input-label-focus {
+  z-index: 1;
+  background-color: var(--color-bg-2);
+  border-color: rgb(var(--primary-6));
+  box-shadow: 0 0 0 0 var(--color-primary-light-2);
+}
+.arco-input-label.arco-input-label-disabled {
+  color: var(--color-text-4);
+  background-color: var(--color-fill-2);
+  border-color: transparent;
+  cursor: not-allowed;
+}
+.arco-input-label.arco-input-label-disabled:hover {
+  color: var(--color-text-4);
+  background-color: var(--color-fill-2);
+  border-color: transparent;
+}
+.arco-input-label.arco-input-label-disabled .arco-input-label-prefix,
+.arco-input-label.arco-input-label-disabled .arco-input-label-suffix {
+  color: inherit;
+}
+.arco-input-label.arco-input-label-error {
+  background-color: var(--color-danger-light-1);
+  border-color: transparent;
+}
+.arco-input-label.arco-input-label-error:hover {
+  background-color: var(--color-danger-light-2);
+  border-color: transparent;
+}
+.arco-input-label.arco-input-label-error:focus-within,
+.arco-input-label.arco-input-label-error.arco-input-label-focus {
+  z-index: 1;
+  background-color: var(--color-bg-2);
+  border-color: rgb(var(--danger-6));
+  box-shadow: 0 0 0 0 var(--color-danger-light-2);
+}
+.arco-input-label .arco-input-label-prefix,
+.arco-input-label .arco-input-label-suffix {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  white-space: nowrap;
+  user-select: none;
+}
+.arco-input-label .arco-input-label-prefix > svg,
+.arco-input-label .arco-input-label-suffix > svg {
+  font-size: 14px;
+}
+.arco-input-label .arco-input-label-prefix {
+  padding-right: 12px;
+  color: var(--color-text-2);
+}
+.arco-input-label .arco-input-label-suffix {
+  padding-left: 12px;
+  color: var(--color-text-2);
+}
+.arco-input-label .arco-input-label-suffix .arco-feedback-icon {
+  display: inline-flex;
+}
+.arco-input-label .arco-input-label-suffix .arco-feedback-icon-status-validating {
+  color: rgb(var(--primary-6));
+}
+.arco-input-label .arco-input-label-suffix .arco-feedback-icon-status-success {
+  color: rgb(var(--success-6));
+}
+.arco-input-label .arco-input-label-suffix .arco-feedback-icon-status-warning {
+  color: rgb(var(--warning-6));
+}
+.arco-input-label .arco-input-label-suffix .arco-feedback-icon-status-error {
+  color: rgb(var(--danger-6));
+}
+.arco-input-label .arco-input-label-clear-btn {
+  align-self: center;
+  color: var(--color-text-2);
+  font-size: 12px;
+  visibility: hidden;
+  cursor: pointer;
+}
+.arco-input-label .arco-input-label-clear-btn > svg {
+  position: relative;
+  transition: color 0.1s cubic-bezier(0, 0, 1, 1);
+}
+.arco-input-label:hover .arco-input-label-clear-btn {
+  visibility: visible;
+}
+.arco-input-label:not(.arco-input-label-focus) .arco-input-label-icon-hover:hover::before {
+  background-color: var(--color-fill-4);
+}
+.arco-input-label .arco-input-label-input {
+  width: 100%;
+  padding-right: 0;
+  padding-left: 0;
+  color: inherit;
+  line-height: 1.5715;
+  background: none;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  cursor: inherit;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+.arco-input-label .arco-input-label-input::placeholder {
+  color: var(--color-text-3);
+}
+.arco-input-label .arco-input-label-input[disabled]::placeholder {
+  color: var(--color-text-4);
+}
+.arco-input-label .arco-input-label-input[disabled] {
+  -webkit-text-fill-color: var(--color-text-4);
+}
+.arco-input-label .arco-input-label-input-hidden {
+  position: absolute;
+  width: 0 !important;
+}
+.arco-input-label .arco-input-label-value {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.arco-input-label .arco-input-label-value::after {
+  font-size: 0;
+  line-height: 0;
+  visibility: hidden;
+  content: '.';
+}
+.arco-input-label .arco-input-label-value-hidden {
+  display: none;
+}
+.arco-input-label.arco-input-label-size-mini .arco-input-label-input,
+.arco-input-label.arco-input-label-size-mini .arco-input-label-value {
+  /* prettier-ignore */
+  padding-top: 1px;
+  /* prettier-ignore */
+  padding-bottom: 1px;
+  font-size: 12px;
+  line-height: 1.667;
+}
+.arco-input-label.arco-input-label-size-mini .arco-input-label-value {
+  min-height: 22px;
+}
+.arco-input-label.arco-input-label-size-medium .arco-input-label-input,
+.arco-input-label.arco-input-label-size-medium .arco-input-label-value {
+  /* prettier-ignore */
+  padding-top: 4px;
+  /* prettier-ignore */
+  padding-bottom: 4px;
+  font-size: 14px;
+  line-height: 1.5715;
+}
+.arco-input-label.arco-input-label-size-medium .arco-input-label-value {
+  min-height: 30px;
+}
+.arco-input-label.arco-input-label-size-small .arco-input-label-input,
+.arco-input-label.arco-input-label-size-small .arco-input-label-value {
+  /* prettier-ignore */
+  padding-top: 2px;
+  /* prettier-ignore */
+  padding-bottom: 2px;
+  font-size: 14px;
+  line-height: 1.5715;
+}
+.arco-input-label.arco-input-label-size-small .arco-input-label-value {
+  min-height: 26px;
+}
+.arco-input-label.arco-input-label-size-large .arco-input-label-input,
+.arco-input-label.arco-input-label-size-large .arco-input-label-value {
+  /* prettier-ignore */
+  padding-top: 6px;
+  /* prettier-ignore */
+  padding-bottom: 6px;
+  font-size: 14px;
+  line-height: 1.5715;
+}
+.arco-input-label.arco-input-label-size-large .arco-input-label-value {
+  min-height: 34px;
+}

@@ -1,0 +1,261 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.switch-slide-text-enter-from {
+  left: -100% !important;
+}
+.switch-slide-text-enter-to {
+  left: 8px !important;
+}
+.switch-slide-text-enter-active {
+  transition: left 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.switch-slide-text-leave-from {
+  left: 100% !important;
+}
+.switch-slide-text-leave-to {
+  left: 26px !important;
+}
+.switch-slide-text-leave-active {
+  transition: left 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.arco-switch {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 40px;
+  height: 24px;
+  padding: 0;
+  overflow: hidden;
+  line-height: 24px;
+  vertical-align: middle;
+  background-color: var(--color-fill-4);
+  border: none;
+  border-radius: 12px;
+  outline: none;
+  cursor: pointer;
+  transition: background-color 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.arco-switch-handle {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--color-neutral-3);
+  font-size: 12px;
+  background-color: var(--color-bg-white);
+  border-radius: 50%;
+  transition: all 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.arco-switch-checked {
+  background-color: rgb(var(--primary-6));
+}
+.arco-switch-checked .arco-switch-handle {
+  left: calc(100% - 16px - 4px);
+  color: rgb(var(--primary-6));
+}
+.arco-switch[disabled] .arco-switch-handle {
+  color: var(--color-fill-2);
+}
+.arco-switch[disabled].arco-switch-checked .arco-switch-handle {
+  color: var(--color-primary-light-3);
+}
+.arco-switch[disabled] .arco-switch-handle {
+  color: var(--color-fill-2);
+}
+.arco-switch[disabled].arco-switch-checked .arco-switch-handle {
+  color: var(--color-primary-light-3);
+}
+.arco-switch-text-holder {
+  margin: 0 8px 0 26px;
+  font-size: 12px;
+  opacity: 0;
+}
+.arco-switch-text {
+  position: absolute;
+  top: 0;
+  left: 26px;
+  color: var(--color-white);
+  font-size: 12px;
+}
+.arco-switch-checked .arco-switch-text-holder {
+  margin: 0 26px 0 8px;
+}
+.arco-switch-checked .arco-switch-text {
+  left: 8px;
+  color: var(--color-white);
+}
+.arco-switch[disabled] {
+  background-color: var(--color-fill-2);
+  cursor: not-allowed;
+}
+.arco-switch[disabled] .arco-switch-text {
+  color: var(--color-white);
+}
+.arco-switch[disabled].arco-switch-checked {
+  background-color: var(--color-primary-light-3);
+}
+.arco-switch[disabled].arco-switch-checked .arco-switch-text {
+  color: var(--color-white);
+}
+.arco-switch-loading {
+  background-color: var(--color-fill-2);
+}
+.arco-switch-loading .arco-switch-handle {
+  color: var(--color-neutral-3);
+}
+.arco-switch-loading .arco-switch-text {
+  color: var(--color-white);
+}
+.arco-switch-loading.arco-switch-checked {
+  background-color: var(--color-primary-light-3);
+}
+.arco-switch-loading.arco-switch-checked .arco-switch-handle {
+  color: var(--color-primary-light-3);
+}
+.arco-switch-loading.arco-switch-checked .arco-switch-text {
+  color: var(--color-primary-light-1);
+}
+.arco-switch-small {
+  min-width: 28px;
+  height: 16px;
+  line-height: 16px;
+}
+.arco-switch-small.arco-switch-checked {
+  padding-left: -2px;
+}
+.arco-switch-small .arco-switch-handle {
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 8px;
+}
+.arco-switch-small .arco-switch-handle-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.66667);
+}
+.arco-switch-small.arco-switch-checked .arco-switch-handle {
+  left: calc(100% - 12px - 2px);
+}
+.arco-switch-type-round {
+  min-width: 40px;
+  border-radius: var(--border-radius-small);
+}
+.arco-switch-type-round .arco-switch-handle {
+  border-radius: 2px;
+}
+.arco-switch-type-round.arco-switch-small {
+  min-width: 28px;
+  height: 16px;
+  line-height: 16px;
+  border-radius: 2px;
+}
+.arco-switch-type-round.arco-switch-small .arco-switch-handle {
+  border-radius: 1px;
+}
+.arco-switch-type-line {
+  min-width: 36px;
+  overflow: unset;
+  background-color: transparent;
+}
+.arco-switch-type-line::after {
+  display: block;
+  width: 100%;
+  height: 6px;
+  background-color: var(--color-fill-4);
+  border-radius: 3px;
+  transition: background-color 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+  content: '';
+}
+.arco-switch-type-line .arco-switch-handle {
+  top: 2px;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  background-color: var(--color-bg-white);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px var(--color-neutral-6);
+}
+.arco-switch-type-line.arco-switch-checked {
+  background-color: transparent;
+}
+.arco-switch-type-line.arco-switch-checked::after {
+  background-color: rgb(var(--primary-6));
+}
+.arco-switch-type-line.arco-switch-custom-color {
+  --custom-color: var(--color-fill-4);
+}
+.arco-switch-type-line.arco-switch-custom-color::after {
+  background-color: var(--custom-color);
+}
+.arco-switch-type-line.arco-switch-custom-color.arco-switch-checked {
+  --custom-color: rgb(var(--primary-6));
+}
+.arco-switch-type-line.arco-switch-checked .arco-switch-handle {
+  left: calc(100% - 20px);
+}
+.arco-switch-type-line[disabled] {
+  background-color: transparent;
+  cursor: not-allowed;
+}
+.arco-switch-type-line[disabled]::after {
+  background-color: var(--color-fill-2);
+}
+.arco-switch-type-line[disabled].arco-switch-checked {
+  background-color: transparent;
+}
+.arco-switch-type-line[disabled].arco-switch-checked::after {
+  background-color: var(--color-primary-light-3);
+}
+.arco-switch-type-line.arco-switch-loading {
+  background-color: transparent;
+}
+.arco-switch-type-line.arco-switch-loading::after {
+  background-color: var(--color-fill-2);
+}
+.arco-switch-type-line.arco-switch-loading.arco-switch-checked {
+  background-color: transparent;
+}
+.arco-switch-type-line.arco-switch-loading.arco-switch-checked::after {
+  background-color: var(--color-primary-light-3);
+}
+.arco-switch-type-line.arco-switch-small {
+  min-width: 28px;
+  height: 16px;
+  line-height: 16px;
+}
+.arco-switch-type-line.arco-switch-small.arco-switch-checked {
+  padding-left: 0px;
+}
+.arco-switch-type-line.arco-switch-small .arco-switch-handle {
+  top: 0px;
+  width: 16px;
+  height: 16px;
+  border-radius: 8px;
+}
+.arco-switch-type-line.arco-switch-small .arco-switch-handle-icon {
+  transform: translate(-50%, -50%) scale(1);
+}
+.arco-switch-type-line.arco-switch-small.arco-switch-checked .arco-switch-handle {
+  left: calc(100% - 16px - 0px);
+}

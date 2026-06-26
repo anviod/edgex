@@ -1,0 +1,112 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-page-header {
+  padding: 16px 0;
+}
+.arco-page-header-breadcrumb + .arco-page-header-header {
+  margin-top: 4px;
+}
+.arco-page-header-wrapper {
+  padding-right: 20px;
+  padding-left: 24px;
+}
+.arco-page-header-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  line-height: 28px;
+}
+.arco-page-header-header-left {
+  display: flex;
+  align-items: center;
+}
+.arco-page-header-main {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+}
+.arco-page-header-main-with-back {
+  margin-left: -8px;
+  padding-left: 8px;
+}
+.arco-page-header-extra {
+  overflow: hidden;
+  white-space: nowrap;
+}
+.arco-page-header .arco-icon-hover.arco-page-header-icon-hover::before {
+  width: 30px;
+  height: 30px;
+}
+.arco-page-header .arco-icon-hover.arco-page-header-icon-hover:hover::before {
+  background-color: var(--color-fill-2);
+}
+.arco-page-header-back-btn {
+  margin-right: 12px;
+  color: var(--color-text-2);
+  font-size: 14px;
+}
+.arco-page-header-back-btn-icon {
+  position: relative;
+}
+.arco-page-header-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--color-text-1);
+  font-weight: 600;
+  font-size: 20px;
+}
+.arco-page-header-divider {
+  width: 1px;
+  height: 16px;
+  margin-right: 12px;
+  margin-left: 12px;
+  background-color: var(--color-fill-3);
+}
+.arco-page-header-subtitle {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--color-text-3);
+  font-size: 14px;
+}
+.arco-page-header-content {
+  padding: 20px 32px;
+  border-top: 1px solid var(--color-neutral-3);
+}
+.arco-page-header-footer {
+  padding: 16px 20px 0 24px;
+}
+.arco-page-header-with-breadcrumb {
+  padding: 12px 0;
+}
+.arco-page-header-with-breadcrumb .arco-page-header-footer {
+  padding-top: 12px;
+}
+.arco-page-header-with-content .arco-page-header-wrapper {
+  padding-bottom: 12px;
+}
+.arco-page-header-with-footer {
+  padding-bottom: 0;
+}
+.arco-page-header-wrapper .arco-page-header-header {
+  flex-wrap: wrap;
+}
+.arco-page-header-wrapper .arco-page-header-header .arco-page-header-head-extra {
+  margin-top: 4px;
+}

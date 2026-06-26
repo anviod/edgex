@@ -1,0 +1,35 @@
+import originDayjs, { Dayjs, OpUnitType, UnitType } from 'dayjs';
+import 'dayjs/locale/zh-cn';
+export declare const dayjs: typeof originDayjs;
+export declare const methods: {
+    add(time: Dayjs, value: number, unit: UnitType): originDayjs.Dayjs;
+    subtract(time: Dayjs, value: number, unit: UnitType): originDayjs.Dayjs;
+    startOf(time: Dayjs, unit: OpUnitType): originDayjs.Dayjs;
+    startOfWeek(time: Dayjs, weekStart: number): originDayjs.Dayjs;
+    endOf(time: Dayjs, unit: OpUnitType): originDayjs.Dayjs;
+    set(time: Dayjs, unit: UnitType, value: number): originDayjs.Dayjs;
+    isSameWeek(date1: Dayjs, date2: Dayjs, weekStart: number): boolean;
+};
+export declare function getNow(): originDayjs.Dayjs;
+export declare function getSortedDayjsArray(values: Dayjs[]): originDayjs.Dayjs[];
+export declare function isValueChange(prevValue: Dayjs | (Dayjs | undefined)[] | undefined, currentValue: Dayjs | (Dayjs | undefined)[] | undefined): boolean;
+declare type DateValue = Date | string | number;
+export declare function getDayjsValue(time: DateValue, format: string): Dayjs;
+export declare function getDayjsValue(time: DateValue | undefined, format: string): Dayjs | undefined;
+export declare function getDayjsValue(time: DateValue[], format: string): Dayjs[];
+export declare function getDayjsValue(time: DateValue[] | undefined, format: string): Dayjs[] | undefined;
+export declare function getDayjsValue(time: (DateValue | undefined)[], format: string): (Dayjs | undefined)[];
+export declare function getDayjsValue(time: (DateValue | undefined)[] | undefined, format: string): (Dayjs | undefined)[] | undefined;
+export declare function getDayjsValue(time: DateValue | (DateValue | undefined)[] | undefined, format: string): Dayjs | (Dayjs | undefined)[] | undefined;
+export declare function getDateValue(value: Dayjs): Date;
+export declare function getDateValue(value: Dayjs | undefined): Date | undefined;
+export declare function getDateValue(value: Dayjs[]): Date[];
+export declare function getDateValue(value: (Dayjs | undefined)[]): (Date | undefined)[];
+export declare function getDateValue(value: (Dayjs | undefined)[] | undefined): (Date | undefined)[] | undefined;
+export declare function getDateValue(value: Dayjs | (Dayjs | undefined)[]): Date | (Date | undefined)[];
+export declare function getDateValue(value: Dayjs | (Dayjs | undefined)[] | undefined): Date | (Date | undefined)[] | undefined;
+export declare function initializeDateLocale(localeName: string, weekStart: number): void;
+export declare function pickDataAttributes<T extends Record<string, any>, K extends keyof T>(obj: T): {
+    [key in K]: any;
+};
+export {};

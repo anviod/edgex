@@ -1,13 +1,14 @@
 <template>
-  <a-modal 
-    v-model:visible="visible" 
-    title="MQTT 客户端" 
-    :width="960" 
-    @ok="saveSettings" 
-    :ok-loading="loading" 
+  <a-modal
+    v-model:visible="visible"
+    title="MQTT 客户端"
+    :width="960"
+    modal-class="northbound-settings-modal"
     unmount-on-close
     :footer="true"
     :mask-closable="false"
+    :ok-loading="loading"
+    @ok="saveSettings"
   >
     <div class="nb-mode-banner nb-mode-banner--push">
       <span class="nb-mode-banner__tag">主动上报</span>
@@ -108,8 +109,11 @@
             <a-button type="outline" size="small" @click="autoFillDevices">全部启用 (10s)</a-button>
           </div>
         </div>
-        <div class="table-container">
-          <a-table :columns="deviceColumns" :data="deviceTableData" size="small" :pagination="false" class="industrial-table-inline">
+        <div class="table-container saas-table nb-device-table">
+          <a-table row-key="id" :columns="deviceColumns" :data="deviceTableData" size="small" :bordered="false" :pagination="false" class="industrial-table-inline">
+            <template #empty>
+              <a-empty description="暂无南向设备，请先在通道管理中创建设备" />
+            </template>
             <template #state="{ record }">
               <a-tag v-if="record.state === 0" color="green" size="small">在线</a-tag>
               <a-tag v-else-if="record.state === 1" color="orangered" size="small">不稳定</a-tag>
@@ -150,9 +154,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import request from '@/utils/request'
 import { showMessage } from '@/composables/useGlobalState'
+import { buildNorthboundDeviceRows } from '@/utils/southboundDevices'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -183,58 +188,45 @@ const deviceColumns = [
   { title: '上报周期', slotName: 'interval', width: 100 }
 ]
 
-watch(() => props.visible, (val) => {
-  if (val) {
-    activeTab.value = 'basic'
-    if (props.config) {
-      form.value = JSON.parse(JSON.stringify(props.config))
-    } else {
-      form.value = {
-        id: 'mqtt_' + Date.now(),
-        enable: true,
-        name: 'New MQTT',
-        broker: 'tcp://127.0.0.1:1883',
-        client_id: '',
-        topic: '',
-        subscribe_topic: '',
-        write_response_topic: '',
-        ignore_offline_data: false,
-        device_lifecycle_topic: '',
-        status_topic: '',
-        online_payload: '',
-        offline_payload: '',
-        lwt_topic: '',
-        lwt_payload: '',
-        username: '',
-        password: '',
-        devices: {}
-      }
+watch(() => props.visible, async (val) => {
+  if (!val) return
+  activeTab.value = 'basic'
+  if (props.config) {
+    form.value = JSON.parse(JSON.stringify(props.config))
+  } else {
+    form.value = {
+      id: 'mqtt_' + Date.now(),
+      enable: true,
+      name: 'New MQTT',
+      broker: 'tcp://127.0.0.1:1883',
+      client_id: '',
+      topic: '',
+      subscribe_topic: '',
+      write_response_topic: '',
+      ignore_offline_data: false,
+      device_lifecycle_topic: '',
+      status_topic: '',
+      online_payload: '',
+      offline_payload: '',
+      lwt_topic: '',
+      lwt_payload: '',
+      username: '',
+      password: '',
+      devices: {}
     }
-    if (!form.value.devices) form.value.devices = {}
-    batchInterval.value = DEFAULT_INTERVAL
-    buildDeviceTable()
   }
+  if (!form.value.devices) form.value.devices = {}
+  batchInterval.value = DEFAULT_INTERVAL
+  await nextTick()
+  buildDeviceTable()
 })
 
+watch(() => props.allDevices, () => {
+  if (props.visible) buildDeviceTable()
+}, { deep: true })
+
 const buildDeviceTable = () => {
-  deviceTableData.value = props.allDevices.map(dev => {
-    const current = form.value.devices[dev.id]
-    let _enable = false, _strategy = 'periodic', _interval = DEFAULT_INTERVAL
-    if (current === undefined || current === null) {
-      _enable = false
-    } else if (typeof current === 'boolean') {
-      _enable = current
-      if (_enable) {
-        _strategy = 'periodic'
-        _interval = DEFAULT_INTERVAL
-      }
-    } else if (typeof current === 'object') {
-      _enable = !!current.enable
-      _strategy = current.strategy || 'periodic'
-      _interval = current.interval || DEFAULT_INTERVAL
-    }
-    return { ...dev, _enable, _strategy, _interval }
-  })
+  deviceTableData.value = buildNorthboundDeviceRows(props.allDevices, form.value.devices, DEFAULT_INTERVAL)
 }
 
 const syncRecordToForm = (record) => {
@@ -346,5 +338,5 @@ const saveSettings = async () => {
 </script>
 
 <style scoped>
-@import '@/styles/northbound-form.css';
+/* v3.0 — styles in src/styles/ */
 </style>

@@ -1,63 +1,404 @@
-/* 北向通道配置弹窗共享样式 */
+/*
+ * EdgeX v3.0 — 北向接口（列表卡片 + 弹窗 + 帮助文档）
+ */
+
+/* ── Modal shells ── */
+.northbound-add-modal.arco-modal,
+.northbound-settings-modal.arco-modal,
+.northbound-help-modal.arco-modal,
+.northbound-stats-modal.arco-modal {
+  border-radius: 14px !important;
+  overflow: hidden;
+}
+
+.northbound-add-modal .arco-modal-header,
+.northbound-settings-modal .arco-modal-header,
+.northbound-help-modal .arco-modal-header,
+.northbound-stats-modal .arco-modal-header {
+  padding: var(--space-4) var(--space-6);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.northbound-add-modal .arco-modal-title,
+.northbound-settings-modal .arco-modal-title,
+.northbound-help-modal .arco-modal-title,
+.northbound-stats-modal .arco-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.northbound-add-modal .arco-modal-body,
+.northbound-settings-modal .arco-modal-body,
+.northbound-help-modal .arco-modal-body,
+.northbound-stats-modal .arco-modal-body {
+  padding: var(--space-6);
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.northbound-settings-modal .arco-modal-footer,
+.northbound-add-modal .arco-modal-footer {
+  padding: var(--space-4) var(--space-6);
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+/* ── 添加通道弹窗 ── */
+.northbound-add-modal .add-section + .add-section {
+  margin-top: var(--space-6);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--border);
+}
+
+.northbound-add-modal .add-section__header {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid;
+  margin-bottom: var(--space-4);
+}
+
+.northbound-add-modal .add-section__header--push {
+  background: var(--edgex-push-bg);
+  border-color: var(--edgex-push-border);
+}
+
+.northbound-add-modal .add-section__header--passive {
+  background: var(--edgex-passive-bg);
+  border-color: var(--edgex-passive-border);
+}
+
+.northbound-add-modal .add-section__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.northbound-add-modal .add-section__desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.northbound-add-modal .add-section__grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.northbound-add-modal .proto-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+}
+
+.northbound-add-modal .proto-option:hover {
+  border-color: var(--primary);
+  background: rgba(14, 165, 233, 0.04);
+  transform: translateY(-1px);
+}
+
+.northbound-add-modal .proto-option__icon {
+  --proto-accent: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--proto-accent) 12%, transparent);
+  color: var(--proto-accent);
+  flex-shrink: 0;
+}
+
+.northbound-add-modal .proto-option__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.northbound-add-modal .proto-option__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.northbound-add-modal .proto-option__desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  line-height: 1.5;
+}
+
+.northbound-add-modal .proto-option__arrow {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.northbound-add-modal .proto-option:hover .proto-option__arrow {
+  color: var(--primary);
+  transform: translateX(2px);
+}
+
+/* ── 通道卡片 ── */
+.nb-card.arco-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.nb-card.arco-card:hover {
+  border-color: rgba(14, 165, 233, 0.35);
+  transform: translateY(-1px);
+}
+
+.nb-card--passive.arco-card:hover {
+  border-color: rgba(114, 46, 209, 0.35);
+}
+
+.nb-card .arco-card-header {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+}
+
+.nb-card .arco-card-body {
+  padding: var(--space-3) var(--space-4);
+}
+
+.nb-card .arco-card-actions {
+  border-top: 1px solid var(--border);
+  background: transparent;
+}
+
+.nb-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.nb-card__proto {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.nb-card__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.nb-card__mode-tag {
+  flex-shrink: 0;
+}
+
+.nb-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.nb-card__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.nb-card__label {
+  width: 72px;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.nb-card__value {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.nb-card__value .text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 模式 Banner ── */
 .nb-mode-banner {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  border-radius: 8px;
-  margin-bottom: 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
   font-size: 13px;
+  line-height: 1.5;
   border: 1px solid;
+  color: var(--text-secondary);
 }
 
 .nb-mode-banner--push {
-  background: #f0f9ff;
-  border-color: #bae6fd;
-  color: #0369a1;
+  background: var(--edgex-push-bg);
+  border-color: var(--edgex-push-border);
 }
 
 .nb-mode-banner--passive {
-  background: #f5f3ff;
-  border-color: #ddd6fe;
-  color: #6d28d9;
+  background: var(--edgex-passive-bg);
+  border-color: var(--edgex-passive-border);
 }
 
 .nb-mode-banner__tag {
   font-size: 11px;
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: #fff;
   flex-shrink: 0;
 }
 
-.nb-mode-banner--push .nb-mode-banner__tag { background: #0ea5e9; }
+.nb-mode-banner--push .nb-mode-banner__tag { background: var(--primary); }
 .nb-mode-banner--passive .nb-mode-banner__tag { background: #722ed1; }
+
+/* ── 配置表单 ── */
+.northbound-settings-modal .nb-form-section {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.northbound-settings-modal .nb-form-section:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
 
 .nb-form-section__title {
   font-size: 13px;
   font-weight: 600;
-  color: #475569;
-  margin-bottom: 12px;
-  padding-bottom: 6px;
-  border-bottom: 1px dashed #e2e8f0;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+  letter-spacing: 0.02em;
+}
+
+.northbound-settings-modal .arco-tabs-nav-tab {
+  font-size: 13px;
+}
+
+.northbound-settings-modal .arco-tabs-content {
+  padding-top: var(--space-4);
+}
+
+/* Device strategy table inside settings modal */
+.northbound-settings-modal .nb-device-table {
+  margin-top: var(--space-2);
+  max-height: 360px;
+  overflow: auto;
+}
+
+.northbound-settings-modal .nb-device-table.saas-table .arco-table {
+  border-spacing: 0 !important;
+}
+
+.northbound-settings-modal .nb-device-table .arco-table-tbody .arco-table-tr {
+  height: 40px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.northbound-settings-modal .nb-device-table .arco-table-tbody .arco-table-tr:hover {
+  background: rgba(248, 250, 252, 0.8) !important;
+}
+
+.dark-theme .northbound-settings-modal .nb-device-table .arco-table-tbody .arco-table-tr:hover {
+  background: var(--surface-2) !important;
+}
+
+.northbound-settings-modal .nb-device-table .arco-table-td,
+.northbound-settings-modal .nb-device-table .arco-table-th {
+  background: transparent !important;
+  border-bottom: 1px solid var(--border) !important;
+  box-shadow: none !important;
+}
+
+.northbound-settings-modal .nb-device-table .arco-table-th {
+  height: 36px !important;
+  min-height: 36px !important;
+  font-size: 12px !important;
+}
+
+.northbound-settings-modal .batch-interval-input {
+  width: 72px;
+}
+
+.northbound-settings-modal .strategy-select {
+  width: 100%;
+  min-width: 0;
+}
+
+.northbound-settings-modal .strategy-interval-input {
+  width: 100%;
+}
+
+.industrial-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  width: 100%;
 }
 
 .mono-text {
-  font-family: ui-monospace, 'JetBrains Mono', monospace !important;
+  font-family: var(--font-mono) !important;
   font-size: 12px;
 }
 
-.table-container {
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  overflow: hidden;
+.nb-form .table-container {
+  border: none;
+  border-radius: var(--radius-sm);
+  overflow: visible;
+  background: transparent;
 }
 
 .table-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 0 0 10px;
 }
 
@@ -68,67 +409,264 @@
 .table-header__hint {
   flex: 1;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   min-width: 140px;
 }
 
 .table-header__actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: nowrap;
+  gap: var(--space-2);
   flex-shrink: 0;
 }
 
-.table-header__actions :deep(.arco-btn) {
-  white-space: nowrap;
-  flex-shrink: 0;
+/* ── 运行监控 ── */
+.northbound-stats-modal .nb-stats-grid {
+  margin-bottom: var(--space-4);
 }
 
-.batch-interval-input {
-  width: 88px;
-  flex-shrink: 0;
+.northbound-stats-modal .nb-stat-card {
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
 }
 
-.industrial-table-inline :deep(.arco-table-th),
-.industrial-table-inline :deep(.arco-table-td) {
-  white-space: nowrap;
+.northbound-stats-modal .nb-stat-card .arco-card-body {
+  padding: var(--space-4) var(--space-3);
 }
 
-.industrial-table-inline :deep(.arco-select-view-single) {
-  min-width: 112px;
+.northbound-stats-modal .nb-stat-card__label {
+  font-size: 12px;
+  color: var(--text-tertiary);
 }
 
-.industrial-table-inline :deep(.strategy-interval-input) {
-  min-width: 88px;
+.northbound-stats-modal .nb-stat-card__value {
+  font-size: 24px;
+  font-weight: 600;
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
-.industrial-table-inline :deep(.arco-table-th) {
-  background: #f8fafc;
+.northbound-stats-modal .nb-stat-card__value--success { color: var(--edgex-success); }
+.northbound-stats-modal .nb-stat-card__value--danger { color: var(--edgex-error); }
+.northbound-stats-modal .nb-stat-card__value--warning { color: #ff7d00; }
+.northbound-stats-modal .nb-stat-card__value--primary { color: var(--primary); }
+.northbound-stats-modal .nb-stat-card__value--info { color: #0ea5e9; }
+
+.northbound-stats-modal .nb-stats-toolbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-2);
+  gap: var(--space-2);
+}
+
+.northbound-stats-modal .nb-stats-toolbar__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.northbound-stats-modal .nb-stats-toolbar__spacer {
+  flex: 1;
+}
+
+.northbound-stats-modal .nb-stats-toolbar__hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.northbound-stats-modal .log-viewer {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--edgex-surface-inset);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.northbound-stats-modal .log-line {
+  padding: 2px 0;
+  word-break: break-all;
+}
+
+.northbound-stats-modal .log-line__time {
+  color: var(--text-tertiary);
+  margin-right: var(--space-2);
+}
+
+.northbound-stats-modal .log-empty {
+  text-align: center;
+  color: var(--text-tertiary);
+  padding: var(--space-12) 0;
+}
+
+.northbound-stats-modal .nb-stats-pagination {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2) 0;
+}
+
+/* ── 帮助文档 ── */
+.northbound-help-modal .arco-tabs-nav {
+  margin-bottom: var(--space-4);
+}
+
+.northbound-help-modal .nb-help-section {
+  margin-bottom: var(--space-4);
+}
+
+.northbound-help-modal .nb-help-section h4 {
+  margin: 0 0 var(--space-2);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.northbound-help-modal .nb-help-section p {
+  margin: 0 0 var(--space-4);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.northbound-help-modal .nb-help-topic-card {
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.northbound-help-modal .nb-help-topic-card--primary {
+  border-color: rgba(14, 165, 233, 0.35);
+}
+
+.northbound-help-modal .nb-help-topic-card--blue {
+  border-color: rgba(22, 93, 255, 0.35);
+}
+
+.northbound-help-modal .nb-help-topic-card__label {
   font-size: 12px;
   font-weight: 600;
+  margin-bottom: var(--space-2);
 }
 
-.industrial-modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+.northbound-help-modal .nb-help-topic-card--primary .nb-help-topic-card__label {
+  color: var(--primary);
 }
 
-.user-list-header {
+.northbound-help-modal .nb-help-topic-card--blue .nb-help-topic-card__label {
+  color: #165dff;
+}
+
+.northbound-help-modal .nb-help-code-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  gap: var(--space-2);
+  background: var(--edgex-surface-inset);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 500;
+  font-family: var(--font-mono);
 }
 
-.user-item {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  align-items: center;
+.northbound-help-modal .nb-help-code-row__text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.user-item .arco-input { flex: 1; }
+.northbound-help-modal .nb-help-pre-label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+  color: var(--text-primary);
+}
+
+.northbound-help-modal pre,
+.northbound-help-modal .nb-help-pre {
+  background: var(--edgex-surface-inset);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.5;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+/* ── Dark ── */
+.dark-theme .northbound-add-modal .proto-option {
+  background: var(--bg);
+}
+
+.dark-theme .northbound-add-modal .proto-option:hover {
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.dark-theme .nb-card.arco-card {
+  background: var(--bg);
+}
+
+.dark-theme .northbound-stats-modal .nb-stat-card,
+.dark-theme .northbound-help-modal .nb-help-topic-card {
+  background: var(--bg);
+}
+
+.dark-theme .northbound-stats-modal .log-viewer {
+  background: var(--edgex-surface-inset);
+}
+
+/* Help modal: override legacy inline grays */
+.northbound-help-modal .arco-modal-body h4 {
+  margin: 0 0 var(--space-2) !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+.northbound-help-modal .arco-modal-body p {
+  margin: 0 0 var(--space-4) !important;
+  font-size: 13px !important;
+  color: var(--text-secondary) !important;
+  line-height: 1.6 !important;
+}
+
+.northbound-help-modal .arco-modal-body pre {
+  background: var(--edgex-surface-inset) !important;
+  padding: var(--space-3) !important;
+  border-radius: var(--radius-sm) !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  border: 1px solid var(--border) !important;
+  overflow-x: auto;
+  margin: 0 0 var(--space-4) !important;
+  font-family: var(--font-mono) !important;
+  color: var(--text-primary) !important;
+}
+
+.northbound-help-modal .arco-modal-body .arco-card {
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+.northbound-help-modal .arco-modal-body .arco-card .arco-card-body {
+  padding: var(--space-3) var(--space-4);
+}
+
+.northbound-page .empty-wrap .arco-empty-image {
+  color: var(--text-tertiary);
+}
+
+.northbound-page .empty-icon-muted {
+  color: var(--text-tertiary);
+}

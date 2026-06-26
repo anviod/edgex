@@ -1,0 +1,78 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-2);
+  font-size: 14px;
+}
+.arco-breadcrumb-icon {
+  color: var(--color-text-2);
+}
+.arco-breadcrumb-item {
+  display: inline-block;
+  padding: 0 4px;
+  color: var(--color-text-2);
+  line-height: 24px;
+  vertical-align: middle;
+}
+.arco-breadcrumb-item > .arco-icon {
+  color: var(--color-text-3);
+}
+.arco-breadcrumb-item a {
+  display: inline-block;
+  margin: 0 -4px;
+  padding: 0 4px;
+  color: var(--color-text-2);
+  text-decoration: none;
+  border-radius: var(--border-radius-small);
+  background-color: transparent;
+}
+.arco-breadcrumb-item a:hover {
+  color: rgb(var(--link-6));
+  background-color: var(--color-fill-2);
+}
+.arco-breadcrumb-item:last-child {
+  color: var(--color-text-1);
+  font-weight: 500;
+}
+.arco-breadcrumb-item-ellipses {
+  position: relative;
+  top: -3px;
+  display: inline-block;
+  padding: 0 4px;
+  color: var(--color-text-2);
+}
+.arco-breadcrumb-item-separator {
+  display: inline-block;
+  margin: 0 4px;
+  color: var(--color-text-4);
+  line-height: 24px;
+  vertical-align: middle;
+}
+.arco-breadcrumb-item-with-dropdown {
+  cursor: pointer;
+}
+.arco-breadcrumb-item-dropdown-icon {
+  margin-left: 4px;
+  color: var(--color-text-2);
+  font-size: 12px;
+}
+.arco-breadcrumb-item-dropdown-icon-active svg {
+  transform: rotate(180deg);
+}

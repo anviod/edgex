@@ -1,0 +1,474 @@
+/*
+ * EdgeX v3.0 — Install wizard (all steps)
+ * Scoped under .install-wrapper to avoid global conflicts
+ */
+
+.install-container {
+  position: fixed;
+  inset: 0;
+  background: var(--surface);
+  padding: var(--space-8) var(--space-5);
+  font-family: var(--font-sans);
+  overflow-y: auto;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+.install-wrapper {
+  width: min(520px, 92vw);
+  margin: 0 auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color var(--transition-fast);
+}
+
+.install-wrapper:hover {
+  border-color: rgba(14, 165, 233, 0.15);
+}
+
+/* ── Header ── */
+.install-wrapper .install-header {
+  background: linear-gradient(135deg, var(--primary) 0%, #0284c7 100%);
+  padding: var(--space-6) var(--space-8);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+}
+
+.install-wrapper .logo-section {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.install-wrapper .install-header .logo-icon {
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.install-wrapper .install-header .logo-text .brand-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.install-wrapper .install-header .logo-text .brand-version {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 2px;
+}
+
+/* ── Body (shared across steps) ── */
+.install-wrapper .install-body {
+  padding: var(--space-8);
+}
+
+.install-wrapper .install-panel--center {
+  text-align: center;
+}
+
+/* ── Step indicator ── */
+.install-wrapper .step-indicator {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  margin-bottom: var(--space-8);
+  gap: var(--space-2);
+}
+
+.install-wrapper .step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 72px;
+}
+
+.install-wrapper .step-number {
+  width: 28px;
+  height: 28px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.install-wrapper .step.active .step-number {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.install-wrapper .step.done .step-number {
+  background: rgba(22, 163, 74, 0.1);
+  border-color: var(--edgex-success);
+  color: var(--edgex-success);
+}
+
+.install-wrapper .step-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.install-wrapper .step.active .step-label {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.install-wrapper .step.done .step-label {
+  color: var(--edgex-success);
+}
+
+.install-wrapper .step-divider {
+  width: 40px;
+  height: 1px;
+  background: var(--border);
+  margin-top: 14px;
+  flex-shrink: 0;
+  transition: background var(--transition-fast);
+}
+
+.install-wrapper .step-divider.done {
+  background: rgba(14, 165, 233, 0.35);
+}
+
+/* ── Config form ── */
+.install-wrapper .config-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.install-wrapper .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.install-wrapper .form-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.install-wrapper .label-icon {
+  color: var(--primary);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.install-wrapper .input-group {
+  position: relative;
+}
+
+.install-wrapper .checking {
+  color: var(--primary);
+}
+
+.install-wrapper .loading,
+.install-wrapper .spinner {
+  animation: install-spin 1s linear infinite;
+}
+
+@keyframes install-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.install-wrapper .status {
+  font-size: 16px;
+  display: inline-flex;
+}
+
+.install-wrapper .status.success {
+  color: var(--edgex-success);
+}
+
+.install-wrapper .status.error {
+  color: var(--edgex-error);
+}
+
+.install-wrapper .form-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+
+.install-wrapper .form-hint.success {
+  color: var(--edgex-success);
+}
+
+.install-wrapper .form-hint.error {
+  color: var(--edgex-error);
+}
+
+.install-wrapper .password-rules {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin-top: var(--space-1);
+}
+
+.install-wrapper .rule {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  padding: 4px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.install-wrapper .rule .arco-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.install-wrapper .rule.pass {
+  color: var(--edgex-success);
+  background: rgba(22, 163, 74, 0.06);
+  border-color: rgba(22, 163, 74, 0.2);
+}
+
+.install-wrapper .info-group {
+  background: var(--surface);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.install-wrapper .info-value {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.install-wrapper .error-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.install-wrapper .error-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: rgba(239, 68, 68, 0.04);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-sm);
+  color: var(--edgex-error);
+  font-size: 13px;
+}
+
+.install-wrapper .form-actions {
+  margin-top: var(--space-2);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.install-wrapper .btn-install {
+  height: 44px !important;
+  font-weight: 600;
+  font-size: 14px !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.install-wrapper .arco-input-wrapper,
+.install-wrapper .arco-input-password {
+  border-radius: var(--radius-sm) !important;
+  box-shadow: none !important;
+}
+
+.install-wrapper .arco-input-wrapper.arco-input-focus,
+.install-wrapper .arco-input-password.arco-input-focus {
+  border-color: var(--primary) !important;
+  box-shadow: none !important;
+}
+
+/* ── Step 2: Installing ── */
+.install-wrapper .install-progress-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto var(--space-5);
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.install-wrapper .install-progress-icon .spinner,
+.install-wrapper .install-progress-icon svg {
+  width: 32px;
+  height: 32px;
+  color: var(--primary);
+  font-size: 32px;
+}
+
+.install-wrapper .install-progress-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.install-wrapper .install-progress-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-6);
+}
+
+.install-wrapper .install-progress-bar-wrap {
+  margin-bottom: var(--space-6);
+}
+
+.install-wrapper .install-progress-bar {
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.install-wrapper .install-progress-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.install-wrapper .install-progress-info {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  margin-top: var(--space-2);
+}
+
+.install-wrapper .install-progress-log {
+  text-align: left;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.install-wrapper .install-log-item {
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.install-wrapper .install-log-item:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Step 3: Complete ── */
+.install-wrapper .install-complete-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto var(--space-5);
+  background: rgba(22, 163, 74, 0.08);
+  border: 1px solid rgba(22, 163, 74, 0.25);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--edgex-success);
+}
+
+.install-wrapper .install-complete-icon svg,
+.install-wrapper .install-complete-icon .arco-icon {
+  width: 40px;
+  height: 40px;
+  font-size: 40px;
+  color: var(--edgex-success);
+}
+
+.install-wrapper .install-complete-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.install-wrapper .install-complete-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-5);
+  line-height: 1.6;
+}
+
+.install-wrapper .install-complete-countdown {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.install-wrapper .install-complete-countdown .countdown {
+  font-weight: 600;
+  color: var(--primary);
+  font-size: 18px;
+}
+
+/* ── Footer ── */
+.install-wrapper .install-footer {
+  text-align: center;
+  padding: var(--space-4) var(--space-8);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 640px) {
+  .install-container {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .install-wrapper .install-body {
+    padding: var(--space-5);
+  }
+
+  .install-wrapper .install-header {
+    padding: var(--space-5);
+  }
+
+  .install-wrapper .step-divider {
+    width: 20px;
+  }
+
+  .install-wrapper .step {
+    min-width: 56px;
+  }
+
+  .install-wrapper .password-rules {
+    flex-wrap: wrap;
+  }
+}

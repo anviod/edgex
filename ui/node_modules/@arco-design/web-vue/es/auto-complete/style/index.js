@@ -1,0 +1,12 @@
+import "../../style/index.less";
+import "../../input/style/index.less";
+import "../../_components/input-label/style/index.less";
+import "../../tag/style/index.less";
+import "../../input-tag/style/index.less";
+import "../../_components/select-view/style/index.less";
+import "../../trigger/style/index.less";
+import "../../empty/style/index.less";
+import "../../checkbox/style/index.less";
+import "../../scrollbar/style/index.less";
+import "../../select/style/index.less";
+import "./index.less";

@@ -4,36 +4,37 @@
       <div class="install-header">
         <div class="logo-section">
           <div class="logo-icon">
-            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#0ea5e9" stroke-width="2">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
             </svg>
           </div>
           <div class="logo-text">
-            <div class="brand-name">Industrial Edge Gateway</div>
+            <div class="brand-name">EdgeX</div>
             <div class="brand-version">系统初始化配置</div>
           </div>
         </div>
       </div>
 
-      <div v-if="installState === 'config'" class="install-content">
+      <div class="install-body">
         <div class="step-indicator">
-          <div class="step active">
+          <div class="step" :class="{ active: installState === 'config', done: installState !== 'config' }">
             <span class="step-number">1</span>
             <span class="step-label">配置信息</span>
           </div>
-          <div class="step-divider"></div>
-          <div class="step">
+          <div class="step-divider" :class="{ done: installState !== 'config' }"></div>
+          <div class="step" :class="{ active: installState === 'installing', done: installState === 'completed' }">
             <span class="step-number">2</span>
             <span class="step-label">初始化</span>
           </div>
-          <div class="step-divider"></div>
-          <div class="step">
+          <div class="step-divider" :class="{ done: installState === 'completed' }"></div>
+          <div class="step" :class="{ active: installState === 'completed' }">
             <span class="step-number">3</span>
             <span class="step-label">完成</span>
           </div>
         </div>
 
-        <div class="config-form">
+        <div v-if="installState === 'config'" class="install-panel">
+        <div class="config-form flow-form">
           <div class="form-group">
             <label class="form-label">
               <IconSettings class="label-icon" />
@@ -113,22 +114,22 @@
               <div class="rule" :class="{ pass: /[A-Z]/.test(formData.password) }">
                 <IconCheckCircle v-if="/[A-Z]/.test(formData.password)" />
                 <IconCloseCircle v-else />
-                <span>包含大写字母</span>
+                <span>大写字母</span>
               </div>
               <div class="rule" :class="{ pass: /[a-z]/.test(formData.password) }">
                 <IconCheckCircle v-if="/[a-z]/.test(formData.password)" />
                 <IconCloseCircle v-else />
-                <span>包含小写字母</span>
+                <span>小写字母</span>
               </div>
               <div class="rule" :class="{ pass: /[0-9]/.test(formData.password) }">
                 <IconCheckCircle v-if="/[0-9]/.test(formData.password)" />
                 <IconCloseCircle v-else />
-                <span>包含数字</span>
+                <span>数字</span>
               </div>
               <div class="rule" :class="{ pass: hasSpecialChar }">
                 <IconCheckCircle v-if="hasSpecialChar" />
                 <IconCloseCircle v-else />
-                <span>包含特殊符号</span>
+                <span>特殊符号</span>
               </div>
             </div>
           </div>
@@ -230,47 +231,48 @@
             </a-button>
           </div>
         </div>
-      </div>
+        </div>
 
-      <div v-else-if="installState === 'installing'" class="install-progress">
-        <div class="progress-icon">
+        <div v-else-if="installState === 'installing'" class="install-panel install-panel--center">
+        <div class="progress-icon install-progress-icon">
           <IconLoading class="spinner" />
         </div>
-        <div class="progress-title">正在初始化系统</div>
-        <div class="progress-subtitle">{{ statusText }}</div>
-        
-        <div class="progress-bar-wrapper">
-          <div class="progress-bar">
-            <div class="progress-fill" :style="{ width: progress + '%' }"></div>
+        <div class="install-progress-title">正在初始化系统</div>
+        <div class="install-progress-subtitle">{{ statusText }}</div>
+
+        <div class="install-progress-bar-wrap">
+          <div class="install-progress-bar">
+            <div class="install-progress-fill" :style="{ width: progress + '%' }"></div>
           </div>
-          <div class="progress-info">{{ currentStep }} / {{ totalSteps }} · {{ progress }}%</div>
+          <div class="install-progress-info">{{ currentStep }} / {{ totalSteps }} · {{ progress }}%</div>
         </div>
 
-        <div class="progress-log">
-          <div v-for="(log, index) in logMessages" :key="index" class="log-item">
+        <div class="install-progress-log">
+          <div v-for="(log, index) in logMessages" :key="index" class="install-log-item">
             {{ log }}
           </div>
         </div>
-      </div>
+        </div>
 
-      <div v-else-if="installState === 'completed'" class="install-complete">
-        <div class="complete-icon">
+        <div v-else-if="installState === 'completed'" class="install-panel install-panel--center">
+        <div class="complete-icon install-complete-icon">
           <IconCheckCircleFill />
         </div>
-        <div class="complete-title">初始化完成</div>
-        <div class="complete-subtitle">
+        <div class="install-complete-title">初始化完成</div>
+        <div class="install-complete-subtitle">
           系统配置已完成，即将跳转到登录页面
           <span v-if="configPort">
             <br />服务端口: {{ configPort }}
           </span>
         </div>
-        <div class="complete-countdown">
+        <div class="install-complete-countdown">
           自动跳转: <span class="countdown">{{ redirectCountdown }}s</span>
+        </div>
         </div>
       </div>
 
       <div class="install-footer">
-        © {{ new Date().getFullYear() }} Industrial Edge Gateway
+        © {{ new Date().getFullYear() }} EdgeX
       </div>
     </div>
   </div>
@@ -481,7 +483,7 @@ const startStatusPolling = () => {
         }
 
         nextTick(() => {
-          const logContainer = document.querySelector('.progress-log')
+          const logContainer = document.querySelector('.install-progress-log')
           if (logContainer) {
             logContainer.scrollTop = logContainer.scrollHeight
           }
@@ -549,408 +551,5 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.install-container {
-  min-height: 100vh;
-  background: var(--edgex-surface-inset);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  font-family: var(--font-sans);
-}
-
-.install-wrapper {
-  width: 100%;
-  max-width: 520px;
-  background: var(--edgex-surface-raised);
-  border: 1px solid #e2e8f0;
-  overflow: hidden;
-}
-
-.install-header {
-  background: #0ea5e9;
-  padding: 24px 32px;
-  border-bottom: 2px solid #0284c7;
-}
-
-.logo-section {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.logo-icon {
-  width: 40px;
-  height: 40px;
-  background: rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.logo-text .brand-name {
-  font-size: 18px;
-  font-weight: 600;
-  color: #ffffff;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.logo-text .brand-version {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.8);
-  margin-top: 2px;
-}
-
-.install-content {
-  padding: 32px;
-}
-
-.step-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 32px;
-  gap: 8px;
-}
-
-.step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.step-number {
-  width: 28px;
-  height: 28px;
-  background: var(--edgex-surface-muted);
-  border: 1px solid #cbd5e1;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.step.active .step-number {
-  background: #0ea5e9;
-  border-color: #0ea5e9;
-  color: #ffffff;
-}
-
-.step-label {
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.step.active .step-label {
-  color: #0ea5e9;
-  font-weight: 500;
-}
-
-.step-divider {
-  width: 40px;
-  height: 1px;
-  background: #e2e8f0;
-  margin-top: 14px;
-}
-
-.step.active ~ .step-divider {
-  background: #0ea5e9;
-}
-
-.config-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #475569;
-  white-space: nowrap;
-}
-
-.label-icon {
-  color: #0ea5e9;
-  font-size: 14px;
-}
-
-.input-group {
-  position: relative;
-}
-
-.checking {
-  color: #0ea5e9;
-}
-
-.loading {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.status {
-  font-size: 16px;
-}
-
-.status.success {
-  color: #22c55e;
-}
-
-.status.error {
-  color: #ef4444;
-}
-
-.form-hint {
-  font-size: 12px;
-  padding-left: 4px;
-  color: #94a3b8;
-}
-
-.form-hint.success {
-  color: #22c55e;
-}
-
-.form-hint.error {
-  color: #ef4444;
-}
-
-.password-rules {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.rule {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: #94a3b8;
-  padding: 4px 10px;
-  background: var(--edgex-surface-inset);
-  border: 1px solid #e2e8f0;
-}
-
-.rule.pass {
-  color: #22c55e;
-  background: rgba(34, 197, 94, 0.08);
-  border-color: rgba(34, 197, 94, 0.2);
-}
-
-.info-group {
-  background: var(--edgex-surface-inset);
-  padding: 16px;
-  border: 1px solid #e2e8f0;
-}
-
-.info-value {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #475569;
-  font-family: monospace;
-}
-
-.error-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.error-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  background: rgba(239, 68, 68, 0.08);
-  border-left: 3px solid #ef4444;
-  color: #dc2626;
-  font-size: 13px;
-}
-
-.form-actions {
-  margin-top: 8px;
-}
-
-.btn-install {
-  height: 40px !important;
-  font-weight: 600;
-  font-size: 14px !important;
-}
-
-.install-progress {
-  padding: 48px 32px;
-  text-align: center;
-}
-
-.progress-icon {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 20px;
-  background: rgba(14, 165, 233, 0.1);
-  border: 1px solid rgba(14, 165, 233, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.spinner {
-  width: 32px;
-  height: 32px;
-  color: #0ea5e9;
-  animation: spin 1s linear infinite;
-}
-
-.progress-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--edgex-text-primary);
-  margin-bottom: 8px;
-}
-
-.progress-subtitle {
-  font-size: 14px;
-  color: #64748b;
-  margin-bottom: 24px;
-}
-
-.progress-bar-wrapper {
-  margin-bottom: 24px;
-}
-
-.progress-bar {
-  height: 6px;
-  background: #e2e8f0;
-  border: 1px solid #cbd5e1;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #0ea5e9;
-  transition: width 0.3s ease;
-}
-
-.progress-info {
-  font-size: 13px;
-  color: #94a3b8;
-  margin-top: 8px;
-}
-
-.progress-log {
-  max-height: 180px;
-  overflow-y: auto;
-  text-align: left;
-  padding: 16px;
-  background: var(--edgex-surface-inset);
-  border: 1px solid #e2e8f0;
-  font-family: monospace;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.log-item {
-  color: #475569;
-  margin-bottom: 4px;
-}
-
-.install-complete {
-  padding: 48px 32px;
-  text-align: center;
-}
-
-.complete-icon {
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 20px;
-  background: rgba(34, 197, 94, 0.1);
-  border: 2px solid rgba(34, 197, 94, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.complete-icon :deep(.arco-icon) {
-  width: 40px;
-  height: 40px;
-  color: #22c55e;
-}
-
-.complete-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--edgex-text-primary);
-  margin-bottom: 8px;
-}
-
-.complete-subtitle {
-  font-size: 14px;
-  color: #64748b;
-  margin-bottom: 20px;
-}
-
-.complete-countdown {
-  font-size: 14px;
-  color: #64748b;
-}
-
-.countdown {
-  font-weight: 600;
-  color: #0ea5e9;
-  font-size: 18px;
-}
-
-.install-footer {
-  text-align: center;
-  padding: 16px 32px;
-  background: var(--edgex-surface-inset);
-  border-top: 1px solid #e2e8f0;
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-:deep(.arco-input-wrapper),
-:deep(.arco-input-password) {
-  box-shadow: none !important;
-}
-
-:deep(.arco-input-wrapper.arco-input-focus),
-:deep(.arco-input-password.arco-input-focus) {
-  border-color: #0ea5e9 !important;
-  box-shadow: none !important;
-}
-
-@media (max-width: 640px) {
-  .install-wrapper {
-    margin: 10px;
-  }
-  
-  .install-header,
-  .install-content {
-    padding: 20px;
-  }
-  
-  .step-divider {
-    width: 20px;
-  }
-}
+/* v3.0 — styles in src/styles/ */
 </style>

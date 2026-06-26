@@ -1,0 +1,304 @@
+/*
+ * EdgeX v3.0 Arco Design overrides
+ * Linear-class: rounded, no glow, low noise
+ */
+
+*:focus {
+  outline: none !important;
+}
+
+:focus-visible {
+  box-shadow: none !important;
+}
+
+/* ── buttons ── */
+.arco-btn,
+.arco-button {
+  border-radius: var(--radius-sm) !important;
+  box-shadow: none !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.arco-btn-primary,
+.arco-button[type="primary"] {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+.arco-btn-primary:hover,
+.arco-button[type="primary"]:hover {
+  background: var(--primary-hover) !important;
+  border-color: var(--primary-hover) !important;
+}
+
+.arco-btn-outline,
+.arco-button[type="outline"] {
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+  background: transparent !important;
+}
+
+.arco-btn-outline:hover,
+.arco-button[type="outline"]:hover {
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+  background: rgba(14, 165, 233, 0.04) !important;
+}
+
+.arco-btn:active,
+.arco-button:active {
+  transform: scale(0.98);
+}
+
+/* ── inputs ── */
+.arco-input-wrapper,
+.arco-input,
+.arco-textarea,
+.arco-input-password,
+.arco-select-view,
+.arco-select-view-single,
+.arco-input-number,
+.arco-picker,
+.arco-timepicker {
+  border-radius: var(--radius-sm) !important;
+  box-shadow: none !important;
+  background-color: var(--edgex-surface-subtle, #fafafa) !important;
+  border-color: var(--border) !important;
+  transition: border-color var(--transition-fast) !important;
+}
+
+.arco-input-wrapper.arco-input-focus,
+.arco-input:focus,
+.arco-textarea:focus,
+.arco-select-view.arco-select-view-focus,
+.arco-input-number.arco-input-focus,
+.arco-picker.arco-picker-focus {
+  border-color: var(--primary) !important;
+  box-shadow: none !important;
+}
+
+.arco-select-dropdown {
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-md) !important;
+  border: 1px solid var(--border) !important;
+  background: var(--bg) !important;
+}
+
+.arco-select-option-selected {
+  background: rgba(14, 165, 233, 0.08) !important;
+  color: var(--primary) !important;
+}
+
+/* ── form ── */
+.arco-form-item {
+  margin-bottom: var(--space-4);
+}
+
+.arco-form-item-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* ── compact labels / titles — single line ── */
+.arco-form-item-label-col > label,
+.arco-modal-title,
+.arco-drawer-title,
+.arco-tabs-tab,
+.arco-tabs-tab-title,
+.arco-menu-item,
+.arco-menu-inline-header,
+.arco-breadcrumb-item,
+.arco-descriptions-item-label,
+.arco-collapse-item-header-title,
+.arco-radio-button-content,
+.stat-label,
+.section-title {
+  white-space: nowrap;
+}
+
+.arco-modal-title,
+.arco-drawer-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arco-btn-size-small,
+.arco-btn-size-mini {
+  white-space: nowrap;
+}
+
+/* ── modal ── */
+.arco-modal {
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-md) !important;
+  overflow: hidden;
+}
+
+.arco-modal-header {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-4) var(--space-6);
+  background: var(--bg);
+}
+
+.arco-modal-body {
+  padding: var(--space-6);
+}
+
+.arco-modal-footer {
+  border-top: 1px solid var(--border);
+  padding: var(--space-4) var(--space-6);
+}
+
+/* ── tabs ── */
+.arco-tabs-nav {
+  border-bottom: 1px solid var(--border);
+}
+
+.arco-tabs-tab {
+  border-radius: var(--radius-sm) !important;
+  color: var(--text-secondary);
+}
+
+.arco-tabs-tab-active {
+  color: var(--primary) !important;
+}
+
+.arco-tabs-tab-active::before {
+  background: var(--primary) !important;
+}
+
+/* ── card (arco) ── */
+.arco-card {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--border) !important;
+  background: var(--bg) !important;
+}
+
+/* ── dropdown ── */
+.arco-dropdown {
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* ── tag ── */
+.arco-tag {
+  border-radius: var(--radius-sm) !important;
+}
+
+/* ── switch ── */
+.arco-switch-checked {
+  background: var(--primary) !important;
+}
+
+/* ── checkbox / radio ── */
+.arco-checkbox-checked .arco-checkbox-icon {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+.arco-checkbox-indeterminate .arco-checkbox-icon {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+.arco-radio-checked .arco-radio-icon {
+  border-color: var(--primary) !important;
+}
+
+.arco-radio-checked .arco-radio-icon::after {
+  background: var(--primary) !important;
+}
+
+/* Table row-selection: header & body checkboxes same size/alignment */
+.table-container .arco-table .arco-table-th.arco-table-operation,
+.table-container .arco-table .arco-table-td.arco-table-operation,
+.page-shell .arco-table .arco-table-th.arco-table-operation,
+.page-shell .arco-table .arco-table-td.arco-table-operation {
+  padding: 0 !important;
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  text-align: center;
+}
+
+.table-container .arco-table .arco-table-operation .arco-table-cell,
+.page-shell .arco-table .arco-table-operation .arco-table-cell {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  width: 100%;
+  height: 100%;
+}
+
+.table-container .arco-table .arco-table-operation .arco-checkbox,
+.page-shell .arco-table .arco-table-operation .arco-checkbox {
+  padding-left: 0;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.table-container .arco-table .arco-table-operation .arco-checkbox-icon,
+.page-shell .arco-table .arco-table-operation .arco-checkbox-icon {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+  box-sizing: border-box;
+}
+
+.table-container .arco-table .arco-table-operation .arco-icon-hover.arco-checkbox-icon-hover::before,
+.page-shell .arco-table .arco-table-operation .arco-icon-hover.arco-checkbox-icon-hover::before {
+  width: 24px;
+  height: 24px;
+}
+
+.table-container .arco-table .arco-table-operation .arco-checkbox:hover .arco-checkbox-icon,
+.page-shell .arco-table .arco-table-operation .arco-checkbox:hover .arco-checkbox-icon,
+.table-container .arco-table .arco-table-operation .arco-checkbox-checked:hover .arco-checkbox-icon,
+.page-shell .arco-table .arco-table-operation .arco-checkbox-checked:hover .arco-checkbox-icon,
+.table-container .arco-table .arco-table-operation .arco-checkbox-indeterminate:hover .arco-checkbox-icon,
+.page-shell .arco-table .arco-table-operation .arco-checkbox-indeterminate:hover .arco-checkbox-icon {
+  transform: none;
+}
+
+/* ── tree ── */
+.arco-tree-node-selected .arco-tree-node-title {
+  background: rgba(14, 165, 233, 0.08);
+  color: var(--primary);
+}
+
+/* ── notification ── */
+.arco-notification {
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* ── legacy industrial-card in App (override old styles) ── */
+.industrial-card {
+  background: var(--bg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+  transition: all var(--transition-fast) !important;
+  position: relative;
+}
+
+.industrial-card::before {
+  display: none !important;
+}
+
+.industrial-card:hover {
+  border-color: rgba(14, 165, 233, 0.2) !important;
+  transform: translateY(-1px);
+  box-shadow: none !important;
+}
+
+.industrial-menu {
+  background: var(--bg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-md) !important;
+}

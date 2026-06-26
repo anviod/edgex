@@ -1,0 +1,116 @@
+/*
+ * EdgeX v3.0 — Arco dark theme essentials (token-driven, low noise)
+ */
+
+.dark-theme .arco-table .arco-table-tbody .arco-table-tr {
+  background: var(--bg) !important;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.dark-theme .arco-table .arco-table-th {
+  color: var(--text-secondary) !important;
+  background: transparent !important;
+}
+
+.dark-theme .arco-table .arco-table-td:not(.arco-table-col-fixed-left):not(.arco-table-col-fixed-right) {
+  color: var(--text-primary) !important;
+  background: var(--bg) !important;
+}
+
+.dark-theme .arco-table .arco-table-tbody .arco-table-tr .arco-table-td.arco-table-col-fixed-left,
+.dark-theme .arco-table .arco-table-tbody .arco-table-tr .arco-table-td.arco-table-col-fixed-right {
+  color: var(--text-primary) !important;
+  background-color: var(--bg) !important;
+}
+
+.dark-theme .arco-table .arco-table-tbody .arco-table-tr:hover {
+  background: var(--surface-2) !important;
+}
+
+.dark-theme .arco-table.arco-table-hover:not(.arco-table-dragging) .arco-table-tbody .arco-table-tr:not(.arco-table-tr-empty):not(.arco-table-tr-summary):hover .arco-table-td {
+  background-color: var(--surface-2) !important;
+}
+
+.dark-theme .arco-table.arco-table-hover:not(.arco-table-dragging) .arco-table-tbody .arco-table-tr:not(.arco-table-tr-empty):not(.arco-table-tr-summary):hover .arco-table-td.arco-table-col-fixed-left::before,
+.dark-theme .arco-table.arco-table-hover:not(.arco-table-dragging) .arco-table-tbody .arco-table-tr:not(.arco-table-tr-empty):not(.arco-table-tr-summary):hover .arco-table-td.arco-table-col-fixed-right::before {
+  background-color: transparent !important;
+  opacity: 0 !important;
+  display: none !important;
+  content: none !important;
+}
+
+.dark-theme .saas-table .arco-btn-text:not(:disabled):hover,
+.dark-theme .page-shell .arco-table .arco-btn-text:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .saas-table .arco-btn-text.arco-btn-status-danger:not(:disabled):hover,
+.dark-theme .page-shell .arco-table .arco-btn-text.arco-btn-status-danger:not(:disabled):hover {
+  background: rgba(220, 38, 38, 0.12) !important;
+  color: var(--edgex-error) !important;
+}
+
+.dark-theme .arco-input-wrapper,
+.dark-theme .arco-select-view-single,
+.dark-theme .arco-textarea-wrapper,
+.dark-theme .arco-input-number {
+  background-color: var(--edgex-surface-subtle) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .arco-pagination,
+.dark-theme .arco-pagination-item {
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+}
+
+.dark-theme .arco-pagination-item-active {
+  background: var(--surface-2) !important;
+  color: var(--primary) !important;
+}
+
+.dark-theme .channel-list-container,
+.dark-theme .dashboard-container,
+.dark-theme .edge-compute-container,
+.dark-theme .system-settings-page,
+.dark-theme .virtual-shadow-page,
+.dark-theme .northbound-page {
+  background: var(--surface) !important;
+  color: var(--text-primary);
+}
+
+.dark-theme .protocol-tag,
+.dark-theme .name-text,
+.dark-theme .channel-name,
+.dark-theme .channel-meta,
+.dark-theme .metric-label,
+.dark-theme .metric-value {
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .info-item .label,
+.dark-theme .stat-label {
+  color: var(--text-secondary) !important;
+}
+
+.dark-theme .virtual-shadow-page .arco-descriptions-item-label,
+.dark-theme .virtual-shadow-page .arco-descriptions-item-value {
+  background: var(--bg) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .arco-drawer-mask {
+  background-color: rgba(0, 0, 0, 0.55) !important;
+}
+
+.blink {
+  animation: blink 1s linear infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

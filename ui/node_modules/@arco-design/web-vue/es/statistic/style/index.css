@@ -1,0 +1,51 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-statistic {
+  display: inline-block;
+  color: var(--color-text-2);
+  line-height: 1.5715;
+}
+.arco-statistic-title {
+  margin-bottom: 8px;
+  color: var(--color-text-2);
+  font-size: 14px;
+}
+.arco-statistic-content .arco-statistic-value {
+  color: var(--color-text-1);
+  font-weight: 500;
+  font-size: 26px;
+  white-space: nowrap;
+}
+.arco-statistic-content .arco-statistic-value-integer {
+  font-size: inherit;
+  white-space: nowrap;
+}
+.arco-statistic-content .arco-statistic-value-decimal {
+  display: inline-block;
+  font-size: inherit;
+}
+.arco-statistic-prefix {
+  font-size: 14px;
+}
+.arco-statistic-suffix {
+  font-size: 14px;
+}
+.arco-statistic-extra {
+  margin-top: 8px;
+  color: var(--color-text-2);
+}

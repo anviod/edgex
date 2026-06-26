@@ -1,16 +1,17 @@
 ﻿<template>
   <!-- 网络接口 -->
-  <a-card v-if="activeTab === 'network'" class="mb-4">
+  <a-card v-if="activeTab === 'network'" class="settings-panel">
     <a-card-header>
-      <div class="card-title"></div>
+      <div class="card-title">网络接口</div>
     </a-card-header>
     <a-card-body>
+      <div class="table-container saas-table">
       <a-table 
         :columns="networkColumns" 
         :data="networkInterfaces" 
         size="small"
         :bordered="false"
-        class="industrial-table"
+        class="industrial-table-inline"
       >
         <template #name="{ record }">
           <span class="mono-text bold">{{ record.name }}</span>
@@ -48,19 +49,19 @@
           </a-button>
         </template>
       </a-table>
-
-      <a-divider class="my-4" />
-
-      <div class="table-toolbar-industrial mb-4">
-        <div class="flex items-center gap-2">
-          <span class="toolbar-title">连通性验证 (配置变更时自动检查)</span>
-          <a-button type="primary" size="small" @click="addConnectivityTarget">
-            <template #icon><icon-plus /></template>
-            添加检查目标
-          </a-button>
-        </div>
       </div>
-      <a-table :columns="connectivityColumns" :data="connectivityTargets" size="small" :bordered="false" class="industrial-table">
+
+      <a-divider />
+
+      <div class="table-toolbar-industrial">
+        <span class="toolbar-title">连通性验证（配置变更时自动检查）</span>
+        <a-button type="primary" size="small" @click="addConnectivityTarget">
+          <template #icon><icon-plus /></template>
+          添加检查目标
+        </a-button>
+      </div>
+      <div class="table-container saas-table">
+      <a-table :columns="connectivityColumns" :data="connectivityTargets" size="small" :bordered="false" class="industrial-table-inline">
         <template #type="{ record, index }">
           <a-select v-model="connectivityTargets[index].type" :options="connectivityTypeOptions" size="small" class="rect-input" />
         </template>
@@ -76,20 +77,21 @@
           </a-button>
         </template>
       </a-table>
+      </div>
     </a-card-body>
   </a-card>
 
-  <!-- 静态路由 -->
-  <a-card v-if="activeTab === 'routes'" class="mb-4">
+  <a-card v-if="activeTab === 'routes'" class="settings-panel">
     <a-card-header class="d-flex justify-space-between align-items-center">
-      <div class="card-title"></div>
+      <div class="card-title">静态路由</div>
       <a-button type="primary" @click="openRouteDialog()">
         <template #icon><icon-plus /></template>
         添加路由
       </a-button>
     </a-card-header>
     <a-card-body>
-      <a-table :columns="routesColumns" :data="staticRoutes" size="small" :bordered="false" class="industrial-table">
+      <div class="table-container saas-table">
+      <a-table :columns="routesColumns" :data="staticRoutes" size="small" :bordered="false" class="industrial-table-inline">
         <template #destination="{ record }">
           {{ record.destination }}/{{ record.prefix }}
         </template>
@@ -105,10 +107,9 @@
           </a-button>
         </template>
       </a-table>
+      </div>
     </a-card-body>
   </a-card>
-
-  <!-- Interface Edit Dialog -->
   <a-modal 
     v-model:visible="interfaceDialog.visible" 
     :title="`编辑接口: ${interfaceDialog.form.name}`" 
@@ -502,79 +503,5 @@ const deleteRoute = (idx) => {
 </script>
 
 <style scoped>
-.card-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-gray-900);
-  letter-spacing: 0.5px;
-}
-
-.table-toolbar-industrial {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.toolbar-title {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--color-gray-900);
-}
-
-.industrial-table :deep(.arco-table-th) {
-  background: var(--color-gray-50);
-  border-bottom: 1px solid #e5e7eb;
-  font-size: 11px;
-  color: var(--color-gray-900);
-  font-weight: 500;
-}
-
-.industrial-table :deep(.arco-table-td) {
-  font-size: 12px;
-  border-bottom: 1px solid #f1f3f5;
-}
-
-.industrial-table :deep(.arco-table-tr:hover .arco-table-td) {
-  background: #f9fafb;
-}
-
-.mono-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
-.bold { font-weight: bold; }
-
-.subscribers-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.sub-item {
-  font-size: 11px;
-  padding: 2px 6px;
-  border: 1px solid #e5e7eb;
-  border-radius: 0;
-  color: #374151;
-  background: var(--edgex-surface-subtle);
-}
-
-.rect-input {
-  border-radius: 0 !important;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-:deep(.industrial-white-modal.arco-modal) {
-  border-radius: 0 !important;
-  border: 1px solid #e5e7eb !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-}
-
-:deep(.industrial-white-modal .arco-modal-header) {
-  border-bottom: 1px solid #e5e7eb;
-  padding: 16px 24px;
-}
-
-:deep(.industrial-white-modal .arco-modal-footer) {
-  border-top: 1px solid #e5e7eb;
-  padding: 16px 24px;
-}
+/* v3.0 — styles in src/styles/ */
 </style>

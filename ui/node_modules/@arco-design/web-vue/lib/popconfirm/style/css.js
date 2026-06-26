@@ -1,0 +1,5 @@
+"use strict";
+require("../../style/index.css");
+require("../../button/style/index.css");
+require("../../trigger/style/index.css");
+require("./index.css");

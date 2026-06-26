@@ -157,11 +157,7 @@ const loadDevices = async () => {
 </script>
 
 <style scoped>
-.target-editor-card {
-  border-left: 4px solid #165dff;
-  border-radius: 0;
-  background: var(--edgex-surface-inset);
-}
+/* v3.0 — styles in src/styles/ */
 </style>
 
 

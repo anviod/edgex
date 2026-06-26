@@ -1,22 +1,35 @@
 /*
- * 表单控件统一规范
- * 详见 docs/operations/样式参考.md §4.3
+ * EdgeX v3.0 Form Controls — Flow Form
  */
 
-/* ── 间距工具类（8px 栅格） ── */
-.mb-1 { margin-bottom: 4px; }
-.mb-2 { margin-bottom: 8px; }
-.mb-3 { margin-bottom: 12px; }
-.mb-4 { margin-bottom: 16px; }
+/* ── spacing utilities ── */
+.mb-1 { margin-bottom: var(--space-1); }
+.mb-2 { margin-bottom: var(--space-2); }
+.mb-3 { margin-bottom: var(--space-3); }
+.mb-4 { margin-bottom: var(--space-4); }
 .mb-5 { margin-bottom: 20px; }
-.mb-6 { margin-bottom: 24px; }
+.mb-6 { margin-bottom: var(--space-6); }
+.mb-8 { margin-bottom: var(--space-8); }
 
-/* ── 表单字段纵向堆叠 ── */
+/* ── Flow Form (v3.0 default) ── */
+.flow-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.flow-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ── field stack ── */
 .field-stack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 
 .field-stack--tight {
@@ -34,7 +47,7 @@
 .field-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-3, #64748b);
+  color: var(--text-secondary);
   line-height: 1.4;
   margin-bottom: 0;
   white-space: nowrap;
@@ -43,9 +56,10 @@
 .field-label-sm {
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-3, #64748b);
+  color: var(--text-secondary);
   line-height: 1.4;
   margin-bottom: 0;
+  white-space: nowrap;
 }
 
 .field-error {
@@ -116,13 +130,14 @@
 
 /* 工业表单（弹窗 / 设置页） */
 .industrial-form :deep(.arco-form-item) {
-  margin-bottom: 14px;
+  margin-bottom: var(--space-4);
 }
 
 .industrial-form :deep(.arco-form-item-label) {
   font-weight: 500;
   color: #475569;
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .industrial-form :deep(.arco-input-wrapper),

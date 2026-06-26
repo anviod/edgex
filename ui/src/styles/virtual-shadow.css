@@ -1,0 +1,1042 @@
+/*
+ * EdgeX v3.0 — Virtual Shadow Devices (list + builder modal)
+ * Token-driven; Light / Dark via .dark-theme
+ */
+
+/* ── List page ── */
+.virtual-shadow-page {
+  color: var(--text-primary);
+}
+
+.virtual-shadow-page .table-container {
+  background: transparent;
+  border: none;
+}
+
+.virtual-shadow-page .cell-ellipsis {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.virtual-shadow-page .mono-cell {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.dark-theme .virtual-shadow-page .table-ops .arco-btn-text:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark-theme .virtual-shadow-page .table-ops .arco-btn-text.arco-btn-status-danger:not(:disabled):hover {
+  background: rgba(220, 38, 38, 0.12) !important;
+}
+
+.virtual-shadow-page .saas-table .arco-table-container {
+  background: transparent;
+  border: none;
+}
+
+.virtual-shadow-page .saas-table .arco-table-pagination {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.virtual-shadow-page .saas-table .arco-table-expand-btn {
+  background-color: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.virtual-shadow-page .saas-table .arco-table-tbody .arco-table-tr:hover .arco-table-expand-btn {
+  background-color: rgba(0, 0, 0, 0.04);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.virtual-shadow-page .saas-table .arco-table-tr-expand .arco-table-td {
+  background: var(--surface) !important;
+  box-shadow: none !important;
+}
+
+.virtual-shadow-page .expand-points {
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-12);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.virtual-shadow-page .runtime-badge {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.virtual-shadow-page .text-muted {
+  color: var(--text-tertiary);
+}
+
+.virtual-shadow-page .expand-point-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  font-size: 12px;
+  flex-wrap: wrap;
+  color: var(--text-primary);
+}
+
+.virtual-shadow-page .ep-id {
+  font-weight: 600;
+  min-width: 80px;
+}
+
+.virtual-shadow-page .ep-name {
+  color: var(--text-secondary);
+  min-width: 80px;
+}
+
+.virtual-shadow-page .ep-expr {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--primary);
+}
+
+.virtual-shadow-page .ep-value {
+  color: var(--edgex-success);
+  font-weight: 600;
+}
+
+.virtual-shadow-page .expr-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  word-break: break-all;
+  color: var(--primary);
+}
+
+/* ── Detail drawer (teleported — not under .virtual-shadow-page) ── */
+.virtual-shadow-detail-drawer.arco-drawer {
+  background: var(--bg) !important;
+}
+
+.virtual-shadow-detail-drawer .arco-drawer-header {
+  min-height: 48px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg) !important;
+}
+
+.virtual-shadow-detail-drawer .arco-drawer-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary) !important;
+}
+
+.virtual-shadow-detail-drawer .arco-drawer-body {
+  padding: 24px;
+  background: var(--surface) !important;
+  color: var(--text-primary);
+}
+
+.virtual-shadow-detail-drawer .arco-drawer-close-btn {
+  color: var(--text-tertiary) !important;
+}
+
+.virtual-shadow-detail-drawer .arco-drawer-close-btn:hover {
+  color: var(--text-primary) !important;
+  background: var(--surface-2) !important;
+}
+
+.virtual-shadow-detail-drawer .detail-drawer-desc .arco-descriptions-item-label,
+.virtual-shadow-detail-drawer .detail-drawer-desc .arco-descriptions-item-value {
+  background: var(--bg) !important;
+  border-color: var(--border) !important;
+}
+
+.virtual-shadow-detail-drawer .detail-drawer-desc .arco-descriptions-item-label {
+  color: var(--text-secondary) !important;
+}
+
+.virtual-shadow-detail-drawer .detail-drawer-desc .arco-descriptions-item-value {
+  color: var(--text-primary) !important;
+}
+
+.virtual-shadow-detail-drawer .virtual-shadow-detail-table .arco-table-th {
+  color: var(--text-secondary) !important;
+  background: transparent !important;
+}
+
+.virtual-shadow-detail-drawer .virtual-shadow-detail-table .arco-table-tbody .arco-table-tr {
+  background: var(--bg) !important;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.virtual-shadow-detail-drawer .virtual-shadow-detail-table .arco-table-tbody .arco-table-tr:hover {
+  background: var(--surface-2) !important;
+}
+
+.virtual-shadow-detail-drawer .virtual-shadow-detail-table .arco-table-td {
+  color: var(--text-primary) !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+.virtual-shadow-detail-drawer .virtual-shadow-detail-table .arco-table-container {
+  background: transparent !important;
+  border: none !important;
+}
+
+.virtual-shadow-detail-drawer .expr-code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--primary);
+}
+
+.virtual-shadow-detail-drawer .text-muted {
+  color: var(--text-tertiary);
+}
+
+.virtual-shadow-detail-drawer .drawer-footer {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+  text-align: right;
+}
+
+.virtual-shadow-detail-drawer .drawer-footer .arco-btn-outline {
+  border-color: var(--border);
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.virtual-shadow-detail-drawer .drawer-footer .arco-btn-outline:hover {
+  border-color: rgba(14, 165, 233, 0.35);
+  color: var(--primary);
+  background: rgba(14, 165, 233, 0.08);
+}
+
+/* ── Builder modal (teleported — scope by modal-class) ── */
+.virtual-shadow-builder-modal .builder-form {
+  position: relative;
+  color: var(--text-primary);
+  --vs-drop-soft: var(--edgex-success);
+  --vs-drop-soft-deep: #15803d;
+  --vs-drop-soft-bg: rgba(22, 163, 74, 0.1);
+  --vs-drop-soft-border: rgba(22, 163, 74, 0.35);
+  --vs-drop-soft-glow: rgba(22, 163, 74, 0.16);
+}
+
+.dark-theme .virtual-shadow-builder-modal .builder-form {
+  --vs-drop-soft-deep: #4ade80;
+  --vs-drop-soft-bg: rgba(22, 163, 74, 0.14);
+  --vs-drop-soft-border: rgba(74, 222, 128, 0.4);
+  --vs-drop-soft-glow: rgba(74, 222, 128, 0.2);
+}
+
+.virtual-shadow-builder-modal .point-filter-field {
+  margin-bottom: var(--space-2);
+}
+
+.virtual-shadow-builder-modal .req {
+  color: var(--edgex-error);
+}
+
+.virtual-shadow-builder-modal .field-error {
+  font-size: 11px;
+  color: var(--edgex-error);
+  margin-top: 2px;
+}
+
+.virtual-shadow-builder-modal .enable-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: 22px;
+}
+
+.virtual-shadow-builder-modal .builder-split {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: var(--space-4);
+  min-height: 480px;
+}
+
+.virtual-shadow-builder-modal .source-panel,
+.virtual-shadow-builder-modal .points-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dark-theme .virtual-shadow-builder-modal .source-panel,
+.dark-theme .virtual-shadow-builder-modal .points-panel {
+  background: var(--bg);
+}
+
+.virtual-shadow-builder-modal .device-list {
+  flex: 1;
+  overflow: auto;
+  max-height: 400px;
+}
+
+.virtual-shadow-builder-modal .point-list,
+.virtual-shadow-builder-modal .blocks-scroll {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
+.virtual-shadow-builder-modal .point-list {
+  max-height: 280px;
+}
+
+.virtual-shadow-builder-modal .blocks-scroll {
+  max-height: 320px;
+  margin-top: var(--space-2);
+}
+
+.virtual-shadow-builder-modal .search-placeholder {
+  text-align: center;
+  padding: var(--space-8) var(--space-3);
+  color: var(--text-tertiary);
+}
+
+.virtual-shadow-builder-modal .search-placeholder p {
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.virtual-shadow-builder-modal .search-placeholder span {
+  font-size: 11px;
+}
+
+.virtual-shadow-builder-modal .search-result-tip {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.virtual-shadow-builder-modal .device-list-spin {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.virtual-shadow-builder-modal .device-list-spin .arco-spin {
+  flex: 1;
+  min-height: 0;
+}
+
+.virtual-shadow-builder-modal .device-name mark,
+.virtual-shadow-builder-modal .device-id mark {
+  background: rgba(14, 165, 233, 0.2);
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+.dark-theme .virtual-shadow-builder-modal .device-name mark,
+.dark-theme .virtual-shadow-builder-modal .device-id mark {
+  background: rgba(14, 165, 233, 0.28);
+}
+
+.virtual-shadow-builder-modal .device-card {
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  margin-bottom: var(--space-2);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.virtual-shadow-builder-modal .device-card:hover {
+  border-color: rgba(14, 165, 233, 0.35);
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.1);
+  transform: translateY(-1px);
+}
+
+.virtual-shadow-builder-modal .device-card-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.virtual-shadow-builder-modal .device-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.virtual-shadow-builder-modal .device-card-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.virtual-shadow-builder-modal .device-id {
+  font-family: var(--font-mono);
+}
+
+.virtual-shadow-builder-modal .point-picker-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.virtual-shadow-builder-modal .point-picker-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.virtual-shadow-builder-modal .point-picker-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.virtual-shadow-builder-modal .sel-count {
+  font-size: 12px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.virtual-shadow-builder-modal .panel-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.virtual-shadow-builder-modal .panel-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-3);
+  line-height: 1.5;
+}
+
+.virtual-shadow-builder-modal .panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.virtual-shadow-builder-modal .panel-title-row .panel-title {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.virtual-shadow-builder-modal .field-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* drag & drop */
+.virtual-shadow-builder-modal .builder-form.is-dragging .points-panel {
+  outline: 2px dashed rgba(14, 165, 233, 0.35);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
+.virtual-shadow-builder-modal .drag-floating-badge {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 10px var(--space-4);
+  margin-bottom: var(--space-3);
+  background: var(--primary);
+  color: #fff;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  animation: vs-drag-badge-pulse 1.2s ease-in-out infinite;
+}
+
+.virtual-shadow-builder-modal .drag-arrow {
+  opacity: 0.9;
+  font-size: 12px;
+}
+
+@keyframes vs-drag-badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.virtual-shadow-builder-modal .point-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  margin-bottom: 6px;
+  cursor: default;
+  transition: border-color var(--transition-fast), background var(--transition-fast), opacity var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.virtual-shadow-builder-modal .point-chip-drag,
+.virtual-shadow-builder-modal .drag-grip {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.virtual-shadow-builder-modal .drag-grip {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.virtual-shadow-builder-modal .drag-grip:active,
+.virtual-shadow-builder-modal .point-chip-drag:active {
+  cursor: grabbing;
+}
+
+.virtual-shadow-builder-modal .point-chip:hover {
+  border-color: rgba(14, 165, 233, 0.35);
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.1);
+}
+
+.virtual-shadow-builder-modal .point-chip.selected {
+  border-color: rgba(14, 165, 233, 0.45);
+  background: rgba(14, 165, 233, 0.08);
+  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.2);
+}
+
+.dark-theme .virtual-shadow-builder-modal .point-chip.selected {
+  background: rgba(14, 165, 233, 0.14);
+}
+
+.virtual-shadow-builder-modal .point-chip.is-dragging {
+  opacity: 0.45;
+  border-style: dashed;
+  border-color: var(--primary);
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.virtual-shadow-builder-modal .point-chip:hover .drag-grip {
+  color: var(--primary);
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.virtual-shadow-builder-modal .point-chip-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.virtual-shadow-builder-modal .point-chip-id {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.virtual-shadow-builder-modal .point-chip-sub {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.virtual-shadow-builder-modal .point-chip-val {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--edgex-success);
+  white-space: nowrap;
+}
+
+.virtual-shadow-builder-modal .batch-drag-handle {
+  margin-top: 10px;
+  padding: var(--space-3) 14px;
+  border: 2px dashed rgba(14, 165, 233, 0.45);
+  border-radius: var(--radius-md);
+  background: rgba(14, 165, 233, 0.08);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.dark-theme .virtual-shadow-builder-modal .batch-drag-handle {
+  background: rgba(14, 165, 233, 0.14);
+}
+
+.virtual-shadow-builder-modal .batch-drag-handle:hover {
+  background: rgba(14, 165, 233, 0.14);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.15);
+  transform: translateY(-1px);
+}
+
+.virtual-shadow-builder-modal .batch-drag-handle.is-dragging,
+.virtual-shadow-builder-modal .batch-drag-handle:active {
+  cursor: grabbing;
+  background: rgba(14, 165, 233, 0.2);
+}
+
+.virtual-shadow-builder-modal .batch-drop-canvas {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+  background: var(--bg);
+  transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  position: relative;
+  min-height: 100px;
+}
+
+.virtual-shadow-builder-modal .batch-drop-canvas.drop-idle-hint {
+  border-color: rgba(14, 165, 233, 0.45);
+  background: rgba(14, 165, 233, 0.04);
+  animation: vs-drop-idle-glow 1.5s ease-in-out infinite;
+}
+
+.dark-theme .virtual-shadow-builder-modal .batch-drop-canvas.drop-idle-hint {
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.virtual-shadow-builder-modal .batch-drop-canvas.drop-active {
+  border: 2px solid var(--vs-drop-soft-border);
+  background: var(--vs-drop-soft-bg);
+  box-shadow: 0 0 0 3px var(--vs-drop-soft-glow);
+  transform: scale(1.005);
+  animation: vs-drop-active-pulse 1.2s ease-in-out infinite;
+}
+
+.virtual-shadow-builder-modal .drop-release-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: blur(4px);
+  color: var(--vs-drop-soft-deep);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: 2px dashed var(--vs-drop-soft-border);
+  animation: vs-drop-release-pop 0.3s ease;
+}
+
+.virtual-shadow-builder-modal .batch-drop-inner.dimmed {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+@keyframes vs-drop-idle-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.12); }
+  50% { box-shadow: 0 0 0 6px rgba(14, 165, 233, 0.06); }
+}
+
+@keyframes vs-drop-active-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--vs-drop-soft-glow); }
+  50% { box-shadow: 0 0 0 5px rgba(22, 163, 74, 0.1); }
+}
+
+@keyframes vs-drop-release-pop {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes vs-drop-icon-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.virtual-shadow-builder-modal .drop-icon-bounce {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: var(--space-1);
+  animation: vs-drop-icon-bounce 0.6s ease infinite;
+  color: var(--vs-drop-soft-deep);
+}
+
+.virtual-shadow-builder-modal .batch-drop-inner {
+  text-align: center;
+}
+
+.virtual-shadow-builder-modal .batch-drop-icon {
+  font-size: 24px;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-1);
+}
+
+.virtual-shadow-builder-modal .batch-drop-canvas.drop-active .batch-drop-icon {
+  color: var(--vs-drop-soft);
+}
+
+.virtual-shadow-builder-modal .batch-drop-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: var(--space-1);
+  color: var(--text-primary);
+}
+
+.virtual-shadow-builder-modal .batch-drop-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.virtual-shadow-builder-modal .batch-drop-stat {
+  margin-top: var(--space-2);
+  font-size: 11px;
+  color: var(--primary);
+}
+
+.virtual-shadow-builder-modal .empty-blocks-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: var(--space-2);
+}
+
+.virtual-shadow-builder-modal .point-list.drag-over {
+  background: rgba(14, 165, 233, 0.08);
+  border-radius: var(--radius-sm);
+  outline: 2px dashed rgba(14, 165, 233, 0.35);
+  outline-offset: -2px;
+}
+
+.virtual-shadow-builder-modal .map-drop-zone.drop-hover,
+.virtual-shadow-builder-modal .point-block.drop-hover {
+  border-color: var(--vs-drop-soft-border);
+  background: var(--vs-drop-soft-bg);
+  box-shadow: 0 0 0 1px var(--vs-drop-soft-glow);
+}
+
+.virtual-shadow-builder-modal .point-block {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  margin-bottom: 10px;
+  background: var(--bg);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast), background var(--transition-fast);
+}
+
+.virtual-shadow-builder-modal .point-block.active {
+  border-color: rgba(14, 165, 233, 0.45);
+  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.15);
+}
+
+.virtual-shadow-builder-modal .point-block-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.virtual-shadow-builder-modal .block-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.virtual-shadow-builder-modal .block-badge.map {
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--edgex-success);
+}
+
+.virtual-shadow-builder-modal .block-badge.formula {
+  background: rgba(14, 165, 233, 0.12);
+  color: var(--primary);
+}
+
+.dark-theme .virtual-shadow-builder-modal .block-badge.map {
+  background: rgba(22, 163, 74, 0.2);
+}
+
+.dark-theme .virtual-shadow-builder-modal .block-badge.formula {
+  background: rgba(14, 165, 233, 0.2);
+}
+
+.virtual-shadow-builder-modal .block-index {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.virtual-shadow-builder-modal .block-actions {
+  margin-left: auto;
+}
+
+.virtual-shadow-builder-modal .map-drop-zone {
+  min-height: 40px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.virtual-shadow-builder-modal .map-drop-zone.filled {
+  border-style: solid;
+  background: var(--surface-2);
+}
+
+.dark-theme .virtual-shadow-builder-modal .map-drop-zone.filled {
+  background: var(--surface);
+}
+
+.virtual-shadow-builder-modal .drop-placeholder {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  width: 100%;
+  justify-content: center;
+  padding: var(--space-1) 0;
+}
+
+.virtual-shadow-builder-modal .builder-form.is-dragging .drop-placeholder {
+  color: var(--vs-drop-soft-deep);
+  font-weight: 500;
+}
+
+.virtual-shadow-builder-modal .inline-live {
+  font-size: 12px;
+  color: var(--edgex-success);
+}
+
+.virtual-shadow-builder-modal .formula-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: 6px;
+}
+
+.virtual-shadow-builder-modal .formula-deps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: 6px;
+}
+
+.virtual-shadow-builder-modal .deps-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.virtual-shadow-builder-modal .dep-val {
+  margin-left: 2px;
+  color: var(--edgex-success);
+}
+
+.virtual-shadow-builder-modal .hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: var(--space-1);
+}
+
+.virtual-shadow-builder-modal .preview-row {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 960px) {
+  .virtual-shadow-builder-modal .builder-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Dark: list page ── */
+.dark-theme .virtual-shadow-page .page-header .title-text {
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .virtual-shadow-page .page-header .subtitle {
+  color: var(--text-secondary) !important;
+}
+
+.dark-theme .virtual-shadow-page .page-header .arco-btn-outline {
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+  background: transparent !important;
+}
+
+.dark-theme .virtual-shadow-page .page-header .arco-btn-outline:hover {
+  border-color: rgba(14, 165, 233, 0.35) !important;
+  color: var(--primary) !important;
+  background: rgba(14, 165, 233, 0.08) !important;
+}
+
+.dark-theme .virtual-shadow-page .arco-alert {
+  background: rgba(14, 165, 233, 0.1) !important;
+  border-color: rgba(14, 165, 233, 0.25) !important;
+}
+
+.dark-theme .virtual-shadow-page .arco-alert-title,
+.dark-theme .virtual-shadow-page .arco-alert-content,
+.dark-theme .virtual-shadow-page .arco-alert-content strong {
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .virtual-shadow-page .arco-alert-icon {
+  color: var(--primary) !important;
+}
+
+.dark-theme .virtual-shadow-page .arco-alert-close-btn {
+  color: var(--text-tertiary) !important;
+}
+
+.dark-theme .virtual-shadow-page .arco-alert-close-btn:hover {
+  color: var(--text-primary) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark-theme .virtual-shadow-page .mono-cell {
+  color: var(--text-secondary);
+}
+
+.dark-theme .virtual-shadow-page .runtime-badge {
+  color: var(--primary);
+}
+
+.dark-theme .virtual-shadow-page .saas-table .arco-table-th {
+  color: var(--text-secondary) !important;
+  background: transparent !important;
+  border-color: var(--border) !important;
+}
+
+.dark-theme .virtual-shadow-page .saas-table .arco-table-tbody .arco-table-tr {
+  background: var(--bg) !important;
+  box-shadow: 0 0 0 1px var(--border) !important;
+}
+
+.dark-theme .virtual-shadow-page .saas-table .arco-table-tbody .arco-table-tr:hover {
+  background: var(--surface-2) !important;
+}
+
+.dark-theme .virtual-shadow-page .saas-table .arco-table-td {
+  color: var(--text-primary) !important;
+  border-color: transparent !important;
+}
+
+.dark-theme .virtual-shadow-page .saas-table .arco-table-container,
+.dark-theme .virtual-shadow-page .saas-table .arco-table-footer {
+  background: transparent !important;
+  border-color: var(--border) !important;
+}
+
+.dark-theme .virtual-shadow-page .saas-table .arco-table-pagination {
+  border-top-color: var(--border) !important;
+  color: var(--text-secondary);
+}
+
+.dark-theme .virtual-shadow-page .saas-table .arco-table-expand-btn {
+  background-color: transparent !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+.dark-theme .virtual-shadow-page .saas-table .arco-table-tbody .arco-table-tr:hover .arco-table-expand-btn {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border-color: var(--border-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .virtual-shadow-page .saas-table .arco-table-tr-expand .arco-table-td {
+  background: var(--surface) !important;
+}
+
+.dark-theme .virtual-shadow-page .expand-points {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+.dark-theme .virtual-shadow-page .expand-point-row {
+  color: var(--text-primary);
+}
+
+.dark-theme .virtual-shadow-page .ep-name {
+  color: var(--text-secondary);
+}
+
+.dark-theme .virtual-shadow-page .ep-expr,
+.dark-theme .virtual-shadow-page .expr-code {
+  color: var(--primary);
+}
+
+.dark-theme .virtual-shadow-page .ep-value {
+  color: var(--edgex-success);
+}
+
+.dark-theme .virtual-shadow-page .arco-empty-description {
+  color: var(--text-secondary) !important;
+}
+
+/* Detail drawer: class on teleported element — tokens follow .dark-theme automatically */
+.dark-theme .virtual-shadow-detail-drawer .arco-table-hover .arco-table-tbody .arco-table-tr:hover .arco-table-td:not(.arco-table-col-fixed-left):not(.arco-table-col-fixed-right) {
+  background-color: transparent !important;
+}
+
+.dark-theme .virtual-shadow-detail-drawer .drawer-footer .arco-btn-outline:hover {
+  background: rgba(14, 165, 233, 0.12) !important;
+}
+
+/* ── Dark: builder modal shell ── */
+.dark-theme .virtual-shadow-builder-modal .arco-modal-body {
+  background: var(--surface) !important;
+  color: var(--text-primary);
+}
+
+.dark-theme .virtual-shadow-builder-modal .arco-modal-header {
+  background: var(--surface) !important;
+  border-bottom-color: var(--border) !important;
+}
+
+.dark-theme .virtual-shadow-builder-modal .arco-modal-footer {
+  background: var(--surface) !important;
+  border-top-color: var(--border) !important;
+}

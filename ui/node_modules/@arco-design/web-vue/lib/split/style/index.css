@@ -1,0 +1,54 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-split {
+  display: flex;
+}
+.arco-split-pane {
+  overflow: auto;
+}
+.arco-split-pane-second {
+  flex: 1;
+}
+.arco-split-horizontal {
+  flex-direction: row;
+}
+.arco-split-vertical {
+  flex-direction: column;
+}
+.arco-split-trigger-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-1);
+  font-size: 12px;
+  line-height: 1;
+  background-color: var(--color-neutral-3);
+}
+.arco-split-trigger-icon {
+  display: inline-block;
+  margin: -3px;
+}
+.arco-split-trigger-vertical {
+  height: 100%;
+  cursor: col-resize;
+}
+.arco-split-trigger-horizontal {
+  width: 100%;
+  cursor: row-resize;
+}

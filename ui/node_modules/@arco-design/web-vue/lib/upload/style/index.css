@@ -1,0 +1,395 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-upload {
+  display: inline-block;
+  max-width: 100%;
+  cursor: pointer;
+}
+.arco-upload.arco-upload-draggable {
+  width: 100%;
+}
+.arco-upload-tip {
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--color-text-3);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.arco-upload-picture-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 80px;
+  height: 80px;
+  margin-bottom: 0;
+  color: var(--color-text-2);
+  text-align: center;
+  background: var(--color-fill-2);
+  border: 1px dashed var(--color-neutral-3);
+  border-radius: var(--border-radius-small);
+  transition: all 0.1s cubic-bezier(0, 0, 1, 1);
+}
+.arco-upload-picture-card:hover {
+  color: var(--color-text-2);
+  background-color: var(--color-fill-3);
+  border-color: var(--color-neutral-4);
+}
+.arco-upload-drag {
+  width: 100%;
+  padding: 50px 0;
+  color: var(--color-text-1);
+  text-align: center;
+  background-color: var(--color-fill-1);
+  border: 1px dashed var(--color-neutral-3);
+  border-radius: var(--border-radius-small);
+  transition: all 0.2s ease;
+}
+.arco-upload-drag .arco-icon-plus {
+  margin-bottom: 24px;
+  color: var(--color-text-2);
+  font-size: 14px;
+}
+.arco-upload-drag:hover {
+  background-color: var(--color-fill-3);
+  border-color: var(--color-neutral-4);
+}
+.arco-upload-drag:hover .arco-upload-drag-text {
+  color: var(--color-text-1);
+}
+.arco-upload-drag:hover .arco-icon-plus {
+  color: var(--color-text-2);
+}
+.arco-upload-drag-active {
+  color: var(--color-text-1);
+  background-color: var(--color-primary-light-1);
+  border-color: rgb(var(--primary-6));
+}
+.arco-upload-drag-active .arco-upload-drag-text {
+  color: var(--color-text-1);
+}
+.arco-upload-drag-active .arco-icon-plus {
+  color: rgb(var(--primary-6));
+}
+.arco-upload-drag .arco-upload-tip {
+  margin-top: 0;
+}
+.arco-upload-drag-text {
+  color: var(--color-text-1);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.arco-upload-wrapper {
+  width: 100%;
+}
+.arco-upload-wrapper.arco-upload-wrapper-type-picture-card {
+  display: flex;
+  justify-content: flex-start;
+}
+.arco-upload-drag {
+  width: 100%;
+}
+.arco-upload-hide {
+  display: none;
+}
+.arco-upload-disabled .arco-upload-picture-card,
+.arco-upload-disabled .arco-upload-picture-card:hover {
+  color: var(--color-text-4);
+  background-color: var(--color-fill-1);
+  border-color: var(--color-neutral-4);
+  cursor: not-allowed;
+}
+.arco-upload-disabled .arco-upload-drag,
+.arco-upload-disabled .arco-upload-drag:hover {
+  background-color: var(--color-fill-1);
+  border-color: var(--color-text-4);
+  cursor: not-allowed;
+}
+.arco-upload-disabled .arco-upload-drag .arco-icon-plus,
+.arco-upload-disabled .arco-upload-drag:hover .arco-icon-plus,
+.arco-upload-disabled .arco-upload-drag .arco-upload-drag-text,
+.arco-upload-disabled .arco-upload-drag:hover .arco-upload-drag-text {
+  color: var(--color-text-4);
+}
+.arco-upload-disabled .arco-upload-tip {
+  color: var(--color-text-4);
+}
+.arco-upload-icon {
+  cursor: pointer;
+}
+.arco-upload-icon-error {
+  margin-left: 4px;
+  color: rgb(var(--danger-6));
+}
+.arco-upload-icon-success {
+  color: rgb(var(--success-6));
+  font-size: 14px;
+  line-height: 14px;
+}
+.arco-upload-icon-remove {
+  position: relative;
+  font-size: 14px;
+}
+.arco-upload-icon-start,
+.arco-upload-icon-cancel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  color: var(--color-white);
+  font-size: 12px;
+  transform: translateX(-50%) translateY(-50%);
+}
+.arco-upload-icon-upload {
+  color: rgb(var(--primary-6));
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.arco-upload-icon-upload:active,
+.arco-upload-icon-upload:hover {
+  color: rgb(var(--primary-7));
+}
+.arco-upload-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /*** listtype is text ****/
+  /*** end ****/
+}
+.arco-upload-list.arco-upload-list-type-text,
+.arco-upload-list.arco-upload-list-type-picture {
+  width: 100%;
+}
+.arco-upload-list.arco-upload-list-type-text .arco-upload-list-item:first-of-type,
+.arco-upload-list.arco-upload-list-type-picture .arco-upload-list-item:first-of-type {
+  margin-top: 24px;
+}
+.arco-upload-list-item-done .arco-upload-list-item-file-icon {
+  color: rgb(var(--primary-6));
+}
+.arco-upload-list-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  margin-top: 12px;
+}
+.arco-upload-list-item-content {
+  display: flex;
+  flex: 1;
+  flex-wrap: nowrap;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 0;
+  padding-right: 10px;
+  padding-left: 12px;
+  overflow: hidden;
+  font-size: 14px;
+  background-color: var(--color-fill-1);
+  border-radius: var(--border-radius-small);
+  transition: background-color 0.1s cubic-bezier(0, 0, 1, 1);
+}
+.arco-upload-list-item-file-icon {
+  margin-right: 12px;
+  color: rgb(var(--primary-6));
+  font-size: 16px;
+  line-height: 16px;
+}
+.arco-upload-list-item-thumbnail {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  margin-right: 12px;
+}
+.arco-upload-list-item-thumbnail img {
+  width: 100%;
+  height: 100%;
+}
+.arco-upload-list-item-name {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  margin-right: 10px;
+  overflow: hidden;
+  color: var(--color-text-1);
+  font-size: 14px;
+  line-height: 1.4286;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.arco-upload-list-item-name-link {
+  overflow: hidden;
+  color: rgb(var(--link-6));
+  text-decoration: none;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.arco-upload-list-item-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.arco-upload-list-item .arco-upload-progress {
+  position: relative;
+  margin-left: auto;
+  line-height: 12px;
+}
+.arco-upload-list-item .arco-upload-progress:hover .arco-progress-circle-bg {
+  stroke: rgba(var(--gray-10), 0.2);
+}
+.arco-upload-list-item .arco-upload-progress:hover .arco-progress-circle-bar {
+  stroke: rgb(var(--primary-7));
+}
+.arco-upload-list-item-operation {
+  margin-left: 12px;
+  color: var(--color-text-2);
+  font-size: 12px;
+}
+.arco-upload-list-item-operation .arco-upload-icon-remove {
+  font-size: inherit;
+}
+.arco-upload-list-item-error .arco-upload-list-status,
+.arco-upload-list-item-done .arco-upload-list-status {
+  display: none;
+}
+.arco-upload-list-type-text .arco-upload-list-item-error .arco-upload-list-item-name-link,
+.arco-upload-list-type-text .arco-upload-list-item-error .arco-upload-list-item-name {
+  color: rgb(var(--danger-6));
+}
+.arco-upload-list.arco-upload-list-type-picture-card {
+  display: flex;
+  flex-wrap: wrap;
+  vertical-align: top;
+}
+.arco-upload-list.arco-upload-list-type-picture-card .arco-upload-list-status {
+  top: 50%;
+  margin-left: 0;
+  transform: translateY(-50%);
+}
+.arco-upload-list-picture {
+  display: inline-block;
+  margin-top: 0;
+  margin-right: 8px;
+  margin-bottom: 8px;
+  padding-right: 0;
+  overflow: hidden;
+  vertical-align: top;
+  transition: all 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.arco-upload-list-picture-status-error .arco-upload-list-picture-mask {
+  opacity: 1;
+}
+.arco-upload-list-picture {
+  position: relative;
+  box-sizing: border-box;
+  width: 80px;
+  height: 80px;
+  overflow: hidden;
+  line-height: 80px;
+  text-align: center;
+  vertical-align: top;
+  border-radius: var(--border-radius-small);
+}
+.arco-upload-list-picture img {
+  width: 100%;
+  height: 100%;
+}
+.arco-upload-list-picture-mask {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  color: var(--color-white);
+  font-size: 16px;
+  line-height: 80px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s cubic-bezier(0, 0, 1, 1);
+}
+.arco-upload-list-picture-operation {
+  display: none;
+  font-size: 14px;
+}
+.arco-upload-list-picture-operation .arco-upload-icon-retry {
+  color: var(--color-white);
+}
+.arco-upload-list-picture-error-tip .arco-upload-icon-error {
+  color: var(--color-white);
+  font-size: 26px;
+}
+.arco-upload-list-picture-mask:hover {
+  opacity: 1;
+}
+.arco-upload-list-picture-mask:hover .arco-upload-list-picture-operation {
+  display: flex;
+  justify-content: space-evenly;
+}
+.arco-upload-list-picture-mask:hover .arco-upload-list-picture-error-tip {
+  display: none;
+}
+.arco-upload-list-type-picture .arco-upload-list-item-content {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.arco-upload-list-type-picture .arco-upload-list-item-error .arco-upload-list-item-content {
+  background-color: var(--color-danger-light-1);
+}
+.arco-upload-list-type-picture .arco-upload-list-item-error .arco-upload-list-item-name-link,
+.arco-upload-list-type-picture .arco-upload-list-item-error .arco-upload-list-item-name {
+  color: rgb(var(--danger-6));
+}
+.arco-upload-hide + .arco-upload-list .arco-upload-list-item:first-of-type {
+  margin-top: 0;
+}
+.arco-upload-slide-up-enter {
+  opacity: 0;
+}
+.arco-upload-slide-up-enter-active {
+  opacity: 1;
+  transition: opacity 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.arco-upload-slide-up-exit {
+  opacity: 1;
+}
+.arco-upload-slide-up-exit-active {
+  margin: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.1s cubic-bezier(0, 0, 1, 1), height 0.3s cubic-bezier(0.34, 0.69, 0.1, 1) 0.1s, margin 0.3s cubic-bezier(0.34, 0.69, 0.1, 1) 0.1s;
+}
+.arco-upload-list-item.arco-upload-slide-inline-enter {
+  opacity: 0;
+}
+.arco-upload-list-item.arco-upload-slide-inline-enter-active {
+  opacity: 1;
+  transition: opacity 0.2s cubic-bezier(0, 0, 1, 1);
+}
+.arco-upload-list-item.arco-upload-slide-inline-exit {
+  opacity: 1;
+}
+.arco-upload-list-item.arco-upload-slide-inline-exit-active {
+  margin: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.1s cubic-bezier(0, 0, 1, 1), width 0.3s cubic-bezier(0.34, 0.69, 0.1, 1) 0.1s, margin 0.3s cubic-bezier(0.34, 0.69, 0.1, 1) 0.1s;
+}

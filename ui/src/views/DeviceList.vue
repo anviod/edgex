@@ -1,19 +1,19 @@
 <template>
-  <div class="page-shell device-list-container">
-    <div class="page-header device-header">
+  <div class="page-shell device-list-container list-detail-page">
+    <div class="page-header device-header list-page-header">
       <div class="header-left">
-        <a-button type="outline" size="small" @click="router.push('/channels')">
+        <a-button type="outline" size="small" class="list-back-btn" @click="router.push('/channels')">
           <template #icon><IconArrowLeft /></template>
           返回通道
         </a-button>
-        <div class="header-info">
-          <span class="protocol-tag">{{ formatProtocolTag(channelProtocol) }}</span>
-          <h2 class="title-text">设备列表</h2>
+        <div class="header-info header-info--inline">
+          <span class="protocol-tag protocol-tag--accent">{{ formatProtocolTag(channelProtocol) }}</span>
+          <h2 class="page-title title-text">设备列表</h2>
         </div>
       </div>
-      
-      <div class="header-right">
-        <a-space size="small">
+
+      <div class="header-right header-actions">
+        <a-space size="small" wrap>
           <a-button type="outline" size="small" @click="router.push('/virtual-shadows')">
             <template #icon><IconThunderbolt /></template>
             虚拟影子
@@ -30,7 +30,7 @@
             <template #icon><IconPlus /></template>
             批量新增从站
           </a-button>
-          <a-button type="outline" status="primary" size="small" @click="openDialog()">
+          <a-button type="primary" size="small" @click="openDialog()">
             <template #icon><IconPlus /></template>
             新增设备
           </a-button>
@@ -38,9 +38,11 @@
       </div>
     </div>
 
-    <a-spin :loading="loading" style="width: 100%">
-      <div class="table-container">
-      <a-table
+    <div class="list-detail-body">
+      <a-spin :loading="loading" class="list-detail-spin">
+        <div class="table-container saas-table">
+          <a-table
+          class="device-table"
           :columns="tableColumns"
           :data="devices"
           :loading="loading"
@@ -48,16 +50,17 @@
           v-model:selected-keys="selected"
           row-key="id"
           size="small"
-          :bordered="{ cell: true }"
           :pagination="{ showTotal: true, showPageSize: true }"
         >
           <template #enable="{ record }">
-            <a-switch 
-              v-model="record.enable" 
-              size="small" 
-              @change="toggleDeviceStatus(record)"
-              :loading="record.statusLoading"
-            />
+            <span class="table-cell-semantic">
+              <a-switch
+                v-model="record.enable"
+                size="small"
+                @change="toggleDeviceStatus(record)"
+                :loading="record.statusLoading"
+              />
+            </span>
           </template>
 
           <template #name="{ record }">
@@ -68,30 +71,36 @@
           </template>
 
           <template #interval="{ record }">
-            <a-tag size="small" bordered>
-              <IconClockCircle :size="12" style="margin-right: 4px" />
-              {{ record.interval }}
-            </a-tag>
+            <span class="table-cell-semantic">
+              <a-tag size="small" bordered>
+                <IconClockCircle :size="12" style="margin-right: 4px" />
+                {{ record.interval }}
+              </a-tag>
+            </span>
           </template>
 
           <template #state="{ record }">
-            <a-tag :color="getDeviceStateColor(record.state)" size="small">
-              {{ getDeviceStateText(record.state) }}
-            </a-tag>
+            <span class="table-cell-semantic">
+              <a-tag :color="getDeviceStateColor(record.state)" size="small">
+                {{ getDeviceStateText(record.state) }}
+              </a-tag>
+            </span>
           </template>
 
           <template #quality="{ record }">
-            <a-tag 
-              v-if="channelProtocol && (channelProtocol.includes('bacnet') || channelProtocol === 'bacnet-ip')"
-              :color="getQualityColor(record.quality_score)" 
-              size="small"
-            >
-              {{ record.quality_score !== undefined ? record.quality_score : '-' }} ({{ getQualityLabel(record.quality_score) }})
-            </a-tag>
+            <span class="table-cell-semantic">
+              <a-tag
+                v-if="channelProtocol && (channelProtocol.includes('bacnet') || channelProtocol === 'bacnet-ip')"
+                :color="getQualityColor(record.quality_score)"
+                size="small"
+              >
+                {{ record.quality_score !== undefined ? record.quality_score : '-' }} ({{ getQualityLabel(record.quality_score) }})
+              </a-tag>
+            </span>
           </template>
 
           <template #actions="{ record }">
-            <a-space size="mini">
+            <div class="table-ops">
               <a-tooltip content="查看点位">
                 <a-button type="text" size="mini" @click="goToPoints(record)">
                   <IconEye :size="14" />
@@ -110,21 +119,27 @@
               <a-divider direction="vertical" />
               <a-button type="text" size="mini" @click="openDialog(record)">编辑</a-button>
               <a-button type="text" size="mini" status="danger" @click="confirmDelete(record)">删除</a-button>
-            </a-space>
+            </div>
           </template>
         </a-table>
-      </div>
-    </a-spin>
+        </div>
+      </a-spin>
 
-    <div class="device-footer">
-      <div class="terminal-info">
-        <span class="terminal-dot"></span>
-        <span class="monospace-text">CHANNEL_CONTEXT: {{ channelId }} | DEVICES_COUNT: {{ devices.length }}</span>
+      <div class="list-detail-meta">
+        <span class="list-detail-meta__dot"></span>
+        <span class="list-detail-meta__text">通道 {{ channelId }} · {{ devices.length }} 台设备</span>
       </div>
     </div>
 
-    <a-modal v-model:visible="dialog" :title="form.id && isEdit ? '编辑设备' : '新增设备'" width="800px" @ok="saveDevice" @cancel="closeDialog">
-      <a-form :model="form" layout="horizontal" class="industrial-form form-controls-md" :label-col-props="{ span: 6 }" :wrapper-col-props="{ span: 18 }">
+    <a-modal
+      v-model:visible="dialog"
+      :title="form.id && isEdit ? '编辑设备' : '新增设备'"
+      width="760"
+      modal-class="channel-config-modal"
+      @ok="saveDevice"
+      @cancel="closeDialog"
+    >
+      <a-form :model="form" layout="vertical" class="channel-config-form flow-form form-controls-md">
         <a-form-item field="id" label="设备ID" required>
           <a-input v-model="form.id" placeholder="设备唯一标识" :disabled="isEdit" />
         </a-form-item>
@@ -340,53 +355,102 @@
     <a-modal
       v-model:visible="batchModbusDialog"
       title="批量新增 Modbus 从站"
-      width="720px"
+      :width="760"
+      modal-class="channel-config-modal channel-config-modal--batch"
       :ok-loading="batchModbusLoading"
+      ok-text="批量创建"
       @ok="submitBatchModbus"
       @cancel="batchModbusDialog = false"
     >
-      <a-alert type="info" class="mb-3" :closable="false">
-        一次创建多台从站设备，每台按寄存器区间自动生成点位（保持寄存器 / 功能码 0x03）。
-      </a-alert>
-      <a-form :model="batchModbusForm" layout="horizontal" class="industrial-form form-controls-md" :label-col-props="{ span: 7 }" :wrapper-col-props="{ span: 17 }">
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="从站 ID 起" required>
-              <a-input-number v-model="batchModbusForm.slaveStart" :min="1" :max="247" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="从站 ID 止" required>
-              <a-input-number v-model="batchModbusForm.slaveEnd" :min="1" :max="247" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="寄存器起始" required>
-              <a-input-number v-model="batchModbusForm.regStart" :min="0" :max="65535" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="寄存器结束" required>
-              <a-input-number v-model="batchModbusForm.regEnd" :min="0" :max="65535" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-form-item label="采集间隔">
-          <a-input v-model="batchModbusForm.interval" placeholder="1s" />
-        </a-form-item>
-        <a-form-item label="数据类型">
-          <a-select v-model="batchModbusForm.datatype" :options="[
-            { label: 'int16', value: 'int16' },
-            { label: 'uint16', value: 'uint16' }
-          ]" />
-        </a-form-item>
-        <a-form-item label="预览">
-          <span class="text-gray">
-            将创建 {{ batchModbusPreview.slaves }} 台设备，每台 {{ batchModbusPreview.points }} 个点位，共 {{ batchModbusPreview.total }} 个点位
-          </span>
-        </a-form-item>
+      <p class="modal-intro modal-intro--compact">
+        一次创建多台从站设备，每台按寄存器区间自动生成点位。
+      </p>
+      <a-form :model="batchModbusForm" layout="vertical" class="channel-config-form batch-modbus-form form-controls-md">
+        <div class="batch-form-fields">
+          <div class="form-field">
+            <div class="field-label">从站 ID</div>
+            <div class="batch-range-control">
+              <a-input-number
+                v-model="batchModbusForm.slaveStart"
+                :min="1"
+                :max="247"
+                placeholder="1"
+              />
+              <span class="batch-range-sep">至</span>
+              <a-input-number
+                v-model="batchModbusForm.slaveEnd"
+                :min="1"
+                :max="247"
+                placeholder="7"
+              />
+            </div>
+          </div>
+
+          <div class="batch-form-row">
+            <div class="form-field">
+              <div class="field-label">寄存器</div>
+              <div class="batch-range-control">
+                <a-input-number
+                  v-model="batchModbusForm.regStart"
+                  :min="0"
+                  :max="65535"
+                  placeholder="0"
+                />
+                <span class="batch-range-sep">至</span>
+                <a-input-number
+                  v-model="batchModbusForm.regEnd"
+                  :min="0"
+                  :max="65535"
+                  placeholder="199"
+                />
+              </div>
+            </div>
+            <div class="form-field">
+              <div class="field-label">寄存器类型</div>
+              <a-select
+                v-model="batchModbusForm.register_type"
+                :options="batchModbusRegisterTypes"
+                @change="onBatchRegisterTypeChange"
+              />
+            </div>
+          </div>
+
+          <div class="batch-form-row">
+            <div class="form-field">
+              <div class="field-label">采集间隔</div>
+              <a-input v-model="batchModbusForm.interval" placeholder="1s" />
+            </div>
+            <div class="form-field">
+              <div class="field-label">数据类型</div>
+              <a-select
+                v-model="batchModbusForm.datatype"
+                :options="[
+                  { label: 'int16', value: 'int16' },
+                  { label: 'uint16', value: 'uint16' }
+                ]"
+                placeholder="选择数据类型"
+              />
+            </div>
+          </div>
+
+          <div class="batch-preview-block">
+            <div class="field-label batch-preview-block__label">创建预览</div>
+            <div class="batch-preview-stats">
+              <div class="batch-preview-stat">
+                <span class="batch-preview-stat__value">{{ batchModbusPreview.slaves }}</span>
+                <span class="batch-preview-stat__label">设备</span>
+              </div>
+              <div class="batch-preview-stat">
+                <span class="batch-preview-stat__value">{{ batchModbusPreview.points }}</span>
+                <span class="batch-preview-stat__label">点位 / 台</span>
+              </div>
+              <div class="batch-preview-stat batch-preview-stat--accent">
+                <span class="batch-preview-stat__value">{{ batchModbusPreview.total }}</span>
+                <span class="batch-preview-stat__label">点位合计</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </a-form>
     </a-modal>
 
@@ -678,6 +742,20 @@ const form = ref({ ...defaultForm })
 
 const batchModbusDialog = ref(false)
 const batchModbusLoading = ref(false)
+const batchModbusRegisterTypes = [
+  { label: '保持寄存器 (0x03)', value: 'holding' },
+  { label: '输入寄存器 (0x04)', value: 'input' },
+  { label: '输出线圈 (0x01)', value: 'coil' },
+  { label: '离散输入 (0x02)', value: 'discrete' },
+]
+
+const batchModbusFunctionCodeMap = {
+  coil: 1,
+  discrete: 2,
+  input: 4,
+  holding: 3,
+}
+
 const batchModbusForm = ref({
   slaveStart: 1,
   slaveEnd: 7,
@@ -709,6 +787,10 @@ const batchModbusPreview = computed(() => {
 
 const openBatchModbusDialog = () => {
   batchModbusDialog.value = true
+}
+
+const onBatchRegisterTypeChange = (type) => {
+  batchModbusForm.value.function_code = batchModbusFunctionCodeMap[type] || 3
 }
 
 const submitBatchModbus = async () => {
@@ -1226,9 +1308,9 @@ const toggleDeviceStatus = async (record) => {
 const tableColumns = computed(() => {
   const columns = [
     { title: '设备名称 / 标识', slotName: 'name', width: 220 },
-    { title: '状态', slotName: 'enable', width: 100 },
-    { title: '通信状态', slotName: 'state', width: 100 },
-    { title: '采集间隔', slotName: 'interval', width: 120 },
+    { title: '状态', slotName: 'enable', width: 88 },
+    { title: '通信状态', slotName: 'state', width: 108 },
+    { title: '采集间隔', slotName: 'interval', width: 108 },
   ]
   
   if (channelProtocol.value && (channelProtocol.value.includes('bacnet') || channelProtocol.value === 'bacnet-ip')) {
@@ -1277,250 +1359,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.device-list-container {
-  /* page-shell 提供布局与背景 */
-}
-
-.dark-theme .device-list-container {
-  background: transparent !important;
-}
-
-.dark-theme .device-header {
-  border-color: #334155 !important;
-}
-
-.dark-theme .title-text,
-.dark-theme .protocol-tag,
-.dark-theme .main-name,
-.dark-theme .sub-id,
-.dark-theme .device-footer,
-.dark-theme .terminal-info,
-.dark-theme .terminal-dot,
-.dark-theme .monospace-text,
-.dark-theme .arco-table-th,
-.dark-theme .arco-table-td,
-.dark-theme .arco-form-item-label,
-.dark-theme .arco-table-tr,
-.dark-theme .arco-table-element {
-  color: #f8fafc !important;
-  background-color: #111827 !important;
-  border-color: #334155 !important;
-}
-
-.dark-theme .industrial-card {
-  border-color: #334155 !important;
-  box-shadow: 6px 6px 0px #0f172a !important;
-}
-
-.dark-theme .arco-table-td.arco-table-td-row-select,
-.dark-theme .arco-table-col-fixed-left .arco-table-th,
-.dark-theme .arco-table-col-fixed-left .arco-table-td,
-.dark-theme .arco-table-col-fixed-right .arco-table-th,
-.dark-theme .arco-table-col-fixed-right .arco-table-td {
-  background-color: #111827 !important;
-  border-color: #334155 !important;
-}
-
-.device-header {
-  /* 继承全局 .page-header */
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.header-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.protocol-tag {
-  font-family: monospace;
-  font-size: 10px;
-  background: #0ea5e9;
-  color: white;
-  padding: 0 4px;
-  width: fit-content;
-  border-radius: 0;
-}
-
-.title-text {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--edgex-text-primary);
-  text-align: left;
-}
-
-.industrial-card {
-  /* 全局 .industrial-card 单框无阴影 */
-}
-
-/* 无边框卡片 */
-.borderless-card {
-  border: none !important;
-  box-shadow: none !important;
-}
-
-/* 无边框卡片的内容区 */
-.borderless-card :deep(.arco-card-body) {
-  padding: 0 !important;
-}
-
-/* 分页组件背景颜色与页面背景一致 */
-.borderless-card :deep(.arco-table-pagination) {
-  background-color: #f1f5f9 !important;
-  border-top: none !important;
-  padding: 12px !important;
-}
-
-.dark-theme .borderless-card :deep(.arco-table-pagination),
-.dark-theme .borderless-card :deep(.arco-pagination),
-.dark-theme .borderless-card :deep(.arco-pagination .arco-pagination-list),
-.dark-theme .borderless-card :deep(.arco-pagination .arco-pagination-item),
-.dark-theme .borderless-card :deep(.arco-pagination .arco-pagination-total),
-.dark-theme .borderless-card :deep(.arco-select-view) {
-  background-color: #0f172a !important;
-  border-top: 1px solid #334155 !important;
-  color: #f8fafc !important;
-}
-
-.dark-theme .borderless-card :deep(.arco-pagination-item),
-.dark-theme .borderless-card :deep(.arco-pagination-item-active),
-.dark-theme .borderless-card :deep(.arco-pagination-item-disabled) {
-  background-color: #1f2937 !important;
-  color: #f8fafc !important;
-}
-
-.device-name-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.main-name {
-  font-weight: 600;
-  color: var(--color-text-1);
-}
-
-.sub-id {
-  font-size: 11px;
-  font-family: monospace;
-  color: var(--color-text-3);
-}
-
-.device-footer {
-  margin-top: 24px;
-  padding: 12px;
-  border: 1px dashed #cbd5e1;
-  text-align: center;
-  background-color: var(--edgex-surface-inset);
-}
-
-.terminal-info {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.terminal-dot {
-  width: 6px;
-  height: 6px;
-  background: #0ea5e9;
-  box-shadow: 0 0 4px #0ea5e9;
-  border-radius: 50%;
-}
-
-.monospace-text {
-  font-family: monospace;
-  font-size: 11px;
-  color: var(--edgex-text-primary);
-  font-weight: 500;
-}
-
-:deep(.arco-form-item-label) {
-  font-weight: 500;
-  white-space: nowrap !important;
-}
-
-:deep(.arco-table-th) {
-  background-color: var(--edgex-surface-inset) !important;
-  font-weight: bold !important;
-  border-radius: 0 !important;
-  padding: 12px !important;
-  white-space: nowrap !important;
-  overflow: visible !important;
-}
-
-:deep(.arco-table-td) {
-  padding: 12px !important;
-  border-radius: 0 !important;
-}
-
-:deep(.arco-table-tr) {
-  height: 36px !important;
-}
-
-:deep(.arco-table-element) {
-  border-radius: 0 !important;
-  border: 1px solid #e5e7eb !important;
-}
-
-:deep(.arco-table-tr:hover) {
-  background-color: #f9fafb !important;
-}
-
-:deep(.arco-table-td.arco-table-td-row-select) {
-  background-color: var(--edgex-surface-raised) !important;
-  border-right: 1px solid #e5e7eb !important;
-}
-
-:deep(.arco-table-col-fixed-left .arco-table-th) {
-  background-color: var(--edgex-surface-inset) !important;
-  border-right: 1px solid #e5e7eb !important;
-}
-
-:deep(.arco-table-col-fixed-left .arco-table-td) {
-  background-color: var(--edgex-surface-raised) !important;
-  border-right: 1px solid #e5e7eb !important;
-}
-
-:deep(.arco-table-col-fixed-right .arco-table-th) {
-  background-color: var(--edgex-surface-inset) !important;
-  border-left: 1px solid #e5e7eb !important;
-}
-
-:deep(.arco-table-col-fixed-right .arco-table-td) {
-  background-color: var(--edgex-surface-raised) !important;
-  border-left: 1px solid #e5e7eb !important;
-  border-right: none !important;
-}
-
-:deep(.arco-table-container) {
-  border-right: none !important;
-  border-left: none !important;
-}
-
-@media (max-width: 768px) {
-  .device-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .header-left {
-    width: 100%;
-  }
-  
-  .header-right {
-    width: 100%;
-    margin-top: 16px;
-  }
-  
-  .industrial-card {
-    overflow-x: auto;
-  }
-}
+/* v3.0 — styles in src/styles/ */
 </style>
 

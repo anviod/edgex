@@ -1,0 +1,43 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+/******** 基础配置项 end *******/
+/******** 基础配置项 end *******/
+/******** 高级配置项 *******/
+/******** 高级配置项 end *******/
+.arco-verification-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  column-gap: 4px;
+}
+.arco-verification-code .arco-input {
+  width: 32px;
+  padding-right: 0;
+  padding-left: 0;
+  text-align: center;
+}
+.arco-verification-code .arco-input-size-small {
+  width: 28px;
+}
+.arco-verification-code .arco-input-size-mini {
+  width: 24px;
+}
+.arco-verification-code .arco-input-size-large {
+  width: 36px;
+}

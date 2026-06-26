@@ -1,151 +1,141 @@
 ﻿<template>
     <div class="page-shell page-shell--compact edge-compute-container">
-        <a-tabs v-model:active-key="tab" class="mb-4">
-            <a-tab-pane key="metrics" title="监控面板">
-                <EdgeComputeMetrics />
-            </a-tab-pane>
-            <a-tab-pane key="rules" title="规则管理">
-                <a-card class="mb-4 borderless-card">
-                    <a-card-header class="d-flex justify-space-between align-items-center">
-                        <a-button type="primary" @click="openDialog">
-                            <template #icon><IconPlus /></template>
-                            添加规则
-                        </a-button>
-                    </a-card-header>
-                    
-                    <a-card-body>
-                        <!-- 批量操作工具栏 -->
-                        <div v-show="selectedRuleKeys.length > 0" class="table-toolbar-industrial">
-                            <div class="flex items-center gap-2">
-                                <span class="selection-count">已选 {{ selectedRuleKeys.length }} 项</span>
-                                <a-divider direction="vertical" />
-                                <a-button size="small" type="outline" @click="handleBatchEnable(true)">批量启用</a-button>
-                                <a-button size="small" type="outline" @click="handleBatchEnable(false)">批量禁用</a-button>
-                                <a-button size="small" type="outline" status="danger" @click="handleBatchDelete">批量删除</a-button>
-                            </div>
-                        </div>
-                        
-                        <a-table
-                            :columns="ruleColumns"
-                            :data="rules"
-                            size="small"
-                            :bordered="true"
-                            :row-selection="{ type: 'checkbox', showCheckedAll: true }"
-                            v-model:selected-keys="selectedRuleKeys"
-                            row-key="id"
-                            class="industrial-table"
-                        >
-                            <template #operations="{ record }">
-                                <a-button type="text" size="small" @click="editRule(record)">
-                                    <template #icon><IconEdit /></template>
-                                </a-button>
-                                <a-button type="text" size="small" status="danger" @click="deleteRule(record)">
-                                    <template #icon><IconDelete /></template>
-                                </a-button>
-                            </template>
-                            <template #enable="{ record }">
-                                <a-tag :color="record.enable ? 'success' : 'danger'" size="small">
-                                    {{ record.enable ? '启用' : '禁用' }}
-                                </a-tag>
-                            </template>
-                            <template #type="{ record }">
-                                {{ formatRuleType(record.type) }}
-                            </template>
-                            <template #trigger_mode="{ record }">
-                                {{ formatTriggerMode(record.trigger_mode) }}
-                            </template>
-                        </a-table>
-                    </a-card-body>
-                </a-card>
-            </a-tab-pane>
-            <a-tab-pane key="status" title="运行记录">
-                <a-card class="borderless-card">
-                    <a-card-header class="d-flex justify-end align-items-center">
-                        <a-button type="text" @click="fetchRuleStates">
-                            <template #icon><IconRefresh /></template>
-                        </a-button>
-                    </a-card-header>
-                    <a-card-body>
-                        <a-table
-                            :columns="statusColumns"
-                            :data="ruleStates"
-                            size="small"
-                            :bordered="true"
-                            class="industrial-table"
-                        >
-                            <template #current_status="{ record }">
-                                <a-tag :color="getStatusColor(record.current_status)" size="small">
-                                    {{ record.current_status }}
-                                </a-tag>
-                            </template>
-                            <template #last_trigger="{ record }">
-                                {{ formatDate(record.last_trigger) }}
-                            </template>
-                            <template #operations="{ record }">
-                                <a-button type="text" size="small" @click="viewWindowData(record.rule_id, record.rule_name)">
-                                    查看窗口数据
-                                </a-button>
-                            </template>
-                            <template #error_message="{ record }">
-                                <span class="text-error">{{ record.error_message }}</span>
-                            </template>
-                        </a-table>
-                    </a-card-body>
-                </a-card>
-            </a-tab-pane>
-            <a-tab-pane key="logs" title="日志查询">
-                <a-card class="h-100">
-                    <a-card-body>
-                        <a-row :gutter="[16, 16]" class="mb-4">
-                            <a-col :span="24" :md="6">
-                                <a-input v-model="query.start" placeholder="开始时间" type="datetime-local" size="small" />
-                            </a-col>
-                            <a-col :span="24" :md="6">
-                                <a-input v-model="query.end" placeholder="结束时间" type="datetime-local" size="small" />
-                            </a-col>
-                            <a-col :span="24" :md="4">
-                                <a-input v-model="query.ruleId" placeholder="规则ID (可选)" size="small" />
-                            </a-col>
-                            <a-col :span="24" :md="4">
-                                <a-button type="primary" block size="small" @click="queryLogs">查询</a-button>
-                            </a-col>
-                            <a-col :span="24" :md="4">
-                               <a-button type="success" size="small" @click="exportLogs" :disabled="logs.length === 0">
-                                   <template #icon><IconDownload /></template>
-                                   导出 CSV
-                               </a-button>
-                            </a-col>
-                        </a-row>
-                        
-                        <div class="logs-table-container">
-                            <a-table
-                                :columns="logColumns"
-                                :data="logs"
-                                size="small"
-                                :bordered="false"
-                                :scroll="{ x: 1200 }"
-                            >
-                                <template #status="{ record }">
-                                    <a-tag :color="getStatusColor(record.status)" size="small">
-                                        {{ record.status }}
-                                    </a-tag>
-                                </template>
-                                <template #last_value="{ record }">
-                                <span class="single-line-cell" @click="showDetails('完整值', record.last_value)" title="点击查看详情">
-                                    {{ record.last_value }}
-                                </span>
-                            </template>
-                            <template #error_message="{ record }">
-                                <span class="single-line-cell text-error" @click="showDetails('错误详情', record.error_message)" title="点击查看详情">
-                                    {{ record.error_message }}
-                                </span>
-                            </template>
-                            </a-table>
-                        </div>
-                    </a-card-body>
-                </a-card>
-            </a-tab-pane>
+        <div class="page-header edge-compute-page-header">
+            <h2 class="page-title">边缘计算</h2>
+            <p class="page-subtitle">规则监控、管理与运行日志</p>
+        </div>
+
+        <a-tabs v-model:active-key="tab" type="rounded" size="small" class="main-tabs">
+            <a-tab-pane key="metrics" title="监控面板" />
+            <a-tab-pane key="rules" title="规则管理" />
+            <a-tab-pane key="status" title="运行记录" />
+            <a-tab-pane key="logs" title="日志查询" />
         </a-tabs>
+
+        <div class="edge-compute-body">
+            <EdgeComputeMetrics v-if="tab === 'metrics'" />
+
+            <div v-if="tab === 'rules'" class="edge-compute-flow">
+                <div class="edge-compute-toolbar">
+                    <a-button type="primary" @click="openDialog">
+                        <template #icon><IconPlus /></template>
+                        添加规则
+                    </a-button>
+                </div>
+                <div v-show="selectedRuleKeys.length > 0" class="edge-compute-toolbar edge-compute-toolbar--batch">
+                    <span class="selection-count">已选 {{ selectedRuleKeys.length }} 项</span>
+                    <a-divider direction="vertical" />
+                    <a-button size="small" type="outline" @click="handleBatchEnable(true)">批量启用</a-button>
+                    <a-button size="small" type="outline" @click="handleBatchEnable(false)">批量禁用</a-button>
+                    <a-button size="small" type="outline" status="danger" @click="handleBatchDelete">批量删除</a-button>
+                </div>
+                <div class="table-container saas-table">
+                    <a-table
+                        :columns="ruleColumns"
+                        :data="rules"
+                        size="small"
+                        :bordered="false"
+                        :scroll="{ x: 960 }"
+                        :row-selection="{ type: 'checkbox', showCheckedAll: true }"
+                        v-model:selected-keys="selectedRuleKeys"
+                        row-key="id"
+                    >
+                        <template #operations="{ record }">
+                            <a-button type="text" size="small" @click="editRule(record)">
+                                <template #icon><IconEdit /></template>
+                            </a-button>
+                            <a-button type="text" size="small" status="danger" @click="deleteRule(record)">
+                                <template #icon><IconDelete /></template>
+                            </a-button>
+                        </template>
+                        <template #enable="{ record }">
+                            <a-tag :color="record.enable ? 'success' : 'danger'" size="small">
+                                {{ record.enable ? '启用' : '禁用' }}
+                            </a-tag>
+                        </template>
+                        <template #type="{ record }">
+                            {{ formatRuleType(record.type) }}
+                        </template>
+                        <template #trigger_mode="{ record }">
+                            {{ formatTriggerMode(record.trigger_mode) }}
+                        </template>
+                    </a-table>
+                </div>
+            </div>
+
+            <div v-if="tab === 'status'" class="edge-compute-flow">
+                <div class="edge-compute-toolbar edge-compute-toolbar--end">
+                    <a-button type="outline" size="small" @click="fetchRuleStates">
+                        <template #icon><IconRefresh /></template>
+                        刷新
+                    </a-button>
+                </div>
+                <div class="table-container saas-table">
+                    <a-table
+                        :columns="statusColumns"
+                        :data="ruleStates"
+                        size="small"
+                        :bordered="false"
+                        :scroll="{ x: 1100 }"
+                    >
+                        <template #current_status="{ record }">
+                            <a-tag :color="getStatusColor(record.current_status)" size="small">
+                                {{ record.current_status }}
+                            </a-tag>
+                        </template>
+                        <template #last_trigger="{ record }">
+                            {{ formatDate(record.last_trigger) }}
+                        </template>
+                        <template #operations="{ record }">
+                            <a-button type="text" size="small" @click="viewWindowData(record.rule_id, record.rule_name)">
+                                查看窗口数据
+                            </a-button>
+                        </template>
+                        <template #error_message="{ record }">
+                            <span class="single-line-cell text-error">{{ record.error_message }}</span>
+                        </template>
+                    </a-table>
+                </div>
+            </div>
+
+            <div v-if="tab === 'logs'" class="edge-compute-flow">
+                <div class="edge-compute-toolbar edge-compute-toolbar--filters">
+                    <a-input v-model="query.start" placeholder="开始时间" type="datetime-local" size="small" class="filter-input" />
+                    <a-input v-model="query.end" placeholder="结束时间" type="datetime-local" size="small" class="filter-input" />
+                    <a-input v-model="query.ruleId" placeholder="规则ID (可选)" size="small" class="filter-input filter-input--narrow" />
+                    <a-button type="primary" size="small" @click="queryLogs">查询</a-button>
+                    <a-button type="outline" size="small" @click="exportLogs" :disabled="logs.length === 0">
+                        <template #icon><IconDownload /></template>
+                        导出 CSV
+                    </a-button>
+                </div>
+                <div class="table-container saas-table">
+                    <a-table
+                        :columns="logColumns"
+                        :data="logs"
+                        size="small"
+                        :bordered="false"
+                        :scroll="{ x: 1200 }"
+                    >
+                        <template #status="{ record }">
+                            <a-tag :color="getStatusColor(record.status)" size="small">
+                                {{ record.status }}
+                            </a-tag>
+                        </template>
+                        <template #last_value="{ record }">
+                            <span class="single-line-cell" @click="showDetails('完整值', record.last_value)" title="点击查看详情">
+                                {{ record.last_value }}
+                            </span>
+                        </template>
+                        <template #error_message="{ record }">
+                            <span class="single-line-cell text-error" @click="showDetails('错误详情', record.error_message)" title="点击查看详情">
+                                {{ record.error_message }}
+                            </span>
+                        </template>
+                    </a-table>
+                </div>
+            </div>
+        </div>
 
         <!-- Window Data Dialog -->
         <a-modal v-model:visible="windowDialog" title="窗口数据预览 ({{ currentWindowRuleName }})" width="600px">
@@ -1552,495 +1542,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.edge-compute-container {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
-}
-
-.single-line-cell {
-    white-space: nowrap;
-    overflow-x: auto;
-    max-width: 400px;
-    display: block;
-    cursor: pointer;
-    font-family: monospace;
-}
-
-.single-line-cell:hover {
-    color: #111827;
-    background-color: #f9fafb;
-}
-
-/* 表格容器允许横向滚动 */
-.logs-table-container {
-    overflow-x: auto;
-}
-
-/* 全局表格强制单行 */
-:deep(.arco-table-td),
-:deep(.arco-table-th) {
-    white-space: nowrap;
-}
-
-/* 统一卡片风格 */
-.block-card {
-    border: 1px solid #e5e7eb;
-    border-radius: 0;
-    margin-bottom: 12px;
-}
-
-:deep(.arco-card-header) {
-    padding: 8px 12px;
-    font-size: 12px;
-    border-bottom: 1px solid #f1f3f5;
-}
-
-/* 工业风格卡片样式 */
-:deep(.arco-card) {
-    border: 1px solid #e5e7eb;
-    border-radius: 0;
-    background: var(--edgex-surface-raised);
-    position: relative;
-}
-
-:deep(.arco-card::after) {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 1px;
-    background: #0f172a;
-    opacity: 0.05;
-}
-
-:deep(.arco-card:hover) {
-    box-shadow: none !important;
-    border-color: #111827;
-}
-
-/* 表格工业风格样式 */
-:deep(.arco-table-th) {
-    background: var(--edgex-surface-subtle);
-    border-bottom: 1px solid #e5e7eb;
-    font-size: 11px;
-    color: #6b7280;
-    font-weight: 500;
-}
-
-:deep(.arco-table-td) {
-    font-size: 12px;
-    border-bottom: 1px solid #f1f3f5;
-}
-
-:deep(.arco-table-tr:hover .arco-table-td) {
-    background: #f9fafb;
-}
-
-/* 标签工业风格样式 */
-:deep(.arco-tag) {
-    border-radius: 0;
-    font-size: 11px;
-    padding: 2px 6px;
-}
-
-/* 按钮工业风格样式 */
-:deep(.arco-button) {
-    border-radius: 0;
-}
-
-/* 输入框工业风格样式 */
-:deep(.arco-input),
-:deep(.arco-select) {
-    border-radius: 0;
-}
-
-/* 表单标签水平显示 */
-:deep(.arco-form-item-label) {
-    white-space: nowrap;
-    text-align: left;
-    font-size: 12px;
-    color: #475569;
-    font-weight: 500;
-}
-
-:deep(.arco-form-item-label-col) {
-    display: flex;
-    align-items: center;
-}
-
-:deep(.arco-form-item) {
-    margin-bottom: 0;
-}
-
-/* 工业白色风格样式 */
-:deep(.industrial-white-modal .arco-modal) {
-    border-radius: 0;
-    padding: 0;
-}
-
-.form-section {
-    margin-bottom: 24px;
-}
-
-.section-title {
-    font-size: 11px;
-    font-weight: bold;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 12px;
-    border-left: 3px solid #0f172a;
-    padding-left: 8px;
-}
-
-.section-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-}
-
-.action-card {
-    background: var(--edgex-surface-inset);
-    border: 1px solid #e2e8f0;
-    padding: 16px;
-    margin-bottom: 12px;
-}
-
-/* 强制直角 */
-.rect-input {
-    border-radius: 0 !important;
-}
-
-/* 输入组样式修正 */
-:deep(.arco-input-group) {
-    width: 100%;
-}
-
-/* 批量操作工具栏：白色悬浮条 */
-.table-toolbar-industrial {
-    background: var(--edgex-surface-raised);
-    border: 1px solid #10b981;
-    padding: 8px 16px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-}
-
-/* 表格规范样式 */
-.industrial-table {
-    border-radius: 0 !important;
-    border: 1px solid #e5e7eb !important;
-}
-
-/* 表头样式 */
-.industrial-table :deep(.arco-table-th) {
-    background-color: var(--edgex-surface-inset) !important;
-    font-weight: bold !important;
-    border-radius: 0 !important;
-    padding: 12px !important;
-    white-space: nowrap !important;
-    overflow: visible !important;
-}
-
-/* 单元格样式 */
-.industrial-table :deep(.arco-table-td) {
-    padding: 12px !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    border-radius: 0 !important;
-}
-
-/* 行高 */
-.industrial-table :deep(.arco-table-tr) {
-    height: 36px !important;
-}
-
-/* 悬停效果 */
-.industrial-table :deep(.arco-table-tr:hover) {
-    background-color: #f9fafb !important;
-}
-
-/* 选中状态 */
-.industrial-table :deep(.arco-table-tr.arco-table-tr-selected) {
-    background-color: #eff6ff !important;
-    border: 1px solid #bfdbfe !important;
-}
-
-/* 操作列固定在右侧 */
-.industrial-table :deep(.arco-table-col-fixed-right) {
-    position: sticky !important;
-    right: 0 !important;
-    z-index: 1 !important;
-    background-color: var(--edgex-surface-raised) !important;
-}
-
-/* 消除表格最后一列的右边框 */
-.industrial-table :deep(.arco-table-col-fixed-right .arco-table-td) {
-    border-right: none !important;
-}
-
-/* 固定列的左边框 */
-.industrial-table :deep(.arco-table-col-fixed-right .arco-table-td) {
-    border-left: 1px solid #e5e7eb !important;
-}
-
-/* 消除表格的边框 */
-.industrial-table :deep(.arco-table-container) {
-    border-right: none !important;
-    border-left: none !important;
-}
-
-/* 固定列样式 */
-.industrial-table :deep(.arco-table-col-fixed-left .arco-table-th) {
-    background-color: var(--edgex-surface-inset) !important;
-    border-right: 1px solid #e5e7eb !important;
-}
-
-.industrial-table :deep(.arco-table-col-fixed-left .arco-table-td) {
-    background-color: var(--edgex-surface-raised) !important;
-    border-right: 1px solid #e5e7eb !important;
-}
-
-.industrial-table :deep(.arco-table-col-fixed-right .arco-table-th) {
-    background-color: var(--edgex-surface-inset) !important;
-    border-left: 1px solid #e5e7eb !important;
-}
-
-.industrial-table :deep(.arco-table-td.arco-table-td-row-select) {
-    background-color: var(--edgex-surface-raised) !important;
-    border-right: 1px solid #e5e7eb !important;
-}
-
-/* 无边框卡片 */
-.borderless-card {
-    border: none !important;
-    box-shadow: none !important;
-}
-
-/* 无边框卡片的内容区 */
-.borderless-card :deep(.arco-card-body) {
-    padding: 0 !important;
-}
-
-.selection-count {
-    font-size: 12px;
-    font-weight: bold;
-    color: #10b981;
-}
-
-.flex {
-    display: flex;
-}
-
-.items-center {
-    align-items: center;
-}
-
-.gap-2 {
-    gap: 8px;
-}
-
-/* 卡片标题样式 */
-:deep(.arco-card-header-title) {
-    font-size: 12px;
-    font-weight: 600;
-    color: #374151;
-    letter-spacing: 0.5px;
-}
-
-/* 数据源样式 */
-.source-row {
-    display: flex;
-    align-items: center;
-    border-bottom: 1px solid #f1f3f5;
-    padding: 8px 0;
-}
-
-.source-index {
-    width: 32px;
-    font-size: 11px;
-    color: #9ca3af;
-}
-
-/* 动作行样式 */
-.action-row {
-    display: flex;
-    align-items: flex-start;
-    border-left: 2px solid #e5e7eb;
-    padding-left: 12px;
-    margin-bottom: 12px;
-}
-
-.action-index {
-    font-size: 10px;
-    color: #6b7280;
-    width: 60px;
-}
-
-.action-body {
-    flex: 1;
-}
-
-/* 代码输入框样式 */
-.code-input {
-    font-family: monospace;
-    font-size: 12px;
-}
-
-/* 逻辑工具栏样式 */
-.logic-toolbar {
-    margin-top: 8px;
-}
-
-/* 空状态样式 */
-.empty-box {
-    padding: 24px;
-    text-align: center;
-    color: #9ca3af;
-    font-size: 12px;
-    background: #f9fafb;
-    border: 1px dashed #e5e7eb;
-}
-
-/* 表达式函数参考文档样式 */
-.expression-docs-dialog :deep(.arco-modal-content) {
-    border-radius: 0;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
-
-.expression-docs-content {
-    padding: 24px;
-}
-
-.function-category {
-    margin-bottom: 32px;
-}
-
-.category-header {
-    margin-bottom: 16px;
-    padding-bottom: 8px;
-    border-bottom: 2px solid #e5e7eb;
-}
-
-.category-header .text-xl {
-    font-size: 18px;
-    font-weight: 600;
-    color: #1f2937;
-    margin: 0;
-}
-
-.function-table {
-    border-radius: 0;
-    overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.function-table :deep(.arco-table-th) {
-    background-color: var(--edgex-surface-inset);
-    font-weight: 600;
-    color: #374151;
-    padding: 12px 16px;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-.function-table :deep(.arco-table-td) {
-    padding: 12px 16px;
-    border-bottom: 1px solid #f1f3f5;
-    vertical-align: top;
-}
-
-.function-table :deep(.arco-table-tr:hover .arco-table-td) {
-    background-color: #f9fafb;
-}
-
-.function-table code {
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    font-size: 13px;
-    background-color: #f3f4f6;
-    padding: 2px 6px;
-    border-radius: 0;
-    color: #374151;
-}
-
-.function-table :deep(.arco-table-td:first-child) code {
-    color: #2563eb;
-    font-weight: 500;
-}
-
-/* 代码块样式 */
-.expression-docs-content code {
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    font-size: 13px;
-    background-color: #f3f4f6;
-    padding: 2px 6px;
-    border-radius: 0;
-    color: #374151;
-}
-
-/* 基本变量提示样式 */
-.expression-docs-content .text-blue-600 {
-    color: #2563eb;
-    font-weight: 500;
-}
-
-/* 示例单元格样式 */
-.example-cell {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.copy-button {
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 0;
-    transition: all 0.2s ease;
-}
-
-.copy-button:hover {
-    background-color: #f3f4f6;
-    color: #2563eb;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-    .expression-docs-dialog :deep(.arco-modal) {
-        width: 95% !important;
-        margin: 10px;
-    }
-    
-    .expression-docs-content {
-        padding: 16px;
-    }
-    
-    .function-table :deep(.arco-table-th),
-    .function-table :deep(.arco-table-td) {
-        padding: 8px 12px;
-        font-size: 13px;
-    }
-    
-    .category-header .text-xl {
-        font-size: 16px;
-    }
-    
-    .example-cell {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-    }
-    
-    .copy-button {
-        align-self: flex-start;
-    }
-}
+/* v3.0 — styles in src/styles/ */
 </style>
 

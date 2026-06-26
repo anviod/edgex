@@ -1,0 +1,92 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-timepicker {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  padding: 0;
+}
+.arco-timepicker-container {
+  overflow: hidden;
+  background-color: var(--color-bg-popup);
+  border: 1px solid var(--color-neutral-3);
+  border-radius: var(--border-radius-medium);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+.arco-timepicker-column {
+  box-sizing: border-box;
+  width: 64px;
+  height: 224px;
+  overflow: hidden;
+}
+.arco-timepicker-column:not(:last-child) {
+  border-right: 1px solid var(--color-neutral-3);
+}
+.arco-timepicker-column:hover {
+  overflow-y: auto;
+}
+.arco-timepicker-column ul {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.arco-timepicker-column ul::after {
+  display: block;
+  width: 100%;
+  height: 192px;
+  content: '';
+}
+.arco-timepicker-cell {
+  padding: 4px 0;
+  color: var(--color-text-1);
+  font-weight: 500;
+  cursor: pointer;
+}
+.arco-timepicker-cell-inner {
+  height: 24px;
+  padding-left: 24px;
+  font-size: 14px;
+  line-height: 24px;
+}
+.arco-timepicker-cell:not(.arco-timepicker-cell-selected):not(.arco-timepicker-cell-disabled):hover .arco-timepicker-cell-inner {
+  background-color: var(--color-fill-2);
+}
+.arco-timepicker-cell-selected .arco-timepicker-cell-inner {
+  font-weight: 500;
+  background-color: var(--color-fill-2);
+}
+.arco-timepicker-cell-disabled {
+  color: var(--color-text-4);
+  cursor: not-allowed;
+}
+.arco-timepicker-footer-extra-wrapper {
+  padding: 8px;
+  color: var(--color-text-1);
+  font-size: 12px;
+  border-top: 1px solid var(--color-neutral-3);
+}
+.arco-timepicker-footer-btn-wrapper {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  border-top: 1px solid var(--color-neutral-3);
+}
+.arco-timepicker-footer-btn-wrapper :only-child {
+  margin-left: auto;
+}

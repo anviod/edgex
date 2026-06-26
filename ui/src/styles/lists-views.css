@@ -1,0 +1,574 @@
+/*
+ * EdgeX v3.0 — List views (Channel, Device, Point, EdgeCompute)
+ */
+
+/* ── List detail page layout ── */
+.list-detail-page {
+  gap: var(--space-6);
+}
+
+.list-detail-page .list-page-header {
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: var(--space-4);
+  margin-bottom: 0;
+  min-height: 40px;
+}
+
+.list-detail-page .header-left {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: var(--space-4);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.list-detail-page .list-back-btn {
+  flex-shrink: 0;
+}
+
+/* 协议标签 + 标题同行，标题不换行 */
+.list-detail-page .header-info--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.list-detail-page .page-title,
+.list-detail-page .title-text {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.list-detail-page .protocol-tag {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.list-detail-page .header-right,
+.list-detail-page .header-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.list-detail-page .header-right .arco-space {
+  justify-content: flex-end;
+}
+
+.list-detail-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: var(--space-4);
+}
+
+.list-detail-spin {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.list-detail-spin > .arco-spin-children {
+  width: 100%;
+}
+
+.list-detail-page .table-container {
+  gap: 0;
+}
+
+.list-detail-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.list-detail-meta__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--edgex-success);
+  flex-shrink: 0;
+}
+
+.list-detail-meta__text {
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+}
+
+/* Point list: title row + filter toolbar */
+.list-detail-page.point-list-container .list-page-header {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  row-gap: var(--space-3);
+}
+
+.list-detail-page.point-list-container .point-header .header-left {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.list-detail-page.point-list-container .point-header-actions {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+.list-detail-page.point-list-container .point-header-actions .arco-space {
+  justify-content: flex-end;
+  row-gap: var(--space-2);
+}
+
+.point-list-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.point-list-toolbar__filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.point-list-toolbar__batch {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  flex: 0 0 auto;
+}
+
+.point-list-toolbar__search {
+  width: 220px;
+  max-width: 100%;
+}
+
+.point-list-toolbar__select {
+  width: 168px;
+  max-width: 100%;
+}
+
+.point-list-toolbar__select--sm {
+  width: 128px;
+}
+
+.list-detail-page .saas-table .arco-table-empty,
+.list-detail-page .saas-table .arco-empty {
+  padding: 56px var(--space-4);
+}
+
+.list-detail-page .saas-table .arco-table-pagination {
+  margin-top: var(--space-4);
+  padding: var(--space-3) 0 0;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+  .list-detail-page .list-page-header {
+    flex-wrap: wrap;
+    row-gap: var(--space-3);
+  }
+
+  .list-detail-page .header-right,
+  .list-detail-page .header-actions,
+  .list-detail-page.point-list-container .point-header-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .list-detail-page.point-list-container .point-header-actions .arco-space {
+    justify-content: flex-start;
+  }
+
+  .point-list-toolbar__filters,
+  .point-list-toolbar__batch {
+    width: 100%;
+  }
+
+  .point-list-toolbar__search,
+  .point-list-toolbar__select,
+  .point-list-toolbar__select--sm {
+    width: 100%;
+  }
+}
+
+/* ── Page headers ── */
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.header-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.page-header .header-title {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.title-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* ── Protocol tag ── */
+.protocol-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.protocol-tag--accent {
+  background: rgba(14, 165, 233, 0.08);
+  border-color: rgba(14, 165, 233, 0.25);
+  color: var(--primary);
+}
+
+/* ── Channel cards ── */
+.card-title-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.name-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+}
+
+.card-info-body {
+  padding: var(--space-4) 0 0;
+  border-top: 1px solid var(--border);
+  margin-top: var(--space-2);
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+  font-size: 13px;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.info-item .label {
+  color: var(--text-secondary);
+}
+
+.info-item .value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.info-item .value-highlight {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.status-text.enabled { color: var(--edgex-success); }
+.status-text.disabled { color: var(--text-tertiary); }
+
+/* ── Point list cells ── */
+.value-cell {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2) 0;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.value-text {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.value-unit {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+
+.value-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+  font-family: var(--font-mono);
+}
+
+.status-display {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions-container {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+/* ── Mono inputs (technical IDs only) ── */
+.mono-input .arco-input,
+.mono-input .arco-input-inner,
+.mono-input .arco-select-view {
+  font-family: var(--font-mono) !important;
+  font-size: 12px;
+}
+
+/* ── Device list ── */
+.device-name-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.main-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sub-id {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+}
+
+.device-footer {
+  margin-top: var(--space-6);
+  padding: var(--space-3);
+  border: 1px dashed var(--border);
+  text-align: center;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+}
+
+.borderless-card .arco-card-body {
+  padding: 0 !important;
+}
+
+.borderless-card .arco-table-pagination {
+  background: transparent !important;
+  border-top: 1px solid var(--border) !important;
+  padding: var(--space-3) !important;
+}
+
+/* ── Terminal / connection status ── */
+.terminal-info {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  margin-top: var(--space-4);
+}
+
+.terminal-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--edgex-success);
+  border-radius: 50%;
+  animation: pulse-dot 2s infinite;
+  flex-shrink: 0;
+}
+
+.monospace-text {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+@keyframes pulse-dot {
+  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+/* ── Edge compute (see edge-compute.css) ── */
+.single-line-cell {
+  white-space: nowrap;
+  overflow-x: auto;
+  max-width: 400px;
+  display: block;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.single-line-cell:hover {
+  color: var(--text-primary);
+  background: var(--surface-2);
+}
+
+.logs-table-container {
+  overflow-x: auto;
+}
+
+.block-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-3);
+}
+
+.form-section {
+  margin-bottom: var(--space-6);
+}
+
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+/* ── Toolbars ── */
+.scan-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* ── Empty states ── */
+.empty-placeholder,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  margin: var(--space-4) 0;
+}
+
+.empty-text {
+  margin: var(--space-4) 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.empty-actions {
+  margin-top: var(--space-6);
+}
+
+.point-list-container.no-padding {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+/* ── Modals & forms (legacy class names) ── */
+.industrial-modal {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: none !important;
+}
+
+.industrial-modal .arco-modal-header {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-4) var(--space-5);
+}
+
+.industrial-modal .arco-modal-footer {
+  border-top: 1px solid var(--border);
+  padding: var(--space-3) var(--space-5) var(--space-5);
+}
+
+.industrial-form .arco-form-item {
+  margin-bottom: var(--space-4);
+}
+
+.industrial-form .arco-form-item-label {
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.industrial-btn-plain,
+.industrial-btn-primary {
+  border-radius: var(--radius-sm) !important;
+  font-weight: 500;
+}
+
+.industrial-btn-primary {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+.industrial-btn-primary:hover {
+  background: var(--primary-hover) !important;
+}

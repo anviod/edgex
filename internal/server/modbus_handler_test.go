@@ -33,3 +33,26 @@ func TestParseBatchModbusSlavesRequest_SnakeCase(t *testing.T) {
 		t.Fatalf("unexpected: %+v", req)
 	}
 }
+
+func TestParseGenerateRegistersRequest_RegisterType(t *testing.T) {
+	body := []byte(`{
+		"start": 0,
+		"end": 9,
+		"registerType": "input",
+		"functionCode": 4,
+		"mode": "merge"
+	}`)
+	req, err := parseGenerateRegistersRequest(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.RegisterType != "input" {
+		t.Fatalf("register_type: %q", req.RegisterType)
+	}
+	if req.FunctionCode != 4 {
+		t.Fatalf("function_code: %d", req.FunctionCode)
+	}
+	if req.Start != 0 || req.End != 9 || req.Mode != "merge" {
+		t.Fatalf("unexpected: %+v", req)
+	}
+}

@@ -1,0 +1,124 @@
+/*
+ * EdgeX v3.0 — Shared component styles (scanners, dialogs, settings)
+ * Install wizard styles: see install.css
+ */
+
+/* ── Settings pages ── */
+.settings-section {
+  margin-bottom: var(--space-8);
+}
+
+.settings-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+}
+
+.settings-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+}
+
+/* ── Help drawer ── */
+.help-drawer-content {
+  padding: var(--space-4);
+}
+
+/* ── Scanner panels ── */
+.scanner-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: var(--bg);
+}
+
+.scanner-result-tree {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* ── Metrics cards ── */
+.metrics-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.metrics-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ── Action / target editors ── */
+.editor-toolbar {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.editor-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: var(--bg);
+}
+
+/* ── Sync / cluster views ── */
+.sync-tree-container {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: var(--bg);
+  min-height: 300px;
+}
+
+.cluster-node {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+  background: var(--surface);
+}
+
+.cluster-node:hover {
+  border-color: rgba(14, 165, 233, 0.2);
+}
+
+/* ── Log viewer ── */
+.log-viewer-toolbar {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.log-entry {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.log-entry:hover {
+  background: var(--surface-2);
+}
+
+/* ── Northbound channel cards ── */
+.nb-channel-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: var(--bg);
+  transition: all var(--transition-fast);
+}
+
+.nb-channel-card:hover {
+  border-color: rgba(14, 165, 233, 0.2);
+  transform: translateY(-1px);
+}

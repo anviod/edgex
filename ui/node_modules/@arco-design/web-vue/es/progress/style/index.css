@@ -1,0 +1,280 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-progress {
+  position: relative;
+  line-height: 1;
+  font-size: 12px;
+}
+.arco-progress-type-line,
+.arco-progress-type-steps {
+  display: inline-block;
+  max-width: 100%;
+  width: 100%;
+}
+.arco-progress-type-line.arco-progress-size-mini {
+  width: auto;
+}
+.arco-progress-line-wrapper,
+.arco-progress-steps-wrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+}
+.arco-progress-line-text,
+.arco-progress-steps-text {
+  font-size: 12px;
+  margin-left: 16px;
+  color: var(--color-text-2);
+  white-space: nowrap;
+  text-align: right;
+  flex-grow: 1;
+  flex-shrink: 0;
+  min-width: 32px;
+}
+.arco-progress-line-text .arco-icon,
+.arco-progress-steps-text .arco-icon {
+  font-size: 12px;
+  margin-left: 4px;
+}
+.arco-progress-line {
+  background-color: var(--color-fill-3);
+  border-radius: 100px;
+  width: 100%;
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+}
+.arco-progress-line-bar {
+  height: 100%;
+  border-radius: 100px;
+  background-color: rgb(var(--primary-6));
+  position: relative;
+  transition: width 0.6s cubic-bezier(0.34, 0.69, 0.1, 1), background 0.3s cubic-bezier(0.34, 0.69, 0.1, 1);
+  max-width: 100%;
+}
+.arco-progress-line-bar-buffer {
+  position: absolute;
+  background-color: var(--color-primary-light-3);
+  height: 100%;
+  top: 0;
+  left: 0;
+  border-radius: 0 100px 100px 0;
+  max-width: 100%;
+  transition: all 0.6s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.arco-progress-line-bar-animate::after {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent 25%, rgba(255, 255, 255, 0.5) 50%, transparent 75%);
+  background-size: 400% 100%;
+  animation: arco-progress-loading 1.5s cubic-bezier(0.34, 0.69, 0.1, 1) infinite;
+}
+.arco-progress-line-text .arco-icon {
+  color: var(--color-text-2);
+}
+.arco-progress-type-steps.arco-progress-size-small {
+  width: auto;
+}
+.arco-progress-type-steps.arco-progress-size-small .arco-progress-steps-item {
+  width: 2px;
+  flex: unset;
+  border-radius: 2px;
+}
+.arco-progress-type-steps.arco-progress-size-small .arco-progress-steps-item:not(:last-of-type) {
+  margin-right: 3px;
+}
+.arco-progress-steps {
+  display: flex;
+  width: 100%;
+}
+.arco-progress-steps-text {
+  margin-left: 8px;
+  min-width: unset;
+}
+.arco-progress-steps-text .arco-icon {
+  color: var(--color-text-2);
+}
+.arco-progress-steps-item {
+  height: 100%;
+  flex: 1;
+  background-color: var(--color-fill-3);
+  position: relative;
+  display: inline-block;
+}
+.arco-progress-steps-item:not(:last-of-type) {
+  margin-right: 3px;
+}
+.arco-progress-steps-item:last-of-type {
+  border-top-right-radius: 100px;
+  border-bottom-right-radius: 100px;
+}
+.arco-progress-steps-item:first-of-type {
+  border-top-left-radius: 100px;
+  border-bottom-left-radius: 100px;
+}
+.arco-progress-steps-item-active {
+  background-color: rgb(var(--primary-6));
+}
+.arco-progress-status-warning .arco-progress-line-bar {
+  background-color: rgb(var(--warning-6));
+}
+.arco-progress-status-warning .arco-progress-steps-item-active {
+  background-color: rgb(var(--warning-6));
+}
+.arco-progress-status-warning .arco-progress-line-text .arco-icon,
+.arco-progress-status-warning .arco-progress-steps-text .arco-icon {
+  color: rgb(var(--warning-6));
+}
+.arco-progress-status-success .arco-progress-line-bar {
+  background-color: rgb(var(--success-6));
+}
+.arco-progress-status-success .arco-progress-steps-item-active {
+  background-color: rgb(var(--success-6));
+}
+.arco-progress-status-success .arco-progress-line-text .arco-icon,
+.arco-progress-status-success .arco-progress-steps-text .arco-icon {
+  color: rgb(var(--success-6));
+}
+.arco-progress-status-danger .arco-progress-line-bar {
+  background-color: rgb(var(--danger-6));
+}
+.arco-progress-status-danger .arco-progress-steps-item-active {
+  background-color: rgb(var(--danger-6));
+}
+.arco-progress-status-danger .arco-progress-line-text .arco-icon,
+.arco-progress-status-danger .arco-progress-steps-text .arco-icon {
+  color: rgb(var(--danger-6));
+}
+.arco-progress-size-small .arco-progress-line-text {
+  font-size: 12px;
+  margin-left: 16px;
+}
+.arco-progress-size-small .arco-progress-line-text .arco-icon {
+  font-size: 12px;
+}
+.arco-progress-size-large .arco-progress-line-text {
+  font-size: 16px;
+  margin-left: 16px;
+}
+.arco-progress-size-large .arco-progress-line-text .arco-icon {
+  font-size: 14px;
+}
+.arco-progress-type-circle {
+  display: inline-block;
+}
+.arco-progress-circle-wrapper {
+  position: relative;
+  text-align: center;
+  line-height: 1;
+  display: inline-block;
+  vertical-align: text-bottom;
+}
+.arco-progress-circle-svg {
+  transform: rotate(-90deg);
+}
+.arco-progress-circle-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  color: var(--color-text-3);
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+}
+.arco-progress-circle-text .arco-icon {
+  font-size: 16px;
+  color: var(--color-text-2);
+}
+.arco-progress-circle-bg {
+  stroke: var(--color-fill-3);
+}
+.arco-progress-circle-bar {
+  stroke: rgb(var(--primary-6));
+  transition: stroke-dashoffset 0.6s cubic-bezier(0, 0, 1, 1) 0s, stroke 0.6s cubic-bezier(0, 0, 1, 1);
+}
+.arco-progress-size-mini .arco-progress-circle-bg {
+  stroke: var(--color-primary-light-3);
+}
+.arco-progress-size-mini .arco-progress-circle-bar {
+  stroke: rgb(var(--primary-6));
+}
+.arco-progress-size-mini.arco-progress-status-warning .arco-progress-circle-bg {
+  stroke: var(--color-warning-light-3);
+}
+.arco-progress-size-mini.arco-progress-status-danger .arco-progress-circle-bg {
+  stroke: var(--color-danger-light-3);
+}
+.arco-progress-size-mini.arco-progress-status-success .arco-progress-circle-bg {
+  stroke: var(--color-success-light-3);
+}
+.arco-progress-size-mini .arco-progress-circle-wrapper .arco-icon-check {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
+}
+.arco-progress-size-mini .arco-progress-circle-text {
+  position: static;
+  top: unset;
+  left: unset;
+  transform: unset;
+}
+.arco-progress-size-small .arco-progress-circle-text {
+  font-size: 13px;
+}
+.arco-progress-size-small .arco-progress-circle-text .arco-icon {
+  font-size: 14px;
+}
+.arco-progress-size-large .arco-progress-circle-text {
+  font-size: 16px;
+}
+.arco-progress-size-large .arco-progress-circle-text .arco-icon {
+  font-size: 16px;
+}
+.arco-progress-status-warning .arco-progress-circle-bar {
+  stroke: rgb(var(--warning-6));
+}
+.arco-progress-status-warning .arco-icon {
+  color: rgb(var(--warning-6));
+}
+.arco-progress-status-success .arco-progress-circle-bar {
+  stroke: rgb(var(--success-6));
+}
+.arco-progress-status-success .arco-icon {
+  color: rgb(var(--success-6));
+}
+.arco-progress-status-danger .arco-progress-circle-bar {
+  stroke: rgb(var(--danger-6));
+}
+.arco-progress-status-danger .arco-icon {
+  color: rgb(var(--danger-6));
+}
+@keyframes arco-progress-loading {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}

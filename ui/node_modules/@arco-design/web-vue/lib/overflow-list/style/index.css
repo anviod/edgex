@@ -1,0 +1,30 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-overflow-list {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+.arco-overflow-list > *:not(:last-child) {
+  flex-shrink: 0;
+}
+.arco-overflow-list-spacer {
+  flex: 1;
+  min-width: 0;
+  height: 1px;
+}

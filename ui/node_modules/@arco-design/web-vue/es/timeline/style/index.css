@@ -1,0 +1,293 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-timeline {
+  display: flex;
+  flex-direction: column;
+}
+.arco-timeline-item {
+  position: relative;
+  min-height: 78px;
+  padding-left: 6px;
+  color: var(--color-text-1);
+  font-size: 14px;
+}
+.arco-timeline-item-label {
+  color: var(--color-text-3);
+  font-size: 12px;
+  line-height: 1.667;
+}
+.arco-timeline-item-content {
+  margin-bottom: 4px;
+  color: var(--color-text-1);
+  font-size: 14px;
+  line-height: 1.5715;
+}
+.arco-timeline-item-content-wrapper {
+  position: relative;
+  margin-left: 16px;
+}
+.arco-timeline-item.arco-timeline-item-last > .arco-timeline-item-dot-wrapper .arco-timeline-item-dot-line {
+  display: none;
+}
+.arco-timeline-item-dot-wrapper {
+  position: absolute;
+  left: 0;
+  height: 100%;
+  text-align: center;
+}
+.arco-timeline-item-dot-wrapper .arco-timeline-item-dot-content {
+  position: relative;
+  width: 6px;
+  height: 22.001px;
+  line-height: 22.001px;
+}
+.arco-timeline-item-dot {
+  position: relative;
+  top: 50%;
+  box-sizing: border-box;
+  width: 6px;
+  height: 6px;
+  margin-top: -50%;
+  color: rgb(var(--primary-6));
+  border-radius: var(--border-radius-circle);
+}
+.arco-timeline-item-dot-solid {
+  background-color: rgb(var(--primary-6));
+}
+.arco-timeline-item-dot-hollow {
+  background-color: var(--color-bg-2);
+  border: 2px solid rgb(var(--primary-6));
+}
+.arco-timeline-item-dot-custom {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: inline-flex;
+  box-sizing: border-box;
+  color: rgb(var(--primary-6));
+  background-color: var(--color-bg-2);
+  transform: translateX(-50%) translateY(-50%);
+  transform-origin: center;
+}
+.arco-timeline-item-dot-custom svg {
+  color: inherit;
+}
+.arco-timeline-item-dot-line {
+  position: absolute;
+  top: 18.0005px;
+  bottom: -4.0005px;
+  left: 50%;
+  box-sizing: border-box;
+  width: 1px;
+  border-color: var(--color-neutral-3);
+  border-left-width: 1px;
+  transform: translateX(-50%);
+}
+/* reverse  */
+.arco-timeline-is-reverse {
+  flex-direction: column-reverse;
+}
+/* mode  */
+.arco-timeline-alternate {
+  overflow: hidden;
+}
+.arco-timeline-alternate .arco-timeline-item-vertical-left {
+  padding-left: 0;
+}
+.arco-timeline-alternate .arco-timeline-item-vertical-left > .arco-timeline-item-dot-wrapper {
+  left: 50%;
+}
+.arco-timeline-alternate .arco-timeline-item-vertical-left > .arco-timeline-item-content-wrapper {
+  left: 50%;
+  width: 50%;
+  margin-left: 22px;
+  padding-right: 22px;
+}
+.arco-timeline-alternate .arco-timeline-item-vertical-right {
+  padding-right: 0;
+}
+.arco-timeline-alternate .arco-timeline-item-vertical-right > .arco-timeline-item-dot-wrapper {
+  left: 50%;
+}
+.arco-timeline-alternate .arco-timeline-item-vertical-right > .arco-timeline-item-content-wrapper {
+  left: 0;
+  width: 50%;
+  margin-right: 0;
+  margin-left: -16px;
+  padding-right: 16px;
+  text-align: right;
+}
+.arco-timeline-right .arco-timeline-item-vertical-right {
+  padding-right: 6px;
+}
+.arco-timeline-right .arco-timeline-item-vertical-right > .arco-timeline-item-dot-wrapper {
+  right: 0;
+  left: unset;
+}
+.arco-timeline-right .arco-timeline-item-vertical-right > .arco-timeline-item-content-wrapper {
+  margin-right: 16px;
+  margin-left: 0;
+  text-align: right;
+}
+/* label position */
+.arco-timeline-item-label-relative > .arco-timeline-item-label {
+  position: absolute;
+  top: 0;
+  box-sizing: border-box;
+  max-width: 100px;
+}
+.arco-timeline-item-vertical-left.arco-timeline-item-label-relative {
+  margin-left: 100px;
+}
+.arco-timeline-item-vertical-left.arco-timeline-item-label-relative > .arco-timeline-item-label {
+  left: 0;
+  padding-right: 16px;
+  text-align: right;
+  transform: translateX(-100%);
+}
+.arco-timeline-item-vertical-right.arco-timeline-item-label-relative {
+  margin-right: 100px;
+}
+.arco-timeline-item-vertical-right.arco-timeline-item-label-relative > .arco-timeline-item-label {
+  right: 0;
+  padding-left: 16px;
+  text-align: left;
+  transform: translateX(100%);
+}
+.arco-timeline-item-horizontal-top.arco-timeline-item-label-relative {
+  margin-top: 50px;
+}
+.arco-timeline-item-horizontal-top.arco-timeline-item-label-relative > .arco-timeline-item-label {
+  padding-bottom: 16px;
+  transform: translateY(-100%);
+}
+.arco-timeline-item-horizontal-top.arco-timeline-item-label-relative > .arco-timeline-item-content {
+  margin-bottom: 0;
+}
+.arco-timeline-item-horizontal-bottom.arco-timeline-item-label-relative {
+  margin-bottom: 50px;
+}
+.arco-timeline-item-horizontal-bottom.arco-timeline-item-label-relative > .arco-timeline-item-content {
+  margin-bottom: 0;
+}
+.arco-timeline-item-horizontal-bottom.arco-timeline-item-label-relative > .arco-timeline-item-label {
+  top: unset;
+  bottom: 0;
+  padding-top: 16px;
+  text-align: left;
+  transform: translateY(100%);
+}
+.arco-timeline-alternate .arco-timeline-item-vertical-left.arco-timeline-item-label-relative {
+  margin-left: 0;
+}
+.arco-timeline-alternate .arco-timeline-item-vertical-left.arco-timeline-item-label-relative > .arco-timeline-item-label {
+  left: 0;
+  width: 50%;
+  max-width: unset;
+  transform: none;
+}
+.arco-timeline-alternate .arco-timeline-item-vertical-right.arco-timeline-item-label-relative {
+  margin-right: 0;
+}
+.arco-timeline-alternate .arco-timeline-item-vertical-right.arco-timeline-item-label-relative > .arco-timeline-item-label {
+  right: 0;
+  width: 50%;
+  max-width: unset;
+  transform: none;
+}
+.arco-timeline-alternate .arco-timeline-item-horizontal-top.arco-timeline-item-label-relative {
+  margin-top: 0;
+}
+.arco-timeline-alternate .arco-timeline-item-horizontal-bottom.arco-timeline-item-label-relative {
+  margin-bottom: 0;
+}
+.arco-timeline-direction-horizontal {
+  display: flex;
+  flex-direction: row;
+}
+.arco-timeline-direction-horizontal.arco-timeline-is-reverse {
+  flex-direction: row-reverse;
+}
+.arco-timeline-item-dot-line-is-horizontal {
+  top: 50%;
+  right: 4px;
+  left: 12px;
+  width: unset;
+  height: 1px;
+  border-top-width: 1px;
+  border-left: none;
+  transform: translateY(-50%);
+}
+.arco-timeline-item-horizontal-bottom,
+.arco-timeline-item-horizontal-top {
+  flex: 1;
+  min-height: unset;
+  padding-right: 0;
+  padding-left: 0;
+}
+.arco-timeline-item-horizontal-bottom > .arco-timeline-item-dot-wrapper,
+.arco-timeline-item-horizontal-top > .arco-timeline-item-dot-wrapper {
+  top: 0;
+  width: 100%;
+  height: auto;
+}
+.arco-timeline-item-horizontal-bottom > .arco-timeline-item-dot-wrapper .arco-timeline-item-dot,
+.arco-timeline-item-horizontal-top > .arco-timeline-item-dot-wrapper .arco-timeline-item-dot {
+  top: unset;
+  margin-top: unset;
+}
+.arco-timeline-item-horizontal-bottom > .arco-timeline-item-dot-wrapper .arco-timeline-item-dot-content,
+.arco-timeline-item-horizontal-top > .arco-timeline-item-dot-wrapper .arco-timeline-item-dot-content {
+  height: 6px;
+  line-height: 6px;
+}
+.arco-timeline-item-horizontal-top {
+  padding-top: 6px;
+}
+.arco-timeline-item-horizontal-top > .arco-timeline-item-dot-wrapper {
+  top: 0;
+  bottom: unset;
+}
+.arco-timeline-item-horizontal-top > .arco-timeline-item-content-wrapper {
+  margin-top: 16px;
+  margin-left: 0;
+}
+.arco-timeline-item-horizontal-bottom {
+  padding-bottom: 6px;
+}
+.arco-timeline-item-horizontal-bottom > .arco-timeline-item-dot-wrapper {
+  top: unset;
+  bottom: 0;
+}
+.arco-timeline-item-horizontal-bottom > .arco-timeline-item-content-wrapper {
+  margin-bottom: 16px;
+  margin-left: 0;
+}
+.arco-timeline-alternate.arco-timeline-direction-horizontal {
+  align-items: center;
+  min-height: 200px;
+  overflow: visible;
+}
+.arco-timeline-alternate.arco-timeline-direction-horizontal .arco-timeline-item-horizontal-bottom {
+  margin-top: 6px;
+  transform: translateY(-50%);
+}
+.arco-timeline-alternate.arco-timeline-direction-horizontal .arco-timeline-item-horizontal-top {
+  margin-top: -6px;
+  transform: translateY(50%);
+}

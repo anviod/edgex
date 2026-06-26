@@ -1,0 +1,68 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-comment {
+  display: flex;
+  flex-wrap: nowrap;
+  font-size: 14px;
+  line-height: 1.5715;
+}
+.arco-comment:not(:first-of-type),
+.arco-comment-inner-comment {
+  margin-top: 20px;
+}
+.arco-comment-inner {
+  flex: 1;
+}
+.arco-comment-avatar {
+  flex-shrink: 0;
+  margin-right: 12px;
+  cursor: pointer;
+}
+.arco-comment-avatar > img {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--border-radius-circle);
+}
+.arco-comment-author {
+  margin-right: 8px;
+  color: var(--color-text-2);
+  font-size: 14px;
+}
+.arco-comment-datetime {
+  color: var(--color-text-3);
+  font-size: 12px;
+}
+.arco-comment-content {
+  color: var(--color-text-1);
+}
+.arco-comment-title-align-right {
+  display: flex;
+  justify-content: space-between;
+}
+.arco-comment-actions {
+  margin-top: 8px;
+  color: var(--color-text-2);
+  font-size: 14px;
+}
+.arco-comment-actions > *:not(:last-child) {
+  margin-right: 8px;
+}
+.arco-comment-actions-align-right {
+  display: flex;
+  justify-content: flex-end;
+}

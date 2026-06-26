@@ -1,0 +1,35 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-tooltip-content {
+  max-width: 350px;
+  padding: 8px 12px;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.5715;
+  text-align: left;
+  word-wrap: break-word;
+  background-color: var(--color-tooltip-bg);
+  border-radius: var(--border-radius-small);
+}
+.arco-tooltip-mini {
+  padding: 4px 12px;
+  font-size: 14px;
+}
+.arco-tooltip-popup-arrow {
+  background-color: var(--color-tooltip-bg);
+}

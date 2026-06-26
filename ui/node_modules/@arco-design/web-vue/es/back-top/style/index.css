@@ -1,0 +1,42 @@
+/******** borderSize *******/
+/******** borderStyle *******/
+/******** radius *******/
+/******** shadow distance *******/
+/******** size *******/
+/******** spacing *******/
+/******** shadow *******/
+/******** opacity *******/
+/******** fontSize *******/
+/******** fontWeight ********/
+/******** Primary *******/
+/******** success *******/
+/******** warning *******/
+/******** danger *******/
+/******** link *******/
+/******** radius *******/
+/********* icon hover *********/
+.arco-back-top {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 100;
+}
+.arco-back-top-btn {
+  width: 40px;
+  height: 40px;
+  color: var(--color-white);
+  font-size: 12px;
+  text-align: center;
+  background-color: rgb(var(--primary-6));
+  border: none;
+  border-radius: var(--border-radius-circle);
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0, 0, 1, 1);
+}
+.arco-back-top-btn:hover {
+  background-color: rgb(var(--primary-5));
+}
+.arco-back-top-btn svg {
+  font-size: 14px;
+}

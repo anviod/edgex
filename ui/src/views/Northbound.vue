@@ -1,5 +1,5 @@
 <template>
-  <div class="page-shell">
+  <div class="page-shell northbound-page">
     <div class="page-header">
       <div>
         <h2 class="page-title">北向接口</h2>
@@ -28,7 +28,7 @@
     </div>
 
     <a-empty v-else-if="hasNoChannels" class="empty-wrap">
-      <template #image><icon-upload :size="64" style="color: #cbd5e1" /></template>
+      <template #image><icon-upload :size="64" class="empty-icon-muted" /></template>
       <div class="empty-title">暂无北向通道</div>
       <div class="empty-desc">点击「添加通道」选择协议并开始配置</div>
     </a-empty>
@@ -44,7 +44,7 @@
           </div>
           <span class="section-header__desc">MQTT · Sparkplug B · HTTP · edgeOS</span>
         </div>
-        <a-row :gutter="[16, 16]">
+        <a-row :gutter="[24, 24]">
           <a-col
             v-for="{ meta, item } in channelGroups.push"
             :key="`${meta.key}-${item.id}`"
@@ -74,7 +74,7 @@
           </div>
           <span class="section-header__desc">OPC UA Server · 等待 SCADA / MES 连接</span>
         </div>
-        <a-row :gutter="[16, 16]">
+        <a-row :gutter="[24, 24]">
           <a-col
             v-for="{ meta, item } in channelGroups.passive"
             :key="`${meta.key}-${item.id}`"
@@ -132,6 +132,7 @@ import { Message } from '@arco-design/web-vue'
 import { showMessage } from '@/composables/useGlobalState'
 import request from '@/utils/request'
 import { flattenChannels } from '@/utils/northboundProtocols'
+import { fetchAllSouthboundDevices } from '@/utils/southboundDevices'
 
 import NorthboundChannelCard from '@/components/northbound/NorthboundChannelCard.vue'
 import NorthboundAddDialog from '@/components/northbound/NorthboundAddDialog.vue'
@@ -212,15 +213,10 @@ const fetchConfig = async () => {
 
 const fetchAllDevices = async () => {
   try {
-    const channels = await request.get('/api/channels')
-    const devices = []
-    for (const ch of channels) {
-      const devs = await request.get(`/api/channels/${ch.id}/devices`)
-      devs.forEach(d => { d.channelName = ch.name; devices.push(d) })
-    }
-    allDevices.value = devices
+    allDevices.value = await fetchAllSouthboundDevices(request)
   } catch (e) {
     console.error('Failed to fetch devices', e)
+    allDevices.value = []
   }
 }
 
@@ -307,17 +303,5 @@ onMounted(fetchConfig)
 </script>
 
 <style scoped>
-.loading-wrap { display: flex; justify-content: center; padding: 120px 0; }
-
-.channel-section { margin-bottom: 28px; }
-
-.mode-legend__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.mode-legend__item--push .mode-legend__dot { background: #0ea5e9; }
-.mode-legend__item--passive .mode-legend__dot { background: #722ed1; }
+/* v3.0 — styles in src/styles/ */
 </style>

@@ -1,53 +1,19 @@
 <template>
-    <div class="page-shell point-list-container">
-        <div class="page-header point-header">
+    <div class="page-shell point-list-container list-detail-page">
+        <div class="page-header point-header list-page-header">
             <div class="header-left">
-                <a-button type="outline" size="small" @click="goBack">
+                <a-button type="outline" size="small" class="list-back-btn" @click="goBack">
                     <template #icon><IconArrowLeft /></template>
                     返回设备
                 </a-button>
-                <div class="header-info">
-                    <span class="protocol-tag">{{ formatProtocolTag(channelProtocol) }}</span>
-                    <h2 class="title-text">点位列表</h2>
+                <div class="header-info header-info--inline">
+                    <span class="protocol-tag protocol-tag--accent">{{ formatProtocolTag(channelProtocol) }}</span>
+                    <h2 class="page-title title-text">点位列表</h2>
                 </div>
             </div>
-            
-            <div class="header-right">
-                <a-space size="small">
-                    <a-input
-                        v-model="filters.search"
-                        placeholder="搜索点位 (ID/名称/地址)"
-                        size="small"
-                        allow-clear
-                        style="width: 200px;"
-                    >
-                        <template #prefix><IconSearch /></template>
-                    </a-input>
-                    <a-select
-                        v-if="isModbusChannel"
-                        v-model="filters.registerType"
-                        :options="modbusRegisterFilterOptions"
-                        placeholder="寄存器类型"
-                        allow-clear
-                        size="small"
-                        style="width: 180px;"
-                    />
-                    <a-select
-                        v-model="filters.quality"
-                        :options="[{ label: 'Good', value: 'Good' }, { label: 'Bad', value: 'Bad' }]"
-                        placeholder="质量过滤"
-                        mode="multiple"
-                        size="small"
-                        style="width: 120px;"
-                    />
-                    <a-button v-if="selection.selectedIds.length > 0" type="outline" status="success" size="small" @click="goCreateVirtualShadow">
-                        <template #icon><IconThunderbolt /></template>
-                        拼虚拟设备 ({{ selection.selectedIds.length }})
-                    </a-button>
-                    <a-button v-if="selection.selectedIds.length > 0" status="danger" type="outline" size="small" @click="confirmBatchDelete">
-                        <template #icon><IconDelete /></template>
-                        批量删除 ({{ selection.selectedIds.length }})
-                    </a-button>
+
+            <div class="header-right header-actions point-header-actions">
+                <a-space size="small" wrap>
                     <a-button v-if="channelProtocol && channelProtocol.includes('modbus')" type="outline" status="warning" size="small" @click="openRegisterBlockDialog">
                         <template #icon><IconPlus /></template>
                         批量创建寄存器
@@ -56,7 +22,7 @@
                         <template #icon><IconPlus /></template>
                         新增点位
                     </a-button>
-                    <a-button v-if="channelProtocol === 'bacnet-ip' || channelProtocol === 'opc-ua'" type="outline" status="info" size="small" @click="openDiscoverDialog">
+                    <a-button v-if="channelProtocol === 'bacnet-ip' || channelProtocol === 'opc-ua'" type="outline" size="small" @click="openDiscoverDialog">
                         <template #icon><IconScan /></template>
                         扫描点位
                     </a-button>
@@ -69,6 +35,47 @@
                         配置指引
                     </a-button>
                 </a-space>
+            </div>
+        </div>
+
+        <div class="point-list-toolbar">
+            <div class="point-list-toolbar__filters">
+                <a-input
+                    v-model="filters.search"
+                    placeholder="搜索点位 (ID/名称/地址)"
+                    size="small"
+                    allow-clear
+                    class="point-list-toolbar__search"
+                >
+                    <template #prefix><IconSearch /></template>
+                </a-input>
+                <a-select
+                    v-if="isModbusChannel"
+                    v-model="filters.registerType"
+                    :options="modbusRegisterFilterOptions"
+                    placeholder="寄存器类型"
+                    allow-clear
+                    size="small"
+                    class="point-list-toolbar__select"
+                />
+                <a-select
+                    v-model="filters.quality"
+                    :options="[{ label: 'Good', value: 'Good' }, { label: 'Bad', value: 'Bad' }]"
+                    placeholder="质量过滤"
+                    mode="multiple"
+                    size="small"
+                    class="point-list-toolbar__select point-list-toolbar__select--sm"
+                />
+            </div>
+            <div v-if="selection.selectedIds.length > 0" class="point-list-toolbar__batch">
+                <a-button type="outline" status="success" size="small" @click="goCreateVirtualShadow">
+                    <template #icon><IconThunderbolt /></template>
+                    拼虚拟设备 ({{ selection.selectedIds.length }})
+                </a-button>
+                <a-button status="danger" type="outline" size="small" @click="confirmBatchDelete">
+                    <template #icon><IconDelete /></template>
+                    批量删除 ({{ selection.selectedIds.length }})
+                </a-button>
             </div>
         </div>
 
@@ -106,6 +113,7 @@
                     :columns="tableColumns"
                     :data="filteredPoints"
                     :row-selection="rowSelection"
+                    v-model:selected-keys="selection.selectedIds"
                     row-key="id"
                     class="industrial-table-fluid"
                     :bordered="{ wrapper: true, cell: true }"
@@ -120,11 +128,13 @@
                     </template>
 
                     <template #quality="{ record }">
-                        <div class="status-display flex items-center">
-                            <IconCheckCircle v-if="isQualityGood(record.quality)" class="mr-1 text-emerald-500" />
-                            <IconCloseCircle v-else class="mr-1 text-red-500" />
-                            <span class="font-mono text-xs">{{ record.quality }}</span>
-                        </div>
+                        <span class="table-cell-semantic">
+                            <div class="status-display flex items-center">
+                                <IconCheckCircle v-if="isQualityGood(record.quality)" class="mr-1 text-emerald-500" />
+                                <IconCloseCircle v-else class="mr-1 text-red-500" />
+                                <span class="font-mono text-xs">{{ record.quality }}</span>
+                            </div>
+                        </span>
                     </template>
 
                     <template #readwrite="{ record }">
@@ -281,47 +291,32 @@
         <!-- Point Config Dialog (Add/Edit) -->
         <a-modal 
             v-model:visible="pointDialog.visible" 
-            :width="800"
+            :width="760"
             :mask-closable="false"
             unmount-on-close
-            modal-class="industrial-modal"
-            title-align="start"
+            modal-class="channel-config-modal"
+            :title="pointDialog.isEdit ? '编辑点位' : '新增点位'"
             @cancel="pointDialog.visible = false"
-            @ok="submitPoint"
         >
-            <template #title>
-                <div class="flex flex-col">
-                    <span class="text-[10px] text-slate-400 font-mono uppercase tracking-wider mb-0.5">
-                        {{ pointDialog.isEdit ? 'Update Existing Record' : 'Create New Record' }}
-                    </span>
-                    <span class="text-base font-bold text-slate-800">
-                        {{ pointDialog.isEdit ? '编辑点位' : '新增点位' }}
-                    </span>
-                </div>
-            </template>
-
-            <a-form :model="pointDialog.form" layout="vertical" class="industrial-form form-controls-md p-2">
-                <a-row :gutter="16">
-                    <a-col :span="12">
-                        <a-form-item field="id" label="点位ID">
+            <a-form :model="pointDialog.form" layout="vertical" class="channel-config-form point-config-form form-controls-md">
+                <div class="batch-form-fields">
+                    <div class="batch-form-row">
+                        <div class="form-field">
+                            <div class="field-label">点位 ID</div>
                             <a-input
                                 v-model="pointDialog.form.id"
-                                placeholder="点位ID"
-                                size="small"
+                                placeholder="唯一标识符"
                                 :disabled="pointDialog.isEdit"
-                                :tooltip="{ title: '唯一标识符', placement: 'top' }"
                             />
-                        </a-form-item>
-                    </a-col>
-                    <a-col :span="12">
-                        <a-form-item field="name" label="点位名称">
+                        </div>
+                        <div class="form-field">
+                            <div class="field-label">点位名称</div>
                             <a-input
                                 v-model="pointDialog.form.name"
                                 placeholder="点位名称"
-                                size="small"
-                            ></a-input>
-                        </a-form-item>
-                    </a-col>
+                            />
+                        </div>
+                    </div>
 
                     <!-- Protocol Specific Configuration -->
                     <ModbusPointConfig
@@ -344,143 +339,136 @@
                     
                     <!-- Other Protocols -->
                     <template v-else>
-                        <a-col :span="24">
-                            <a-form-item field="address" :label="getProtocolAddressLabel()">
-                                <a-input
-                                    v-model="pointDialog.form.address"
-                                    :placeholder="getProtocolAddressPlaceholder()"
-                                    :tooltip="getProtocolAddressTooltip()"
-                                ></a-input>
-                            </a-form-item>
-                        </a-col>
+                        <div class="form-field">
+                            <div class="field-label">{{ getProtocolAddressLabel() }}</div>
+                            <a-input
+                                v-model="pointDialog.form.address"
+                                :placeholder="getProtocolAddressPlaceholder()"
+                            />
+                        </div>
                     </template>
+
                     <template v-if="channelProtocol.startsWith('modbus')">
-                        <a-col :span="24">
-                            <a-collapse>
-                                <a-collapse-item title="高级设置">
-                                    <div>
-                                        <a-row :gutter="16">
-                                            <a-col :span="24">
-                                                <a-form-item field="formatPreset" label="数据格式">
-                                                    <a-select
-                                                        v-model="formatPresetSelected"
-                                                        :options="filteredFormatPresets"
-                                                        clearable
-                                                        @update:value="onSelectFormatPreset"
-                                                    ></a-select>
-                                                </a-form-item>
-                                            </a-col>
-                                            <a-col :span="8">
-                                                <a-form-item field="parseType" label="解析类型">
-                                                    <a-select
-                                                        v-model="pointDialog.parseType"
-                                                        :options="filteredParseTypes"
-                                                    ></a-select>
-                                                </a-form-item>
-                                            </a-col>
-                                            <a-col :span="12">
-                                                <a-form-item field="datatype" label="数据类型(存储)">
-                                                    <a-select
-                                                        v-model="pointDialog.form.datatype"
-                                                        :options="datatypeOptions"
-                                                    ></a-select>
-                                                </a-form-item>
-                                            </a-col>
-                                            <a-col :span="12">
-                                                <a-form-item field="read_formula_template" label="读公式模板">
-                                                    <a-select
-                                                        v-model="pointDialog.form.read_formula_template"
-                                                        :options="formulaTemplates"
-                                                        clearable
-                                                        @update:value="onSelectFormulaTemplate('read')"
-                                                    ></a-select>
-                                                </a-form-item>
-                                            </a-col>
-                                            <a-col :span="12">
-                                                <a-form-item field="read_formula" label="读公式 (使用变量 v)" :error="formulaErrors.read">
-                                                    <a-input
-                                                        v-model="pointDialog.form.read_formula"
-                                                        @input="validateFormula('read')"
-                                                    ></a-input>
-                                                </a-form-item>
-                                            </a-col>
-                                            <a-col :span="12">
-                                                <a-form-item field="readwrite" label="读写权限">
-                                                    <a-select
-                                                        v-model="pointDialog.form.readwrite"
-                                                        :options="['R', 'RW']"
-                                                    ></a-select>
-                                                </a-form-item>
-                                            </a-col>
-                                            <a-col :span="12">
-                                                <a-form-item field="write_formula_template" label="写公式模板">
-                                                    <a-select
-                                                        v-model="pointDialog.form.write_formula_template"
-                                                        :options="formulaTemplates"
-                                                        clearable
-                                                        @update:value="onSelectFormulaTemplate('write')"
-                                                    ></a-select>
-                                                </a-form-item>
-                                            </a-col>
-                                            <a-col :span="12">
-                                                <a-form-item field="write_formula" label="写公式 (使用变量 v)" :error="formulaErrors.write">
-                                                    <a-input
-                                                        v-model="pointDialog.form.write_formula"
-                                                        @input="validateFormula('write')"
-                                                    ></a-input>
-                                                </a-form-item>
-                                            </a-col>
-                                            <a-col :span="12">
-                                                <a-form-item field="unit" label="单位">
-                                                    <a-input
-                                                        v-model="pointDialog.form.unit"
-                                                    ></a-input>
-                                                </a-form-item>
-                                            </a-col>
-                                            <a-col :span="12">
-                                                <a-form-item field="scale" label="缩放比例">
-                                                    <a-input
-                                                        v-model.number="pointDialog.form.scale"
-                                                        type="number"
-                                                        step="0.01"
-                                                        :tooltip="'默认为 1.0'"
-                                                    ></a-input>
-                                                </a-form-item>
-                                            </a-col>
-                                            <a-col :span="12">
-                                                <a-form-item field="offset" label="偏移量">
-                                                    <a-input
-                                                        v-model.number="pointDialog.form.offset"
-                                                        type="number"
-                                                        step="0.01"
-                                                        :tooltip="'默认为 0'"
-                                                    ></a-input>
-                                                </a-form-item>
-                                            </a-col>
-                                            <a-col :span="12">
-                                                <a-form-item field="defaultValue" label="默认值">
-                                                    <a-input
-                                                        v-model="pointDialog.defaultValue"
-                                                    ></a-input>
-                                                </a-form-item>
-                                            </a-col>
-                                            <a-col :span="12" class="d-flex align-center">
-                                                <a-button type="primary" @click="openQuickValidate">
-                                                    <template #icon><IconThunderbolt /></template>
-                                                    快速验证
-                                                </a-button>
-                                                <a-button type="outline" class="ml-2" @click="openTemplateDialog">
-                                                    <template #icon><IconFile /></template>
-                                                    协议模板
-                                                </a-button>
-                                            </a-col>
-                                        </a-row>
+                        <div class="modal-section__title modal-section__title--sub">高级设置</div>
+                        <div class="advanced-block point-advanced-block">
+                            <div class="point-advanced-fields">
+                                <div class="form-field">
+                                    <div class="field-label">数据格式</div>
+                                    <a-select
+                                        v-model="formatPresetSelected"
+                                        :options="filteredFormatPresets"
+                                        clearable
+                                        @update:value="onSelectFormatPreset"
+                                    />
+                                </div>
+                                <div class="batch-form-row">
+                                    <div class="form-field">
+                                        <div class="field-label">解析类型</div>
+                                        <a-select
+                                            v-model="pointDialog.parseType"
+                                            :options="filteredParseTypes"
+                                        />
                                     </div>
-                                </a-collapse-item>
-                            </a-collapse>
-                        </a-col>
+                                    <div class="form-field">
+                                        <div class="field-label">数据类型 (存储)</div>
+                                        <a-select
+                                            v-model="pointDialog.form.datatype"
+                                            :options="datatypeOptions"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="batch-form-row">
+                                    <div class="form-field">
+                                        <div class="field-label">读公式模板</div>
+                                        <a-select
+                                            v-model="pointDialog.form.read_formula_template"
+                                            :options="formulaTemplates"
+                                            clearable
+                                            @update:value="onSelectFormulaTemplate('read')"
+                                        />
+                                    </div>
+                                    <div class="form-field">
+                                        <div class="field-label">读公式 (使用变量 v)</div>
+                                        <a-input
+                                            v-model="pointDialog.form.read_formula"
+                                            @input="validateFormula('read')"
+                                        />
+                                        <div v-if="formulaErrors.read" class="field-error">{{ formulaErrors.read }}</div>
+                                    </div>
+                                </div>
+                                <div class="batch-form-row">
+                                    <div class="form-field">
+                                        <div class="field-label">读写权限</div>
+                                        <a-select
+                                            v-model="pointDialog.form.readwrite"
+                                            :options="['R', 'RW']"
+                                        />
+                                    </div>
+                                    <div class="form-field">
+                                        <div class="field-label">写公式模板</div>
+                                        <a-select
+                                            v-model="pointDialog.form.write_formula_template"
+                                            :options="formulaTemplates"
+                                            clearable
+                                            @update:value="onSelectFormulaTemplate('write')"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="batch-form-row">
+                                    <div class="form-field">
+                                        <div class="field-label">写公式 (使用变量 v)</div>
+                                        <a-input
+                                            v-model="pointDialog.form.write_formula"
+                                            @input="validateFormula('write')"
+                                        />
+                                        <div v-if="formulaErrors.write" class="field-error">{{ formulaErrors.write }}</div>
+                                    </div>
+                                    <div class="form-field">
+                                        <div class="field-label">单位</div>
+                                        <a-input v-model="pointDialog.form.unit" />
+                                    </div>
+                                </div>
+                                <div class="batch-form-row">
+                                    <div class="form-field">
+                                        <div class="field-label">缩放比例</div>
+                                        <a-input
+                                            v-model.number="pointDialog.form.scale"
+                                            type="number"
+                                            step="0.01"
+                                            placeholder="1.0"
+                                        />
+                                    </div>
+                                    <div class="form-field">
+                                        <div class="field-label">偏移量</div>
+                                        <a-input
+                                            v-model.number="pointDialog.form.offset"
+                                            type="number"
+                                            step="0.01"
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="form-field">
+                                    <div class="field-label">默认值</div>
+                                    <a-input v-model="pointDialog.defaultValue" />
+                                </div>
+                            </div>
+                            <div class="point-config-actions">
+                                <a-button type="outline" @click="openQuickValidate">
+                                    <template #icon><IconThunderbolt /></template>
+                                    快速验证
+                                </a-button>
+                                <a-button type="outline" @click="openTemplateDialog">
+                                    <template #icon><IconFile /></template>
+                                    协议模板
+                                </a-button>
+                            </div>
+                        </div>
                     </template>
                     <template v-else>
+                        <div class="modal-section__title modal-section__title--sub">数据解析</div>
+                        <div class="advanced-block point-advanced-block">
+                        <a-row :gutter="[24, 16]" class="field-grid">
                         <a-col :span="24">
                             <a-form-item field="formatPreset" label="数据格式">
                                 <a-select
@@ -606,27 +594,26 @@
                                 />
                             </a-form-item>
                         </a-col>
-                        <a-col :span="12" class="d-flex align-center">
-                            <a-button type="primary" size="small" @click="openQuickValidate">
+                        </a-row>
+                        <div class="point-config-actions">
+                            <a-button type="outline" @click="openQuickValidate">
                                 <template #icon><IconThunderbolt /></template>
                                 快速验证
                             </a-button>
-                            <a-button type="outline" size="small" class="ml-2" @click="openTemplateDialog">
+                            <a-button type="outline" @click="openTemplateDialog">
                                 <template #icon><IconFile /></template>
                                 协议模板
                             </a-button>
-                        </a-col>
+                        </div>
+                        </div>
                     </template>
-                </a-row>
+                </div>
             </a-form>
 
             <template #footer>
-                <div class="flex justify-end border-t border-slate-200 pt-3 mt-2">
-                    <a-button type="primary" :loading="pointDialog.loading" @click="submitPoint" class="industrial-btn-primary" style="min-width: 120px; padding: 0 16px;">
-                        <template #icon><IconSave /></template>
-                        保存配置
-                    </a-button>
-                </div>
+                <a-button type="primary" :loading="pointDialog.loading" @click="submitPoint">
+                    保存配置
+                </a-button>
             </template>
         </a-modal>
 
@@ -867,44 +854,82 @@
         <a-modal
             v-model:visible="registerBlockDialog.visible"
             title="批量创建寄存器区块"
-            width="560px"
+            :width="760"
+            modal-class="channel-config-modal channel-config-modal--batch"
             :ok-loading="registerBlockDialog.loading"
+            ok-text="生成点位"
             @ok="submitRegisterBlock"
             @cancel="registerBlockDialog.visible = false"
         >
-            <a-alert type="info" :closable="false" class="mb-3">
-                按地址区间生成保持寄存器点位（功能码 0x03）。合并模式下保留同 ID 现有点位配置。
-            </a-alert>
-            <a-form layout="horizontal" :label-col-props="{ span: 8 }" :wrapper-col-props="{ span: 16 }">
-                <a-form-item label="起始地址" required>
-                    <a-input-number v-model="registerBlockDialog.start" :min="0" :max="65535" />
-                </a-form-item>
-                <a-form-item label="结束地址" required>
-                    <a-input-number v-model="registerBlockDialog.end" :min="0" :max="65535" />
-                </a-form-item>
-                <a-form-item label="数据类型">
-                    <a-select v-model="registerBlockDialog.datatype" :options="[
-                        { label: 'int16', value: 'int16' },
-                        { label: 'uint16', value: 'uint16' },
-                        { label: 'int32', value: 'int32' },
-                        { label: 'float32', value: 'float32' }
-                    ]" />
-                </a-form-item>
-                <a-form-item label="读写">
-                    <a-select v-model="registerBlockDialog.readwrite" :options="[
-                        { label: '只读 (R)', value: 'R' },
-                        { label: '读写 (RW)', value: 'RW' }
-                    ]" />
-                </a-form-item>
-                <a-form-item label="模式">
-                    <a-radio-group v-model="registerBlockDialog.mode">
-                        <a-radio value="merge">合并（保留现有点）</a-radio>
-                        <a-radio value="replace">替换（仅保留新区间）</a-radio>
-                    </a-radio-group>
-                </a-form-item>
-                <a-form-item label="预计生成">
-                    <span>{{ registerBlockCount }} 个点位</span>
-                </a-form-item>
+            <p class="modal-intro modal-intro--compact">
+                按地址区间批量生成 Modbus 点位。合并模式下保留同 ID 现有点位配置。
+            </p>
+            <a-form layout="vertical" class="channel-config-form batch-modbus-form form-controls-md">
+                <div class="batch-form-fields">
+                    <div class="form-field">
+                        <div class="field-label">地址区间</div>
+                        <div class="batch-range-control">
+                            <a-input-number
+                                v-model="registerBlockDialog.start"
+                                :min="0"
+                                :max="65535"
+                                placeholder="0"
+                            />
+                            <span class="batch-range-sep">至</span>
+                            <a-input-number
+                                v-model="registerBlockDialog.end"
+                                :min="0"
+                                :max="65535"
+                                placeholder="199"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="batch-form-row">
+                        <div class="form-field">
+                            <div class="field-label">寄存器类型</div>
+                            <a-select
+                                v-model="registerBlockDialog.register_type"
+                                :options="registerBlockRegisterTypes"
+                                @change="onRegisterBlockTypeChange"
+                            />
+                        </div>
+                        <div class="form-field">
+                            <div class="field-label">数据类型</div>
+                            <a-select
+                                v-model="registerBlockDialog.datatype"
+                                :options="registerBlockDatatypeOptions"
+                                placeholder="选择数据类型"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="form-field">
+                        <div class="field-label">读写</div>
+                        <a-select
+                            v-model="registerBlockDialog.readwrite"
+                            :options="registerBlockReadWriteOptions"
+                        />
+                    </div>
+
+                    <div class="form-field">
+                        <div class="field-label">生成模式</div>
+                        <a-radio-group v-model="registerBlockDialog.mode" direction="vertical" class="register-block-mode">
+                            <a-radio value="merge">合并（保留现有点）</a-radio>
+                            <a-radio value="replace">替换（仅保留新区间）</a-radio>
+                        </a-radio-group>
+                    </div>
+
+                    <div class="batch-preview-block">
+                        <div class="field-label batch-preview-block__label">创建预览</div>
+                        <div class="batch-preview-stats batch-preview-stats--single">
+                            <div class="batch-preview-stat batch-preview-stat--accent">
+                                <span class="batch-preview-stat__value">{{ registerBlockCount }}</span>
+                                <span class="batch-preview-stat__label">点位</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </a-form>
         </a-modal>
 
@@ -1316,11 +1341,6 @@ const rowSelection = reactive({
     type: 'checkbox',
     showCheckedAll: true,
     onlyCurrent: false,
-    selectedRowKeys: computed(() => selection.selectedIds),
-    onChange: (selectedRowKeys) => {
-        selection.selectedIds = selectedRowKeys
-        selection.selectAll = selectedRowKeys.length === filteredPoints.value.length
-    }
 })
 
 // Helper functions
@@ -1373,7 +1393,7 @@ const tableColumns = computed(() => {
         {
             title: '读写权限',
             slotName: 'readwrite',
-            width: 100,
+            width: 108,
             ellipsis: true
         },
         {
@@ -2393,6 +2413,33 @@ const deleteDialog = reactive({
     batchCount: 0
 })
 
+const registerBlockRegisterTypes = [
+    { label: '保持寄存器 (0x03)', value: 'holding' },
+    { label: '输入寄存器 (0x04)', value: 'input' },
+    { label: '输出线圈 (0x01)', value: 'coil' },
+    { label: '离散输入 (0x02)', value: 'discrete' },
+]
+
+const registerBlockFunctionCodeMap = {
+    coil: 1,
+    discrete: 2,
+    input: 4,
+    holding: 3,
+}
+
+const registerBlockDatatypeOptions = [
+    { label: 'int16', value: 'int16' },
+    { label: 'uint16', value: 'uint16' },
+    { label: 'int32', value: 'int32' },
+    { label: 'float32', value: 'float32' },
+    { label: 'bool', value: 'bool' },
+]
+
+const registerBlockReadWriteOptions = [
+    { label: '只读 (R)', value: 'R' },
+    { label: '读写 (RW)', value: 'RW' },
+]
+
 const registerBlockDialog = reactive({
     visible: false,
     loading: false,
@@ -2400,6 +2447,8 @@ const registerBlockDialog = reactive({
     end: 199,
     datatype: 'int16',
     readwrite: 'R',
+    register_type: 'holding',
+    function_code: 3,
     mode: 'merge'
 })
 
@@ -2415,8 +2464,20 @@ const openRegisterBlockDialog = () => {
     registerBlockDialog.end = 199
     registerBlockDialog.datatype = 'int16'
     registerBlockDialog.readwrite = 'R'
+    registerBlockDialog.register_type = 'holding'
+    registerBlockDialog.function_code = 3
     registerBlockDialog.mode = 'merge'
     registerBlockDialog.visible = true
+}
+
+const onRegisterBlockTypeChange = (type) => {
+    registerBlockDialog.function_code = registerBlockFunctionCodeMap[type] || 3
+    if (type === 'coil' || type === 'discrete') {
+        registerBlockDialog.datatype = 'bool'
+        registerBlockDialog.readwrite = type === 'coil' ? 'RW' : 'R'
+    } else if (registerBlockDialog.datatype === 'bool') {
+        registerBlockDialog.datatype = 'int16'
+    }
 }
 
 const submitRegisterBlock = async () => {
@@ -2431,8 +2492,8 @@ const submitRegisterBlock = async () => {
                 end: Math.max(start, end),
                 datatype: registerBlockDialog.datatype,
                 readwrite: registerBlockDialog.readwrite,
-                register_type: 'holding',
-                function_code: 3,
+                register_type: registerBlockDialog.register_type,
+                function_code: registerBlockDialog.function_code,
                 mode: registerBlockDialog.mode
             }
         )
@@ -3626,447 +3687,5 @@ const normalizeWriteValue = () => {
 </script>
 
 <style scoped>
-.point-list-container {
-  /* page-shell 提供布局与背景 */
-}
-
-.point-header {
-  /* 继承全局 .page-header */
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.header-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.protocol-tag {
-  font-size: 12px;
-  color: #6c757d;
-  margin-bottom: 4px;
-}
-
-.title-text {
-  font-size: 20px;
-  font-weight: 600;
-  color: #212529;
-  margin: 0;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-}
-
-.industrial-card {
-  border: 1px solid #e5e7eb !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  transition: all 0.2s ease;
-  padding: 0 !important;
-}
-
-.industrial-card:hover {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  border-color: #cbd5e1;
-}
-
-.value-cell {
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  padding: 8px 0;
-}
-
-.value-text {
-  font-weight: 500;
-  color: #374151;
-  font-size: 14px;
-  margin-bottom: 4px;
-}
-
-.value-unit {
-  font-size: 12px;
-  color: #6b7280;
-  margin-left: 4px;
-}
-
-.value-hint {
-  font-size: 12px;
-  color: #6b7280;
-  margin-top: 4px;
-  font-family: 'Courier New', Courier, monospace;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
-  background-color: #f9fafb;
-  border: 1px dashed #e5e7eb;
-  border-radius: 0;
-  margin: 20px;
-}
-
-.empty-text {
-  margin: 16px 0;
-  color: #6b7280;
-  font-size: 14px;
-  font-weight: 400;
-}
-
-.empty-actions {
-  margin-top: 24px;
-}
-
-.actions-container {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: nowrap;
-}
-
-/* 针对自定义插槽中可能存在的复杂结构的缩略样式 */
-.value-cell, .status-display {
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 通用缩略样式 */
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 直角化：全局覆盖 Arco 组件默认圆角 */
-:deep(.arco-input),
-:deep(.arco-textarea),
-:deep(.arco-select-view),
-:deep(.arco-input-number),
-:deep(.arco-button),
-:deep(.arco-card),
-:deep(.arco-table),
-:deep(.arco-modal),
-:deep(.arco-tabs-tab),
-:deep(.arco-radio-button),
-:deep(.arco-switch) {
-  border-radius: 0 !important;
-}
-
-/* 所有 a-input 通过 .mono-input 类强制切换为等宽字体 */
-.mono-input :deep(.arco-input), 
-.mono-input :deep(.arco-input-inner),
-.mono-input :deep(.arco-select-view) {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
-  font-size: 12px;
-  background-color: #fcfcfc;
-  border-color: #e5e7eb;
-}
-
-/* 图标尺寸统一 */
-:deep(.arco-icon) {
-  font-size: 18px !important;
-}
-
-.title-spec :deep(.arco-icon) {
-  font-size: 22px !important;
-}
-
-/* 协议标签样式 */
-.protocol-tag {
-  background-color: #0ea5e9;
-  color: white;
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 10px;
-  padding: 0 4px;
-  border-radius: 0;
-  margin-right: 8px;
-  white-space: nowrap;
-}
-
-.scan-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: nowrap;
-  white-space: nowrap;
-  overflow-x: hidden;
-  min-width: 0;
-}
-
-.clone-dialog-full {
-  align-items: stretch;
-}
-
-/* White Industrial Minimalist Style Connection Status */
-.terminal-info {
-  background: var(--edgex-surface-raised);
-  border: 1px dashed #e5e7eb;
-  border-radius: 0;
-  padding: 10px 16px;
-  margin-top: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.terminal-dot {
-  width: 6px;
-  height: 6px;
-  background: #10b981;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-  flex-shrink: 0;
-}
-
-.monospace-text {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 12px;
-  color: #374151;
-  letter-spacing: 0.3px;
-  line-height: 1.4;
-}
-
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
-  }
-  70% {
-    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-  }
-}
-
-/* --- 极简线构弹窗样式 (Industrial Modal) --- */
-
-/* 1. 移除整体圆角，添加 1px 锐利边框和深色阴影 */
-.industrial-modal {
-  border-radius: 0 !important;
-  border: 1px solid #94a3b8 !important; /* Slate-400 */
-  box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.05) !important; /* 工业风硬阴影 */
-}
-
-/* 2. 头部底边框线 */
-.industrial-modal .arco-modal-header {
-  border-bottom: 1px solid #e2e8f0; /* Slate-200 */
-  padding: 16px 20px;
-}
-
-/* 3. 关闭按钮重置：去掉默认的圆形灰色背景，改为直角悬浮 */
-.industrial-modal .arco-modal-close-btn {
-  border-radius: 0;
-  transition: all 0.2s;
-}
-.industrial-modal .arco-modal-close-btn:hover {
-  background-color: #fee2e2; /* Red-100 */
-  color: #dc2626; /* Red-600 */
-}
-
-/* 4. 底部顶边框线（如果在 template 中手写了，这里可隐藏默认的） */
-.industrial-modal .arco-modal-footer {
-  border-top: none;
-  padding: 12px 20px 20px;
-}
-
-/* --- 表单控件硬核化 --- */
-
-/* 输入框、按钮、单选按钮组一律去掉圆角 */
-.industrial-form .arco-input-wrapper,
-.industrial-form .arco-select-view-single,
-.industrial-form .arco-radio-button {
-  border-radius: 0 !important;
-  border-color: #cbd5e1; /* Slate-300 */
-}
-
-.industrial-form .arco-input-wrapper:focus-within,
-.industrial-form .arco-select-view-single.arco-select-view-focus {
-  border-color: #0f172a !important; /* Slate-900 聚焦时的高对比度边缘 */
-  box-shadow: none !important;
-}
-
-/* 表单布局规范 */
-.industrial-form .arco-form-item {
-  margin-bottom: 16px; /* 表单项间距 */
-}
-
-.industrial-form .arco-form-item-label {
-  white-space: nowrap; /* 标签文字不换行 */
-  text-overflow: ellipsis; /* 长标签使用省略号 */
-  margin-right: 12px; /* 标签与输入框间距 */
-}
-
-/* 按钮直角化 */
-.industrial-btn-plain,
-.industrial-btn-primary {
-  border-radius: 0 !important;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  margin-left: 8px !important;
-}
-
-.industrial-btn-plain:first-child {
-  margin-left: 0 !important;
-}
-
-.industrial-btn-primary {
-  background-color: #0f172a !important; /* Slate-900 */
-  border: 1px solid #0f172a !important;
-}
-.industrial-btn-primary:hover {
-  background-color: #334155 !important; /* Slate-700 */
-}
-
-/* 外层容器：去掉边框，确保宽度 100% */
-.point-list-container.no-padding {
-  padding: 0;
-  border: none;
-  background-color: transparent;
-}
-
-/* 核心：表格 100% 融合样式 */
-.industrial-table-fluid {
-  border-radius: 0 !important; /* 彻底去掉圆角 */
-}
-
-/* 1. 移除 Arco 默认的最外层包裹边框（如果外层 div 已经有边框）
-   或者：保留这个边框，但确保它紧贴浏览器边缘 */
-:deep(.arco-table-container) {
-  border-radius: 0 !important;
-  border: 1px solid #e5e7eb; /* Slate-200: 统一的线构颜色 */
-  /* 如果不需要最外圈线，可以设为 border: none; */
-}
-
-/* 2. 移除表格头部的额外背景和圆角，使其看起来像一个平面的切片 */
-:deep(.arco-table-th) {
-  background-color: var(--edgex-surface-inset); /* 浅灰色背景 */
-  border-bottom: 1px solid #e5e7eb;
-  border-radius: 0 !important;
-  padding: 12px; /* 规范要求的单元格内边距 */
-  font-size: 12px;
-  font-weight: 600; /* 表头文字加粗 */
-  white-space: nowrap; /* 表头文字不得缩略 */
-}
-
-/* 3. 单元格 (td) 样式：强制单行缩略 + 1px 细线 */
-:deep(.arco-table-td) {
-  border-bottom: 1px solid #f1f5f9;
-  border-right: 1px solid #f1f5f9;
-  white-space: nowrap; /* 强制不换行 */
-  height: 36px; /* 规范要求的行高 */
-  padding: 12px; /* 规范要求的单元格内边距 */
-  font-size: 12px;
-}
-
-/* 4. 消除表格最后一列的右边框，防止出现多余的线条 */
-:deep(.arco-table-tr .arco-table-td:last-child),
-:deep(.arco-table-tr .arco-table-th:last-child) {
-  border-right: none;
-}
-
-/* 表格工具栏样式 */
-.table-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: var(--edgex-surface-raised);
-  border: none;
-  border-bottom: 1px solid var(--edgex-border);
-}
-
-.left-title {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--edgex-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.rect-btn {
-  border-radius: 6px !important;
-  font-weight: 500;
-  height: 32px;
-}
-
-.rect-btn.arco-btn-primary {
-  background-color: var(--edgex-primary) !important;
-  border: 1px solid var(--edgex-primary) !important;
-}
-
-/* 次要按钮样式 */
-.rect-btn.arco-btn-outline {
-  height: 28px; /* 次要按钮高度 */
-}
-
-/* 图标按钮样式 */
-.rect-btn.arco-btn-icon {
-  width: 28px; /* 图标按钮宽度 */
-  height: 28px; /* 图标按钮高度 */
-  padding: 0;
-}
-
-/* 工业风执行按钮 */
-.industrial-btn-execute {
-  border-radius: 0 !important; /* 彻底直角 */
-  background-color: #f59e0b !important; /* 工业警示橙色，代表“写操作”有风险 */
-  border: 1px solid #d97706 !important;
-  text-transform: uppercase;
-  font-weight: bold;
-  height: 32px; /* 主要按钮高度 */
-}
-
-/* --- 工业风全局提示 (Industrial Message) --- */
-
-/* 1. 将圆角提示框改为直角 */
-:deep(.arco-message) {
-  border-radius: 0 !important;
-  box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.1) !important; /* 硬阴影 */
-  border: 1px solid #1e293b; /* 深色边框 */
-  background-color: var(--edgex-surface-raised);
-}
-
-/* 2. 强化图标对比度 */
-:deep(.arco-message-icon-success) {
-  color: #059669 !important; /* Emerald-600 */
-}
-:deep(.arco-message-icon-error) {
-  color: #dc2626 !important; /* Red-600 */
-}
-
-/* 3. 字体统一 */
-:deep(.arco-message-content) {
-  font-family: 'Inter', 'JetBrains Mono', 'PingFang SC', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--edgex-text-primary);
-}
-
-/* 帮助按钮样式 */
-.help-trigger-btn {
-  color: #64748b;
-  border-radius: 0;
-  height: 28px; /* 次要按钮高度 */
-}
-
-.help-trigger-btn:hover {
-  background-color: #f1f5f9;
-  color: var(--edgex-text-primary);
-}
+/* v3.0 — styles in src/styles/ */
 </style>

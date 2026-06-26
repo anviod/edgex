@@ -1,98 +1,98 @@
 <template>
-  <a-modal v-model:visible="visible" :title="title" :width="900" :footer="false" unmount-on-close>
+  <a-modal v-model:visible="visible" :title="title" :width="900" :footer="false" modal-class="northbound-stats-modal" unmount-on-close>
     <template v-if="isClientPushMode">
-      <a-row :gutter="16" style="margin-bottom: 16px">
+      <a-row :gutter="16" class="nb-stats-grid">
         <a-col :span="6">
-          <a-card :bordered="true" style="text-align: center">
-            <div style="color: #6b7280; font-size: 12px">发送成功</div>
-            <div style="font-size: 24px; font-weight: 600; color: #00b42a; margin-top: 4px">{{ stats.success_count || 0 }}</div>
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">发送成功</div>
+            <div class="nb-stat-card__value nb-stat-card__value--success">{{ stats.success_count || 0 }}</div>
           </a-card>
         </a-col>
         <a-col :span="6">
-          <a-card :bordered="true" style="text-align: center">
-            <div style="color: #6b7280; font-size: 12px">发送失败</div>
-            <div style="font-size: 24px; font-weight: 600; color: #f53f3f; margin-top: 4px">{{ stats.fail_count || 0 }}</div>
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">发送失败</div>
+            <div class="nb-stat-card__value nb-stat-card__value--danger">{{ stats.fail_count || 0 }}</div>
           </a-card>
         </a-col>
         <a-col :span="6">
-          <a-card :bordered="true" style="text-align: center">
-            <div style="color: #6b7280; font-size: 12px">重连次数</div>
-            <div style="font-size: 24px; font-weight: 600; color: #ff7d00; margin-top: 4px">{{ stats.reconnect_count || 0 }}</div>
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">重连次数</div>
+            <div class="nb-stat-card__value nb-stat-card__value--warning">{{ stats.reconnect_count || 0 }}</div>
           </a-card>
         </a-col>
         <a-col :span="6">
-          <a-card :bordered="true" style="text-align: center">
-            <div style="color: #6b7280; font-size: 12px">断线时长</div>
-            <div style="font-size: 24px; font-weight: 600; color: #4e5969; margin-top: 4px">{{ disconnectDuration }}</div>
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">断线时长</div>
+            <div class="nb-stat-card__value">{{ disconnectDuration }}</div>
           </a-card>
         </a-col>
       </a-row>
-      <a-row :gutter="16" style="margin-bottom: 16px">
+      <a-row :gutter="16" class="nb-stats-grid">
         <a-col :span="12">
-          <a-card :bordered="true" style="text-align: center">
-            <div style="color: #6b7280; font-size: 12px">运行时长</div>
-            <div style="font-size: 24px; font-weight: 600; color: #4e5969; margin-top: 4px">{{ formatUptime(stats.uptime || 0) }}</div>
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">运行时长</div>
+            <div class="nb-stat-card__value">{{ formatUptime(stats.uptime || 0) }}</div>
           </a-card>
         </a-col>
         <a-col :span="12">
-          <a-card :bordered="true" style="text-align: center">
-            <div style="color: #6b7280; font-size: 12px">推送成功率</div>
-            <div style="font-size: 24px; font-weight: 600; color: #00b42a; margin-top: 4px">{{ successRate }}%</div>
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">推送成功率</div>
+            <div class="nb-stat-card__value nb-stat-card__value--success">{{ successRate }}%</div>
           </a-card>
         </a-col>
       </a-row>
     </template>
 
     <template v-else-if="isOpcuaServerMode">
-      <a-row :gutter="16" style="margin-bottom: 16px">
+      <a-row :gutter="16" class="nb-stats-grid">
         <a-col :span="6">
-          <a-card :bordered="true" style="text-align: center">
-            <div style="color: #6b7280; font-size: 12px">当前连接客户端</div>
-            <div style="font-size: 24px; font-weight: 600; color: #165dff; margin-top: 4px">{{ stats.client_count || 0 }}</div>
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">当前连接客户端</div>
+            <div class="nb-stat-card__value nb-stat-card__value--primary">{{ stats.client_count || 0 }}</div>
           </a-card>
         </a-col>
         <a-col :span="6">
-          <a-card :bordered="true" style="text-align: center">
-            <div style="color: #6b7280; font-size: 12px">当前订阅数量</div>
-            <div style="font-size: 24px; font-weight: 600; color: #0ea5e9; margin-top: 4px">{{ stats.subscription_count || 0 }}</div>
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">当前订阅数量</div>
+            <div class="nb-stat-card__value nb-stat-card__value--info">{{ stats.subscription_count || 0 }}</div>
           </a-card>
         </a-col>
         <a-col :span="6">
-          <a-card :bordered="true" style="text-align: center">
-            <div style="color: #6b7280; font-size: 12px">最近读操作</div>
-            <div style="font-size: 24px; font-weight: 600; color: #00b42a; margin-top: 4px">{{ stats.read_count || 0 }}</div>
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">最近读操作</div>
+            <div class="nb-stat-card__value nb-stat-card__value--success">{{ stats.read_count || 0 }}</div>
           </a-card>
         </a-col>
         <a-col :span="6">
-          <a-card :bordered="true" style="text-align: center">
-            <div style="color: #6b7280; font-size: 12px">最近写操作</div>
-            <div style="font-size: 24px; font-weight: 600; color: #165dff; margin-top: 4px">{{ stats.write_count || 0 }}</div>
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">最近写操作</div>
+            <div class="nb-stat-card__value nb-stat-card__value--primary">{{ stats.write_count || 0 }}</div>
           </a-card>
         </a-col>
       </a-row>
-      <a-row :gutter="16" style="margin-bottom: 16px">
+      <a-row :gutter="16" class="nb-stats-grid">
         <a-col :span="12">
-          <a-card :bordered="true" style="text-align: center">
-            <div style="color: #6b7280; font-size: 12px">运行时长</div>
-            <div style="font-size: 24px; font-weight: 600; color: #4e5969; margin-top: 4px">{{ formatUptime(stats.uptime || 0) }}</div>
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">运行时长</div>
+            <div class="nb-stat-card__value">{{ formatUptime(stats.uptime || 0) }}</div>
           </a-card>
         </a-col>
         <a-col :span="12">
-          <a-card :bordered="true" style="text-align: center">
-            <div style="color: #6b7280; font-size: 12px">数据吞吐量</div>
-            <div style="font-size: 24px; font-weight: 600; color: #0ea5e9; margin-top: 4px">{{ formatThroughput(stats.throughput || 0) }}</div>
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">数据吞吐量</div>
+            <div class="nb-stat-card__value nb-stat-card__value--info">{{ formatThroughput(stats.throughput || 0) }}</div>
           </a-card>
         </a-col>
       </a-row>
     </template>
 
-    <a-divider style="margin: 12px 0" />
+    <a-divider :margin="12" />
 
-    <div style="display: flex; align-items: center; margin-bottom: 8px">
-      <span style="font-size: 13px; font-weight: 600">实时日志 ({{ logTitle }})</span>
-      <div style="flex: 1" />
-      <a-switch v-model="isStreaming" size="small" style="margin-right: 8px" />
-      <span style="font-size: 12px; color: #6b7280; margin-right: 16px">实时滚动</span>
+    <div class="nb-stats-toolbar">
+      <span class="nb-stats-toolbar__title">实时日志 ({{ logTitle }})</span>
+      <div class="nb-stats-toolbar__spacer" />
+      <a-switch v-model="isStreaming" size="small" />
+      <span class="nb-stats-toolbar__hint">实时滚动</span>
       <a-button type="outline" size="small" @click="downloadLogs">
         <template #icon><icon-download :size="12" /></template>
         下载日志
@@ -100,18 +100,18 @@
     </div>
 
     <div class="log-viewer">
-      <div v-if="paginatedLogs.length === 0" style="text-align: center; color: #6b7280; padding: 48px 0">暂无日志...</div>
+      <div v-if="paginatedLogs.length === 0" class="log-empty">暂无日志...</div>
       <div v-for="(log, idx) in paginatedLogs" :key="idx" class="log-line">
-        <span style="color: #6b7280; margin-right: 8px">[{{ formatTime(log.ts) }}]</span>
+        <span class="log-line__time">[{{ formatTime(log.ts) }}]</span>
         <span :style="{ color: getLevelColor(log.level), fontWeight: 'bold', marginRight: '8px' }">{{ (log.level || 'INFO').toUpperCase() }}</span>
-        <span style="color: var(--edgex-text-primary)">{{ log.msg }}</span>
-        <span v-for="(val, key) in getExtraFields(log)" :key="key" style="color: #6b7280; margin-left: 8px; font-size: 12px">
+        <span>{{ log.msg }}</span>
+        <span v-for="(val, key) in getExtraFields(log)" :key="key" class="log-line__time" style="margin-left: 8px">
           {{ key }}={{ val }}
         </span>
       </div>
     </div>
 
-    <div style="display: flex; justify-content: center; padding: 8px 0">
+    <div class="nb-stats-pagination">
       <a-pagination v-model:current="page" :page-size="20" :total="logs.length" size="small" show-page-size />
     </div>
   </a-modal>
@@ -120,7 +120,6 @@
 <script setup>
 import { ref, watch, computed, onUnmounted } from 'vue'
 import { IconDownload } from '@arco-design/web-vue/es/icon'
-import { showMessage } from '@/composables/useGlobalState'
 import request from '@/utils/request'
 
 const props = defineProps({
@@ -226,11 +225,10 @@ const refreshStats = async () => {
   if (!props.itemId) return
   try {
     let apiType = props.type
-    // 转换类型名称以匹配后端 API 路径
     if (apiType === 'edgeos-mqtt') apiType = 'edgeos-mqtt'
     if (apiType === 'edgeos-nats') apiType = 'edgeos-nats'
     if (apiType === 'sparkplug_b') apiType = 'sparkplugb'
-    
+
     const data = await request.get(`/api/northbound/${apiType}/${props.itemId}/stats`, { silent: true })
     stats.value = data
   } catch (e) {}
@@ -254,7 +252,7 @@ const connectWs = () => {
     try {
       const log = JSON.parse(event.data)
       let targetComponents = []
-      
+
       if (isClientPushMode.value) {
         targetComponents = ['mqtt-client', 'http-client', 'sparkplugb-client', 'edgos-mqtt-client', 'edgos-nats-client']
       } else if (isOpcuaServerMode.value) {
@@ -311,25 +309,3 @@ const downloadLogs = () => {
   URL.revokeObjectURL(link.href)
 }
 </script>
-
-<style scoped>
-.log-viewer {
-  height: 300px;
-  overflow-y: auto;
-  font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
-  font-size: 12px;
-  line-height: 1.4;
-  background: var(--edgex-surface-inset);
-  border: 1px solid #e5e7eb;
-  border-radius: 0;
-  padding: 8px;
-}
-
-.log-line {
-  white-space: pre-wrap;
-  word-break: break-all;
-  padding: 2px 0;
-  border-bottom: 1px solid #f5f5f5;
-}
-</style>
-

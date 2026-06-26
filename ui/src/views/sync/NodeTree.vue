@@ -1,39 +1,17 @@
 <template>
   <div class="node-tree-container">
-    <!-- 顶部导航栏 -->
-    <header class="tree-header">
-      <div class="header-left">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M8 15s1.5-2 4-2 4 2 4 2"/>
-          <circle cx="12" cy="9" r="3"/>
-        </svg>
-        <h2 class="header-title">配置树</h2>
+    <div class="sync-tab-toolbar">
+      <span class="sync-tab-toolbar__hint">浏览各节点配置树，支持单项同步</span>
+      <div class="sync-tab-toolbar__actions">
+        <a-button type="outline" size="small" @click="refreshTree">刷新</a-button>
+        <a-button type="primary" size="small" @click="syncAll">同步全部</a-button>
       </div>
-      <div class="header-actions">
-        <button class="action-btn" @click="refreshTree">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4 23 10 17 10"/>
-            <polyline points="1 20 1 14 7 14"/>
-            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-          </svg>
-          刷新
-        </button>
-        <button class="action-btn primary" @click="syncAll">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0 3-4.03 3-9s-1.343-9 3-9m-9 9a9 9 0 019-9"/>
-          </svg>
-          同步全部
-        </button>
-      </div>
-    </header>
+    </div>
 
-    <!-- 主体布局 -->
     <div class="tree-layout">
       <!-- 左侧：节点选择 + 配置树 -->
-      <aside class="sidebar">
-        <!-- 节点选择 -->
-        <div class="node-selector">
+      <aside class="sidebar sync-tree-sidebar">
+        <div class="sync-tree-card node-selector">
           <div class="selector-header">
             <span>已发现节点</span>
             <span class="node-count">{{ nodes.length }}</span>
@@ -59,8 +37,7 @@
           </div>
         </div>
 
-        <!-- 配置树 -->
-        <div class="config-tree">
+        <div class="sync-tree-card config-tree">
           <div class="tree-header-text">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
@@ -240,8 +217,7 @@
         </div>
       </aside>
 
-      <!-- 右侧：详情面板 -->
-      <main class="detail-panel">
+      <main class="detail-panel sync-tree-detail">
         <div v-if="selectedItem" class="detail-content">
           <!-- 详情头部 -->
           <div class="detail-header">
@@ -255,57 +231,26 @@
               </div>
             </div>
             <div class="header-right">
-              <button 
-                class="view-toggle"
-                :class="{ active: viewMode === 'raw' }"
+              <a-button
+                type="outline"
+                size="small"
+                :class="{ 'is-active': viewMode === 'raw' }"
                 @click="viewMode = viewMode === 'structured' ? 'raw' : 'structured'"
               >
                 {{ viewMode === 'structured' ? '原始视图' : '结构视图' }}
-              </button>
+              </a-button>
             </div>
           </div>
 
-          <!-- 操作工具栏 -->
           <div class="detail-toolbar">
-            <button class="toolbar-btn" @click="viewItem">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M15 21h5v-2a3 3 0 00-5.356-1.857M15 21H9m12-6h-2.01M12 21h-2.01M9 21H3v-2a3 3 0 015.356-1.857M9 21v-6a3 3 0 016-0v6m-9 0V9a3 3 0 016-0v12"/>
-              </svg>
-              查看
-            </button>
-            <button class="toolbar-btn" @click="compareItem">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 18h6"/>
-                <path d="M3 6h18"/>
-                <path d="M18 6v12c0 1.66-1.34 3-3 3H3c-1.66 0-3-1.34-3-3V6"/>
-              </svg>
-              对比差异
-            </button>
-            <button 
-              class="toolbar-btn"
-              :class="{ disabled: !selectedItem.hasDiff }"
-              @click="syncItem"
-            >
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
-              </svg>
-              同步
-            </button>
-            <button 
-              class="toolbar-btn"
-              :class="{ locked: selectedItem.locked }"
-              @click="toggleLock"
-            >
-              <svg v-if="!selectedItem.locked" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0110 0v4"/>
-              </svg>
-              <svg v-else viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 00-5 5v4a5 5 0 005 5v-2m5-10V5a3 3 0 016 0v2"/>
-              </svg>
-              {{ selectedItem.locked ? '解锁' : '锁定' }}
-            </button>
+            <a-space wrap :size="8">
+              <a-button type="outline" size="small" @click="viewItem">查看</a-button>
+              <a-button type="outline" size="small" @click="compareItem">对比差异</a-button>
+              <a-button type="primary" size="small" :disabled="!selectedItem.hasDiff" @click="syncItem">同步</a-button>
+              <a-button type="outline" size="small" @click="toggleLock">
+                {{ selectedItem.locked ? '解锁' : '锁定' }}
+              </a-button>
+            </a-space>
           </div>
 
           <!-- 详情内容 -->
@@ -327,15 +272,9 @@
             </div>
           </div>
 
-          <!-- 同步状态提示 -->
           <div v-if="selectedItem.hasDiff" class="diff-notification">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12" y2="16"/>
-            </svg>
-            <span>此配置与本地存在差异</span>
-            <button class="sync-btn" @click="syncItem">立即同步</button>
+            <span class="diff-notification__text">此配置与本地存在差异</span>
+            <a-button type="primary" size="small" @click="syncItem">立即同步</a-button>
           </div>
         </div>
         <div v-else-if="selectedNode" class="node-overview">
@@ -367,8 +306,9 @@
               </div>
             </div>
             <div class="node-status-card" :class="selectedNode.status">
-              <span class="status-icon">{{ statusIcon(selectedNode.status) }}</span>
-              <span class="status-text">{{ statusText(selectedNode.status) }}</span>
+              <a-tag :color="selectedNode.status === 'online' ? 'green' : selectedNode.status === 'degraded' ? 'orangered' : 'red'" size="small">
+                {{ statusText(selectedNode.status) }}
+              </a-tag>
             </div>
           </div>
           <div class="overview-stats">
@@ -390,20 +330,10 @@
             </div>
           </div>
           <div class="overview-actions">
-            <button class="action-btn primary" @click="syncAll">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
-              </svg>
-              同步全部配置
-            </button>
-            <button class="action-btn" @click="viewDiff">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 18h6"/>
-                <path d="M3 6h18"/>
-                <path d="M18 6v12c0 1.66-1.34 3-3 3H3c-1.66 0-3-1.34-3-3V6"/>
-              </svg>
-              查看差异
-            </button>
+            <a-space :size="12">
+              <a-button type="primary" @click="syncAll">同步全部配置</a-button>
+              <a-button type="outline" @click="viewDiff">查看差异</a-button>
+            </a-space>
           </div>
         </div>
         <div v-else class="empty-detail">
@@ -532,11 +462,6 @@ const breadcrumbs = computed(() => {
 function statusText(status) {
   const map = { online: '在线', offline: '离线', degraded: '延迟高', normal: '正常', warning: '警告' }
   return map[status] || status
-}
-
-function statusIcon(status) {
-  const map = { online: '🟢', offline: '🔴', degraded: '🟡' }
-  return map[status] || '⚪'
 }
 
 function truncateId(id) {
@@ -767,710 +692,5 @@ function toggleLock() {
 </script>
 
 <style scoped>
-.node-tree-container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background: #f5f5f5;
-}
-
-/* 顶部导航 */
-.tree-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 20px;
-  background: var(--edgex-surface-raised);
-  border-bottom: 1px solid #e8e8e8;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #1f1f1f;
-}
-
-.header-title {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  background: var(--edgex-surface-raised);
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.action-btn:hover {
-  background: #f5f5f5;
-}
-
-.action-btn.primary {
-  background: #1890ff;
-  border-color: #1890ff;
-  color: white;
-}
-
-.action-btn.primary:hover {
-  background: #40a9ff;
-}
-
-/* 主体布局 */
-.tree-layout {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-}
-
-/* 左侧边栏 */
-.sidebar {
-  width: 380px;
-  display: flex;
-  flex-direction: column;
-  background: var(--edgex-surface-raised);
-  border-right: 1px solid #e8e8e8;
-}
-
-/* 节点选择器 */
-.node-selector {
-  padding: 12px;
-  border-bottom: 1px solid #e8e8e8;
-}
-
-.selector-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #595959;
-}
-
-.node-count {
-  background: #f0f0f0;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 12px;
-}
-
-.node-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.node-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.node-item:hover {
-  background: #f5f5f5;
-}
-
-.node-item.active {
-  background: #e6f7ff;
-}
-
-.node-item.is-local.active {
-  border: 1px solid #1890ff;
-}
-
-.node-status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.node-status-dot.online {
-  background: #52c41a;
-  box-shadow: 0 0 6px #52c41a;
-}
-
-.node-status-dot.offline {
-  background: #d9d9d9;
-}
-
-.node-status-dot.degraded {
-  background: #faad14;
-  box-shadow: 0 0 6px #faad14;
-}
-
-.node-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.node-name {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: #1f1f1f;
-}
-
-.node-address {
-  display: block;
-  font-size: 12px;
-  color: #8c8c8c;
-}
-
-.local-tag {
-  font-size: 11px;
-  color: #1890ff;
-  background: #e6f7ff;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* 配置树 */
-.config-tree {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.tree-header-text {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #595959;
-  border-bottom: 1px solid #e8e8e8;
-}
-
-.tree-scroll {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.tree-content {
-  padding: 8px;
-}
-
-.empty-tree {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  color: #bfbfbf;
-}
-
-.empty-tree svg {
-  margin-bottom: 12px;
-}
-
-.empty-tree p {
-  margin: 0;
-  font-size: 14px;
-}
-
-/* 树节点 */
-.tree-node {
-  margin-bottom: 2px;
-}
-
-.tree-node-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.tree-node-header:hover {
-  background: #f5f5f5;
-}
-
-.tree-node.item {
-  padding: 4px 0;
-}
-
-.tree-node-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.tree-node-row:hover {
-  background: #f5f5f5;
-}
-
-.tree-node.item.selected {
-  background: #e6f7ff;
-}
-
-.tree-node.item.selected .item-name {
-  color: #1890ff;
-}
-
-.tree-node.item.has-diff .item-name {
-  font-weight: 500;
-}
-
-.tree-node.item.warning {
-  background: #fff7e6;
-}
-
-.tree-children {
-  margin-left: 16px;
-}
-
-.spacer {
-  width: 12px;
-}
-
-.item-name {
-  flex: 1;
-  font-size: 13px;
-  color: #333;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.point-address {
-  font-size: 11px;
-  color: #8c8c8c;
-  font-family: 'Monaco', 'Menlo', monospace;
-  margin-right: auto;
-}
-
-.count-badge {
-  font-size: 11px;
-  color: #8c8c8c;
-  background: #f5f5f5;
-  padding: 1px 6px;
-  border-radius: 10px;
-}
-
-.node-status-badge {
-  font-size: 11px;
-  padding: 1px 6px;
-  border-radius: 10px;
-}
-
-.node-status-badge.online {
-  background: #f6ffed;
-  color: #52c41a;
-}
-
-.node-status-badge.offline {
-  background: #f5f5f5;
-  color: #8c8c8c;
-}
-
-.node-status-badge.degraded {
-  background: #fff7e6;
-  color: #fa8c16;
-}
-
-.status-badge {
-  font-size: 10px;
-  padding: 1px 4px;
-  border-radius: 4px;
-  background: #f6ffed;
-  color: #52c41a;
-}
-
-.status-badge.offline {
-  background: #f5f5f5;
-  color: #8c8c8c;
-}
-
-.status-badge.degraded {
-  background: #fff7e6;
-  color: #fa8c16;
-}
-
-.diff-badge {
-  font-size: 10px;
-  color: #f5222d;
-  background: #fff1f0;
-  padding: 1px 4px;
-  border-radius: 4px;
-}
-
-.warning-badge {
-  font-size: 12px;
-}
-
-.rotated {
-  transform: rotate(90deg);
-}
-
-/* 右侧详情面板 */
-.detail-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: var(--edgex-surface-raised);
-  overflow: hidden;
-}
-
-.detail-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e8e8e8;
-}
-
-.header-left h3 {
-  margin: 0 0 8px 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.breadcrumbs {
-  font-size: 12px;
-  color: #8c8c8c;
-}
-
-.breadcrumbs span.active {
-  color: #1890ff;
-}
-
-.view-toggle {
-  padding: 6px 12px;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  background: var(--edgex-surface-raised);
-}
-
-.view-toggle.active {
-  background: #1890ff;
-  color: white;
-  border-color: #1890ff;
-}
-
-.detail-toolbar {
-  display: flex;
-  gap: 8px;
-  padding: 12px 20px;
-  border-bottom: 1px solid #e8e8e8;
-}
-
-.toolbar-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  background: var(--edgex-surface-raised);
-  transition: all 0.2s;
-}
-
-.toolbar-btn:hover:not(.disabled) {
-  background: #f5f5f5;
-}
-
-.toolbar-btn.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.toolbar-btn.locked {
-  background: #fff1f0;
-  border-color: #ffccc7;
-  color: #f5222d;
-}
-
-.detail-body {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-}
-
-/* 结构视图 */
-.structured-view {
-  height: 100%;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.form-item {
-  background: var(--edgex-surface-subtle);
-  padding: 12px 16px;
-  border-radius: 8px;
-}
-
-.form-item label {
-  display: block;
-  font-size: 12px;
-  color: #8c8c8c;
-  margin-bottom: 4px;
-}
-
-.form-item .value {
-  font-size: 14px;
-  font-weight: 500;
-  color: #1f1f1f;
-}
-
-/* 原始视图 */
-.raw-view {
-  height: 100%;
-}
-
-.yaml-content {
-  background: #1f1f1f;
-  color: #e0e0e0;
-  padding: 16px;
-  border-radius: 8px;
-  font-family: 'Monaco', 'Menlo', monospace;
-  font-size: 13px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  margin: 0;
-  max-height: 100%;
-  overflow-y: auto;
-}
-
-/* 节点概览 */
-.node-overview {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 24px;
-}
-
-.overview-header {
-  display: flex;
-  gap: 20px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid #e8e8e8;
-}
-
-.node-icon {
-  color: #1890ff;
-}
-
-.node-info {
-  flex: 1;
-}
-
-.node-info h2 {
-  margin: 0 0 16px 0;
-  font-size: 20px;
-}
-
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-}
-
-.info-row .label {
-  color: #8c8c8c;
-  font-size: 14px;
-}
-
-.info-row .value {
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.info-row .value.mono {
-  font-family: 'Monaco', 'Menlo', monospace;
-}
-
-.info-row .value.high {
-  color: #fa8c16;
-}
-
-.node-status-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 16px 24px;
-  border-radius: 12px;
-  min-width: 100px;
-}
-
-.node-status-card.online {
-  background: #f6ffed;
-}
-
-.node-status-card.offline {
-  background: #f5f5f5;
-}
-
-.node-status-card.degraded {
-  background: #fff7e6;
-}
-
-.status-icon {
-  font-size: 24px;
-  margin-bottom: 8px;
-}
-
-.status-text {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.node-status-card.online .status-text {
-  color: #52c41a;
-}
-
-.node-status-card.offline .status-text {
-  color: #8c8c8c;
-}
-
-.node-status-card.degraded .status-text {
-  color: #fa8c16;
-}
-
-.overview-stats {
-  display: flex;
-  gap: 16px;
-  padding: 24px 0;
-}
-
-.stat-item {
-  flex: 1;
-  background: var(--edgex-surface-subtle);
-  padding: 16px;
-  border-radius: 8px;
-  text-align: center;
-}
-
-.stat-item.diff {
-  background: #fff7e6;
-}
-
-.stat-value {
-  display: block;
-  font-size: 28px;
-  font-weight: 600;
-  color: #1f1f1f;
-}
-
-.stat-item.diff .stat-value {
-  color: #fa8c16;
-}
-
-.stat-label {
-  font-size: 13px;
-  color: #8c8c8c;
-}
-
-.overview-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: auto;
-}
-
-.overview-actions .action-btn {
-  flex: 1;
-  justify-content: center;
-  padding: 12px;
-  font-size: 14px;
-  border-radius: 8px;
-}
-
-.overview-actions .action-btn.primary {
-  background: #1890ff;
-  color: white;
-  border: none;
-}
-
-/* 空详情 */
-.empty-detail {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #bfbfbf;
-}
-
-.empty-detail svg {
-  margin-bottom: 16px;
-}
-
-.empty-detail p {
-  margin: 0;
-}
-
-/* 差异通知 */
-.diff-notification {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 20px;
-  background: #fff7e6;
-  border-top: 1px solid #ffe58f;
-}
-
-.diff-notification svg {
-  color: #fa8c16;
-}
-
-.diff-notification span {
-  flex: 1;
-  color: #d46b08;
-  font-size: 13px;
-}
-
-.sync-btn {
-  background: #fa8c16;
-  color: white;
-  border: none;
-  padding: 6px 16px;
-  border-radius: 4px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.sync-btn:hover {
-  background: #d46b08;
-}
+/* v3.0 — styles in src/styles/ */
 </style>
