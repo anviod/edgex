@@ -83,7 +83,7 @@ const props = defineProps({
       name: 'edgex',
       enable_mdns: true,
       enable_bare: true,
-      http_port: 8082,
+      http_port: 8080,
       https_port: 443,
       interfaces: []
     })

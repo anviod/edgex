@@ -1,8 +1,6 @@
 package core
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -11,16 +9,15 @@ import (
 )
 
 func TestShadowIngress_Ingest(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "ingest_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	si := NewShadowIngress(sc, 10, 100*time.Millisecond)
 
 	val := model.Value{
@@ -48,16 +45,15 @@ func TestShadowIngress_Ingest(t *testing.T) {
 }
 
 func TestShadowIngress_IngestBatch(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "ingest_batch_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	si := NewShadowIngress(sc, 10, 100*time.Millisecond)
 
 	values := []model.Value{
@@ -95,16 +91,15 @@ func TestShadowIngress_IngestBatch(t *testing.T) {
 }
 
 func TestShadowIngress_AutoFlush(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "ingest_autoflush_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	si := NewShadowIngress(sc, 3, 1*time.Second)
 	si.Start()
 	defer si.Stop()
@@ -134,16 +129,15 @@ func TestShadowIngress_AutoFlush(t *testing.T) {
 }
 
 func TestShadowIngress_DirectIngest(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "ingest_direct_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	si := NewShadowIngress(sc, 10, 100*time.Millisecond)
 
 	msg := model.ShadowIngressMessage{
@@ -174,16 +168,15 @@ func TestShadowIngress_DirectIngest(t *testing.T) {
 }
 
 func TestShadowIngress_GetBufferSize(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "ingest_buffer_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	si := NewShadowIngress(sc, 100, 10*time.Second)
 
 	for i := 0; i < 10; i++ {
@@ -205,16 +198,15 @@ func TestShadowIngress_GetBufferSize(t *testing.T) {
 }
 
 func TestShadowIngress_StartStop(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "ingest_startstop_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	si := NewShadowIngress(sc, 10, 50*time.Millisecond)
 
 	si.Start()
@@ -246,16 +238,15 @@ func TestShadowIngress_StartStop(t *testing.T) {
 }
 
 func TestShadowIngress_Metrics(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "ingest_metrics_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	si := NewShadowIngress(sc, 10, 100*time.Millisecond)
 
 	for i := 0; i < 100; i++ {

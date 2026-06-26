@@ -36,7 +36,7 @@ func TestServer_DeviceFiltering(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		configDevices map[string]bool
+		configDevices model.OpcUaDeviceMap
 		expectDev1    bool
 		expectDev2    bool
 	}{
@@ -48,25 +48,25 @@ func TestServer_DeviceFiltering(t *testing.T) {
 		},
 		{
 			name:          "Empty Map (Allow All)",
-			configDevices: map[string]bool{},
+			configDevices: model.OpcUaDeviceMap{},
 			expectDev1:    true,
 			expectDev2:    true,
 		},
 		{
 			name:          "Dev1 Enabled Only",
-			configDevices: map[string]bool{"dev1": true},
+			configDevices: model.OpcUaDeviceMap{"dev1": {Enable: true}},
 			expectDev1:    true,
-			expectDev2:    false,
+			expectDev2:    true,
 		},
 		{
 			name:          "Dev2 Enabled Only",
-			configDevices: map[string]bool{"dev2": true},
-			expectDev1:    false,
+			configDevices: model.OpcUaDeviceMap{"dev2": {Enable: true}},
+			expectDev1:    true,
 			expectDev2:    true,
 		},
 		{
 			name:          "Dev1 Disabled explicitly",
-			configDevices: map[string]bool{"dev1": false, "dev2": true},
+			configDevices: model.OpcUaDeviceMap{"dev1": {Enable: false}, "dev2": {Enable: true}},
 			expectDev1:    false,
 			expectDev2:    true,
 		},

@@ -15,10 +15,11 @@ type ShadowIngress struct {
 
 	shadowCore *ShadowCore
 
-	messageBuffer []*model.ShadowIngressMessage
-	bufferMu      sync.Mutex
-	bufferSize    int
-	flushInterval time.Duration
+	messageBuffer   []*model.ShadowIngressMessage
+	pendingReliable []*model.ShadowIngressMessage
+	bufferMu        sync.Mutex
+	bufferSize      int
+	flushInterval   time.Duration
 
 	stopChan chan struct{}
 	wg       sync.WaitGroup
@@ -46,6 +47,7 @@ func NewShadowIngress(sc *ShadowCore, bufferSize int, flushInterval time.Duratio
 }
 
 func (si *ShadowIngress) Start() {
+	si.replayReliable()
 	si.wg.Add(1)
 	go si.flushLoop()
 	log.Println("[ShadowIngress] Started")
@@ -96,7 +98,27 @@ func (si *ShadowIngress) flushBuffer() {
 }
 
 func (si *ShadowIngress) Ingest(val model.Value) error {
+	qos := 0
+	if val.Meta != nil {
+		if q, ok := val.Meta["qos"].(int); ok {
+			qos = q
+		}
+	}
 	msg := si.valueToMessage(val)
+	msg.QoS = qos
+
+	if qos >= 1 {
+		if _, err := si.shadowCore.WriteShadowDevice(*msg); err != nil {
+			si.bufferReliable(msg)
+			return err
+		}
+		si.mu.Lock()
+		si.metrics.TotalMessages++
+		si.metrics.TotalPoints++
+		si.metrics.LastProcessTime = time.Now()
+		si.mu.Unlock()
+		return nil
+	}
 
 	si.bufferMu.Lock()
 	si.messageBuffer = append(si.messageBuffer, msg)
@@ -114,6 +136,25 @@ func (si *ShadowIngress) Ingest(val model.Value) error {
 	}
 
 	return nil
+}
+
+func (si *ShadowIngress) bufferReliable(msg *model.ShadowIngressMessage) {
+	si.bufferMu.Lock()
+	si.pendingReliable = append(si.pendingReliable, msg)
+	si.bufferMu.Unlock()
+}
+
+func (si *ShadowIngress) replayReliable() {
+	si.bufferMu.Lock()
+	pending := si.pendingReliable
+	si.pendingReliable = nil
+	si.bufferMu.Unlock()
+
+	for _, msg := range pending {
+		if _, err := si.shadowCore.WriteShadowDevice(*msg); err != nil {
+			si.bufferReliable(msg)
+		}
+	}
 }
 
 func (si *ShadowIngress) IngestBatch(values []model.Value) error {
@@ -150,9 +191,10 @@ func (si *ShadowIngress) valueToMessage(val model.Value) *model.ShadowIngressMes
 		Timestamp: val.TS,
 		Points: []model.ShadowIngressPoint{
 			{
-				PointID: val.PointID,
-				Value:   val.Value,
-				Quality: val.Quality,
+				PointID:     val.PointID,
+				Value:       val.Value,
+				Quality:     val.Quality,
+				CollectedAt: val.TS,
 			},
 		},
 		Meta: model.ShadowIngressMeta{
@@ -169,9 +211,10 @@ func (si *ShadowIngress) valuesToMessage(values []model.Value) *model.ShadowIngr
 	points := make([]model.ShadowIngressPoint, 0, len(values))
 	for _, val := range values {
 		points = append(points, model.ShadowIngressPoint{
-			PointID: val.PointID,
-			Value:   val.Value,
-			Quality: val.Quality,
+			PointID:     val.PointID,
+			Value:       val.Value,
+			Quality:     val.Quality,
+			CollectedAt: val.TS,
 		})
 	}
 
@@ -189,6 +232,19 @@ func (si *ShadowIngress) valuesToMessage(values []model.Value) *model.ShadowIngr
 }
 
 func (si *ShadowIngress) IngestDirect(msg model.ShadowIngressMessage) error {
+	if msg.QoS >= 1 {
+		if _, err := si.shadowCore.WriteShadowDevice(msg); err != nil {
+			copy := msg
+			si.bufferReliable(&copy)
+			return err
+		}
+		si.mu.Lock()
+		si.metrics.TotalMessages++
+		si.metrics.TotalPoints += uint64(len(msg.Points))
+		si.metrics.LastProcessTime = time.Now()
+		si.mu.Unlock()
+		return nil
+	}
 	si.bufferMu.Lock()
 	si.messageBuffer = append(si.messageBuffer, &msg)
 	shouldFlush := len(si.messageBuffer) >= si.bufferSize

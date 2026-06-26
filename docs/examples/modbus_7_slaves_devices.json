@@ -1,0 +1,79 @@
+[
+  {
+    "name": "Modbus 从站 1",
+    "enable": true,
+    "interval": "1s",
+    "config": {
+      "slave_id": 1,
+      "auto_points_range": "0-199",
+      "auto_points_datatype": "int16",
+      "auto_points_readwrite": "R"
+    }
+  },
+  {
+    "name": "Modbus 从站 2",
+    "enable": true,
+    "interval": "1s",
+    "config": {
+      "slave_id": 2,
+      "auto_points_range": "0-199",
+      "auto_points_datatype": "int16",
+      "auto_points_readwrite": "R"
+    }
+  },
+  {
+    "name": "Modbus 从站 3",
+    "enable": true,
+    "interval": "1s",
+    "config": {
+      "slave_id": 3,
+      "auto_points_range": "0-199",
+      "auto_points_datatype": "int16",
+      "auto_points_readwrite": "R"
+    }
+  },
+  {
+    "name": "Modbus 从站 4",
+    "enable": true,
+    "interval": "1s",
+    "config": {
+      "slave_id": 4,
+      "auto_points_range": "0-199",
+      "auto_points_datatype": "int16",
+      "auto_points_readwrite": "R"
+    }
+  },
+  {
+    "name": "Modbus 从站 5",
+    "enable": true,
+    "interval": "1s",
+    "config": {
+      "slave_id": 5,
+      "auto_points_range": "0-199",
+      "auto_points_datatype": "int16",
+      "auto_points_readwrite": "R"
+    }
+  },
+  {
+    "name": "Modbus 从站 6",
+    "enable": true,
+    "interval": "1s",
+    "config": {
+      "slave_id": 6,
+      "auto_points_range": "0-199",
+      "auto_points_datatype": "int16",
+      "auto_points_readwrite": "R"
+    }
+  },
+  {
+    "name": "Modbus 从站 7",
+    "enable": true,
+    "interval": "1s",
+    "config": {
+      "slave_id": 7,
+      "auto_points_range": "0-199",
+      "auto_points_datatype": "int16",
+      "auto_points_readwrite": "R"
+    }
+  }
+]

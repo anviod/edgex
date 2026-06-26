@@ -399,7 +399,7 @@ const flattenOpcNodes = (nodes, level = 0) => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background-color: #f8fafc;
+  background-color: var(--edgex-surface-inset);
   border-bottom: 1px solid #e2e8f0;
   gap: 16px;
 }
@@ -502,7 +502,7 @@ const flattenOpcNodes = (nodes, level = 0) => {
   margin: 0 !important;
   font-size: 16px !important;
   font-weight: 600 !important;
-  color: #1e293b !important; /* Slate-800 */
+  color: var(--edgex-text-primary) !important; /* Slate-800 */
   background: transparent !important;
   border-bottom: 1px solid #e2e8f0 !important; /* Slate-200 */
 }
@@ -511,7 +511,7 @@ const flattenOpcNodes = (nodes, level = 0) => {
 :deep(.industrial-modal .arco-modal-content) {
   padding: 0 !important;
   overflow: hidden !important;
-  background: #ffffff !important;
+  background: var(--edgex-surface-raised) !important;
 }
 
 /* 4. 移除默认关闭按钮的圆角，改为锐利边框 */
@@ -526,7 +526,7 @@ const flattenOpcNodes = (nodes, level = 0) => {
 }
 
 :deep(.industrial-modal .arco-btn-icon-only:hover) {
-  background: #f1f5f9 !important; /* Slate-100 */
+  background: var(--edgex-surface-muted) !important; /* Slate-100 */
   border-color: #cbd5e1 !important; /* Slate-300 */
 }
 </style>

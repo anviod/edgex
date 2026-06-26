@@ -1,8 +1,6 @@
 package core
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -129,16 +127,15 @@ func TestShadowDeviceOptimizer_ClearDeviceData(t *testing.T) {
 }
 
 func TestShadowCore_UpdateDeviceRTT(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "shadow_core_rtt_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	deviceID := "test-device-4"
 
 	// 先创建影子设备
@@ -186,16 +183,15 @@ func TestShadowCore_UpdateDeviceRTT(t *testing.T) {
 }
 
 func TestShadowCore_WriteShadowDevice_WithOptimization(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "shadow_core_write_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	deviceID := "test-device-5"
 
 	// 先更新RTT

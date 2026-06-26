@@ -1,13 +1,13 @@
 <template>
-    <div class="point-list-container">
-        <div class="point-header">
+    <div class="page-shell point-list-container">
+        <div class="page-header point-header">
             <div class="header-left">
                 <a-button type="outline" size="small" @click="goBack">
                     <template #icon><IconArrowLeft /></template>
                     返回设备
                 </a-button>
                 <div class="header-info">
-                    <span class="protocol-tag">{{ getProtocolTransport(channelProtocol) }}</span>
+                    <span class="protocol-tag">{{ formatProtocolTag(channelProtocol) }}</span>
                     <h2 class="title-text">点位列表</h2>
                 </div>
             </div>
@@ -24,6 +24,15 @@
                         <template #prefix><IconSearch /></template>
                     </a-input>
                     <a-select
+                        v-if="isModbusChannel"
+                        v-model="filters.registerType"
+                        :options="modbusRegisterFilterOptions"
+                        placeholder="寄存器类型"
+                        allow-clear
+                        size="small"
+                        style="width: 180px;"
+                    />
+                    <a-select
                         v-model="filters.quality"
                         :options="[{ label: 'Good', value: 'Good' }, { label: 'Bad', value: 'Bad' }]"
                         placeholder="质量过滤"
@@ -31,9 +40,17 @@
                         size="small"
                         style="width: 120px;"
                     />
+                    <a-button v-if="selection.selectedIds.length > 0" type="outline" status="success" size="small" @click="goCreateVirtualShadow">
+                        <template #icon><IconThunderbolt /></template>
+                        拼虚拟设备 ({{ selection.selectedIds.length }})
+                    </a-button>
                     <a-button v-if="selection.selectedIds.length > 0" status="danger" type="outline" size="small" @click="confirmBatchDelete">
                         <template #icon><IconDelete /></template>
                         批量删除 ({{ selection.selectedIds.length }})
+                    </a-button>
+                    <a-button v-if="channelProtocol && channelProtocol.includes('modbus')" type="outline" status="warning" size="small" @click="openRegisterBlockDialog">
+                        <template #icon><IconPlus /></template>
+                        批量创建寄存器
                     </a-button>
                     <a-button type="outline" status="success" size="small" @click="openAddDialog">
                         <template #icon><IconPlus /></template>
@@ -56,11 +73,36 @@
         </div>
 
         <a-spin :loading="loading" style="width: 100%">
-            <div class="point-list-container no-padding">
+            <div class="table-container">
                 <div class="table-toolbar">
-                    <div class="left-title">POINT LIST</div>
+                    <div class="left-title">{{ isModbusChannel ? 'MODBUS SLAVE VIEW' : 'POINT LIST' }}</div>
                 </div>
+                <div v-if="isModbusChannel && filteredPoints.length === 0" class="empty-state">
+                    <IconSearch size="48" class="text-slate-300" />
+                    <div class="empty-text font-mono">暂无匹配的 Modbus 点位</div>
+                    <div class="empty-actions">
+                        <a-button v-if="!points || points.length === 0" type="primary" size="small" @click="openRegisterBlockDialog">
+                            <template #icon><IconPlus /></template>批量创建寄存器
+                        </a-button>
+                        <a-button v-else type="outline" size="small" @click="filters.search = ''; filters.quality = []; filters.registerType = ''">
+                            清除过滤器
+                        </a-button>
+                    </div>
+                </div>
+                <ModbusSlavePointView
+                    v-else-if="isModbusChannel"
+                    :points="filteredPoints"
+                    :selected-ids="selection.selectedIds"
+                    :register-type-filter="filters.registerType"
+                    @selection-change="onModbusSelectionChange"
+                    @write="openWriteDialog"
+                    @edit="openEditDialog"
+                    @delete="confirmDelete"
+                    @debug="openDebug"
+                    @show-value="showFullValue"
+                />
                 <a-table
+                    v-else
                     :columns="tableColumns"
                     :data="filteredPoints"
                     :row-selection="rowSelection"
@@ -94,9 +136,14 @@
                     </template>
 
                     <template #timestamp="{ record }">
-                        <span class="font-mono text-xs text-slate-500">
-                            {{ record && record.timestamp ? formatDate(record.timestamp) : 'N/A' }}
-                        </span>
+                        <a-tooltip v-if="record?.updated_at" :content="`更新 ${formatDate(record.updated_at)}`">
+                            <div class="font-mono text-xs text-slate-500 cursor-default">
+                                {{ record && (record.collected_at || record.timestamp) ? formatDate(record.collected_at || record.timestamp) : 'N/A' }}
+                            </div>
+                        </a-tooltip>
+                        <div v-else class="font-mono text-xs text-slate-500">
+                            {{ record && (record.collected_at || record.timestamp) ? formatDate(record.collected_at || record.timestamp) : 'N/A' }}
+                        </div>
                     </template>
 
                     <template #actions="{ record }">
@@ -163,7 +210,7 @@
             <div v-if="deviceInfo" class="terminal-info">
                 <span class="terminal-dot"></span>
                 <span class="monospace-text">
-                    连接状态:{{ deviceInfo.state === 0 ? '已连接' : deviceInfo.state === 1 ? '不稳定' : '已断开' }} | 协议: {{ getProtocolTransport(channelProtocol) }} | 连续通信:{{ deviceInfo.runtime?.success_count || 0 }} 次 | 最近失败:{{ deviceInfo.runtime?.last_fail_time && new Date(deviceInfo.runtime.last_fail_time).getFullYear() > 1 ? formatDate(deviceInfo.runtime.last_fail_time) : '无' }} | 质量评分: {{ deviceInfo.quality_score !== undefined ? deviceInfo.quality_score : 'N/A' }}
+                    连接状态:{{ deviceInfo.state === 0 ? '已连接' : deviceInfo.state === 1 ? '不稳定' : '已断开' }} | 协议: {{ formatProtocolTag(channelProtocol) }} | 连续通信:{{ deviceInfo.runtime?.success_count || 0 }} 次 | 最近失败:{{ deviceInfo.runtime?.last_fail_time && new Date(deviceInfo.runtime.last_fail_time).getFullYear() > 1 ? formatDate(deviceInfo.runtime.last_fail_time) : '无' }} | 质量评分: {{ deviceInfo.quality_score !== undefined ? deviceInfo.quality_score : 'N/A' }}
                 </span>
             </div>
         </a-spin>
@@ -253,7 +300,7 @@
                 </div>
             </template>
 
-            <a-form :model="pointDialog.form" layout="vertical" class="industrial-form p-2">
+            <a-form :model="pointDialog.form" layout="vertical" class="industrial-form form-controls-md p-2">
                 <a-row :gutter="16">
                     <a-col :span="12">
                         <a-form-item field="id" label="点位ID">
@@ -817,6 +864,50 @@
         />
 
 
+        <a-modal
+            v-model:visible="registerBlockDialog.visible"
+            title="批量创建寄存器区块"
+            width="560px"
+            :ok-loading="registerBlockDialog.loading"
+            @ok="submitRegisterBlock"
+            @cancel="registerBlockDialog.visible = false"
+        >
+            <a-alert type="info" :closable="false" class="mb-3">
+                按地址区间生成保持寄存器点位（功能码 0x03）。合并模式下保留同 ID 现有点位配置。
+            </a-alert>
+            <a-form layout="horizontal" :label-col-props="{ span: 8 }" :wrapper-col-props="{ span: 16 }">
+                <a-form-item label="起始地址" required>
+                    <a-input-number v-model="registerBlockDialog.start" :min="0" :max="65535" />
+                </a-form-item>
+                <a-form-item label="结束地址" required>
+                    <a-input-number v-model="registerBlockDialog.end" :min="0" :max="65535" />
+                </a-form-item>
+                <a-form-item label="数据类型">
+                    <a-select v-model="registerBlockDialog.datatype" :options="[
+                        { label: 'int16', value: 'int16' },
+                        { label: 'uint16', value: 'uint16' },
+                        { label: 'int32', value: 'int32' },
+                        { label: 'float32', value: 'float32' }
+                    ]" />
+                </a-form-item>
+                <a-form-item label="读写">
+                    <a-select v-model="registerBlockDialog.readwrite" :options="[
+                        { label: '只读 (R)', value: 'R' },
+                        { label: '读写 (RW)', value: 'RW' }
+                    ]" />
+                </a-form-item>
+                <a-form-item label="模式">
+                    <a-radio-group v-model="registerBlockDialog.mode">
+                        <a-radio value="merge">合并（保留现有点）</a-radio>
+                        <a-radio value="replace">替换（仅保留新区间）</a-radio>
+                    </a-radio-group>
+                </a-form-item>
+                <a-form-item label="预计生成">
+                    <span>{{ registerBlockCount }} 个点位</span>
+                </a-form-item>
+            </a-form>
+        </a-modal>
+
         <!-- Delete Confirmation Dialog -->
         <a-modal v-model:visible="deleteDialog.visible" width="400px" @ok="executeDelete" @cancel="deleteDialog.visible = false">
             <template #title>
@@ -862,7 +953,7 @@
 
             <div style="padding: 16px;">
                 <!-- 设备信息 -->
-                <div style="display: flex; gap: 16px; margin-bottom: 16px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0;">
+                <div style="display: flex; gap: 16px; margin-bottom: 16px; padding: 10px; background: var(--edgex-surface-inset); border: 1px solid #e2e8f0;">
                     <div>
                         <div style="font-size: 10px; color: #64748b; text-transform: uppercase;">设备</div>
                         <div style="font-size: 13px; font-weight: 600; font-family: monospace;">{{ writeDialog.deviceID }}</div>
@@ -1089,6 +1180,7 @@
             :channel-id="channelId"
             :device-id="deviceId"
             :device-config="deviceInfo?.config || {}"
+            :channel-config="channelInfo?.config || {}"
             :existing-points="points"
             @error="(message) => showMessage(message, 'error')"
             @info="(message) => showMessage(message, 'info')"
@@ -1115,6 +1207,13 @@ import { Message } from '@arco-design/web-vue'
 import HelpDrawer from '../components/HelpDrawer.vue'
 import OpcuaScanner from '../components/OpcuaScanner.vue'
 import BACnetScanner from '../components/BACnetScanner.vue'
+import ModbusSlavePointView from '../components/ModbusSlavePointView.vue'
+import {
+    modbusRegisterFilterOptions,
+    normalizeRegisterType,
+    enrichModbusPoint
+} from '@/utils/modbusRegisterGroups'
+import { formatProtocolTag } from '@/utils/protocolLabel'
 import ModbusPointConfig from '../components/point-config/ModbusPointConfig.vue'
 import OpcuaPointConfig from '../components/point-config/OpcuaPointConfig.vue'
 import BacnetPointConfig from '../components/point-config/BacnetPointConfig.vue'
@@ -1147,20 +1246,59 @@ const goBack = () => {
   router.push(`/channels/${channelId.value}/devices`)
 }
 
+const goCreateVirtualShadow = () => {
+  if (selection.selectedIds.length === 0) return
+  const refs = selection.selectedIds
+    .map(pid => `${channelId.value}.${deviceId.value}.${pid}`)
+    .join(',')
+  router.push({
+    path: '/virtual-shadows',
+    query: { new: '1', channel_id: channelId.value, refs }
+  })
+}
+
 const channelId = computed(() => route.params.channelId)
 const deviceId = computed(() => route.params.deviceId)
 
 // Watch for route changes to refresh data
-watch([channelId, deviceId], () => {
+watch([channelId, deviceId], async () => {
+    await fetchChannel()
     fetchPoints()
-    fetchChannel()
     fetchMetrics()
 })
 
 // Point Filtering & Selection
 const filters = reactive({
     search: '',
-    quality: []
+    quality: [],
+    registerType: ''
+})
+
+const isModbusChannel = computed(() => {
+    const proto = channelProtocol.value || ''
+    return proto.startsWith('modbus') || proto.includes('modbus')
+})
+
+const onModbusSelectionChange = (ids) => {
+    selection.selectedIds = ids
+    selection.selectAll = ids.length > 0 && ids.length === filteredPoints.value.length
+}
+
+const mapDevicePoint = (p, now = new Date()) => enrichModbusPoint({
+    id: p.id,
+    name: p.name,
+    address: p.address,
+    datatype: p.datatype || p.dataType,
+    unit: p.unit || '',
+    readwrite: p.readwrite || 'R',
+    register_type: p.register_type,
+    function_code: p.function_code,
+    slave_id: p.slave_id,
+    value: p.value ?? null,
+    quality: p.quality || 'Bad',
+    timestamp: p.timestamp || p.collected_at || now,
+    collected_at: p.collected_at,
+    updated_at: p.updated_at
 })
 
 const selection = reactive({
@@ -1251,11 +1389,10 @@ const tableColumns = computed(() => {
             ellipsis: true
         },
         {
-            title: '时间戳',
+            title: '采集时间',
             slotName: 'timestamp',
-            width: 180,
-            ellipsis: true,
-            tooltip: true
+            width: 170,
+            ellipsis: true
         },
         {
             title: '操作',
@@ -1370,10 +1507,13 @@ const filteredPoints = computed(() => {
             const s = filters.search.toLowerCase()
             result = result.filter(p => {
                 if (!p) return false
+                const addr = String(p.address ?? '')
+                const plc = p.plc_address != null ? String(p.plc_address) : ''
                 return (
                     (p.id && typeof p.id === 'string' && p.id.toLowerCase().includes(s)) ||
                     (p.name && typeof p.name === 'string' && p.name.toLowerCase().includes(s)) ||
-                    (p.address && String(p.address).toLowerCase().includes(s))
+                    addr.toLowerCase().includes(s) ||
+                    plc.includes(s)
                 )
             })
         }
@@ -1384,6 +1524,13 @@ const filteredPoints = computed(() => {
                 if (!p || p.quality === null || p.quality === undefined) return false
                 return filters.quality.includes(p.quality)
             })
+        }
+
+        // Modbus register type filter
+        if (isModbusChannel.value && filters.registerType) {
+            result = result.filter(p =>
+                normalizeRegisterType(p.register_type, p) === filters.registerType
+            )
         }
         
         return result
@@ -2246,6 +2393,60 @@ const deleteDialog = reactive({
     batchCount: 0
 })
 
+const registerBlockDialog = reactive({
+    visible: false,
+    loading: false,
+    start: 0,
+    end: 199,
+    datatype: 'int16',
+    readwrite: 'R',
+    mode: 'merge'
+})
+
+const registerBlockCount = computed(() => {
+    const start = Number(registerBlockDialog.start) || 0
+    const end = Number(registerBlockDialog.end) || 0
+    if (end < start) return 0
+    return end - start + 1
+})
+
+const openRegisterBlockDialog = () => {
+    registerBlockDialog.start = 0
+    registerBlockDialog.end = 199
+    registerBlockDialog.datatype = 'int16'
+    registerBlockDialog.readwrite = 'R'
+    registerBlockDialog.mode = 'merge'
+    registerBlockDialog.visible = true
+}
+
+const submitRegisterBlock = async () => {
+    registerBlockDialog.loading = true
+    try {
+        const start = Number(registerBlockDialog.start) || 0
+        const end = Number(registerBlockDialog.end) || 0
+        const res = await request.post(
+            `/api/channels/${channelId.value}/devices/${deviceId.value}/points/generate-registers`,
+            {
+                start: Math.min(start, end),
+                end: Math.max(start, end),
+                datatype: registerBlockDialog.datatype,
+                readwrite: registerBlockDialog.readwrite,
+                register_type: 'holding',
+                function_code: 3,
+                mode: registerBlockDialog.mode
+            }
+        )
+        Message.success(`已生成 ${res.points_count || registerBlockCount.value} 个点位`)
+        registerBlockDialog.visible = false
+        await fetchPoints()
+    } catch (e) {
+        Message.error('批量创建失败: ' + (e.message || e))
+        throw e
+    } finally {
+        registerBlockDialog.loading = false
+    }
+}
+
 const openAddDialog = () => {
 	pointDialog.isEdit = false
 	pointDialog.form = {
@@ -2395,12 +2596,16 @@ const submitPoint = async () => {
         }
         
         if (pointDialog.isEdit) {
-            await request.put(url, pointDialog.form)
+            const resp = await request.put(url, pointDialog.form)
+            const msg = resp?.device_restarted
+                ? '点位更新成功，南向设备已重启'
+                : '点位更新成功，北向 OPC UA 已同步（未重启网关）'
+            showMessage(msg, 'success')
         } else {
             await request.post(url, pointDialog.form)
+            showMessage('点位添加成功', 'success')
         }
 
-        showMessage(pointDialog.isEdit ? '点位更新成功' : '点位添加成功', 'success')
         pointDialog.visible = false
         fetchPoints() // Refresh list
     } catch (e) {
@@ -2585,27 +2790,18 @@ const fetchPoints = async () => {
 
         // 2) 对于 OPC-UA 设备，确保 endpoint 配置存在
         if (channelProtocol.value === 'opc-ua' && deviceInfo.value) {
-            const endpoint = deviceInfo.value.config?.endpoint
+            const endpoint = deviceInfo.value.config?.endpoint ||
+                channelInfo.value?.config?.url ||
+                channelInfo.value?.config?.endpoint
             if (!endpoint || typeof endpoint !== 'string' || endpoint.length === 0) {
-                showMessage('OPC UA 设备未配置 endpoint，请检查设备配置', 'warning')
-                // 仍然继续获取点位，因为可能已经配置了点位
+                showMessage('OPC UA 未配置 endpoint（请在采集通道填写 Endpoint URL）', 'warning')
             }
         }
 
         // 3) 用设备配置中的点位生成基础列表（无阻塞首屏）
         if (deviceInfo.value && Array.isArray(deviceInfo.value.points)) {
             const now = new Date()
-            points.value = deviceInfo.value.points.map(p => ({
-                id: p.id,
-                name: p.name,
-                address: p.address,
-                datatype: p.datatype,
-                unit: p.unit || '',
-                readwrite: p.readwrite || 'R',
-                value: null,
-                quality: 'Bad',
-                timestamp: now
-            }))
+            points.value = deviceInfo.value.points.map(p => mapDevicePoint({ ...p, value: null, quality: 'Bad' }, now))
             console.log('Initial points list created from device info:', points.value.length)
         } else {
             points.value = []
@@ -2624,6 +2820,8 @@ const fetchPoints = async () => {
                     if (v) {
                         points.value[i].value = v.value
                         points.value[i].quality = v.quality || 'Good'
+                        if (v.collected_at) points.value[i].collected_at = v.collected_at
+                        if (v.updated_at) points.value[i].updated_at = v.updated_at
                         if (v.ts) points.value[i].timestamp = v.ts
                         if (v.timestamp) points.value[i].timestamp = v.timestamp
                     }
@@ -2643,7 +2841,7 @@ const fetchPoints = async () => {
                 if (Array.isArray(pts) && pts.length > 0) {
                     console.log('Background point fetch successful, updating points. Points:', pts.length)
                     console.log('First point data:', pts[0])
-                    points.value = pts
+                    points.value = pts.map(p => mapDevicePoint(p))
                 } else if (Array.isArray(pts) && pts.length === 0 && points.value.length === 0) {
                     console.log('Background fetch returned empty points array')
                     if (channelProtocol.value === 'opc-ua') {
@@ -2659,7 +2857,7 @@ const fetchPoints = async () => {
                     request.get(`/api/channels/${channelId.value}/devices/${deviceId.value}/points`)
                         .then(pts => {
                             if (Array.isArray(pts)) {
-                                points.value = pts
+                                points.value = pts.map(p => mapDevicePoint(p))
                                 if (pts.length === 0 && channelProtocol.value === 'opc-ua') {
                                     showMessage('OPC-UA 设备未发现点位，请先扫描点位', 'info')
                                 }
@@ -2898,7 +3096,9 @@ const connectWs = () => {
                 if (idx !== -1) {
                     points.value[idx].value = data.value
                     points.value[idx].quality = data.quality
-                    points.value[idx].timestamp = data.timestamp
+                    if (data.collected_at) points.value[idx].collected_at = data.collected_at
+                    if (data.updated_at) points.value[idx].updated_at = data.updated_at
+                    points.value[idx].timestamp = data.collected_at || data.timestamp
                 }
             }
         } catch (e) { console.error(e) }
@@ -2910,6 +3110,7 @@ const connectWs = () => {
 }
 
 const channelProtocol = ref('')
+const channelInfo = ref(null)
 const bacnetObjectTypes = [
     'AnalogInput', 'AnalogOutput', 'AnalogValue',
     'BinaryInput', 'BinaryOutput', 'BinaryValue',
@@ -2923,6 +3124,7 @@ const fetchChannel = async () => {
         console.log('Channel info data:', data)
         if (data && data.protocol) {
             channelProtocol.value = data.protocol
+            channelInfo.value = data
             console.log('Channel protocol set to:', channelProtocol.value)
         }
     } catch (e) {
@@ -2960,9 +3162,9 @@ const fetchMetrics = async () => {
 
 let metricsTimer = null
 
-onMounted(() => {
+onMounted(async () => {
+    await fetchChannel()
     fetchPoints()
-    fetchChannel()
     connectWs()
     fetchMetrics()
     metricsTimer = setInterval(fetchMetrics, 5000)
@@ -3101,17 +3303,6 @@ const openDebug = async (point) => {
     } catch (e) {
         showMessage('获取点位调试信息失败: ' + (e.message || e), 'error')
     }
-}
-
-// 类型判断与转换
-const getProtocolTransport = (p) => {
-    if (!p) return 'Unknown'
-    const proto = p.toLowerCase()
-    if (proto.includes('bacnet')) return 'UDP'
-    if (proto.includes('snmp')) return 'UDP'
-    if (proto.includes('tcp') || proto.includes('modbus-tcp') || proto.includes('opc') || proto.includes('s7')) return 'TCP'
-    if (proto.includes('rtu') || proto.includes('serial')) return 'Serial'
-    return 'TCP/IP'
 }
 
 // OPC-UA 数据类型判断
@@ -3436,18 +3627,11 @@ const normalizeWriteValue = () => {
 
 <style scoped>
 .point-list-container {
-  padding: 24px;
-  background: #f1f5f9;
-  min-height: calc(100vh - 56px);
+  /* page-shell 提供布局与背景 */
 }
 
 .point-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e9ecef;
+  /* 继承全局 .page-header */
 }
 
 .header-left {
@@ -3628,7 +3812,7 @@ const normalizeWriteValue = () => {
 
 /* White Industrial Minimalist Style Connection Status */
 .terminal-info {
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   border: 1px dashed #e5e7eb;
   border-radius: 0;
   padding: 10px 16px;
@@ -3770,7 +3954,7 @@ const normalizeWriteValue = () => {
 
 /* 2. 移除表格头部的额外背景和圆角，使其看起来像一个平面的切片 */
 :deep(.arco-table-th) {
-  background-color: #f8fafc; /* 浅灰色背景 */
+  background-color: var(--edgex-surface-inset); /* 浅灰色背景 */
   border-bottom: 1px solid #e5e7eb;
   border-radius: 0 !important;
   padding: 12px; /* 规范要求的单元格内边距 */
@@ -3801,30 +3985,29 @@ const normalizeWriteValue = () => {
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-bottom: none; /* 关键：去掉底边，与表格顶边融合 */
+  background: var(--edgex-surface-raised);
+  border: none;
+  border-bottom: 1px solid var(--edgex-border);
 }
 
 .left-title {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--edgex-text-secondary);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
-/* 直角按钮样式 */
 .rect-btn {
-  border-radius: 0 !important; /* 彻底直角 */
+  border-radius: 6px !important;
   font-weight: 500;
-  height: 32px; /* 主要按钮高度 */
+  height: 32px;
 }
 
 .rect-btn.arco-btn-primary {
-  background-color: #0f172a !important; /* 深色工业风 */
-  border: 1px solid #0f172a !important;
+  background-color: var(--edgex-primary) !important;
+  border: 1px solid var(--edgex-primary) !important;
 }
 
 /* 次要按钮样式 */
@@ -3856,7 +4039,7 @@ const normalizeWriteValue = () => {
   border-radius: 0 !important;
   box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.1) !important; /* 硬阴影 */
   border: 1px solid #1e293b; /* 深色边框 */
-  background-color: #ffffff;
+  background-color: var(--edgex-surface-raised);
 }
 
 /* 2. 强化图标对比度 */
@@ -3872,7 +4055,7 @@ const normalizeWriteValue = () => {
   font-family: 'Inter', 'JetBrains Mono', 'PingFang SC', sans-serif;
   font-size: 13px;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 /* 帮助按钮样式 */
@@ -3884,6 +4067,6 @@ const normalizeWriteValue = () => {
 
 .help-trigger-btn:hover {
   background-color: #f1f5f9;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 </style>

@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"log"
 	"math/rand/v2"
+	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -46,22 +48,31 @@ type DashboardSummary struct {
 }
 
 type Server struct {
-	app                *fiber.App
-	cm                 *core.ChannelManager
-	storage            *storage.Storage
-	hub                *Hub
-	pipeline           *core.DataPipeline
-	nbm                *core.NorthboundManager
-	ecm                *core.EdgeComputeManager
-	sm                 *core.SystemManager
-	dsm                *core.DeviceStorageManager
-	cfgManager         *config.ConfigManager
-	syncManager        *syncpkg.SyncManager
-	logBroadcaster     *logger.LogBroadcaster
-	randomWriteMu      sync.Mutex
-	randomWriteStop    chan struct{}
-	randomWriteRunning bool
-	startTime          time.Time
+	app                 *fiber.App
+	cm                  *core.ChannelManager
+	storage             *storage.Storage
+	shadowCore          *core.ShadowCore
+	virtualShadow       *core.VirtualShadowEngine
+	vsm                 *core.VirtualShadowManager
+	hub                 *Hub
+	pipeline            *core.DataPipeline
+	nbm                 *core.NorthboundManager
+	ecm                 *core.EdgeComputeManager
+	sm                  *core.SystemManager
+	dsm                 *core.DeviceStorageManager
+	cfgManager          *config.ConfigManager
+	syncManager         *syncpkg.SyncManager
+	logBroadcaster      *logger.LogBroadcaster
+	randomWriteMu       sync.Mutex
+	randomWriteStop     chan struct{}
+	randomWriteRunning  bool
+	startTime           time.Time
+	logger              *zap.Logger
+	listenAddr          string
+	serverMu            sync.Mutex
+	portSwitching       bool
+	storageAttachHook   func(*storage.Storage)
+	shadowSubscribeOnce sync.Once
 }
 
 func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeline, nbm *core.NorthboundManager, ecm *core.EdgeComputeManager, sm *core.SystemManager, dsm *core.DeviceStorageManager, cfgManager *config.ConfigManager, syncManager *syncpkg.SyncManager, logBroadcaster *logger.LogBroadcaster) *Server {
@@ -85,6 +96,7 @@ func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeli
 		syncManager:    syncManager,
 		logBroadcaster: logBroadcaster,
 		startTime:      time.Now(),
+		logger:         zap.L(),
 	}
 
 	// Inject ChannelManager into EdgeComputeManager
@@ -97,13 +109,126 @@ func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeli
 	return s
 }
 
+// SetVirtualShadowEngine 绑定虚拟影子引擎（公式点位增量计算）。
+func (s *Server) SetVirtualShadowEngine(vse *core.VirtualShadowEngine) {
+	s.virtualShadow = vse
+}
+
+// SetShadowCore 绑定影子设备核心，并订阅快照变更推送到 WebSocket。
+func (s *Server) SetShadowCore(sc *core.ShadowCore) {
+	s.shadowCore = sc
+	if sc == nil {
+		return
+	}
+	s.shadowSubscribeOnce.Do(func() {
+		sc.Subscribe(func(shadowDeviceID string, points map[string]model.ShadowPoint) {
+			channelID, deviceID, err := sc.ResolvePublishTarget(shadowDeviceID)
+			if err != nil {
+				return
+			}
+			for pointID, pt := range points {
+				s.BroadcastShadowPoint(channelID, deviceID, pointID, pt)
+			}
+		})
+	})
+}
+
+// BroadcastShadowPoint 将影子点位快照推送到 WebSocket 客户端。
+func (s *Server) BroadcastShadowPoint(channelID, deviceID, pointID string, point model.ShadowPoint) {
+	collectedAt := point.CollectedAt
+	if collectedAt.IsZero() {
+		collectedAt = point.Timestamp
+	}
+	msg := map[string]any{
+		"channel_id":   channelID,
+		"device_id":    deviceID,
+		"point_id":     pointID,
+		"value":        point.Value,
+		"quality":      point.Quality,
+		"timestamp":    collectedAt,
+		"collected_at": collectedAt,
+		"updated_at":   point.UpdatedAt,
+	}
+	s.BroadcastValue(msg)
+}
+
+// SetStorageAttachHook 注册存储绑定回调（安装流程创建 DB 后回传 main 等组件）。
+func (s *Server) SetStorageAttachHook(fn func(*storage.Storage)) {
+	s.storageAttachHook = fn
+}
+
 func (s *Server) Start(addr string) error {
+	s.serverMu.Lock()
+	s.listenAddr = addr
+	s.serverMu.Unlock()
+
 	// 启动时发布点位元数据
 	if s.nbm != nil {
 		go s.nbm.PublishPointsMetadata()
 	}
 	go s.broadcastLoop()
-	return s.app.Listen(addr)
+
+	err := s.app.Listen(addr)
+	if err == nil {
+		return nil
+	}
+
+	s.serverMu.Lock()
+	switching := s.portSwitching
+	if switching {
+		s.portSwitching = false
+	}
+	s.serverMu.Unlock()
+	if switching {
+		s.logger.Info("Web server stopped for port switch", zap.String("addr", addr))
+		return nil
+	}
+	return err
+}
+
+func (s *Server) SwitchPort(newPort int) error {
+	s.serverMu.Lock()
+	defer s.serverMu.Unlock()
+
+	newAddr := fmt.Sprintf(":%d", newPort)
+	if newAddr == s.listenAddr {
+		return nil
+	}
+
+	s.portSwitching = true
+	if err := s.app.Shutdown(); err != nil {
+		s.logger.Warn("Shutdown old server failed", zap.Error(err))
+	}
+
+	newApp := fiber.New()
+	newApp.Use(cors.New())
+	s.app = newApp
+	s.setupRoutes()
+	s.listenAddr = newAddr
+
+	go func() {
+		s.logger.Info("Web server restarting on new port", zap.String("addr", newAddr))
+		if err := s.app.Listen(newAddr); err != nil {
+			s.logger.Error("Web server failed on new port", zap.Error(err))
+		}
+	}()
+
+	time.Sleep(500 * time.Millisecond)
+	return nil
+}
+
+func (s *Server) GetListenPort() int {
+	s.serverMu.Lock()
+	defer s.serverMu.Unlock()
+	if s.listenAddr == "" {
+		return 0
+	}
+	portStr := s.listenAddr
+	if len(portStr) > 0 && portStr[0] == ':' {
+		portStr = portStr[1:]
+	}
+	port, _ := strconv.Atoi(portStr)
+	return port
 }
 
 func (s *Server) getEdgeComputeLogs(c *fiber.Ctx) error {
@@ -195,6 +320,10 @@ func (s *Server) exportEdgeComputeLogsToCSV(c *fiber.Ctx) error {
 }
 
 func (s *Server) setupRoutes() {
+	// WebSocket 实时值（不走 JWT，供 PointList / 虚拟影子页订阅）
+	s.app.Get("/api/ws/values", websocket.New(s.handleWebSocket))
+	s.app.Get("/ws", websocket.New(s.handleWebSocket))
+
 	api := s.app.Group("/api")
 
 	// 认证相关 (无需 JWT)
@@ -203,6 +332,18 @@ func (s *Server) setupRoutes() {
 	auth.Get("/nonce", s.handleGetNonce)
 	auth.Post("/login", s.handleLogin)
 	auth.Post("/logout", s.handleLogout)
+
+	// 安装初始化 API (无需 JWT)
+	install := api.Group("/install")
+	install.Get("/status", s.checkInstallStatus)
+	install.Get("/check-port", s.checkPort)
+	install.Post("/check-path", s.checkPath)
+	install.Post("/validate", s.validateConfig)
+	install.Post("/start", s.startInstall)
+	install.Get("/install-status", s.getInstallStatus)
+
+	// WebSocket 实时值（注册在 JWT 之前；与上方 s.app 路由双保险）
+	api.Get("/ws/values", websocket.New(s.handleWebSocket))
 
 	// 应用 JWT 中间件到后续路由
 	api.Use(JWTAuth())
@@ -237,11 +378,14 @@ func (s *Server) setupRoutes() {
 	api.Delete("/channels/:channelId", s.removeChannel)
 	api.Post("/channels/:channelId/scan", s.scanChannel)
 	api.Get("/channels/:channelId/metrics", s.getChannelMetrics) // 通道监控指标
-	api.Get("/devices/:deviceId/history", s.getDeviceHistory)    // New history API
+	api.Get("/diagnostics/scan-engine", s.getScanEngineDiagnostics)
+	api.Get("/devices/:deviceId/diagnostics", s.getDeviceDiagnostics)
+	api.Get("/devices/:deviceId/history", s.getDeviceHistory) // New history API
 
 	// 第二级：获取通道下的设备列表
 	api.Get("/channels/:channelId/devices", s.getChannelDevices)
-	api.Post("/channels/:channelId/devices", s.addDevice)       // 新增设备 (支持单个或批量)
+	api.Post("/channels/:channelId/devices", s.addDevice) // 新增设备 (支持单个或批量)
+	api.Post("/channels/:channelId/devices/batch-modbus", s.batchCreateModbusSlaves)
 	api.Delete("/channels/:channelId/devices", s.removeDevices) // 批量删除设备
 
 	// 第三级：获取设备详情
@@ -259,6 +403,7 @@ func (s *Server) setupRoutes() {
 	api.Post("/channels/:channelId/devices/:deviceId/scan", s.scanDevice)                  // New: Scan points in device
 	api.Get("/channels/:channelId/devices/:deviceId/points/export", s.exportDevicePoints)  // Export points
 	api.Post("/channels/:channelId/devices/:deviceId/points/import", s.importDevicePoints) // Import points
+	api.Post("/channels/:channelId/devices/:deviceId/points/generate-registers", s.generateDeviceRegisters)
 
 	// 兼容路径：UI 可能会尝试直接通过设备 ID 访问点位（不带 channelId）
 	api.Get("/devices/:deviceId/points", s.getDevicePoints)
@@ -285,6 +430,8 @@ func (s *Server) setupRoutes() {
 	api.Post("/northbound/http", s.updateHTTPConfig)       // New HTTP Config
 	api.Delete("/northbound/http/:id", s.deleteHTTPConfig) // New HTTP Delete
 	api.Post("/northbound/opcua", s.updateOPCUAConfig)
+	api.Post("/northbound/opcua/:id/certificate", s.uploadOPCUACertificate)
+	api.Post("/northbound/opcua/:id/sync", s.syncOPCUAServer)
 	api.Get("/northbound/opcua/:id/stats", s.getOPCUAStats)
 	api.Post("/northbound/opcua/:id/write", s.writeOPCUA)
 	api.Post("/northbound/opcua/:id/batch-write", s.batchWriteOPCUA)
@@ -312,6 +459,16 @@ func (s *Server) setupRoutes() {
 	api.Delete("/edge/rules/:id", s.deleteEdgeRule)
 	api.Get("/edge/states", s.getEdgeRuleStates)
 	api.Get("/edge/rules/:id/window", s.getEdgeWindowData)
+
+	api.Get("/virtual-shadows", s.listVirtualShadows)
+	api.Get("/virtual-shadows/sources", s.listVirtualShadowSources)
+	api.Get("/virtual-shadows/devices", s.searchVirtualShadowDevices)
+	api.Get("/virtual-shadows/devices/:channelId/:deviceId/points", s.listVirtualShadowDevicePoints)
+	api.Get("/virtual-shadows/:id", s.getVirtualShadow)
+	api.Post("/virtual-shadows", s.createVirtualShadow)
+	api.Put("/virtual-shadows/:id", s.updateVirtualShadow)
+	api.Post("/virtual-shadows/:id/update", s.updateVirtualShadow) // 兼容仅允许 POST 的代理/网关
+	api.Delete("/virtual-shadows/:id", s.deleteVirtualShadow)
 	api.Get("/edge/cache", s.getEdgeCache)
 	api.Get("/edge/metrics", s.getEdgeMetrics)
 	api.Get("/edge/shared-sources", s.getEdgeSharedSources)
@@ -320,6 +477,11 @@ func (s *Server) setupRoutes() {
 	tools := api.Group("/tools")
 	tools.Post("/random-write/start", s.startRandomWrite)
 	tools.Post("/random-write/stop", s.stopRandomWrite)
+
+	// ===== 配置导入导出 API =====
+	config := api.Group("/config")
+	config.Get("/export", s.exportConfig)
+	config.Post("/import", s.importConfig)
 
 	// ===== 节点管理 API =====
 	node := api.Group("/node")
@@ -393,20 +555,20 @@ func (s *Server) setupRoutes() {
 	deviceMig := api.Group("/device/migrate")
 	deviceMig.Post("/validate-code", s.validateDeviceCode)
 	deviceMig.Post("", s.migrateDeviceConfig)
-	deviceMig.Get("/status", s.getMigrationStatus)
-	deviceMig.Post("/rollback", s.rollbackMigration)
 
 	// ===== 一键同步 API (0配置) =====
 	simpleSync := api.Group("/sync/simple")
 	simpleSync.Post("", s.simpleSync)
 
-	// ===== WebSocket =====
-	api.Get("/ws/values", websocket.New(s.handleWebSocket))
+	// ===== 数据管理 API =====
+	data := api.Group("/data")
+	data.Get("/stats", s.getDataStats)
+	data.Post("/clear-cache", s.clearCache)
+	data.Post("/clear-all-runtime", s.clearAllRuntime)
+	data.Post("/backup-config", s.backupConfigDB)
+	data.Post("/compact-runtime", s.compactRuntimeDB)
 	api.Get("/ws/logs", websocket.New(s.handleLogWebSocket))
 	api.Get("/logs/download", s.handleLogDownload)
-
-	// 兼容旧路径
-	s.app.Get("/ws", websocket.New(s.handleWebSocket))
 
 	// 静态资源
 	s.app.Static("/", "./ui/dist")
@@ -422,6 +584,14 @@ func (s *Server) getDeviceHistory(c *fiber.Ctx) error {
 		return c.Status(503).JSON(fiber.Map{"error": "Device storage manager not initialized"})
 	}
 	deviceID := c.Params("deviceId")
+
+	const maxHistoryLimit = 1000
+	limit := maxHistoryLimit
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= maxHistoryLimit {
+			limit = l
+		}
+	}
 
 	startStr := c.Query("start")
 	endStr := c.Query("end")
@@ -462,23 +632,18 @@ func (s *Server) getDeviceHistory(c *fiber.Ctx) error {
 			return c.Status(400).JSON(fiber.Map{"error": "Invalid time format. Use RFC3339 or YYYY-MM-DD HH:mm:ss"})
 		}
 
-		history, err = s.dsm.GetHistoryByTimeRange(deviceID, start, end)
+		history, err = s.dsm.GetHistoryByTimeRange(deviceID, start, end, limit)
 	} else {
-		// Limit query (default)
-		limitStr := c.Query("limit")
-		limit := 100 // default
-		if limitStr != "" {
-			if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
-				limit = l
-			}
-		}
 		history, err = s.dsm.GetHistory(deviceID, limit)
 	}
 
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.JSON(history)
+	return c.JSON(fiber.Map{
+		"data":  history,
+		"total": len(history),
+	})
 }
 
 func (s *Server) addChannel(c *fiber.Ctx) error {
@@ -486,8 +651,13 @@ func (s *Server) addChannel(c *fiber.Ctx) error {
 	if err := c.BodyParser(&ch); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
-	if ch.ID == "" {
-		ch.ID = ch.Name // Simple fallback
+	if err := model.EnsureChannelID(&ch); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+	for i := range ch.Devices {
+		if err := model.EnsureDeviceID(&ch.Devices[i]); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		}
 	}
 
 	if err := s.cm.AddChannel(&ch); err != nil {
@@ -601,8 +771,44 @@ func (s *Server) updateOPCUAConfig(c *fiber.Ctx) error {
 		cfg.ID = uuid.New().String()
 	}
 
-	if err := s.nbm.UpsertOPCUAConfig(cfg); err != nil {
+	savedCfg, err := s.nbm.UpsertOPCUAConfig(cfg)
+	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(model.SanitizeOPCUAForClient(savedCfg))
+}
+
+func (s *Server) uploadOPCUACertificate(c *fiber.Ctx) error {
+	if s.nbm == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "Northbound manager not initialized"})
+	}
+
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "channel id required"})
+	}
+
+	var req struct {
+		ServerCertPEM   string   `json:"server_cert_pem"`
+		ServerKeyPEM    string   `json:"server_key_pem"`
+		TrustedCertsPEM []string `json:"trusted_certs_pem"`
+		ClearTrusted    bool     `json:"clear_trusted"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	var trusted []string
+	if req.ClearTrusted {
+		trusted = []string{}
+	} else if req.TrustedCertsPEM != nil {
+		trusted = req.TrustedCertsPEM
+	}
+
+	cfg, err := s.nbm.UpdateOPCUACertificates(id, req.ServerCertPEM, req.ServerKeyPEM, trusted)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	return c.JSON(cfg)
@@ -737,15 +943,15 @@ func (s *Server) addDevice(c *fiber.Ctx) error {
 			return c.Status(400).JSON(fiber.Map{"error": "Invalid device list"})
 		}
 
-		for _, dev := range devices {
-			if dev.ID == "" {
-				dev.ID = dev.Name
+		for i := range devices {
+			if err := model.EnsureDeviceID(&devices[i]); err != nil {
+				return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 			}
-			if err := s.cm.AddDevice(channelId, &dev); err != nil {
-				return c.Status(500).JSON(fiber.Map{"error": fmt.Sprintf("Failed to add device %s: %v", dev.Name, err)})
+			if err := s.cm.AddDevice(channelId, &devices[i]); err != nil {
+				return c.Status(500).JSON(fiber.Map{"error": fmt.Sprintf("Failed to add device %s: %v", devices[i].Name, err)})
 			}
 			if s.dsm != nil {
-				s.dsm.UpdateDeviceConfig(dev.ID, dev.Storage)
+				s.dsm.UpdateDeviceConfig(devices[i].ID, devices[i].Storage)
 			}
 		}
 		// 触发点位元数据同步到 edgeOS
@@ -760,8 +966,8 @@ func (s *Server) addDevice(c *fiber.Ctx) error {
 		if err := json.Unmarshal(c.Body(), &dev); err != nil {
 			return c.Status(400).JSON(fiber.Map{"error": "Invalid device"})
 		}
-		if dev.ID == "" {
-			dev.ID = dev.Name
+		if err := model.EnsureDeviceID(&dev); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 		}
 		if err := s.cm.AddDevice(channelId, &dev); err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -936,6 +1142,12 @@ func (s *Server) getDevicePoints(c *fiber.Ctx) error {
 			"readwrite": p.ReadWrite,
 			"protocol":  protocol, // 增加协议字段
 		}
+		if !p.CollectedAt.IsZero() {
+			m["collected_at"] = p.CollectedAt
+		}
+		if !p.UpdatedAt.IsZero() {
+			m["updated_at"] = p.UpdatedAt
+		}
 
 		// 根据协议添加特定字段
 		switch protocol {
@@ -970,8 +1182,8 @@ func (s *Server) addPoint(c *fiber.Ctx) error {
 	// 允许单个或批量
 	var single model.Point
 	if err := c.BodyParser(&single); err == nil && single.ID != "" || single.Name != "" {
-		if single.ID == "" {
-			single.ID = single.Name
+		if err := model.EnsurePointID(&single); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 		}
 		if err := s.cm.AddPoint(channelId, deviceId, &single); err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -1011,10 +1223,16 @@ func (s *Server) updatePoint(c *fiber.Ctx) error {
 	}
 	point.ID = pointId
 
-	if err := s.cm.UpdatePoint(channelId, deviceId, &point); err != nil {
+	deviceRestarted, err := s.cm.UpdatePoint(channelId, deviceId, &point)
+	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.JSON(point)
+	return c.JSON(fiber.Map{
+		"point":             point,
+		"device_restarted":  deviceRestarted,
+		"northbound_sync":   true,
+		"northbound_target": "opcua",
+	})
 }
 
 // removePoint 删除点位
@@ -1043,8 +1261,56 @@ func (s *Server) removePoints(c *fiber.Ctx) error {
 	return c.SendStatus(200)
 }
 
-// getRealtimeValues 返回当前存储中的最新值快照
+// getRealtimeValues 返回影子设备快照中的最新值（优先），否则回退到 values 缓存（兼容旧数据）。
 func (s *Server) getRealtimeValues(c *fiber.Ctx) error {
+	channelID := c.Query("channel_id")
+	deviceID := c.Query("device_id")
+
+	if s.shadowCore != nil && deviceID != "" {
+		shadowID := fmt.Sprintf("shadow-%s", deviceID)
+		shadow, err := s.shadowCore.GetShadowDevice(shadowID)
+		if err == nil && shadow != nil {
+			if channelID == "" || shadow.ChannelID == "" || shadow.ChannelID == channelID {
+				filtered := make(map[string]any)
+				for pid, pt := range shadow.Points {
+					collectedAt := pt.CollectedAt
+					if collectedAt.IsZero() {
+						collectedAt = pt.Timestamp
+					}
+					filtered[pid] = map[string]any{
+						"value":        pt.Value,
+						"quality":      pt.Quality,
+						"timestamp":    collectedAt,
+						"collected_at": collectedAt,
+						"updated_at":   pt.UpdatedAt,
+					}
+				}
+				return c.JSON(filtered)
+			}
+		}
+
+		if vd, err := s.shadowCore.GetVirtualShadowDevice(deviceID); err == nil && vd != nil {
+			if channelID == "" || vd.ChannelID == "" || vd.ChannelID == channelID {
+				filtered := make(map[string]any)
+				for pid, pt := range vd.Points {
+					collectedAt := pt.CollectedAt
+					if collectedAt.IsZero() {
+						collectedAt = pt.Timestamp
+					}
+					filtered[pid] = map[string]any{
+						"value":        pt.Value,
+						"quality":      pt.Quality,
+						"timestamp":    collectedAt,
+						"collected_at": collectedAt,
+						"updated_at":   pt.UpdatedAt,
+						"virtual":      true,
+					}
+				}
+				return c.JSON(filtered)
+			}
+		}
+	}
+
 	if s.storage == nil {
 		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
 	}
@@ -1052,9 +1318,6 @@ func (s *Server) getRealtimeValues(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-
-	channelID := c.Query("channel_id")
-	deviceID := c.Query("device_id")
 
 	// 未指定过滤条件时，保持兼容：返回全部
 	if channelID == "" && deviceID == "" {
@@ -1118,7 +1381,10 @@ func (s *Server) handleWebSocket(c *websocket.Conn) {
 }
 
 func (s *Server) broadcastLoop() {
-	// Tap into pipeline to broadcast real-time values
+	// 影子设备已挂载时，WebSocket 由 SetShadowCore 订阅推送；避免 Pipeline 重复广播。
+	if s.shadowCore != nil {
+		return
+	}
 	s.pipeline.AddHandler(func(val model.Value) {
 		// Convert to JSON
 		b, err := json.Marshal(val)
@@ -1340,6 +1606,22 @@ func (s *Server) getOPCUAStats(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(stats)
+}
+
+// syncOPCUAServer 重建 OPC UA 地址空间，同步南向点位配置（含读写权限）。
+// POST /api/northbound/opcua/:id/sync
+func (s *Server) syncOPCUAServer(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "server id is required"})
+	}
+	if err := s.nbm.SyncOPCUAServer(id); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(fiber.Map{
+		"message":   "OPC UA address space synced",
+		"server_id": id,
+	})
 }
 
 // writeOPCUA 通过 OPC-UA 服务端写入单个点位
@@ -1886,8 +2168,8 @@ func (s *Server) importDevicePoints(c *fiber.Ctx) error {
 		}
 
 		// 如果ID为空，使用Name
-		if p.ID == "" {
-			p.ID = p.Name
+		if err := model.EnsurePointID(&p); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 		}
 		points = append(points, p)
 	}
@@ -1921,6 +2203,57 @@ func (s *Server) importDevicePoints(c *fiber.Ctx) error {
 		"imported":    len(points),
 		"replaceMode": importData.ReplaceMode,
 	})
+}
+
+// exportConfig 导出所有配置为 JSON 格式
+// GET /api/config/export
+func (s *Server) exportConfig(c *fiber.Ctx) error {
+	if s.storage == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
+	}
+
+	configStore, err := storage.NewConfigStore(s.storage.GetConfigDB())
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to create config store: " + err.Error()})
+	}
+
+	exportData, err := configStore.ExportAllConfig()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to export config: " + err.Error()})
+	}
+
+	c.Set("Content-Type", "application/json")
+	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=config_export_%s.json", time.Now().Format("20060102150405")))
+
+	return c.JSON(exportData)
+}
+
+// importConfig 导入配置（JSON格式）
+// POST /api/config/import
+func (s *Server) importConfig(c *fiber.Ctx) error {
+	if s.storage == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
+	}
+
+	var exportData storage.ConfigExport
+	if err := c.BodyParser(&exportData); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid request body: " + err.Error()})
+	}
+
+	configStore, err := storage.NewConfigStore(s.storage.GetConfigDB())
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to create config store: " + err.Error()})
+	}
+
+	if err := configStore.ImportConfig(&exportData); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to import config: " + err.Error()})
+	}
+
+	if err := s.cfgManager.Reload(); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "config imported but failed to reload: " + err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"success": true, "message": "config imported successfully"})
 }
 
 // ===== 节点管理 API 处理函数 =====
@@ -2368,9 +2701,9 @@ func (s *Server) pushConfig(c *fiber.Ctx) error {
 	}
 
 	var req struct {
-		GroupIDs      []string `json:"groupIds"`
-		SyncAll       bool     `json:"syncAll"`
-		ForceOverwrite bool    `json:"forceOverwrite"`
+		GroupIDs       []string `json:"groupIds"`
+		SyncAll        bool     `json:"syncAll"`
+		ForceOverwrite bool     `json:"forceOverwrite"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid request"})
@@ -2412,9 +2745,9 @@ func (s *Server) pullConfig(c *fiber.Ctx) error {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 		return c.JSON(fiber.Map{
-			"message":  "config pulled from remote",
-			"node_id":  req.NodeID,
-			"snapshot": snapshot,
+			"message":   "config pulled from remote",
+			"node_id":   req.NodeID,
+			"snapshot":  snapshot,
 			"timestamp": time.Now(),
 		})
 	}
@@ -2623,39 +2956,6 @@ func (s *Server) migrateDeviceConfig(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "migration initiated", "device_code": req.DeviceCode})
 }
 
-// getMigrationStatus 查询迁移状态
-func (s *Server) getMigrationStatus(c *fiber.Ctx) error {
-	if s.syncManager == nil {
-		return c.Status(503).JSON(fiber.Map{"error": "Sync manager not initialized"})
-	}
-
-	// This would query the migration status from the sync manager
-	return c.JSON(fiber.Map{
-		"status":  "completed",
-		"message": "migration status endpoint",
-	})
-}
-
-// rollbackMigration 回滚迁移操作
-func (s *Server) rollbackMigration(c *fiber.Ctx) error {
-	if s.syncManager == nil {
-		return c.Status(503).JSON(fiber.Map{"error": "Sync manager not initialized"})
-	}
-
-	var req struct {
-		RollbackKey string `json:"rollback_key"`
-	}
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "invalid request"})
-	}
-
-	return c.JSON(fiber.Map{
-		"success": true,
-		"message": "rollback initiated",
-		"key":     req.RollbackKey,
-	})
-}
-
 // ===== 一键同步 API 处理函数 =====
 
 // simpleSync 一键同步 - 只需要输入节点ID和设备编码即可完成同步
@@ -2683,4 +2983,220 @@ func (s *Server) simpleSync(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "simple sync initiated", "node_id": req.NodeID, "device_code": req.DeviceCode})
+}
+
+func (s *Server) getDataStats(c *fiber.Ctx) error {
+	if s.storage == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
+	}
+
+	stats, totalSize, err := s.storage.GetBucketStats()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	result := fiber.Map{
+		"config_db": fiber.Map{
+			"path": s.storage.GetConfigPath(),
+		},
+		"runtime_db": fiber.Map{
+			"path": s.storage.GetPath(),
+		},
+		"total_size": totalSize,
+		"buckets":    stats,
+	}
+
+	return c.JSON(result)
+}
+
+func (s *Server) clearCache(c *fiber.Ctx) error {
+	var req struct {
+		Mode    string   `json:"mode"`
+		Buckets []string `json:"buckets"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid request"})
+	}
+
+	if req.Mode == "" && len(req.Buckets) == 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "mode or buckets is required"})
+	}
+
+	var bucketsToClear []string
+
+	switch req.Mode {
+	case "cache":
+		bucketsToClear = []string{
+			"DataCache",
+			"WindowData",
+			"NorthboundCache",
+			"RuleState",
+		}
+	case "runtime":
+		bucketsToClear = []string{
+			"DataCache",
+			"WindowData",
+			"NorthboundCache",
+			"RuleState",
+			"values",
+		}
+	case "history":
+		if s.storage != nil {
+			stats, _, _ := s.storage.GetBucketStats()
+			for _, stat := range stats {
+				if strings.HasPrefix(stat.Name, "device_history_") {
+					bucketsToClear = append(bucketsToClear, stat.Name)
+				}
+			}
+		}
+	case "":
+		bucketsToClear = req.Buckets
+	default:
+		return c.Status(400).JSON(fiber.Map{"error": "invalid mode: " + req.Mode})
+	}
+
+	for _, bucket := range bucketsToClear {
+		if storage.IsConfigBucket(bucket) {
+			return c.Status(403).JSON(fiber.Map{"error": "config bucket " + bucket + " cannot be cleared"})
+		}
+
+		if s.storage != nil {
+			if err := s.storage.ClearBucket(bucket); err != nil {
+				return c.Status(500).JSON(fiber.Map{"error": "failed to clear bucket " + bucket + ": " + err.Error()})
+			}
+		}
+
+		if s.dsm != nil && bucket == "values" {
+			s.dsm.ClearAllHistory()
+		}
+	}
+
+	stats, totalSize, err := s.storage.GetBucketStats()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"cleared": bucketsToClear,
+		"config_db": fiber.Map{
+			"path": s.storage.GetConfigPath(),
+		},
+		"runtime_db": fiber.Map{
+			"path": s.storage.GetPath(),
+		},
+		"total_size": totalSize,
+		"buckets":    stats,
+	})
+}
+
+// clearAllRuntime 清空所有运行时数据（用于 runtime DB 重建）
+// POST /api/data/clear-all-runtime
+func (s *Server) clearAllRuntime(c *fiber.Ctx) error {
+	if s.storage == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
+	}
+
+	cleared, err := s.storage.ClearAllRuntimeBuckets()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error(), "cleared": cleared})
+	}
+
+	if s.dsm != nil {
+		s.dsm.ClearAllHistory()
+	}
+
+	stats, totalSize, _ := s.storage.GetBucketStats()
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"cleared": cleared,
+		"config_db": fiber.Map{
+			"path": s.storage.GetConfigPath(),
+		},
+		"runtime_db": fiber.Map{
+			"path": s.storage.GetPath(),
+		},
+		"total_size": totalSize,
+		"buckets":    stats,
+	})
+}
+
+// backupConfigDB 备份配置数据库（优先备份，不包含运行时数据）
+// POST /api/data/backup-config
+func (s *Server) backupConfigDB(c *fiber.Ctx) error {
+	if s.storage == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
+	}
+
+	backupDir := c.Query("dir", "data/backups")
+	backupInfo, err := s.storage.BackupConfigDB(backupDir)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to backup config db: " + err.Error()})
+	}
+
+	return c.JSON(fiber.Map{
+		"status":       "success",
+		"backup_path":  backupInfo.BackupPath,
+		"backup_time":  backupInfo.BackupTime,
+		"original":     backupInfo.OriginalPath,
+		"size_bytes":   backupInfo.FileSizeBytes,
+		"size_display": formatBytes(backupInfo.FileSizeBytes),
+		"message":      "配置库已备份，运行时数据不受影响",
+	})
+}
+
+// compactRuntimeDB 压缩运行时数据库，回收已删除数据的空间
+// POST /api/data/compact-runtime
+func (s *Server) compactRuntimeDB(c *fiber.Ctx) error {
+	if s.storage == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
+	}
+
+	// 获取压缩前大小
+	beforeInfo, _ := os.Stat(s.storage.GetPath())
+	beforeSize := int64(0)
+	if beforeInfo != nil {
+		beforeSize = beforeInfo.Size()
+	}
+
+	if err := s.storage.CompactRuntimeDB(); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to compact runtime db: " + err.Error()})
+	}
+
+	// 获取压缩后大小
+	afterInfo, _ := os.Stat(s.storage.GetPath())
+	afterSize := int64(0)
+	if afterInfo != nil {
+		afterSize = afterInfo.Size()
+	}
+
+	saved := beforeSize - afterSize
+	if saved < 0 {
+		saved = 0
+	}
+
+	return c.JSON(fiber.Map{
+		"status":       "success",
+		"before_bytes": beforeSize,
+		"after_bytes":  afterSize,
+		"saved_bytes":  saved,
+		"before_size":  formatBytes(beforeSize),
+		"after_size":   formatBytes(afterSize),
+		"saved_size":   formatBytes(saved),
+		"message":      "运行时数据库已压缩，配置库不受影响",
+	})
+}
+
+// formatBytes 格式化字节数为 MB 显示
+func formatBytes(bytes int64) string {
+	if bytes <= 0 {
+		return "0 MB"
+	}
+	mb := float64(bytes) / (1024 * 1024)
+	if mb < 0.01 {
+		return fmt.Sprintf("%.4f MB", mb)
+	}
+	return fmt.Sprintf("%.2f MB", mb)
 }

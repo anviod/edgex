@@ -1,3 +1,5 @@
+// Package sync provides multi-node config file synchronization (deprecated).
+// Runtime configuration now lives in data/config.db; SyncManager is disabled in main.
 package sync
 
 import (
@@ -367,16 +369,18 @@ func sectionFromStruct(section, id, name string, enabled bool, sourceFile string
 
 func deviceConfigMap(ch model.Channel, dev model.Device) map[string]any {
 	data := map[string]any{
-		"id":          dev.ID,
-		"name":        dev.Name,
-		"enable":      dev.Enable,
-		"interval":    dev.Interval,
-		"device_file": dev.DeviceFile,
-		"config":      dev.Config,
-		"storage":     dev.Storage,
-		"points":      dev.Points,
-		"channel_id":  ch.ID,
-		"protocol":    ch.Protocol,
+		"id":         dev.ID,
+		"name":       dev.Name,
+		"enable":     dev.Enable,
+		"interval":   dev.Interval,
+		"config":     dev.Config,
+		"storage":    dev.Storage,
+		"points":     dev.Points,
+		"channel_id": ch.ID,
+		"protocol":   ch.Protocol,
+	}
+	if dev.DegradeOnFailure != nil {
+		data["degrade_on_failure"] = *dev.DegradeOnFailure
 	}
 	return data
 }
@@ -398,15 +402,16 @@ func pointConfigMap(pt model.Point) map[string]any {
 		"unit":          pt.Unit,
 		"readwrite":     pt.ReadWrite,
 		"group":         pt.Group,
+		"scan_class":    pt.ScanClass,
 		"report_mode":   pt.ReportMode,
 	}
 }
 
 func deviceSourceFile(ch model.Channel, dev model.Device) string {
-	if dev.DeviceFile != "" {
+	if dev.DeviceFile != "" && !strings.HasPrefix(dev.DeviceFile, "data") {
 		return dev.DeviceFile
 	}
-	return filepath.Join("conf", "devices", ch.Protocol, dev.ID+".yaml")
+	return "db:devices/" + ch.Protocol + "/" + dev.ID
 }
 
 func deriveStatus(enabled bool, runtime *model.NodeRuntime) string {

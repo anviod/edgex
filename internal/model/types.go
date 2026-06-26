@@ -191,6 +191,7 @@ type Point struct {
 	Unit         string           `json:"unit" yaml:"unit"`
 	ReadWrite    string           `json:"readwrite" yaml:"readwrite"` // R / RW
 	Group        string           `json:"group" yaml:"group"`
+	ScanClass    string           `json:"scan_class,omitempty" yaml:"scan_class,omitempty"` // fast / normal / slow
 	ReportMode   string           `json:"report_mode" yaml:"report_mode"` // cycle / cov / event
 	Threshold    *ThresholdConfig `json:"threshold" yaml:"threshold"`
 	DeviceID     string           `json:"-" yaml:"-"` // Runtime field, not persisted
@@ -225,7 +226,9 @@ type PointData struct {
 	DataType     string    `json:"datatype"`
 	Value        any       `json:"value"`
 	Quality      string    `json:"quality"`
-	Timestamp    time.Time `json:"timestamp"`
+	Timestamp    time.Time `json:"timestamp"`     // 采集时间（兼容旧字段）
+	CollectedAt  time.Time `json:"collected_at"`  // 采集时间
+	UpdatedAt    time.Time `json:"updated_at"`    // 影子更新时间
 	Unit         string    `json:"unit,omitempty"`
 	ReadWrite    string    `json:"readwrite"` // R / RW
 }
@@ -243,8 +246,9 @@ type Device struct {
 	ID           string         `json:"id" yaml:"id"`
 	Name         string         `json:"name" yaml:"name"`
 	Enable       bool           `json:"enable" yaml:"enable"`
-	Interval     Duration       `json:"interval" yaml:"interval"`
-	DeviceFile   string         `json:"device_file,omitempty" yaml:"device_file,omitempty"` // 设备配置文件路径
+	Interval          Duration       `json:"interval" yaml:"interval"`
+	DegradeOnFailure  *bool          `json:"degrade_on_failure,omitempty" yaml:"degrade_on_failure,omitempty"` // 默认 true；设为 false 关闭失败退避
+	DeviceFile        string         `json:"device_file,omitempty" yaml:"device_file,omitempty"`               // 设备配置文件路径
 	Config       map[string]any `json:"config" yaml:"config"`                               // 设备特定配置（如 slave_id）
 	Storage      DeviceStorage  `json:"storage,omitempty" yaml:"storage,omitempty"`         // Data storage strategy
 	Points       []Point        `json:"points,omitempty" yaml:"points,omitempty"`             // 该设备的点位列表
@@ -359,14 +363,20 @@ type OPCUAConfig struct {
 	Enable          bool              `json:"enable" yaml:"enable"`
 	Port            int               `json:"port" yaml:"port"`
 	Endpoint        string            `json:"endpoint" yaml:"endpoint"`
-	SecurityPolicy  string            `json:"security_policy" yaml:"security_policy"` // "None", "Basic256", "Basic256Sha256", "Auto"
-	SecurityMode    string            `json:"security_mode" yaml:"security_mode"`     // "None", "Sign", "SignAndEncrypt"
+	SecurityPolicy  string            `json:"security_policy" yaml:"security_policy"` // Auto, None, Basic256Sha256, Basic256, Basic128Rsa15, Aes128_Sha256_RsaOaep, Aes256Sha256RsaPss
+	SecurityMode    string            `json:"security_mode" yaml:"security_mode"`     // Auto, None, Sign, SignAndEncrypt
 	TrustedCertPath string            `json:"trusted_cert_path" yaml:"trusted_cert_path"`
 	AuthMethods     []string          `json:"auth_methods" yaml:"auth_methods"` // "Anonymous", "UserName", "Certificate"
 	Users           map[string]string `json:"users" yaml:"users"`               // Username -> Password
-	CertFile        string            `json:"cert_file" yaml:"cert_file"`       // Path to server certificate
-	KeyFile         string            `json:"key_file" yaml:"key_file"`         // Path to server private key
-	Devices         map[string]bool   `json:"devices" yaml:"devices"`           // Key: DeviceID, Value: Enable
+	CertFile        string            `json:"cert_file" yaml:"cert_file"` // legacy path fallback
+	KeyFile         string            `json:"key_file" yaml:"key_file"`   // legacy path fallback
+	// ServerCertPEM / ServerKeyPEM 持久化在北向配置（edge.db），启动时物化到 data/certs/opcua/{id}/
+	ServerCertPEM   string            `json:"server_cert_pem,omitempty" yaml:"server_cert_pem,omitempty"`
+	ServerKeyPEM    string            `json:"server_key_pem,omitempty" yaml:"server_key_pem,omitempty"`
+	TrustedCertsPEM []string          `json:"trusted_certs_pem,omitempty" yaml:"trusted_certs_pem,omitempty"`
+	HasServerCert   bool              `json:"has_server_cert,omitempty" yaml:"-"`
+	HasServerKey    bool              `json:"has_server_key,omitempty" yaml:"-"`
+	Devices         OpcUaDeviceMap    `json:"devices" yaml:"devices"` // Key: DeviceID, Value: enable/strategy/interval
 }
 
 type SparkplugBConfig struct {
@@ -515,6 +525,9 @@ type SouthboundManager interface {
 	GetDevice(channelID, deviceID string) *Device
 	WritePoint(channelID, deviceID, pointID string, value any) error
 	GetDevicePoints(channelID, deviceID string) ([]PointData, error)
+	// GetShadowPoint 从影子设备实时快照中读取单个点位数据。
+	// 供 OPC UA Server 的 ReadHandler 调用，使第三方客户端能按需获取实时值。
+	GetShadowPoint(channelID, deviceID, pointID string) (*ShadowPoint, error)
 }
 
 // ProtocolConfig 协议配置
@@ -531,7 +544,10 @@ type ShadowPoint struct {
 	RW             string    `json:"rw"` // "r" or "rw"
 	SamplePeriodMs int       `json:"sample_period_ms"`
 	Quality        string    `json:"quality"`
-	Timestamp      time.Time `json:"timestamp"`
+	Degraded       bool      `json:"degraded,omitempty"` // 点位降级标记
+	Timestamp      time.Time `json:"timestamp"`          // 采集时间（兼容旧字段）
+	CollectedAt    time.Time `json:"collected_at"`       // 采集时间
+	UpdatedAt      time.Time `json:"updated_at"`         // 影子更新时间
 	Version        uint64    `json:"version"`
 }
 
@@ -550,6 +566,7 @@ type ShadowDevice struct {
 // VirtualDevice represents a virtual shadow device with formula-based points
 type VirtualDevice struct {
 	VirtualDeviceID string                 `json:"virtual_device_id"`
+	ChannelID       string                 `json:"channel_id,omitempty"`
 	Version         uint64                 `json:"version"`
 	UpdatedAt       time.Time              `json:"updated_at"`
 	FormulaPoints   map[string]string      `json:"formula_points"` // pointID -> formula
@@ -557,15 +574,45 @@ type VirtualDevice struct {
 	Points          map[string]ShadowPoint `json:"points"`         // computed values
 }
 
-// WALRecord represents a Write-Ahead Log record
-type WALRecord struct {
-	Offset         uint64    `json:"offset"`
-	EventType      string    `json:"event_type"` // "shadow-write", "virtual-update"
-	ShadowDeviceID string    `json:"shadow_device_id"`
-	Version        uint64    `json:"version"`
-	PayloadHash    string    `json:"payload_hash"`
-	CreatedAt      time.Time `json:"created_at"`
-	Payload        []byte    `json:"payload"` // JSON-encoded data
+// VirtualShadowPointDef 虚拟影子点位定义（UI 配置）
+type VirtualShadowPointDef struct {
+	PointID   string `json:"point_id"`
+	Name      string `json:"name,omitempty"`
+	Unit      string `json:"unit,omitempty"`
+	Mode      string `json:"mode"`                 // "map" 直接映射 | "formula" 公式计算
+	SourceRef string `json:"source_ref,omitempty"` // map 模式：ch1.dev1.temp
+	Formula   string `json:"formula,omitempty"`  // formula 模式
+}
+
+// VirtualShadowDeviceConfig 虚拟影子设备配置（持久化）
+type VirtualShadowDeviceConfig struct {
+	ID          string                  `json:"id"`
+	Name        string                  `json:"name"`
+	ChannelID   string                  `json:"channel_id"`
+	Description string                  `json:"description,omitempty"`
+	Enable      bool                    `json:"enable"`
+	Points      []VirtualShadowPointDef `json:"points"`
+}
+
+// PointSourceRef 可选点位引用（供 UI 拼积木选择）
+type PointSourceRef struct {
+	ChannelID   string `json:"channel_id"`
+	ChannelName string `json:"channel_name"`
+	DeviceID    string `json:"device_id"`
+	DeviceName  string `json:"device_name"`
+	PointID     string `json:"point_id"`
+	PointName   string `json:"point_name"`
+	Ref         string `json:"ref"`
+}
+
+// SourceDeviceSummary 源设备摘要（供 UI 检索列表，不含全量点位）
+type SourceDeviceSummary struct {
+	Key         string `json:"key"`
+	ChannelID   string `json:"channel_id"`
+	ChannelName string `json:"channel_name"`
+	DeviceID    string `json:"device_id"`
+	DeviceName  string `json:"device_name"`
+	PointCount  int    `json:"point_count"`
 }
 
 // ShadowIngressMessage represents the standard message format from Points layer to ShadowIngress
@@ -581,11 +628,13 @@ type ShadowIngressMessage struct {
 
 // ShadowIngressPoint represents a single point in the ingress message
 type ShadowIngressPoint struct {
-	PointID        string `json:"point_id"`
-	Value          any    `json:"value"`
-	Unit           string `json:"unit"`
-	Quality        string `json:"quality"`
-	SamplePeriodMs int    `json:"sample_period_ms"`
+	PointID        string    `json:"point_id"`
+	Value          any       `json:"value"`
+	Unit           string    `json:"unit"`
+	Quality        string    `json:"quality"`
+	SamplePeriodMs int       `json:"sample_period_ms"`
+	CollectedAt    time.Time `json:"collected_at"` // 设备侧采集时间
+	Degraded       bool      `json:"degraded,omitempty"`
 }
 
 // ShadowIngressMeta represents metadata in the ingress message

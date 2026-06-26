@@ -331,7 +331,7 @@ const onCancel = () => {
 .drawer-header {
   font-size: 13px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
   letter-spacing: 0.5px;
   display: flex;
   align-items: center;
@@ -366,7 +366,7 @@ const onCancel = () => {
 /* 规格卡片：硬核线构 */
 .spec-card {
   border: 1px solid #e2e8f0;
-  background-color: #f8fafc;
+  background-color: var(--edgex-surface-inset);
   padding: 12px;
 }
 

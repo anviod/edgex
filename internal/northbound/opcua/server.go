@@ -38,6 +38,7 @@ type Server struct {
 	stats     Stats
 	ctx       context.Context
 	cancel    context.CancelFunc
+	writeHistory []WriteHistoryItem
 
 	// Node ID mapping system for compact node IDs
 	idMapper *NodeIDMapper
@@ -287,20 +288,17 @@ func (s *Server) Start() error {
 	safeName := strings.ReplaceAll(s.config.Name, " ", "")
 	appURI := fmt.Sprintf("urn:edgex-gateway:%s", safeName)
 
-	// Ensure certificates exist
-	certFile := s.config.CertFile
-	keyFile := s.config.KeyFile
+	// Resolve server certificate (DB PEM → disk, legacy path, or auto-generated)
+	certFile, keyFile, err := MaterializeServerCerts(s.config)
+	if err != nil {
+		return fmt.Errorf("failed to materialize server certificate: %w", err)
+	}
 	if certFile == "" {
 		if s.config.Name == "Test Server" {
 			certFile = "server_test.crt"
-		} else {
-			certFile = "server.crt"
-		}
-	}
-	if keyFile == "" {
-		if s.config.Name == "Test Server" {
 			keyFile = "server_test.key"
 		} else {
+			certFile = "server.crt"
 			keyFile = "server.key"
 		}
 	}
@@ -308,6 +306,12 @@ func (s *Server) Start() error {
 	if err := s.ensureCert(certFile, keyFile, appURI); err != nil {
 		return fmt.Errorf("failed to ensure certificate: %v", err)
 	}
+
+	trustBaseDir, err := MaterializeTrustedCerts(s.config)
+	if err != nil {
+		return fmt.Errorf("failed to materialize trusted certificates: %w", err)
+	}
+	strictClientPKI := trustBaseDir != "" && len(s.config.TrustedCertsPEM) > 0
 
 	appDesc := ua.ApplicationDescription{
 		ApplicationURI:  appURI,
@@ -323,78 +327,19 @@ func (s *Server) Start() error {
 	// Note: server.WithUserTokenPolicies seems to be unavailable or named differently.
 	// We rely on Authenticator functions to implicitly support tokens if applicable.
 
-	// Configure Authenticator
-	opts := []server.Option{}
+	// Configure Authenticator & security policies (see security.go)
+	opts := appendSecurityOptions(s.config, []server.Option{}, strictClientPKI)
 
-	// Helper to check if method is enabled
-	hasAuthMethod := func(method string) bool {
-		if len(s.config.AuthMethods) == 0 {
-			// Default to Anonymous if not specified
-			return method == "Anonymous"
-		}
-		for _, m := range s.config.AuthMethods {
-			if m == method {
-				return true
-			}
-		}
-		return false
+	if trustBaseDir != "" {
+		opts = append(opts,
+			server.WithTrustedCertificatesPaths(
+				filepath.Join(trustBaseDir, "trusted"),
+				filepath.Join(trustBaseDir, "crl"),
+			),
+			server.WithRejectedCertificatesPath(filepath.Join(trustBaseDir, "rejected")),
+		)
 	}
 
-	if hasAuthMethod("Anonymous") {
-		opts = append(opts, server.WithAuthenticateAnonymousIdentityFunc(func(userIdentity ua.AnonymousIdentity, applicationURI string, endpointURL string) error {
-			return nil
-		}))
-	}
-
-	if hasAuthMethod("UserName") {
-		opts = append(opts, server.WithAuthenticateUserNameIdentityFunc(func(userIdentity ua.UserNameIdentity, applicationURI string, endpointURL string) error {
-			// For testing purposes, temporarily allow any username/password
-			return nil
-		}))
-	}
-
-	// Security Configuration
-	// Handle Security Policy
-	// User requested "Support all levels", so we enable None explicitly.
-	// Secure policies (Basic256Sha256, Aes128_Sha256_RsaOaep) are enabled by default if a certificate is provided.
-	opts = append(opts, server.WithSecurityPolicyNone(true))
-
-	// Handle Trusted Certificates
-	if s.config.TrustedCertPath != "" {
-		// Use subdirectories for trusted and rejected certificates
-		trustedDir := filepath.Join(s.config.TrustedCertPath, "trusted")
-		rejectedDir := filepath.Join(s.config.TrustedCertPath, "rejected")
-		// Ensure directories exist
-		os.MkdirAll(trustedDir, 0755)
-		os.MkdirAll(rejectedDir, 0755)
-		opts = append(opts, server.WithTrustedCertificatesPaths(trustedDir, rejectedDir))
-
-		// Development mode: Auto-trust client certificates to avoid manual copying
-		// This fixes "Bad_SecurityChecksFailed" when client cert is not yet trusted
-		opts = append(opts, server.WithInsecureSkipVerify())
-	}
-
-	if hasAuthMethod("Certificate") {
-		opts = append(opts, server.WithAuthenticateX509IdentityFunc(func(userIdentity ua.X509Identity, applicationURI string, endpointURL string) error {
-			// Verify the certificate
-			cert, err := x509.ParseCertificate([]byte(userIdentity.Certificate))
-			if err != nil {
-				zap.L().Error("OPC UA Certificate Auth failed",
-					zap.Error(err),
-					zap.String("component", "opcua-server"),
-				)
-				return ua.BadUserAccessDenied
-			}
-			zap.L().Info("OPC UA Client Authenticated via Certificate",
-				zap.String("subject", cert.Subject.String()),
-				zap.String("issuer", cert.Issuer.String()),
-				zap.String("component", "opcua-server"),
-			)
-			return nil
-		}))
-	}
-
-	var err error
 	s.srv, err = server.New(
 		appDesc,
 		certFile,
@@ -553,8 +498,8 @@ func (s *Server) Update(v model.Value) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if s.config.Devices != nil {
-		if enabled, ok := s.config.Devices[v.DeviceID]; ok && !enabled {
+	if len(s.config.Devices) > 0 {
+		if !s.config.Devices.AllowsDevice(v.DeviceID) {
 			return
 		}
 	}
@@ -697,15 +642,14 @@ func (s *Server) buildAddressSpace() error {
 			// Check if device is enabled in config
 			// If config.Devices is empty, we assume "Allow All" for better UX.
 			// If config.Devices is populated, we apply strict filtering.
-			if s.config.Devices != nil && len(s.config.Devices) > 0 {
-				if enabled, ok := s.config.Devices[dev.ID]; !ok || !enabled {
-					//					zap.L().Info("Skipping OPC UA Device Node (Not Enabled)", zap.String("device_id", dev.ID), zap.Bool("ok", ok), zap.Bool("enabled", enabled))
+			if len(s.config.Devices) > 0 {
+				if !s.config.Devices.AllowsDevice(dev.ID) {
+					zap.L().Debug("OPC UA device excluded by mapping",
+						zap.String("device_id", dev.ID),
+						zap.String("channel_id", ch.ID),
+					)
 					continue
-				} else {
-					//zap.L().Info("Device Enabled in OPC UA Config", zap.String("device_id", dev.ID), zap.Bool("enabled", enabled))
 				}
-			} else {
-				zap.L().Info("No OPC UA Device Filter Configured, Allowing All Devices")
 			}
 
 			// Generate compact device node ID: G/{channelNum}/D/{deviceNum}
@@ -804,8 +748,33 @@ func (s *Server) buildAddressSpace() error {
 				}
 
 				// Create variable node with STRING node ID (ns=2;s=DeviceID.PointID)
-				// Use original point name as BrowseName for readability
-				vNode := createVar(pointsNodeID, stringID, p.Name, s.getZeroValue(p.DataType), dataTypeID, accessLevel, writeHandler)
+			// Use original point name as BrowseName for readability
+			// 预加载影子设备实时快照作为初始值，避免客户端首次连接看到零值
+			initialVal := s.getZeroValue(p.DataType)
+			if sp, err := s.sb.GetShadowPoint(ch.ID, dev.ID, p.ID); err == nil && sp != nil {
+				initialVal = convertToType(sp.Value, p.DataType)
+			}
+			vNode := createVar(pointsNodeID, stringID, p.Name, initialVal, dataTypeID, accessLevel, writeHandler)
+
+			// 设置 ReadHandler：第三方客户端 Read/Subscribe 时从影子设备实时快照读取
+			cid, did, pid := ch.ID, dev.ID, p.ID
+			pType := p.DataType
+			vNode.SetReadValueHandler(func(sess *server.Session, req ua.ReadValueID) ua.DataValue {
+				if sp, err := s.sb.GetShadowPoint(cid, did, pid); err == nil && sp != nil {
+					status := uint32(0) // Good
+					if sp.Quality != "good" && sp.Quality != "Good" {
+						status = 0x80000000 // Bad
+					}
+					return ua.DataValue{
+						Value:           convertToType(sp.Value, pType),
+						StatusCode:      ua.StatusCode(status),
+						SourceTimestamp: sp.CollectedAt,
+						ServerTimestamp: time.Now(),
+					}
+				}
+				// 影子设备无数据时回退到节点存储值
+				return vNode.Value()
+			})
 
 				s.mu.Lock()
 				s.nodeMap[pKey] = vNode
@@ -878,17 +847,34 @@ func (s *Server) getClientCount() int {
 
 // Stats represents the monitoring statistics
 type Stats struct {
-	ClientCount       int   `json:"client_count"`
-	SubscriptionCount int   `json:"subscription_count"`
-	WriteCount        int64 `json:"write_count"`
-	Uptime            int64 `json:"uptime"`
+	ClientCount       int                  `json:"client_count"`
+	SubscriptionCount int                  `json:"subscription_count"`
+	WriteCount        int64                `json:"write_count"`
+	Uptime            int64                `json:"uptime"`
+	SecurityPolicy    string               `json:"security_policy"`
+	SecurityMode      string               `json:"security_mode"`
+	AuthMethods       []string             `json:"auth_methods"`
+	EndpointCount     int                  `json:"endpoint_count"`
+	SecurityCaps      []SecurityCapability `json:"security_capabilities"`
 }
 
 // GetStats returns the current statistics
 func (s *Server) GetStats() Stats {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.stats
+
+	stats := s.stats
+	stats.SecurityPolicy = policyDisplayName(s.config.SecurityPolicy)
+	if stats.SecurityPolicy == "" {
+		stats.SecurityPolicy = "Auto"
+	}
+	stats.SecurityMode = preferredSecurityMode(s.config)
+	stats.AuthMethods = append([]string(nil), s.config.AuthMethods...)
+	stats.SecurityCaps = SupportedSecurityCapabilities(s.config)
+	if s.srv != nil {
+		stats.EndpointCount = len(s.srv.Endpoints())
+	}
+	return stats
 }
 
 func (s *Server) updateSystemNode(name string, value interface{}) {
@@ -1112,18 +1098,25 @@ func getString(m map[string]any, key string) string {
 // WriteViaOPCUA 通过 OPC-UA 服务端写入值（外部调用接口）
 // 返回写入是否成功，以及更新后的值（用于验证）
 func (s *Server) WriteViaOPCUA(channelID, deviceID, pointID string, value any) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	key := fmt.Sprintf("%s/%s/%s", channelID, deviceID, pointID)
+
+	s.mu.RLock()
 	node, ok := s.nodeMap[key]
+	s.mu.RUnlock()
 	if !ok {
 		return fmt.Errorf("node not found: %s", key)
 	}
 
 	// 调用 WritePoint
+	req := WriteRequest{
+		ChannelID: channelID,
+		DeviceID:  deviceID,
+		PointID:   pointID,
+		Value:     value,
+	}
 	err := s.sb.WritePoint(channelID, deviceID, pointID, value)
 	if err != nil {
+		s.recordWrite(req, false, err.Error())
 		return fmt.Errorf("write failed: %v", err)
 	}
 
@@ -1140,6 +1133,8 @@ func (s *Server) WriteViaOPCUA(channelID, deviceID, pointID string, value any) e
 	s.mu.Lock()
 	s.stats.WriteCount++
 	s.mu.Unlock()
+
+	s.recordWrite(req, true, "")
 
 	return nil
 }
@@ -1195,15 +1190,12 @@ type WriteHistoryItem struct {
 	Error     string    `json:"error,omitempty"`
 }
 
-var writeHistory []WriteHistoryItem
-var writeHistoryMu sync.Mutex
-
 const maxWriteHistorySize = 1000
 
 // recordWrite 记录写入历史
 func (s *Server) recordWrite(req WriteRequest, success bool, errMsg string) {
-	writeHistoryMu.Lock()
-	defer writeHistoryMu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	item := WriteHistoryItem{
 		ChannelID: req.ChannelID,
@@ -1215,27 +1207,25 @@ func (s *Server) recordWrite(req WriteRequest, success bool, errMsg string) {
 		Error:     errMsg,
 	}
 
-	writeHistory = append(writeHistory, item)
+	s.writeHistory = append(s.writeHistory, item)
 
-	// 限制历史记录大小
-	if len(writeHistory) > maxWriteHistorySize {
-		writeHistory = writeHistory[len(writeHistory)-maxWriteHistorySize:]
+	if len(s.writeHistory) > maxWriteHistorySize {
+		s.writeHistory = s.writeHistory[len(s.writeHistory)-maxWriteHistorySize:]
 	}
 }
 
 // GetWriteHistory 获取写入历史
 func (s *Server) GetWriteHistory(limit int) []WriteHistoryItem {
-	writeHistoryMu.Lock()
-	defer writeHistoryMu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
-	if limit <= 0 || limit > len(writeHistory) {
-		limit = len(writeHistory)
+	if limit <= 0 || limit > len(s.writeHistory) {
+		limit = len(s.writeHistory)
 	}
 
-	// 返回最新的 limit 条记录
-	start := len(writeHistory) - limit
+	start := len(s.writeHistory) - limit
 	result := make([]WriteHistoryItem, limit)
-	copy(result, writeHistory[start:])
+	copy(result, s.writeHistory[start:])
 	return result
 }
 

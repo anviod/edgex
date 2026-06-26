@@ -1,19 +1,27 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { globalState } from '../composables/useGlobalState'
+import { configStore } from '../stores/app.js'
 
 import Dashboard from '../views/Dashboard.vue'
 import ChannelList from '../views/ChannelList.vue'
 import DeviceList from '../views/DeviceList.vue'
 import PointList from '../views/PointList.vue'
 import Northbound from '../views/Northbound.vue'
+import VirtualShadowDevices from '../views/VirtualShadowDevices.vue'
 import EdgeCompute from '../views/EdgeCompute.vue'
 import EdgeComputeMetrics from '../views/EdgeComputeMetrics.vue'
 import SystemSettings from '../views/SystemSettings.vue'
 import LogViewer from '../views/LogViewer.vue'
 import Login from '../views/Login.vue'
 import NodeSync from '../views/NodeSync.vue'
+import Install from '../views/Install.vue'
 
 const routes = [
+    {
+        path: '/install',
+        component: Install,
+        meta: { title: '系统安装配置' }
+    },
     {
         path: '/login',
         component: Login,
@@ -55,9 +63,14 @@ const routes = [
         meta: { title: '点位数据' }
     },
     { 
+        path: '/virtual-shadows', 
+        component: VirtualShadowDevices,
+        meta: { title: '虚拟设备' }
+    },
+    { 
         path: '/northbound', 
         component: Northbound,
-        meta: { title: '北向数据上报' }
+        meta: { title: '北向上报' }
     },
     { 
         path: '/node-sync', 
@@ -71,12 +84,23 @@ const router = createRouter({
     routes
 })
 
-router.beforeEach((to, from, next) => {
-    // Clear custom nav title on route change
+router.beforeEach(async (to, from, next) => {
     globalState.navTitle = '';
 
-    const publicPages = ['/login'];
+    const publicPages = ['/login', '/install'];
     const authRequired = !publicPages.includes(to.path);
+
+    const config = configStore()
+
+    const installed = await config.checkInstallStatus()
+
+    if (!installed && to.path !== '/install') {
+        return next('/install');
+    }
+
+    if (installed && to.path === '/install') {
+        return next('/login');
+    }
 
     let hasValidToken = false
     const stored = localStorage.getItem('loginInfo')

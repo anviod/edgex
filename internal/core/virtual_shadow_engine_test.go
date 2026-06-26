@@ -1,8 +1,7 @@
 package core
 
 import (
-	"os"
-	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,23 +10,22 @@ import (
 )
 
 func TestVirtualShadowEngine_CreateVirtualDevice(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "vse_create_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	vse := NewVirtualShadowEngine(sc)
 
 	formulaPoints := map[string]string{
 		"total": "ch1.device1.temp + ch1.device2.temp",
 	}
 
-	err = vse.CreateVirtualDevice("virtual-1", formulaPoints)
+	err = vse.CreateVirtualDevice("virtual-1", "ch1", formulaPoints)
 	if err != nil {
 		t.Fatalf("CreateVirtualDevice failed: %v", err)
 	}
@@ -51,16 +49,15 @@ func TestVirtualShadowEngine_CreateVirtualDevice(t *testing.T) {
 }
 
 func TestVirtualShadowEngine_DependencyExtraction(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "vse_dep_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	vse := NewVirtualShadowEngine(sc)
 
 	formulaPoints := map[string]string{
@@ -69,7 +66,7 @@ func TestVirtualShadowEngine_DependencyExtraction(t *testing.T) {
 		"mixed": "ch1.dev1.pressure * 2 + ch1.dev2.flow",
 	}
 
-	err = vse.CreateVirtualDevice("virtual-2", formulaPoints)
+	err = vse.CreateVirtualDevice("virtual-2", "ch1", formulaPoints)
 	if err != nil {
 		t.Fatalf("CreateVirtualDevice failed: %v", err)
 	}
@@ -102,24 +99,65 @@ func TestVirtualShadowEngine_DependencyExtraction(t *testing.T) {
 	}
 }
 
-func TestVirtualShadowEngine_DeleteVirtualDevice(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "vse_delete_test.db")
-	defer os.Remove(tmpFile)
+func TestVirtualShadowEngine_MapModeHyphenatedDevice(t *testing.T) {
+	sc := NewShadowCore()
+	vse := NewVirtualShadowEngine(sc)
 
-	store, err := storage.NewStorage(tmpFile)
+	ref := "mzp8f02lusxvk0da.modbus-slave-1.hr_0"
+	formulaPoints := map[string]string{
+		"hr_0": ref,
+	}
+
+	if err := vse.CreateVirtualDevice("v1", "mzp8f02lusxvk0da", formulaPoints); err != nil {
+		t.Fatalf("CreateVirtualDevice failed: %v", err)
+	}
+
+	device, err := vse.GetVirtualDevice("v1")
+	if err != nil {
+		t.Fatalf("GetVirtualDevice failed: %v", err)
+	}
+	if len(device.Dependencies) != 1 || device.Dependencies[0] != ref {
+		t.Fatalf("expected dependency %q, got %v", ref, device.Dependencies)
+	}
+
+	sc.WriteShadowDevice(model.ShadowIngressMessage{
+		DeviceID:  "modbus-slave-1",
+		ChannelID: "mzp8f02lusxvk0da",
+		Timestamp: time.Now(),
+		Points: []model.ShadowIngressPoint{
+			{PointID: "hr_0", Value: 42.0, Quality: "good"},
+		},
+	})
+
+	vse.RecomputeDevice("v1")
+
+	device, _ = vse.GetVirtualDevice("v1")
+	pt, ok := device.Points["hr_0"]
+	if !ok {
+		t.Fatal("expected mapped point hr_0")
+	}
+	if pt.Value != float64(42) {
+		t.Errorf("expected value 42, got %v", pt.Value)
+	}
+}
+
+func TestVirtualShadowEngine_DeleteVirtualDevice(t *testing.T) {
+	tmpDir := testOutputDir(t)
+
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	vse := NewVirtualShadowEngine(sc)
 
 	formulaPoints := map[string]string{
 		"total": "device1.temp + device2.temp",
 	}
 
-	vse.CreateVirtualDevice("virtual-1", formulaPoints)
+	vse.CreateVirtualDevice("virtual-1", "ch1", formulaPoints)
 
 	err = vse.DeleteVirtualDevice("virtual-1")
 	if err != nil {
@@ -133,23 +171,22 @@ func TestVirtualShadowEngine_DeleteVirtualDevice(t *testing.T) {
 }
 
 func TestVirtualShadowEngine_UpdateFormula(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "vse_update_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	vse := NewVirtualShadowEngine(sc)
 
 	formulaPoints := map[string]string{
 		"total": "device1.temp + device2.temp",
 	}
 
-	vse.CreateVirtualDevice("virtual-1", formulaPoints)
+	vse.CreateVirtualDevice("virtual-1", "ch1", formulaPoints)
 
 	err = vse.UpdateFormula("virtual-1", "total", "device1.temp * 2")
 	if err != nil {
@@ -164,23 +201,22 @@ func TestVirtualShadowEngine_UpdateFormula(t *testing.T) {
 }
 
 func TestVirtualShadowEngine_GetDependencyGraph(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "vse_graph_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	vse := NewVirtualShadowEngine(sc)
 
 	formulaPoints := map[string]string{
 		"total": "ch1.device1.temp + ch1.device2.temp",
 	}
 
-	vse.CreateVirtualDevice("virtual-1", formulaPoints)
+	vse.CreateVirtualDevice("virtual-1", "ch1", formulaPoints)
 
 	graph := vse.GetDependencyGraph()
 
@@ -190,23 +226,22 @@ func TestVirtualShadowEngine_GetDependencyGraph(t *testing.T) {
 }
 
 func TestVirtualShadowEngine_GetMetrics(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "vse_metrics_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	vse := NewVirtualShadowEngine(sc)
 
 	formulaPoints := map[string]string{
 		"total": "device1.temp + device2.temp",
 	}
 
-	vse.CreateVirtualDevice("virtual-1", formulaPoints)
+	vse.CreateVirtualDevice("virtual-1", "ch1", formulaPoints)
 
 	metrics := vse.GetMetrics()
 
@@ -220,16 +255,15 @@ func TestVirtualShadowEngine_GetMetrics(t *testing.T) {
 }
 
 func TestVirtualShadowEngine_FormulaEvaluation(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "vse_eval_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	vse := NewVirtualShadowEngine(sc)
 
 	msg := model.ShadowIngressMessage{
@@ -260,7 +294,7 @@ func TestVirtualShadowEngine_FormulaEvaluation(t *testing.T) {
 		"sum": "ch1.dev1.temp + ch1.dev2.temp",
 	}
 
-	vse.CreateVirtualDevice("virtual-sum", formulaPoints)
+	vse.CreateVirtualDevice("virtual-sum", "ch1", formulaPoints)
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -270,4 +304,89 @@ func TestVirtualShadowEngine_FormulaEvaluation(t *testing.T) {
 	}
 
 	t.Logf("Virtual device points: %+v", device.Points)
+
+	sumPt, ok := device.Points["sum"]
+	if !ok {
+		t.Fatal("expected sum point")
+	}
+	if sumPt.Value != float64(55) {
+		t.Errorf("expected sum 55, got %v", sumPt.Value)
+	}
+}
+
+func TestVirtualShadowEngine_PipelineFanOut(t *testing.T) {
+	sc := NewShadowCore()
+	pipeline := NewDataPipeline(20)
+	pipeline.Start()
+
+	var mu sync.Mutex
+	var received []model.Value
+	pipeline.AddHandler(func(v model.Value) {
+		mu.Lock()
+		received = append(received, v)
+		mu.Unlock()
+	})
+
+	NewShadowBridge(pipeline).Attach(sc)
+	vse := NewVirtualShadowEngine(sc)
+
+	sc.WriteShadowDevice(model.ShadowIngressMessage{
+		DeviceID:  "dev1",
+		ChannelID: "ch1",
+		Timestamp: time.Now(),
+		Points:    []model.ShadowIngressPoint{{PointID: "temp", Value: 25.0, Quality: "good"}},
+	})
+	sc.WriteShadowDevice(model.ShadowIngressMessage{
+		DeviceID:  "dev2",
+		ChannelID: "ch1",
+		Timestamp: time.Now(),
+		Points:    []model.ShadowIngressPoint{{PointID: "temp", Value: 30.0, Quality: "good"}},
+	})
+
+	err := vse.CreateVirtualDevice("virtual-sum", "ch1", map[string]string{
+		"sum": "ch1.dev1.temp + ch1.dev2.temp",
+	})
+	if err != nil {
+		t.Fatalf("CreateVirtualDevice: %v", err)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		mu.Lock()
+		n := len(received)
+		mu.Unlock()
+		if n > 0 || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	var virtualSum *model.Value
+	for i := range received {
+		if received[i].DeviceID == "virtual-sum" && received[i].PointID == "sum" {
+			copy := received[i]
+			virtualSum = &copy
+			break
+		}
+	}
+	if virtualSum == nil {
+		t.Fatalf("pipeline did not receive virtual point, got %d values", len(received))
+	}
+	if virtualSum.ChannelID != "ch1" {
+		t.Errorf("expected channel ch1, got %s", virtualSum.ChannelID)
+	}
+	if virtualSum.Value != float64(55) {
+		t.Errorf("expected sum 55, got %v", virtualSum.Value)
+	}
+
+	vd, err := sc.GetVirtualShadowDevice("virtual-sum")
+	if err != nil {
+		t.Fatalf("GetVirtualShadowDevice: %v", err)
+	}
+	if len(vd.Points) == 0 {
+		t.Error("expected virtual shadow in ShadowCore")
+	}
 }

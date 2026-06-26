@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -16,7 +14,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 )
 
 // mockOpcUaDriver implements driver.Driver, Scanner, and ObjectScanner for testing
@@ -160,18 +157,11 @@ func (m *mockOpcUaDriver) ScanObjects(ctx context.Context, config map[string]any
 	}, nil
 }
 
-// createTestChannelManager creates a ChannelManager with a mock save function and temp dir
+// createTestChannelManager creates a ChannelManager with in-memory save capture.
 func createTestChannelManager(t *testing.T) (*ChannelManager, string, func()) {
 	t.Helper()
-	tempDir := t.TempDir()
-	saveFunc := func(channels []model.Channel) error {
-		data, err := yaml.Marshal(channels)
-		if err != nil {
-			return err
-		}
-		return os.WriteFile(filepath.Join(tempDir, "channels.yaml"), data, 0644)
-	}
-	cm := NewChannelManager(nil, saveFunc, tempDir)
+	tempDir := testOutputDir(t)
+	cm := NewChannelManager(nil, func(channels []model.Channel) error { return nil })
 	return cm, tempDir, func() {
 		cm.cancel()
 	}
@@ -268,11 +258,15 @@ func TestOpcUa_AddDevice_IDNamePreserved(t *testing.T) {
 }
 
 // ============================================================
-// Test 2: Add device and verify config file is saved correctly
+// Test 2: Add device and verify save callback receives full config
 // ============================================================
-func TestOpcUa_AddDevice_ConfigFileSaved(t *testing.T) {
-	cm, tempDir, cleanup := createTestChannelManager(t)
-	defer cleanup()
+func TestOpcUa_AddDevice_PersistedViaSaveFunc(t *testing.T) {
+	var saved []model.Channel
+	cm := NewChannelManager(nil, func(channels []model.Channel) error {
+		saved = channels
+		return nil
+	})
+	defer cm.cancel()
 
 	channelID := "test-opcua-ch"
 	ch := &model.Channel{
@@ -318,11 +312,8 @@ func TestOpcUa_AddDevice_ConfigFileSaved(t *testing.T) {
 	err := cm.AddDevice(channelID, dev)
 	require.NoError(t, err)
 
-	expectedFilePath := filepath.Join(tempDir, "devices", "opc-ua", deviceID+".yaml")
-
 	devices := cm.GetChannelDevices(channelID)
 	require.Len(t, devices, 1)
-	assert.Equal(t, expectedFilePath, devices[0].DeviceFile, "DeviceFile path should be set correctly")
 	assert.Equal(t, deviceID, devices[0].ID)
 	assert.Equal(t, "Temperature Sensor 01", devices[0].Name)
 	assert.Equal(t, "opc.tcp://192.168.1.100:4840", devices[0].Config["endpoint"])
@@ -331,7 +322,10 @@ func TestOpcUa_AddDevice_ConfigFileSaved(t *testing.T) {
 	assert.True(t, devices[0].Storage.Enable)
 	assert.Equal(t, "interval", devices[0].Storage.Strategy)
 
-	assert.FileExists(t, expectedFilePath, "Device config file should be created on disk")
+	require.Len(t, saved, 1)
+	require.Len(t, saved[0].Devices, 1)
+	assert.Equal(t, deviceID, saved[0].Devices[0].ID)
+	require.Len(t, saved[0].Devices[0].Points, 1)
 }
 
 // ============================================================
@@ -397,6 +391,107 @@ func TestOpcUa_ScanChannel_WithEndpoint(t *testing.T) {
 	assert.Equal(t, endpoint, resultList[0]["device_id"])
 	assert.Equal(t, endpoint, resultList[0]["endpoint"])
 	assert.Contains(t, resultList[0]["name"], endpoint)
+}
+
+func TestOpcUa_ScanChannel_InheritsChannelURL(t *testing.T) {
+	cm, _, cleanup := createTestChannelManager(t)
+	defer cleanup()
+
+	channelID := "test-opcua-ch"
+	mockDriver := newMockOpcUaDriver()
+	channelURL := "opc.tcp://192.168.1.100:4840"
+	ch := &model.Channel{
+		ID:       channelID,
+		Name:     "OPC UA Test Channel",
+		Protocol: "opc-ua",
+		Enable:   true,
+		Config:   map[string]any{"url": channelURL},
+	}
+	cm.channels[channelID] = ch
+	cm.drivers[channelID] = mockDriver
+	cm.driverMus[channelID] = &sync.Mutex{}
+
+	results, err := cm.ScanChannel(channelID, nil)
+	require.NoError(t, err)
+
+	resultList, ok := results.([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, resultList, 1)
+	assert.Equal(t, channelURL, resultList[0]["endpoint"])
+}
+
+func TestOpcUa_AddDevice_InheritsChannelEndpoint(t *testing.T) {
+	var saved []model.Channel
+	cm := NewChannelManager(nil, func(channels []model.Channel) error {
+		saved = channels
+		return nil
+	})
+	defer cm.cancel()
+
+	channelID := "test-opcua-ch"
+	mockDriver := newMockOpcUaDriver()
+	channelURL := "opc.tcp://channel-server:4840"
+	ch := &model.Channel{
+		ID:       channelID,
+		Name:     "OPC UA Test Channel",
+		Protocol: "opc-ua",
+		Enable:   false,
+		Config:   map[string]any{"url": channelURL},
+		Devices:  []model.Device{},
+	}
+	cm.channels[channelID] = ch
+	cm.drivers[channelID] = mockDriver
+	cm.driverMus[channelID] = &sync.Mutex{}
+
+	dev := &model.Device{
+		ID:       "opcua-device-1",
+		Name:     "OPC UA Device",
+		Interval: model.Duration(10 * time.Second),
+		Enable:   true,
+		Config:   map[string]any{},
+	}
+	err := cm.AddDevice(channelID, dev)
+	require.NoError(t, err)
+	require.Len(t, saved, 1)
+	require.Len(t, saved[0].Devices, 1)
+	assert.Equal(t, channelURL, saved[0].Devices[0].Config["endpoint"])
+}
+
+func TestOpcUa_ScanDevice_InheritsChannelEndpoint(t *testing.T) {
+	cm, _, cleanup := createTestChannelManager(t)
+	defer cleanup()
+
+	channelID := "test-opcua-ch"
+	deviceID := "temp-sensor-01"
+	mockDriver := newMockOpcUaDriver()
+	channelURL := "opc.tcp://localhost:4840"
+
+	ch := &model.Channel{
+		ID:       channelID,
+		Name:     "OPC UA Test Channel",
+		Protocol: "opc-ua",
+		Enable:   true,
+		Config:   map[string]any{"url": channelURL},
+		Devices: []model.Device{
+			{
+				ID:       deviceID,
+				Name:     "Temperature Sensor",
+				Interval: model.Duration(10 * time.Second),
+				Enable:   true,
+				Config:   map[string]any{},
+			},
+		},
+	}
+	cm.channels[channelID] = ch
+	cm.drivers[channelID] = mockDriver
+	cm.driverMus[channelID] = &sync.Mutex{}
+
+	results, err := cm.ScanDevice(channelID, deviceID, nil)
+	require.NoError(t, err)
+
+	resultList, ok := results.([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, resultList, 3)
 }
 
 func TestOpcUa_ScanChannel_NoDriver(t *testing.T) {
@@ -720,7 +815,7 @@ func TestOpcUa_AddDevice_EmptyID(t *testing.T) {
 
 	devices := cm.GetChannelDevices(channelID)
 	require.Len(t, devices, 1)
-	assert.Equal(t, "", devices[0].ID, "Empty ID is stored as-is; API layer should handle fallback")
+	assert.Equal(t, "fallback-name-device", devices[0].ID, "Empty ID should fall back to device name for DB persistence")
 	assert.Equal(t, "fallback-name-device", devices[0].Name, "Name should be preserved")
 }
 
@@ -921,66 +1016,6 @@ func TestOpcUa_DeviceIntervalValidation(t *testing.T) {
 			require.NotEmpty(t, devices)
 		})
 	}
-}
-
-// ============================================================
-// Test 12: Device file YAML format verification
-// ============================================================
-func TestOpcUa_DeviceFileYAMLFormat(t *testing.T) {
-	tempDir := t.TempDir()
-
-	dev := &model.Device{
-		ID:       "yaml-test-device",
-		Name:     "YAML Format Test",
-		Interval: model.Duration(10 * time.Second),
-		Enable:   true,
-		Config: map[string]any{
-			"endpoint":        "opc.tcp://192.168.1.100:4840",
-			"security_policy": "None",
-			"security_mode":   "None",
-			"auth_method":     "Anonymous",
-		},
-		Points: []model.Point{
-			{
-				ID:        "temp",
-				Name:      "Temperature",
-				Address:   "ns=2;s=Temperature",
-				DataType:  "float64",
-				Unit:      "°C",
-				ReadWrite: "R",
-			},
-		},
-		Storage: model.DeviceStorage{
-			Enable:     true,
-			Strategy:   "realtime",
-			Interval:   1,
-			MaxRecords: 500,
-		},
-	}
-
-	filePath := filepath.Join(tempDir, "yaml-test-device.yaml")
-	err := saveDeviceToFile(filePath, dev, "opc-ua")
-	require.NoError(t, err)
-
-	data, err := os.ReadFile(filePath)
-	require.NoError(t, err)
-
-	var loaded model.Device
-	err = yaml.Unmarshal(data, &loaded)
-	require.NoError(t, err)
-
-	assert.Equal(t, dev.ID, loaded.ID)
-	assert.Equal(t, dev.Name, loaded.Name)
-	assert.Equal(t, dev.Interval, loaded.Interval)
-	assert.Equal(t, dev.Config["endpoint"], loaded.Config["endpoint"])
-	require.Len(t, loaded.Points, 1)
-	assert.Equal(t, "temp", loaded.Points[0].ID)
-	assert.Equal(t, "ns=2;s=Temperature", loaded.Points[0].Address)
-	assert.True(t, loaded.Storage.Enable)
-
-	yamlContent := string(data)
-	assert.NotContains(t, yamlContent, "register_type", "Modbus-specific field should be removed for OPC-UA")
-	assert.NotContains(t, yamlContent, "function_code", "Modbus-specific field should be removed for OPC-UA")
 }
 
 // ============================================================

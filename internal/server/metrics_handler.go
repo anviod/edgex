@@ -137,6 +137,12 @@ func (s *Server) getDeviceMetrics(c *fiber.Ctx) error {
 		metrics.State = 2 // 离线
 	}
 
+	if s.shadowCore != nil {
+		if opt := s.shadowCore.GetDeviceOptimization(deviceID); opt != nil {
+			metrics.CommunicationProfile = opt
+		}
+	}
+
 	// 更新时间戳
 	metrics.Timestamp = time.Now()
 

@@ -12,6 +12,7 @@ type DataPipeline struct {
 	pointBuf      map[string][]model.Value
 	signalChan    chan struct{}
 	handlers      []func(model.Value)
+	batchHandlers []func([]model.Value)
 	shadowIngress *ShadowIngress
 }
 
@@ -25,6 +26,11 @@ func NewDataPipeline(bufferSize int) *DataPipeline {
 
 func (dp *DataPipeline) AddHandler(h func(model.Value)) {
 	dp.handlers = append(dp.handlers, h)
+}
+
+// AddBatchHandler 注册批量处理器，一次 drain 调用一次，减少 handler 开销。
+func (dp *DataPipeline) AddBatchHandler(h func([]model.Value)) {
+	dp.batchHandlers = append(dp.batchHandlers, h)
 }
 
 func (dp *DataPipeline) SetShadowIngress(si *ShadowIngress) {
@@ -42,26 +48,29 @@ func (dp *DataPipeline) Start() {
 }
 
 func (dp *DataPipeline) Push(val model.Value) {
-	// Unique key for the point: ChannelID/DeviceID/PointID
-	key := val.ChannelID + "/" + val.DeviceID + "/" + val.PointID
+	dp.PushBatch([]model.Value{val})
+}
+
+func (dp *DataPipeline) PushBatch(vals []model.Value) {
+	if len(vals) == 0 {
+		return
+	}
 
 	dp.mu.Lock()
-	buf := dp.pointBuf[key]
-
-	// Optimization: Keep only current and last (Max 2 items)
-	// If buffer is full (>=2), drop the oldest (index 0) to make room
-	if len(buf) >= 2 {
-		buf = buf[1:]
+	for _, val := range vals {
+		key := val.ChannelID + "/" + val.DeviceID + "/" + val.PointID
+		buf := dp.pointBuf[key]
+		if len(buf) >= 2 {
+			buf = buf[1:]
+		}
+		buf = append(buf, val)
+		dp.pointBuf[key] = buf
 	}
-	buf = append(buf, val)
-	dp.pointBuf[key] = buf
 	dp.mu.Unlock()
 
-	// Notify the processor
 	select {
 	case dp.signalChan <- struct{}{}:
 	default:
-		// Signal already pending, processor will pick up the new data
 	}
 }
 
@@ -72,10 +81,6 @@ func (dp *DataPipeline) drainAndProcess() {
 		return
 	}
 
-	// Drain all data from the buffer
-	// We copy the map content to a slice to minimize lock holding time
-	// Note: Global order is not strictly preserved across different points,
-	// but per-point order is preserved.
 	var batch []model.Value
 	for k, buf := range dp.pointBuf {
 		batch = append(batch, buf...)
@@ -83,31 +88,50 @@ func (dp *DataPipeline) drainAndProcess() {
 	}
 	dp.mu.Unlock()
 
-	// Process the batch
+	dp.processBatch(batch)
+}
+
+func (dp *DataPipeline) processBatch(batch []model.Value) {
+	dp.mu.Lock()
+	handlers := make([]func(model.Value), len(dp.handlers))
+	copy(handlers, dp.handlers)
+	batchHandlers := make([]func([]model.Value), len(dp.batchHandlers))
+	copy(batchHandlers, dp.batchHandlers)
+	shadowIngress := dp.shadowIngress
+	dp.mu.Unlock()
+
+	if shadowIngress != nil && len(batch) > 0 {
+		if err := shadowIngress.IngestBatch(batch); err != nil {
+			// Shadow device is an enhancement, not critical path
+		}
+	}
+
+	for _, h := range batchHandlers {
+		h(batch)
+	}
+
 	for _, val := range batch {
-		dp.process(val)
+		dp.processValue(val, handlers)
 	}
 }
 
 func (dp *DataPipeline) process(val model.Value) {
-	// Log (Optional, kept for debugging but can be noisy)
-	// fmt.Printf("[Pipeline] Received: %s = %v (Quality: %s)\n", val.PointID, val.Value, val.Quality)
-
 	dp.mu.Lock()
 	handlers := make([]func(model.Value), len(dp.handlers))
 	copy(handlers, dp.handlers)
 	shadowIngress := dp.shadowIngress
 	dp.mu.Unlock()
 
-	// Push to Shadow Ingress first (if enabled)
 	if shadowIngress != nil {
 		if err := shadowIngress.Ingest(val); err != nil {
 			// Log error but continue processing
-			// Shadow device is an enhancement, not critical path
 		}
 	}
 
-	// Notify all handlers
+	dp.processValue(val, handlers)
+}
+
+func (dp *DataPipeline) processValue(val model.Value, handlers []func(model.Value)) {
 	for _, h := range handlers {
 		h(val)
 	}

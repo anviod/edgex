@@ -71,6 +71,10 @@ func (m *MockSB) WritePoint(channelID, deviceID, pointID string, value any) erro
 	return nil
 }
 
+func (m *MockSB) GetShadowPoint(channelID, deviceID, pointID string) (*model.ShadowPoint, error) {
+	return nil, fmt.Errorf("shadow point not available in mock")
+}
+
 func TestScanLargeNumberOfPoints(t *testing.T) {
 	// 1. Setup Mock Data with > 100 points to trigger potential pagination or limits
 	pointCount := 200
@@ -106,7 +110,7 @@ func TestScanLargeNumberOfPoints(t *testing.T) {
 	require.NoError(t, err)
 	port := ln.Addr().(*net.TCPAddr).Port
 	_ = ln.Close()
-	tmpDir := t.TempDir()
+	tmpDir := testOutputDir(t)
 	cfg := model.OPCUAConfig{
 		Enable:   true,
 		Name:     "LargeScanTestServer",

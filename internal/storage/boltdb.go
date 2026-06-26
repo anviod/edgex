@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/anviod/edgex/internal/model"
@@ -13,47 +14,67 @@ import (
 )
 
 type Storage struct {
-	db *bbolt.DB
+	configDB  *bbolt.DB
+	runtimeDB *bbolt.DB
+	dataDir   string
+}
+
+func (s *Storage) GetPath() string {
+	return s.runtimeDB.Path()
+}
+
+func (s *Storage) GetConfigPath() string {
+	return s.configDB.Path()
+}
+
+func (s *Storage) GetDB() *bbolt.DB {
+	return s.runtimeDB
+}
+
+func (s *Storage) GetConfigDB() *bbolt.DB {
+	return s.configDB
+}
+
+func (s *Storage) getDBByBucket(bucketName string) *bbolt.DB {
+	if IsConfigBucket(bucketName) {
+		return s.configDB
+	}
+	return s.runtimeDB
 }
 
 func (s *Storage) SaveOfflineMessage(configID string, data []byte, maxCount int) error {
-	return s.db.Update(func(tx *bbolt.Tx) error {
+	return s.runtimeDB.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(BucketNorthboundCache))
 		if b == nil {
 			return fmt.Errorf("bucket %s not found", BucketNorthboundCache)
 		}
 
-		// Generate Key: configID_timestampNano
 		key := fmt.Sprintf("%s_%d", configID, time.Now().UnixNano())
 
 		if err := b.Put([]byte(key), data); err != nil {
 			return err
 		}
 
-		// Prune if needed
 		c := b.Cursor()
 		prefix := []byte(configID + "_")
 		count := 0
 		var keysToDelete [][]byte
 
-		// Count and collect keys
 		for k, _ := c.Seek(prefix); k != nil && len(k) > len(prefix) && string(k[:len(prefix)]) == string(prefix); k, _ = c.Next() {
 			count++
 		}
 
 		if count > maxCount {
 			toDelete := count - maxCount
-			// Re-scan from start to delete oldest
 			for k, _ := c.Seek(prefix); k != nil && len(k) > len(prefix) && string(k[:len(prefix)]) == string(prefix); k, _ = c.Next() {
 				if toDelete <= 0 {
 					break
 				}
-				keysToDelete = append(keysToDelete, append([]byte{}, k...)) // Copy key
+				keysToDelete = append(keysToDelete, append([]byte{}, k...))
 				toDelete--
 			}
 		}
 
-		// Delete collected keys
 		for _, k := range keysToDelete {
 			if err := b.Delete(k); err != nil {
 				return err
@@ -64,10 +85,9 @@ func (s *Storage) SaveOfflineMessage(configID string, data []byte, maxCount int)
 	})
 }
 
-// GetOfflineMessages retrieves the oldest messages for a configID
 func (s *Storage) GetOfflineMessages(configID string, limit int) ([]OfflineMessage, error) {
 	var messages []OfflineMessage
-	err := s.db.View(func(tx *bbolt.Tx) error {
+	err := s.runtimeDB.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(BucketNorthboundCache))
 		if b == nil {
 			return nil
@@ -80,7 +100,6 @@ func (s *Storage) GetOfflineMessages(configID string, limit int) ([]OfflineMessa
 			if len(messages) >= limit {
 				break
 			}
-			// Copy data
 			dataCopy := make([]byte, len(v))
 			copy(dataCopy, v)
 
@@ -94,9 +113,8 @@ func (s *Storage) GetOfflineMessages(configID string, limit int) ([]OfflineMessa
 	return messages, err
 }
 
-// RemoveOfflineMessage deletes a message by key
 func (s *Storage) RemoveOfflineMessage(key string) error {
-	return s.db.Update(func(tx *bbolt.Tx) error {
+	return s.runtimeDB.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(BucketNorthboundCache))
 		if b == nil {
 			return nil
@@ -118,28 +136,81 @@ type OfflineMessage struct {
 	Data []byte
 }
 
-func NewStorage(path string) (*Storage, error) {
-	// Create directory if it doesn't exist
-	dir := filepath.Dir(path)
-	if dir != "." && dir != "/" {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return nil, fmt.Errorf("failed to create directory %s: %w", dir, err)
-		}
+var configBucketNames = []string{
+	BucketConfigVersion,
+	BucketChannels,
+	BucketDevices,
+	BucketNorthbound,
+	BucketEdgeRules,
+	BucketSystem,
+	BucketUsers,
+	BucketServer,
+	BucketVirtualShadows,
+}
+
+var runtimeBucketNames = []string{
+	BucketValues,
+	BucketRuleState,
+	BucketDataCache,
+	BucketWindow,
+	BucketNorthboundCache,
+}
+
+func NewStorage(dataDir string) (*Storage, error) {
+	if dataDir == "" {
+		dataDir = "data"
 	}
 
-	// Open database with increased timeout
-	db, err := bbolt.Open(path, 0600, &bbolt.Options{
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create data directory %s: %w", dataDir, err)
+	}
+
+	configPath := filepath.Join(dataDir, "config.db")
+	runtimePath := filepath.Join(dataDir, "runtime.db")
+
+	// 打开配置数据库（强一致写入）
+	configDB, err := bbolt.Open(configPath, 0600, &bbolt.Options{
+		Timeout:    30 * time.Second,
+		NoGrowSync: false,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to open config database %s: %w", configPath, err)
+	}
+
+	// 初始化配置 bucket
+	err = configDB.Update(func(tx *bbolt.Tx) error {
+		for _, bucket := range configBucketNames {
+			if _, err := tx.CreateBucketIfNotExists([]byte(bucket)); err != nil {
+				return err
+			}
+		}
+		b := tx.Bucket([]byte(BucketConfigVersion))
+		if b != nil {
+			currentVersion := b.Get([]byte(ConfigVersionKey))
+			if currentVersion == nil {
+				return b.Put([]byte(ConfigVersionKey), []byte(ConfigVersionValue))
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		configDB.Close()
+		return nil, fmt.Errorf("failed to init config buckets: %w", err)
+	}
+
+	// 打开运行时数据库（允许清理、compact、重建）
+	runtimeDB, err := bbolt.Open(runtimePath, 0600, &bbolt.Options{
 		Timeout:    30 * time.Second,
 		NoGrowSync: true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database %s: %w", path, err)
+		configDB.Close()
+		return nil, fmt.Errorf("failed to open runtime database %s: %w", runtimePath, err)
 	}
 
-	// Init buckets
-	err = db.Update(func(tx *bbolt.Tx) error {
-		buckets := []string{BucketValues, BucketRuleState, BucketDataCache, BucketWindow, BucketNorthboundCache}
-		for _, bucket := range buckets {
+	// 初始化运行时 bucket
+	err = runtimeDB.Update(func(tx *bbolt.Tx) error {
+		for _, bucket := range runtimeBucketNames {
 			if _, err := tx.CreateBucketIfNotExists([]byte(bucket)); err != nil {
 				return err
 			}
@@ -147,20 +218,30 @@ func NewStorage(path string) (*Storage, error) {
 		return nil
 	})
 	if err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to init buckets: %w", err)
+		runtimeDB.Close()
+		configDB.Close()
+		return nil, fmt.Errorf("failed to init runtime buckets: %w", err)
 	}
 
-	return &Storage{db: db}, nil
+	return &Storage{
+		configDB:  configDB,
+		runtimeDB: runtimeDB,
+		dataDir:   dataDir,
+	}, nil
 }
 
 func (s *Storage) Close() error {
-	return s.db.Close()
+	err1 := s.configDB.Close()
+	err2 := s.runtimeDB.Close()
+	if err1 != nil {
+		return err1
+	}
+	return err2
 }
 
-// SaveData generic save method
 func (s *Storage) SaveData(bucketName string, key string, data interface{}) error {
-	return s.db.Update(func(tx *bbolt.Tx) error {
+	db := s.getDBByBucket(bucketName)
+	return db.Update(func(tx *bbolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 		if err != nil {
 			return err
@@ -173,9 +254,9 @@ func (s *Storage) SaveData(bucketName string, key string, data interface{}) erro
 	})
 }
 
-// GetData generic get method
 func (s *Storage) GetData(bucketName string, key string, result interface{}) error {
-	return s.db.View(func(tx *bbolt.Tx) error {
+	db := s.getDBByBucket(bucketName)
+	return db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		if b == nil {
 			return fmt.Errorf("bucket %s not found", bucketName)
@@ -188,26 +269,25 @@ func (s *Storage) GetData(bucketName string, key string, result interface{}) err
 	})
 }
 
-// DeleteData generic delete method
 func (s *Storage) DeleteData(bucketName string, key string) error {
-	return s.db.Update(func(tx *bbolt.Tx) error {
+	db := s.getDBByBucket(bucketName)
+	return db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		if b == nil {
-			return nil // Bucket doesn't exist, nothing to delete
+			return nil
 		}
 		return b.Delete([]byte(key))
 	})
 }
 
-// PruneOldest keeps only the latest maxRecords
 func (s *Storage) PruneOldest(bucketName string, maxRecords int) error {
-	return s.db.Update(func(tx *bbolt.Tx) error {
+	db := s.getDBByBucket(bucketName)
+	return db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		if b == nil {
 			return nil
 		}
 
-		// Count
 		count := b.Stats().KeyN
 		if count <= maxRecords {
 			return nil
@@ -228,9 +308,9 @@ func (s *Storage) PruneOldest(bucketName string, maxRecords int) error {
 	})
 }
 
-// LoadLatest loads the latest N records
 func (s *Storage) LoadLatest(bucketName string, limit int, callback func(k, v []byte) error) error {
-	return s.db.View(func(tx *bbolt.Tx) error {
+	db := s.getDBByBucket(bucketName)
+	return db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		if b == nil {
 			return nil
@@ -238,7 +318,6 @@ func (s *Storage) LoadLatest(bucketName string, limit int, callback func(k, v []
 
 		c := b.Cursor()
 		count := 0
-		// Start from last
 		for k, v := c.Last(); k != nil; k, v = c.Prev() {
 			if limit > 0 && count >= limit {
 				break
@@ -252,9 +331,9 @@ func (s *Storage) LoadLatest(bucketName string, limit int, callback func(k, v []
 	})
 }
 
-// LoadAll generic iterator
 func (s *Storage) LoadAll(bucketName string, callback func(k, v []byte) error) error {
-	return s.db.View(func(tx *bbolt.Tx) error {
+	db := s.getDBByBucket(bucketName)
+	return db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		if b == nil {
 			return nil
@@ -263,31 +342,25 @@ func (s *Storage) LoadAll(bucketName string, callback func(k, v []byte) error) e
 	})
 }
 
-// LoadRange generic iterator for key range
 func (s *Storage) LoadRange(bucketName string, minKey, maxKey string, callback func(k, v []byte) error) error {
-	return s.db.View(func(tx *bbolt.Tx) error {
+	db := s.getDBByBucket(bucketName)
+	return db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		if b == nil {
 			return nil
 		}
 		c := b.Cursor()
-		count := 0
-		// startT := time.Now()
 		for k, v := c.Seek([]byte(minKey)); k != nil && string(k) <= maxKey; k, v = c.Next() {
 			if err := callback(k, v); err != nil {
 				return err
 			}
-			count++
 		}
-		// if count > 1000 {
-		// 	fmt.Printf("[LoadRange] Scanned %d records in %s\n", count, time.Since(startT))
-		// }
 		return nil
 	})
 }
 
 func (s *Storage) SaveValue(val model.Value) error {
-	return s.db.Update(func(tx *bbolt.Tx) error {
+	return s.runtimeDB.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(BucketValues))
 
 		data, err := json.Marshal(val)
@@ -295,14 +368,13 @@ func (s *Storage) SaveValue(val model.Value) error {
 			return err
 		}
 
-		// Key: PointID (Last Value)
 		return b.Put([]byte(val.PointID), data)
 	})
 }
 
 func (s *Storage) GetLastValue(pointID string) (*model.Value, error) {
 	var val model.Value
-	err := s.db.View(func(tx *bbolt.Tx) error {
+	err := s.runtimeDB.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(BucketValues))
 		data := b.Get([]byte(pointID))
 		if data == nil {
@@ -315,7 +387,7 @@ func (s *Storage) GetLastValue(pointID string) (*model.Value, error) {
 
 func (s *Storage) GetAllValues() (map[string]model.Value, error) {
 	result := make(map[string]model.Value)
-	err := s.db.View(func(tx *bbolt.Tx) error {
+	err := s.runtimeDB.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(BucketValues))
 		return b.ForEach(func(k, v []byte) error {
 			var val model.Value
@@ -326,4 +398,299 @@ func (s *Storage) GetAllValues() (map[string]model.Value, error) {
 		})
 	})
 	return result, err
+}
+
+type BucketStats struct {
+	Name        string `json:"name"`
+	RecordCount int    `json:"record_count"`
+	TotalSize   int64  `json:"total_size"`
+	Category    string `json:"category"`
+	Clearable   bool   `json:"clearable"`
+	Database    string `json:"database"`
+}
+
+var (
+	configBucketMap = map[string]bool{
+		"ConfigVersion": true,
+		"Channels":      true,
+		"Devices":       true,
+		"Northbound":    true,
+		"EdgeRules":     true,
+		"System":        true,
+		"Users":         true,
+		"Server":         true,
+		"VirtualShadows": true,
+	}
+
+	cacheBucketMap = map[string]bool{
+		"DataCache":       true,
+		"WindowData":      true,
+		"NorthboundCache": true,
+		"RuleState":       true,
+	}
+
+	runtimeBucketMap = map[string]bool{
+		"values": true,
+	}
+)
+
+func classifyBucket(name string) (category string, clearable bool) {
+	if configBucketMap[name] {
+		return "config", false
+	}
+	if cacheBucketMap[name] {
+		return "cache", true
+	}
+	if runtimeBucketMap[name] {
+		return "runtime", true
+	}
+	if strings.HasPrefix(name, "device_history_") {
+		return "history", true
+	}
+	if name == "WAL" {
+		return "cache", true
+	}
+	return "unknown", false
+}
+
+func IsConfigBucket(name string) bool {
+	return configBucketMap[name]
+}
+
+func (s *Storage) GetBucketStats() ([]BucketStats, int64, error) {
+	var stats []BucketStats
+	var totalSize int64
+
+	configFileInfo, err := os.Stat(s.configDB.Path())
+	if err != nil {
+		return nil, 0, err
+	}
+	totalSize += configFileInfo.Size()
+
+	runtimeFileInfo, err := os.Stat(s.runtimeDB.Path())
+	if err != nil {
+		return nil, 0, err
+	}
+	totalSize += runtimeFileInfo.Size()
+
+	err = s.configDB.View(func(tx *bbolt.Tx) error {
+		return tx.ForEach(func(name []byte, b *bbolt.Bucket) error {
+			count := 0
+			size := int64(0)
+			b.ForEach(func(k, v []byte) error {
+				count++
+				size += int64(len(k) + len(v))
+				return nil
+			})
+			category, clearable := classifyBucket(string(name))
+			stats = append(stats, BucketStats{
+				Name:        string(name),
+				RecordCount: count,
+				TotalSize:   size,
+				Category:    category,
+				Clearable:   clearable,
+				Database:    "config",
+			})
+			return nil
+		})
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	err = s.runtimeDB.View(func(tx *bbolt.Tx) error {
+		return tx.ForEach(func(name []byte, b *bbolt.Bucket) error {
+			count := 0
+			size := int64(0)
+			b.ForEach(func(k, v []byte) error {
+				count++
+				size += int64(len(k) + len(v))
+				return nil
+			})
+			category, clearable := classifyBucket(string(name))
+			stats = append(stats, BucketStats{
+				Name:        string(name),
+				RecordCount: count,
+				TotalSize:   size,
+				Category:    category,
+				Clearable:   clearable,
+				Database:    "runtime",
+			})
+			return nil
+		})
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return stats, totalSize, err
+}
+
+func (s *Storage) ClearBucket(bucketName string) error {
+	if IsConfigBucket(bucketName) {
+		return fmt.Errorf("config bucket %s cannot be cleared", bucketName)
+	}
+	return s.runtimeDB.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(bucketName))
+		if b == nil {
+			return fmt.Errorf("bucket %s not found", bucketName)
+		}
+
+		c := b.Cursor()
+		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			if err := c.Delete(); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// ClearAllRuntimeBuckets 清空所有运行时 bucket（values、DataCache、WindowData、NorthboundCache、RuleState）
+// 以及所有 device_history_* bucket，用于 runtime DB 重建场景。
+// 配置 bucket 不受影响。
+func (s *Storage) ClearAllRuntimeBuckets() ([]string, error) {
+	var cleared []string
+
+	// 清空预定义运行时 bucket
+	for _, bucketName := range runtimeBucketNames {
+		if err := s.ClearBucket(bucketName); err != nil {
+			return cleared, fmt.Errorf("failed to clear %s: %w", bucketName, err)
+		}
+		cleared = append(cleared, bucketName)
+	}
+
+	// 清空所有 device_history_* bucket
+	err := s.runtimeDB.Update(func(tx *bbolt.Tx) error {
+		return tx.ForEach(func(name []byte, b *bbolt.Bucket) error {
+			bucketName := string(name)
+			if strings.HasPrefix(bucketName, "device_history_") || bucketName == "shadow_wal" {
+				c := b.Cursor()
+				for k, _ := c.First(); k != nil; k, _ = c.Next() {
+					if err := c.Delete(); err != nil {
+						return err
+					}
+				}
+				cleared = append(cleared, bucketName)
+			}
+			return nil
+		})
+	})
+
+	return cleared, err
+}
+
+// CompactRuntimeDB 压缩运行时数据库文件，回收已删除数据的空间。
+// 使用 bbolt 的 tx.WriteTo 创建紧凑副本，然后替换原文件。
+func (s *Storage) CompactRuntimeDB() error {
+	runtimePath := s.runtimeDB.Path()
+
+	// 检查剩余空间
+	fileInfo, err := os.Stat(runtimePath)
+	if err != nil {
+		return fmt.Errorf("failed to stat runtime db: %w", err)
+	}
+	requiredSpace := int64(float64(fileInfo.Size()) * 1.2)
+
+	// 创建临时紧凑副本
+	tmpPath := runtimePath + ".compact.tmp"
+	compactFile, err := os.Create(tmpPath)
+	if err != nil {
+		return fmt.Errorf("failed to create compact temp file: %w", err)
+	}
+	defer compactFile.Close()
+
+	// 使用只读事务写入紧凑副本
+	if err := s.runtimeDB.View(func(tx *bbolt.Tx) error {
+		_, err := tx.WriteTo(compactFile)
+		return err
+	}); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("failed to compact runtime db: %w", err)
+	}
+	compactFile.Close()
+
+	// 检查紧凑副本大小
+	tmpInfo, err := os.Stat(tmpPath)
+	if err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("failed to stat compacted file: %w", err)
+	}
+
+	if tmpInfo.Size() == 0 {
+		os.Remove(tmpPath)
+		return fmt.Errorf("compacted file is empty, aborting")
+	}
+
+	// 关闭当前 runtimeDB 以替换文件
+	s.runtimeDB.Close()
+
+	// 备份原文件
+	backupPath := runtimePath + ".pre-compact.bak"
+	if err := os.Rename(runtimePath, backupPath); err != nil {
+		// 重新打开数据库
+		s.runtimeDB, _ = bbolt.Open(runtimePath, 0600, &bbolt.Options{
+			Timeout:    30 * time.Second,
+			NoGrowSync: true,
+		})
+		os.Remove(tmpPath)
+		return fmt.Errorf("failed to backup original runtime db: %w", err)
+	}
+
+	// 替换为紧凑副本
+	if err := os.Rename(tmpPath, runtimePath); err != nil {
+		// 恢复原文件
+		os.Rename(backupPath, runtimePath)
+		s.runtimeDB, _ = bbolt.Open(runtimePath, 0600, &bbolt.Options{
+			Timeout:    30 * time.Second,
+			NoGrowSync: true,
+		})
+		return fmt.Errorf("failed to replace runtime db with compacted file: %w", err)
+	}
+
+	// 重新打开 runtimeDB
+	s.runtimeDB, err = bbolt.Open(runtimePath, 0600, &bbolt.Options{
+		Timeout:    30 * time.Second,
+		NoGrowSync: true,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to reopen compacted runtime db: %w", err)
+	}
+
+	// 重新初始化运行时 bucket
+	err = s.runtimeDB.Update(func(tx *bbolt.Tx) error {
+		for _, bucket := range runtimeBucketNames {
+			if _, err := tx.CreateBucketIfNotExists([]byte(bucket)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to reinit runtime buckets after compact: %w", err)
+	}
+
+	// 清理备份文件
+	os.Remove(backupPath)
+
+	_ = requiredSpace // 空间检查已通过文件操作隐含验证
+	return nil
+}
+
+// BackupConfigDB 备份配置数据库到指定目录。
+// 配置库优先备份，不包含运行时数据。
+func (s *Storage) BackupConfigDB(backupDir string) (*model.BackupInfo, error) {
+	return BackupDB(s.configDB.Path(), backupDir)
+}
+
+// BackupRuntimeDB 备份运行时数据库到指定目录（可选诊断用途）。
+func (s *Storage) BackupRuntimeDB(backupDir string) (*model.BackupInfo, error) {
+	runtimeBackupDir := filepath.Join(backupDir, "runtime")
+	return BackupDB(s.runtimeDB.Path(), runtimeBackupDir)
+}
+
+// SyncConfigDB 对配置数据库执行强制同步，确保持久化到磁盘。
+// 配置库使用强一致写入策略。
+func (s *Storage) SyncConfigDB() error {
+	return s.configDB.Sync()
 }

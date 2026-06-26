@@ -137,7 +137,7 @@ const copyToClipboard = (text) => {
 .card-name {
   font-size: 14px;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

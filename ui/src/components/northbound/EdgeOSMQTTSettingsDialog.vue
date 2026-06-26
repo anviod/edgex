@@ -13,7 +13,7 @@
     <a-tabs v-model:active-key="activeTab" type="line" class="industrial-tabs">
       <a-tab-pane key="basic">
         <template #title><icon-settings /> 基本配置</template>
-        <a-form :model="form" layout="horizontal" :label-col-props="{ span: 5 }" :wrapper-col-props="{ span: 19 }" class="industrial-form">
+        <a-form :model="form" layout="horizontal" :label-col-props="{ span: 5 }" :wrapper-col-props="{ span: 19 }" class="industrial-form form-controls-md">
           <a-form-item label="通道名称" required>
             <a-input v-model="form.name" placeholder="例如: edgeOS MQTT 生产通道" />
           </a-form-item>
@@ -333,7 +333,7 @@ const saveSettings = async () => {
 }
 
 .industrial-table-inline :deep(.arco-table-th) {
-  background-color: #f8fafc;
+  background-color: var(--edgex-surface-inset);
   font-weight: bold;
   height: 34px;
   border-bottom: 1px solid #e5e7eb;

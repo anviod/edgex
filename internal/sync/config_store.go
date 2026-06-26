@@ -54,7 +54,7 @@ type ConfigStore struct {
 
 func DefaultStorageConfig() StorageConfig {
 	return StorageConfig{
-		Path:         "data/edgex.db",
+		Path:         "data/runtime.db",
 		PageSize:     65536,
 		CacheSize:    134217728,
 		Timeout:      30 * time.Second,

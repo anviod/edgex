@@ -1,9 +1,9 @@
+//go:build integration
+
 package core
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -14,16 +14,15 @@ import (
 )
 
 func TestStress_ConcurrentWrites(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "stress_concurrent.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	goroutines := 100
 	opsPerGoroutine := 100
@@ -81,16 +80,15 @@ func TestStress_ConcurrentWrites(t *testing.T) {
 }
 
 func TestStress_ConcurrentReadWrite(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "stress_rw.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	for i := 0; i < 50; i++ {
 		msg := model.ShadowIngressMessage{
@@ -157,16 +155,15 @@ func TestStress_ConcurrentReadWrite(t *testing.T) {
 }
 
 func TestStress_HighVolumeIngest(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "stress_ingest.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	si := NewShadowIngress(sc, 10000, 100*time.Millisecond)
 	si.Start()
 	defer si.Stop()
@@ -211,16 +208,15 @@ func TestStress_LongRunning(t *testing.T) {
 		t.Skip("Skipping long-running stress test in short mode")
 	}
 
-	tmpFile := filepath.Join(os.TempDir(), "stress_long.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	duration := 30 * time.Second
 	var opCount int64
@@ -258,16 +254,15 @@ func TestStress_LongRunning(t *testing.T) {
 }
 
 func TestStress_MemoryPressure(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "stress_memory.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	iterations := 10000
 	pointsPerMsg := 50
@@ -315,16 +310,15 @@ func TestStress_MemoryPressure(t *testing.T) {
 }
 
 func TestStress_SubscriberNotification(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "stress_subscriber.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	subscriberCount := 10
 	var notificationCount int64
@@ -366,16 +360,15 @@ func TestStress_SubscriberNotification(t *testing.T) {
 }
 
 func TestStress_VirtualDeviceComputation(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "stress_virtual.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	vse := NewVirtualShadowEngine(sc)
 
 	for i := 0; i < 10; i++ {
@@ -398,7 +391,7 @@ func TestStress_VirtualDeviceComputation(t *testing.T) {
 		formulaPoints := map[string]string{
 			"sum": fmt.Sprintf("ch1.dev%d.temp + ch1.dev%d.humidity", i%10, i%10),
 		}
-		vse.CreateVirtualDevice(fmt.Sprintf("virtual-%d", i), formulaPoints)
+		vse.CreateVirtualDevice(fmt.Sprintf("virtual-%d", i), "ch1", formulaPoints)
 	}
 
 	time.Sleep(200 * time.Millisecond)

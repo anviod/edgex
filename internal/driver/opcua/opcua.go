@@ -52,6 +52,8 @@ type OpcUaDriver struct {
 	totalRequests int64
 	successCount  int64
 	failureCount  int64
+
+	maxNodesPerRead int // OPC UA 批量读上限，自适应调整
 }
 
 type DeviceSubscription struct {
@@ -86,13 +88,26 @@ type ClientWrapper struct {
 
 func NewOpcUaDriver() driver.Driver {
 	return &OpcUaDriver{
-		clients: make(map[string]*ClientWrapper),
+		clients:         make(map[string]*ClientWrapper),
+		maxNodesPerRead: 100,
 	}
 }
 
 func (d *OpcUaDriver) Init(cfg model.DriverConfig) error {
 	d.config = cfg
 	return nil
+}
+
+func (d *OpcUaDriver) resolveEndpointInConfig(config map[string]any) (string, error) {
+	if config == nil {
+		config = map[string]any{}
+	}
+	endpoint := model.ResolveOpcUaEndpoint(d.config.Config, config)
+	if endpoint == "" {
+		return "", fmt.Errorf("endpoint is required (configure channel url or device endpoint)")
+	}
+	config["endpoint"] = endpoint
+	return endpoint, nil
 }
 
 func (d *OpcUaDriver) Connect(ctx context.Context) error {
@@ -148,9 +163,9 @@ func (d *OpcUaDriver) SetDeviceConfig(config map[string]any) error {
 		}
 	}
 
-	endpoint, ok := config["endpoint"].(string)
-	if !ok || endpoint == "" {
-		return fmt.Errorf("endpoint is required in device config")
+	endpoint, err := d.resolveEndpointInConfig(config)
+	if err != nil {
+		return err
 	}
 
 	// Check if client exists
@@ -388,10 +403,9 @@ func (d *OpcUaDriver) Scan(ctx context.Context, params map[string]any) (any, err
 	// This implementation returns a list of OPC-UA endpoints that can be connected to
 
 	// Check if endpoint is provided
-	endpoint, ok := params["endpoint"].(string)
-	if !ok || endpoint == "" {
-		// If no endpoint provided, return a list of default OPC-UA endpoints
-		// This is a placeholder implementation
+	endpoint, err := d.resolveEndpointInConfig(params)
+	if err != nil {
+		// 无通道/请求 endpoint 时返回占位列表（兼容旧行为）
 		defaultEndpoints := []map[string]any{
 			{
 				"device_id":   "opcua-default",
@@ -408,6 +422,7 @@ func (d *OpcUaDriver) Scan(ctx context.Context, params map[string]any) (any, err
 		}
 		return defaultEndpoints, nil
 	}
+	_ = endpoint
 
 	// If endpoint is provided, test connection and return device info
 	opts, err := d.buildClientOptions(params)
@@ -593,7 +608,7 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 		// Check if we have values
 		missing := false
 		for _, p := range points {
-			if v, ok := sub.Cache[p.ID]; ok && v.Value != nil {
+			if v, ok := sub.Cache[p.ID]; ok {
 				result[p.ID] = v
 				zap.L().Debug("[OPC UA] Read (Cache)", zap.String("point", p.ID), zap.Any("value", v.Value), zap.String("quality", v.Quality))
 			} else {
@@ -610,6 +625,7 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 		}
 
 		if !missing {
+			stampCollectionTime(result)
 			return result, nil
 		}
 
@@ -620,7 +636,21 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 	}
 
 	// Fallback to direct read (also used for initial value population)
-	return d.readDirect(ctx, client, points)
+	result, err := d.readDirect(ctx, client, points)
+	if err != nil {
+		return nil, err
+	}
+	stampCollectionTime(result)
+	return result, nil
+}
+
+// stampCollectionTime sets TS to the local poll time so UI shows last collection, not last server-side change.
+func stampCollectionTime(results map[string]model.Value) {
+	now := time.Now()
+	for id, v := range results {
+		v.TS = now
+		results[id] = v
+	}
 }
 
 func (d *OpcUaDriver) ensureSubscription(ctx context.Context, w *ClientWrapper, deviceID string, points []model.Point) *DeviceSubscription {
@@ -801,6 +831,41 @@ func (d *OpcUaDriver) subscriptionLoop(sub *DeviceSubscription) {
 }
 
 func (d *OpcUaDriver) readDirect(ctx context.Context, client *ClientWrapper, points []model.Point) (map[string]model.Value, error) {
+	if len(points) == 0 {
+		return make(map[string]model.Value), nil
+	}
+
+	maxNodes := d.maxNodesPerRead
+	if maxNodes <= 0 {
+		maxNodes = 100
+	}
+
+	result := make(map[string]model.Value, len(points))
+	for i := 0; i < len(points); i += maxNodes {
+		end := i + maxNodes
+		if end > len(points) {
+			end = len(points)
+		}
+		batch := points[i:end]
+		batchResult, err := d.readDirectBatch(ctx, client, batch)
+		if err != nil {
+			if maxNodes > 16 {
+				d.maxNodesPerRead = maxNodes / 2
+			}
+			return result, err
+		}
+		for k, v := range batchResult {
+			result[k] = v
+		}
+		if maxNodes < 200 {
+			d.maxNodesPerRead = maxNodes + 10
+		}
+	}
+
+	return result, nil
+}
+
+func (d *OpcUaDriver) readDirectBatch(ctx context.Context, client *ClientWrapper, points []model.Point) (map[string]model.Value, error) {
 	req := &ua.ReadRequest{
 		MaxAge:             2000,
 		TimestampsToReturn: ua.TimestampsToReturnBoth,
@@ -853,10 +918,6 @@ func (d *OpcUaDriver) readDirect(ctx context.Context, client *ClientWrapper, poi
 				}
 			}
 			val.Value = raw
-			// Use SourceTimestamp if available
-			if !res.SourceTimestamp.IsZero() {
-				val.TS = res.SourceTimestamp
-			}
 		}
 		result[p.ID] = val
 	}
@@ -1021,6 +1082,9 @@ func (d *OpcUaDriver) getServerDataType(ctx context.Context, client *opcua.Clien
 
 // normalizeNodeID handles various NodeID formats and converts to canonical form
 func (d *OpcUaDriver) normalizeNodeID(original string, nodeID *ua.NodeID) *ua.NodeID {
+	if !strings.HasPrefix(original, "ns=") {
+		return nil
+	}
 	// Handle ns=...;s=... format with string identifier
 	if strings.HasPrefix(original, "ns=") && strings.Contains(original, ";s=") {
 		parts := strings.SplitN(original, ";s=", 2)
@@ -1095,7 +1159,7 @@ func (d *OpcUaDriver) parseWriteValue(value any, dataType string) (any, error) {
 					return t, nil
 				}
 			}
-			return v, nil
+			return nil, fmt.Errorf("invalid datetime format: %s", v)
 		case int64:
 			return time.Unix(v, 0), nil
 		case float64:
@@ -1251,14 +1315,17 @@ func (d *OpcUaDriver) parseWriteValue(value any, dataType string) (any, error) {
 // parseGuid parses a GUID string in standard format
 func parseGuid(s string) *ua.GUID {
 	s = strings.TrimSpace(s)
+	if s == "" {
+		return &ua.GUID{}
+	}
 	// Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 	if len(s) == 36 {
 		s = strings.ReplaceAll(s, "-", "")
 	}
-	if len(s) == 32 {
-		return ua.NewGUID(s)
+	if g := ua.NewGUID(s); g != nil {
+		return g
 	}
-	return ua.NewGUID(s)
+	return &ua.GUID{}
 }
 
 // statusCodeFromName converts a status code name to its value
@@ -1319,7 +1386,7 @@ func (d *OpcUaDriver) createWriteVariant(dataType string, value any) *ua.Variant
 		return createFloat64Variant(value)
 
 	// ===== 布尔和字节类型 =====
-	case dt == "boolean" || dt == "i=1" || dt == "1":
+	case dt == "boolean" || dt == "bool" || dt == "i=1" || dt == "1":
 		return createBooleanVariant(value)
 
 	case dt == "sbyte" || dt == "i=2" || dt == "2":
@@ -1532,6 +1599,8 @@ func createFloat32Variant(value any) *ua.Variant {
 	case string:
 		if n, err := strconv.ParseFloat(val, 32); err == nil {
 			v = float32(n)
+		} else {
+			return nil
 		}
 	default:
 		return nil
@@ -1578,7 +1647,15 @@ func createBooleanVariant(value any) *ua.Variant {
 	case int:
 		v = val != 0
 	case string:
-		v = strings.ToLower(val) == "true" || val == "1"
+		s := strings.ToLower(val)
+		switch s {
+		case "true", "1":
+			v = true
+		case "false", "0":
+			v = false
+		default:
+			return nil
+		}
 	default:
 		return nil
 	}
@@ -1688,6 +1765,9 @@ func createNodeIDVariant(value any) *ua.Variant {
 	case *ua.NodeID:
 		return ua.MustVariant(val)
 	case string:
+		if !strings.HasPrefix(val, "ns=") {
+			return nil
+		}
 		if nodeID, err := ua.ParseNodeID(val); err == nil {
 			return ua.MustVariant(nodeID)
 		}
@@ -1723,22 +1803,27 @@ func createStatusCodeVariant(value any) *ua.Variant {
 func createQualifiedNameVariant(value any) *ua.Variant {
 	switch val := value.(type) {
 	case ua.QualifiedName:
+		return ua.MustVariant(&val)
+	case *ua.QualifiedName:
 		return ua.MustVariant(val)
 	case string:
 		parts := strings.SplitN(val, ":", 2)
 		if len(parts) == 2 {
 			if ns, err := strconv.ParseUint(parts[0], 10, 16); err == nil {
-				return ua.MustVariant(ua.QualifiedName{NamespaceIndex: uint16(ns), Name: parts[1]})
+				qn := ua.QualifiedName{NamespaceIndex: uint16(ns), Name: parts[1]}
+				return ua.MustVariant(&qn)
 			}
 		}
-		return ua.MustVariant(ua.QualifiedName{NamespaceIndex: 0, Name: val})
+		qn := ua.QualifiedName{NamespaceIndex: 0, Name: val}
+		return ua.MustVariant(&qn)
 	case map[string]any:
 		ns := uint16(0)
 		if n, ok := val["namespace"].(float64); ok {
 			ns = uint16(n)
 		}
 		name := fmt.Sprintf("%v", val["name"])
-		return ua.MustVariant(ua.QualifiedName{NamespaceIndex: ns, Name: name})
+		qn := ua.QualifiedName{NamespaceIndex: ns, Name: name}
+		return ua.MustVariant(&qn)
 	}
 	return nil
 }
@@ -1746,18 +1831,23 @@ func createQualifiedNameVariant(value any) *ua.Variant {
 func createLocalizedTextVariant(value any) *ua.Variant {
 	switch val := value.(type) {
 	case ua.LocalizedText:
+		return ua.MustVariant(&val)
+	case *ua.LocalizedText:
 		return ua.MustVariant(val)
 	case string:
-		return ua.MustVariant(ua.LocalizedText{Text: val, Locale: "en"})
+		lt := ua.LocalizedText{Text: val, Locale: "en"}
+		return ua.MustVariant(&lt)
 	case map[string]any:
 		text := fmt.Sprintf("%v", val["text"])
 		locale := fmt.Sprintf("%v", val["locale"])
 		if locale == "<nil>" || locale == "" {
 			locale = "en"
 		}
-		return ua.MustVariant(ua.LocalizedText{Text: text, Locale: locale})
+		lt := ua.LocalizedText{Text: text, Locale: locale}
+		return ua.MustVariant(&lt)
 	default:
-		return ua.MustVariant(ua.LocalizedText{Text: fmt.Sprintf("%v", value), Locale: "en"})
+		lt := ua.LocalizedText{Text: fmt.Sprintf("%v", value), Locale: "en"}
+		return ua.MustVariant(&lt)
 	}
 }
 
@@ -1933,9 +2023,9 @@ func getAlternativeTypes(originalType string) []string {
 }
 
 func (d *OpcUaDriver) ScanObjects(ctx context.Context, config map[string]any) (any, error) {
-	endpoint, ok := config["endpoint"].(string)
-	if !ok || endpoint == "" {
-		return nil, fmt.Errorf("endpoint is required")
+	endpoint, err := d.resolveEndpointInConfig(config)
+	if err != nil {
+		return nil, err
 	}
 
 	opts, err := d.buildClientOptions(config)
@@ -2394,8 +2484,40 @@ func (w *ClientWrapper) ProbeConnection() {
 	}
 }
 
+func normalizeOpcUaDataType(dataType string) string {
+	dt := strings.ToLower(strings.TrimSpace(dataType))
+	switch dt {
+	case "i=1", "1":
+		return "boolean"
+	case "i=2", "2":
+		return "sbyte"
+	case "i=3", "3":
+		return "byte"
+	case "i=4", "4":
+		return "int16"
+	case "i=5", "5":
+		return "uint16"
+	case "i=6", "6":
+		return "int32"
+	case "i=7", "7":
+		return "uint32"
+	case "i=8", "8":
+		return "int64"
+	case "i=9", "9":
+		return "uint64"
+	case "i=10", "10":
+		return "float32"
+	case "i=11", "11":
+		return "float64"
+	case "i=12", "12":
+		return "string"
+	default:
+		return dt
+	}
+}
+
 func castValue(val any, dataType string) (any, error) {
-	dt := strings.ToLower(dataType)
+	dt := normalizeOpcUaDataType(dataType)
 	asString := func(v any) string {
 		return fmt.Sprintf("%v", v)
 	}

@@ -108,6 +108,20 @@
             </v-col>
             <v-col cols="6">
               <div class="detail-row">
+                <span class="text-caption text-grey-darken-1">EWMARTT</span>
+                <span class="text-body-2">{{ formatRtt(metrics?.communicationProfile?.rtt) }}</span>
+              </div>
+            </v-col>
+            <v-col cols="6">
+              <div class="detail-row">
+                <span class="text-caption text-grey-darken-1">Gap / MTU</span>
+                <span class="text-body-2">
+                  {{ metrics?.communicationProfile?.gap ?? '-' }} / {{ metrics?.communicationProfile?.mtu ?? '-' }}
+                </span>
+              </div>
+            </v-col>
+            <v-col cols="6">
+              <div class="detail-row">
                 <span class="text-caption text-grey-darken-1">异常点位</span>
                 <span class="text-body-2" :class="metrics?.abnormalPoints > 0 ? 'text-warning' : ''">
                   {{ metrics?.abnormalPoints || 0 }}
@@ -292,6 +306,12 @@ const formatDuration = (ms) => {
   if (ms < 1) return '<1ms'
   if (ms < 1000) return ms.toFixed(2) + 'ms'
   return (ms / 1000).toFixed(2) + 's'
+}
+
+const formatRtt = (micros) => {
+  if (micros === undefined || micros === null) return '-'
+  if (micros < 1000) return micros + 'µs'
+  return (micros / 1000).toFixed(2) + 'ms'
 }
 </script>
 

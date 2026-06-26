@@ -2,16 +2,14 @@ package storage
 
 import (
 	"fmt"
-	"os"
 	"testing"
+
 )
 
 func TestPruneOldest(t *testing.T) {
-	tmpFile := "test_prune.db"
-	os.Remove(tmpFile)
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	s, err := NewStorage(tmpFile)
+	s, err := NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}

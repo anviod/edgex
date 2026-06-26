@@ -6,6 +6,9 @@ import { createI18n } from 'vue-i18n'
 import ArcoVue from '@arco-design/web-vue'
 import '@arco-design/web-vue/dist/arco.css'
 import './styles/globals.css'
+import './styles/theme.css'
+import './styles/form-controls.css'
+import './styles/page-layout.css'
 
 const i18n = createI18n({
   legacy: false,

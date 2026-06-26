@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -12,11 +11,9 @@ import (
 
 func TestBblotPersistence(t *testing.T) {
 	// 1. Setup Storage
-	tmpFile := "test_bblot.db"
-	os.Remove(tmpFile)
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}

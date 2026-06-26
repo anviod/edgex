@@ -10,15 +10,30 @@ import (
 )
 
 type SystemManager struct {
-	confDir    string
 	config     *config.Config
+	cfgManager *config.ConfigManager
 	mu         sync.RWMutex
 	mdnsServer *network.MDNSServer
 	dnsProxy   *network.DNSProxy
 	netManager *network.NetworkManager
 }
 
-func NewSystemManager(cfg *config.Config, confDir string) *SystemManager {
+// persist 持久化当前配置到数据库。
+func (sm *SystemManager) persist() error {
+	if sm.cfgManager == nil {
+		return fmt.Errorf("config manager not attached")
+	}
+	return sm.cfgManager.SaveConfig(sm.config)
+}
+
+// SetConfigManager 注入配置管理器，使系统/用户配置持久化到数据库。
+func (sm *SystemManager) SetConfigManager(cm *config.ConfigManager) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.cfgManager = cm
+}
+
+func NewSystemManager(cfg *config.Config) *SystemManager {
 	// Initialize with defaults if empty
 	if cfg.System.Time.Mode == "" {
 		cfg.System.Time.Mode = "manual"
@@ -35,7 +50,6 @@ func NewSystemManager(cfg *config.Config, confDir string) *SystemManager {
 	}
 
 	sm := &SystemManager{
-		confDir:    confDir,
 		config:     cfg,
 		mdnsServer: network.NewMDNSServer(),
 		dnsProxy:   network.NewDNSProxy(),
@@ -63,8 +77,8 @@ func (sm *SystemManager) UpdateConfig(newConfig model.SystemConfig) error {
 	// Update config in memory
 	sm.config.System = newConfig
 
-	// Persist to file
-	if err := config.SaveConfig(sm.confDir, sm.config); err != nil {
+	// Persist (DB-first, fallback to files)
+	if err := sm.persist(); err != nil {
 		return fmt.Errorf("failed to save system config: %v", err)
 	}
 
@@ -128,8 +142,8 @@ func (sm *SystemManager) UpdateUserPassword(username, newPassword string) error 
 		return fmt.Errorf("user not found")
 	}
 
-	// Persist to file
-	if err := config.SaveConfig(sm.confDir, sm.config); err != nil {
+	// Persist (DB-first, fallback to files)
+	if err := sm.persist(); err != nil {
 		return fmt.Errorf("failed to save system config: %v", err)
 	}
 

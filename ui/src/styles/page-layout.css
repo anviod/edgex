@@ -1,0 +1,432 @@
+/*
+ * 页面布局共享样式
+ * 详见 docs/operations/样式参考.md §3
+ *
+ * 原则：单一页面背景（page-shell）、无页头分割线、表格区单外框无叠线
+ */
+
+/* ── 页面容器（唯一背景层） ── */
+.page-shell {
+  padding: 24px;
+  min-height: calc(100vh - 56px);
+  background: var(--edgex-surface-base);
+  color: var(--edgex-text-primary);
+  box-sizing: border-box;
+}
+
+.page-shell--compact {
+  padding: 16px 20px;
+}
+
+/* main-content 不再铺底色，避免与 page-shell 双层背景 */
+.main-content.has-sidebar {
+  background: transparent !important;
+}
+
+.page-container {
+  background: transparent;
+}
+
+/* ── 页头：纯排版，无框无线 ── */
+.page-header,
+.page-header.channel-header,
+.page-header.device-header,
+.page-header.point-header,
+.page-header.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  backdrop-filter: none !important;
+}
+
+.page-title,
+.title-text {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--edgex-text-primary);
+  line-height: 1.4;
+}
+
+.page-subtitle,
+.subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--edgex-text-secondary);
+  line-height: 1.5;
+}
+
+/* ── 区块标题：间距分隔，不用底边框 ── */
+.section-header:not(.section-header--push):not(.section-header--passive) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--edgex-text-primary);
+}
+
+.section {
+  margin-bottom: 24px;
+}
+
+/* ── 工具栏（嵌入 table-container 顶部） ── */
+.toolbar,
+.table-toolbar,
+.log-toolbar,
+.table-toolbar-industrial {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  margin-bottom: 0;
+  background: var(--edgex-surface-raised);
+  border: none;
+  border-bottom: 1px solid var(--edgex-border);
+  border-radius: 0;
+}
+
+.toolbar__left,
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbar__right,
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.toolbar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--edgex-text-primary);
+}
+
+/* 独立工具栏（不贴表格时） */
+.toolbar--standalone,
+.log-toolbar {
+  background: var(--edgex-surface-raised);
+  border: 1px solid var(--edgex-border);
+  border-radius: var(--edgex-radius-lg);
+  margin-bottom: 12px;
+}
+
+/* ── 表格容器：唯一外框 ── */
+.table-container {
+  border: 1px solid var(--edgex-border);
+  border-radius: var(--edgex-radius-lg);
+  overflow: hidden;
+  background: var(--edgex-surface-raised);
+}
+
+.table-container .toolbar,
+.table-container .table-toolbar,
+.table-container .table-toolbar-industrial {
+  border-radius: 0;
+}
+
+.table-container > .arco-table-wrapper,
+.table-container > .arco-table,
+.table-container .arco-spin,
+.table-container .modbus-slave-view {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.table-container .arco-table-container {
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+/* 工具栏 + 表格：移除外层重复边框 */
+.table-toolbar + .arco-table-wrapper,
+.table-toolbar-industrial + .arco-table-wrapper,
+.table-toolbar + .arco-table,
+.table-toolbar-industrial + .arco-table {
+  border-top: none !important;
+}
+
+.table-toolbar + .table-container,
+.table-toolbar-industrial + .table-container {
+  margin-top: 0;
+  border-top: none;
+}
+
+/* industrial-card 作表格容器：单框、无阴影、无内边距 */
+.page-shell > .industrial-card,
+.page-shell .industrial-card.borderless-card {
+  border: 1px solid var(--edgex-border) !important;
+  border-radius: var(--edgex-radius-lg) !important;
+  box-shadow: none !important;
+  background: var(--edgex-surface-raised) !important;
+  overflow: hidden;
+}
+
+.industrial-card :deep(.arco-card-body) {
+  padding: 0 !important;
+}
+
+.industrial-card :deep(.arco-table-wrapper),
+.industrial-card :deep(.arco-table-container) {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* ── 北向 / 模式分区头 ── */
+.section-header--push,
+.section-header--passive {
+  padding: 10px 14px;
+  border-radius: var(--edgex-radius-lg);
+  margin-bottom: 14px;
+  border-left: 4px solid;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+}
+
+.section-header--push {
+  background: var(--edgex-push-bg);
+  border-left-color: var(--edgex-primary);
+}
+
+.section-header--passive {
+  background: var(--edgex-passive-bg);
+  border-left-color: #722ed1;
+}
+
+.section-header__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--edgex-text-primary);
+}
+
+.section-header__title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.section-header__desc {
+  font-size: 12px;
+  color: var(--edgex-text-tertiary);
+}
+
+/* ── 统计卡片 Grid ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--edgex-surface-raised);
+  border: 1px solid var(--edgex-border);
+  border-radius: var(--edgex-radius-lg);
+  padding: 16px 20px;
+  transition: border-color 0.15s ease;
+}
+
+.stat-card:hover {
+  border-color: var(--edgex-border-strong);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--edgex-text-secondary);
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.stat-bar {
+  height: 4px;
+  background: var(--edgex-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.stat-progress {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ── 通道 / 列表卡片 ── */
+.channel-card,
+.minimal-line-card,
+.northbound-card,
+.edge-compute-card {
+  background: var(--edgex-surface-raised);
+  border: 1px solid var(--edgex-border);
+  border-radius: var(--edgex-radius-lg);
+  transition: border-color 0.15s ease;
+}
+
+.channel-card:hover,
+.minimal-line-card:hover {
+  border-color: var(--edgex-primary);
+}
+
+/* Dashboard 内 channel-header 是卡片内布局，不是页面页头 */
+.channel-card .channel-header {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin-bottom: 16px;
+}
+
+/* ── 面板（弹窗内分栏） ── */
+.panel-card {
+  border: 1px solid var(--edgex-border);
+  border-radius: var(--edgex-radius-lg);
+  padding: 12px;
+  background: var(--edgex-surface-inset);
+}
+
+.panel-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--edgex-text-primary);
+}
+
+.panel-hint {
+  font-size: 11px;
+  color: var(--edgex-text-tertiary);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+/* ── 工业卡片（通用） ── */
+.industrial-card {
+  background: var(--edgex-surface-raised) !important;
+  border: 1px solid var(--edgex-border) !important;
+  border-radius: var(--edgex-radius-lg) !important;
+  box-shadow: none !important;
+}
+
+/* ── Tabs：避免 nav 与容器双底边 ── */
+.page-shell > .arco-tabs > .arco-tabs-nav,
+.page-shell .main-tabs :deep(.arco-tabs-nav) {
+  border-bottom: 1px solid var(--edgex-border);
+  margin-bottom: 16px;
+  background: transparent;
+}
+
+.page-shell > .arco-tabs,
+.page-shell .main-tabs {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* ── 空状态 ── */
+.empty-wrap {
+  padding: 80px 0;
+  text-align: center;
+}
+
+.empty-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--edgex-text-secondary);
+}
+
+.empty-desc {
+  font-size: 13px;
+  color: var(--edgex-text-muted);
+  margin-top: 8px;
+}
+
+/* ── 模式图例 ── */
+.mode-legend {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.mode-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--edgex-radius-lg);
+  font-size: 12px;
+  color: var(--edgex-text-secondary);
+  border: 1px solid;
+}
+
+.mode-legend__item--push {
+  background: var(--edgex-push-bg);
+  border-color: var(--edgex-push-border);
+}
+
+.mode-legend__item--passive {
+  background: var(--edgex-passive-bg);
+  border-color: var(--edgex-passive-border);
+}
+
+.mode-legend__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mode-legend__item--push .mode-legend__dot { background: #0ea5e9; }
+.mode-legend__item--passive .mode-legend__dot { background: #722ed1; }
+
+/* ── 响应式 ── */
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .page-shell {
+    padding: 16px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

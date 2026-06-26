@@ -1,5 +1,11 @@
 package model
 
+// ServerConfig represents server configuration
+type ServerConfig struct {
+	Port     int    `json:"port" yaml:"port"`
+	LogLevel string `json:"logLevel" yaml:"logLevel"`
+}
+
 // UserConfig represents a user configuration
 type UserConfig struct {
 	Username string `json:"username" yaml:"username"`

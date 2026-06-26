@@ -34,11 +34,17 @@
                 </span>
                 <span v-if="!drawerRail" class="nav-text">边缘计算</span>
             </router-link>
+            <router-link to="/virtual-shadows" class="nav-item" active-class="nav-item-active">
+                <span class="nav-icon">
+                    <icon-thunderbolt />
+                </span>
+                <span v-if="!drawerRail" class="nav-text">虚拟影子</span>
+            </router-link>
             <router-link to="/northbound" class="nav-item" active-class="nav-item-active">
                 <span class="nav-icon">
                     <icon-arrow-up />
                 </span>
-                <span v-if="!drawerRail" class="nav-text">北向上报</span>
+                <span v-if="!drawerRail" class="nav-text">北向接口</span>
             </router-link>
             <router-link to="/logs" class="nav-item" active-class="nav-item-active">
                 <span class="nav-icon">
@@ -191,7 +197,7 @@ const buildTime = ref('')
 const commitID = ref('')
 
 const isLoginPage = computed(() => {
-    return route.path === '/login'
+    return route.path === '/login' || route.path === '/install'
 })
 
 const userInitials = computed(() => {
@@ -350,7 +356,7 @@ body {
 }
 
 .app-background {
-    background: #f8fafc;
+    background: var(--edgex-surface-base, #f8fafc);
     background-size: cover;
     background-attachment: fixed;
     min-height: 100vh;
@@ -843,8 +849,8 @@ body {
     left: 0;
     height: 100vh;
     width: 144px;
-    background: white;
-    border-right: 1px solid #e2e8f0;
+    background: var(--edgex-surface-raised, #fff);
+    border-right: 1px solid var(--edgex-border, #e2e8f0);
     display: flex;
     flex-direction: column;
     z-index: 100;
@@ -862,7 +868,7 @@ body {
     align-items: center;
     padding: 0 16px;
     height: 56px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--edgex-border, #e2e8f0);
     flex-shrink: 0;
     box-sizing: border-box;
 }
@@ -946,9 +952,9 @@ body {
 /* 侧边栏底部 - 状态区 */
 .sidebar-footer {
     padding: 16px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--edgex-border, #e2e8f0);
     flex-shrink: 0;
-    background: white;
+    background: var(--edgex-surface-raised, #fff);
 }
 
 .sidebar-status {
@@ -1049,8 +1055,8 @@ body {
     right: 0;
     left: 144px;
     height: 56px;
-    background: rgba(255, 255, 255, 0.98);
-    border-bottom: 1px solid #e2e8f0;
+    background: var(--edgex-surface-raised, rgba(255, 255, 255, 0.98));
+    border-bottom: 1px solid var(--edgex-border, #e2e8f0);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1065,26 +1071,9 @@ body {
     left: 56px;
 }
 
-.industrial-header::before {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 1px;
-    background: linear-gradient(to right, #0ea5e9 0%, #0ea5e9 100%);
-    opacity: 0.3;
-}
-
+.industrial-header::before,
 .industrial-header::after {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 1px;
-    background: linear-gradient(to right, transparent 0%, transparent 100%);
-    opacity: 0.5;
+    display: none;
 }
 
 .header-title {
@@ -1233,10 +1222,12 @@ body {
     min-height: 100vh;
     padding-top: 56px;
     transition: margin-left 0.2s ease;
+    background: transparent;
 }
 
 .main-content.has-sidebar {
     margin-left: 144px;
+    background: transparent;
 }
 
 .main-content.has-sidebar.is-collapsed {
@@ -1360,15 +1351,15 @@ body {
     background: rgba(14, 165, 233, 0.05) !important;
 }
 
-/* 3. Input 组件样式重写 - 直角设计，焦点边框变色 */
+/* 3. Input 组件 — 现代清爽风格（6px 圆角 + 主题令牌） */
 .arco-input-wrapper,
 .arco-input,
 .arco-textarea,
 .arco-input-password {
-    border-radius: 0 !important;
+    border-radius: 6px !important;
     box-shadow: none !important;
-    background-color: #ffffff;
-    border-color: #cbd5e1 !important;
+    background-color: var(--edgex-surface-subtle, #fafafa);
+    border-color: var(--edgex-border, #e2e8f0) !important;
 }
 
 /* Input 焦点状态 */
@@ -1426,13 +1417,13 @@ body {
     line-height: 38px !important;
 }
 
-/* 4. Select 组件样式重写 */
+/* 4. Select 组件 */
 .arco-select-view,
 .arco-select-view-single {
-    border-radius: 0 !important;
+    border-radius: 6px !important;
     box-shadow: none !important;
-    background-color: #ffffff;
-    border-color: #cbd5e1 !important;
+    background-color: var(--edgex-surface-subtle, #fafafa);
+    border-color: var(--edgex-border, #e2e8f0) !important;
 }
 
 .arco-select-view.arco-select-view-focus,
@@ -1449,9 +1440,10 @@ body {
 
 /* Select 下拉选项 */
 .arco-select-dropdown {
-    border-radius: 0 !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e2e8f0;
+    border-radius: 8px !important;
+    box-shadow: var(--edgex-shadow-md, 0 4px 12px rgba(0, 0, 0, 0.1));
+    border: 1px solid var(--edgex-border, #e2e8f0);
+    background: var(--edgex-surface-raised, #fff);
 }
 
 .arco-select-option {
@@ -1469,10 +1461,10 @@ body {
 
 /* 5. Textarea 组件 */
 .arco-textarea {
-    border-radius: 0 !important;
+    border-radius: 6px !important;
     box-shadow: none !important;
-    background-color: #ffffff;
-    border-color: #cbd5e1 !important;
+    background-color: var(--edgex-surface-subtle, #fafafa);
+    border-color: var(--edgex-border, #e2e8f0) !important;
 }
 
 .arco-textarea:focus {

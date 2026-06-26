@@ -187,7 +187,8 @@ slave-1_1699584001_000000000001  // 带序列号的次键
 ```
 yaml
 base:
-path: "data/edgex.db"
+config_path: "data/config.db"
+runtime_path: "data/runtime.db"
 permissions: "0755"
 
 boltdb:

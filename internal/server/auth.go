@@ -65,6 +65,12 @@ func (j *JWT) ParserToken(tokenString string) (*CustomClaims, error) {
 
 func JWTAuth() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		// WebSocket 实时值订阅（公开端点，浏览器无法稳定携带 Header token）
+		switch c.Path() {
+		case "/api/ws/values", "/ws":
+			return c.Next()
+		}
+
 		token := c.Get("token")
 		if token == "" {
 			// Also check Authorization header Bearer token

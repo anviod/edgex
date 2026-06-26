@@ -1,9 +1,9 @@
+//go:build integration
+
 package core
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
@@ -13,16 +13,15 @@ import (
 )
 
 func BenchmarkShadowCore_WriteShadowDevice(b *testing.B) {
-	tmpFile := filepath.Join(os.TempDir(), "bench_shadow_write.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(b)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		b.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	msg := model.ShadowIngressMessage{
 		MessageID: "bench-msg",
@@ -42,16 +41,15 @@ func BenchmarkShadowCore_WriteShadowDevice(b *testing.B) {
 }
 
 func BenchmarkShadowCore_WriteShadowDevice_MultiPoint(b *testing.B) {
-	tmpFile := filepath.Join(os.TempDir(), "bench_shadow_multi.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(b)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		b.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	points := make([]model.ShadowIngressPoint, 10)
 	for i := 0; i < 10; i++ {
@@ -78,16 +76,15 @@ func BenchmarkShadowCore_WriteShadowDevice_MultiPoint(b *testing.B) {
 }
 
 func BenchmarkShadowCore_GetShadowDevice(b *testing.B) {
-	tmpFile := filepath.Join(os.TempDir(), "bench_shadow_get.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(b)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		b.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	for i := 0; i < 100; i++ {
 		msg := model.ShadowIngressMessage{
@@ -110,16 +107,15 @@ func BenchmarkShadowCore_GetShadowDevice(b *testing.B) {
 }
 
 func BenchmarkShadowIngress_Ingest(b *testing.B) {
-	tmpFile := filepath.Join(os.TempDir(), "bench_ingest.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(b)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		b.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	si := NewShadowIngress(sc, 1000, time.Second)
 
 	val := model.Value{
@@ -138,16 +134,15 @@ func BenchmarkShadowIngress_Ingest(b *testing.B) {
 }
 
 func BenchmarkShadowIngress_IngestBatch(b *testing.B) {
-	tmpFile := filepath.Join(os.TempDir(), "bench_ingest_batch.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(b)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		b.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	si := NewShadowIngress(sc, 1000, time.Second)
 
 	values := make([]model.Value, 100)
@@ -169,16 +164,15 @@ func BenchmarkShadowIngress_IngestBatch(b *testing.B) {
 }
 
 func BenchmarkVirtualShadowEngine_CreateVirtualDevice(b *testing.B) {
-	tmpFile := filepath.Join(os.TempDir(), "bench_vse_create.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(b)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		b.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 	vse := NewVirtualShadowEngine(sc)
 
 	formulaPoints := map[string]string{
@@ -187,21 +181,20 @@ func BenchmarkVirtualShadowEngine_CreateVirtualDevice(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		vse.CreateVirtualDevice(fmt.Sprintf("virtual-%d", i), formulaPoints)
+		vse.CreateVirtualDevice(fmt.Sprintf("virtual-%d", i), "ch1", formulaPoints)
 	}
 }
 
 func BenchmarkShadowCore_CompareAndSwap(b *testing.B) {
-	tmpFile := filepath.Join(os.TempDir(), "bench_cas.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(b)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		b.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	msg := model.ShadowIngressMessage{
 		MessageID: "init-msg",
@@ -229,16 +222,15 @@ func BenchmarkShadowCore_CompareAndSwap(b *testing.B) {
 }
 
 func TestPerformance_WriteLatency(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "perf_latency.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(b)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	iterations := 1000
 	latencies := make([]time.Duration, iterations)
@@ -287,16 +279,15 @@ func TestPerformance_WriteLatency(t *testing.T) {
 }
 
 func TestPerformance_ReadLatency(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "perf_read_latency.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(b)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	for i := 0; i < 100; i++ {
 		msg := model.ShadowIngressMessage{
@@ -350,16 +341,15 @@ func TestPerformance_ReadLatency(t *testing.T) {
 }
 
 func TestPerformance_Throughput(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "perf_throughput.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(b)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	iterations := 10000
 	start := time.Now()
@@ -391,16 +381,15 @@ func TestPerformance_Throughput(t *testing.T) {
 }
 
 func TestPerformance_MemoryUsage(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "perf_memory.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(b)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	runtime.GC()
 	var m1 runtime.MemStats

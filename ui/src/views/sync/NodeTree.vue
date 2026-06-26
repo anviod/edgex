@@ -780,7 +780,7 @@ function toggleLock() {
   justify-content: space-between;
   align-items: center;
   padding: 12px 20px;
-  background: white;
+  background: var(--edgex-surface-raised);
   border-bottom: 1px solid #e8e8e8;
 }
 
@@ -809,7 +809,7 @@ function toggleLock() {
   padding: 8px 16px;
   border: 1px solid #d9d9d9;
   border-radius: 6px;
-  background: white;
+  background: var(--edgex-surface-raised);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
@@ -841,7 +841,7 @@ function toggleLock() {
   width: 380px;
   display: flex;
   flex-direction: column;
-  background: white;
+  background: var(--edgex-surface-raised);
   border-right: 1px solid #e8e8e8;
 }
 
@@ -1134,7 +1134,7 @@ function toggleLock() {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: white;
+  background: var(--edgex-surface-raised);
   overflow: hidden;
 }
 
@@ -1173,7 +1173,7 @@ function toggleLock() {
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
-  background: white;
+  background: var(--edgex-surface-raised);
 }
 
 .view-toggle.active {
@@ -1198,7 +1198,7 @@ function toggleLock() {
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
-  background: white;
+  background: var(--edgex-surface-raised);
   transition: all 0.2s;
 }
 
@@ -1235,7 +1235,7 @@ function toggleLock() {
 }
 
 .form-item {
-  background: #fafafa;
+  background: var(--edgex-surface-subtle);
   padding: 12px 16px;
   border-radius: 8px;
 }
@@ -1376,7 +1376,7 @@ function toggleLock() {
 
 .stat-item {
   flex: 1;
-  background: #fafafa;
+  background: var(--edgex-surface-subtle);
   padding: 16px;
   border-radius: 8px;
   text-align: center;

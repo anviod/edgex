@@ -290,6 +290,33 @@ func TestModbusOptimization(t *testing.T) {
 	fmt.Println("TestModbusOptimization passed successfully")
 }
 
+// TestModbus100DiscreteGroupingReduction 验证 Gap 块读相对逐点读取减少请求数 ≥30%。
+func TestModbus100DiscreteGroupingReduction(t *testing.T) {
+	decoder := NewPointDecoder("ABCD", 0, 0)
+	scheduler := NewPointScheduler(nil, decoder, 125, 64, 0)
+
+	points := make([]model.Point, 100)
+	for i := range points {
+		points[i] = model.Point{
+			ID:       fmt.Sprintf("p%d", i),
+			Address:  fmt.Sprintf("%d", i*5),
+			DataType: "int16",
+		}
+	}
+
+	groups, err := scheduler.groupPoints(points)
+	if err != nil {
+		t.Fatalf("groupPoints: %v", err)
+	}
+
+	perPointBaseline := len(points)
+	reduction := 1.0 - float64(len(groups))/float64(perPointBaseline)
+	if reduction < 0.30 {
+		t.Fatalf("request reduction %.1f%% < 30%% (baseline=%d groups=%d)",
+			reduction*100, perPointBaseline, len(groups))
+	}
+}
+
 // TestAddressBase tests the address base functionality
 func TestAddressBase(t *testing.T) {
 	// Test 0-based (default) with raw address 0

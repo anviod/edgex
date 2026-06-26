@@ -554,7 +554,7 @@ const deleteRoute = (idx) => {
   border: 1px solid #e5e7eb;
   border-radius: 0;
   color: #374151;
-  background: #fafafa;
+  background: var(--edgex-surface-subtle);
 }
 
 .rect-input {

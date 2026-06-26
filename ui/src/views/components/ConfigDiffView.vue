@@ -276,7 +276,7 @@ function syncConfig(diff) {
   height: calc(100vh - 56px);
   display: flex;
   flex-direction: column;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   overflow: hidden;
 }
 
@@ -286,7 +286,7 @@ function syncConfig(diff) {
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px;
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   border-bottom: 1px solid #e2e8f0;
 }
 
@@ -321,7 +321,7 @@ function syncConfig(diff) {
 /* 配置选择面板 */
 .config-select-panel {
   padding: 12px 24px;
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   border-bottom: 1px solid #e2e8f0;
 }
 
@@ -345,14 +345,14 @@ function syncConfig(diff) {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   border-radius: 6px;
   cursor: pointer;
 }
 
 .config-name {
   font-size: 13px;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 /* 差异结果区域 */
@@ -368,14 +368,14 @@ function syncConfig(diff) {
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px;
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   border-bottom: 1px solid #e2e8f0;
 }
 
 .results-title {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 .results-summary {
@@ -444,7 +444,7 @@ function syncConfig(diff) {
 .diff-name {
   font-size: 14px;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 /* 差异内容 */

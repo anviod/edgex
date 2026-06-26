@@ -1,8 +1,7 @@
 package core
 
 import (
-	"os"
-	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,17 +10,15 @@ import (
 )
 
 func TestShadowCore_WriteShadowDevice(t *testing.T) {
-	tmpDir := os.TempDir()
-	tmpFile := filepath.Join(tmpDir, "shadow_core_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	msg := model.ShadowIngressMessage{
 		MessageID: "test-msg-1",
@@ -79,16 +76,15 @@ func TestShadowCore_WriteShadowDevice(t *testing.T) {
 }
 
 func TestShadowCore_WriteShadowPoint(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "shadow_core_point_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	msg := model.ShadowIngressMessage{
 		MessageID: "test-msg-1",
@@ -128,16 +124,15 @@ func TestShadowCore_WriteShadowPoint(t *testing.T) {
 }
 
 func TestShadowCore_CompareAndSwap(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "shadow_core_cas_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	msg := model.ShadowIngressMessage{
 		MessageID: "test-msg-1",
@@ -183,16 +178,15 @@ func TestShadowCore_CompareAndSwap(t *testing.T) {
 }
 
 func TestShadowCore_Subscribe(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "shadow_core_sub_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	received := make(chan struct {
 		deviceID string
@@ -232,16 +226,15 @@ func TestShadowCore_Subscribe(t *testing.T) {
 }
 
 func TestShadowCore_CheckConsistency(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "shadow_core_consistency_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	msg := model.ShadowIngressMessage{
 		MessageID: "test-msg-1",
@@ -270,16 +263,8 @@ func TestShadowCore_CheckConsistency(t *testing.T) {
 	}
 }
 
-func TestShadowCore_Recovery(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "shadow_core_recovery_test.db")
-	defer os.Remove(tmpFile)
-
-	store, err := storage.NewStorage(tmpFile)
-	if err != nil {
-		t.Fatalf("Failed to create storage: %v", err)
-	}
-
-	sc := NewShadowCore(store)
+func TestShadowCore_MemoryOnly(t *testing.T) {
+	sc := NewShadowCore()
 
 	msg := model.ShadowIngressMessage{
 		MessageID: "test-msg-1",
@@ -293,41 +278,24 @@ func TestShadowCore_Recovery(t *testing.T) {
 
 	sc.WriteShadowDevice(msg)
 
-	store.Close()
+	sc2 := NewShadowCore()
 
-	store2, err := storage.NewStorage(tmpFile)
-	if err != nil {
-		t.Fatalf("Failed to reopen storage: %v", err)
-	}
-	defer store2.Close()
-
-	sc2 := NewShadowCore(store2)
-
-	device, err := sc2.GetShadowDevice("shadow-device-1")
-	if err != nil {
-		t.Fatalf("GetShadowDevice failed after recovery: %v", err)
-	}
-
-	if device.PhysicalDeviceID != "device-1" {
-		t.Errorf("Expected device-1 after recovery, got %s", device.PhysicalDeviceID)
-	}
-
-	if len(device.Points) != 1 {
-		t.Errorf("Expected 1 point after recovery, got %d", len(device.Points))
+	_, err := sc2.GetShadowDevice("shadow-device-1")
+	if err == nil {
+		t.Error("Expected empty shadow state after restart (memory-only)")
 	}
 }
 
 func TestShadowCore_DeleteShadowDevice(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "shadow_core_delete_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	msg := model.ShadowIngressMessage{
 		MessageID: "test-msg-1",
@@ -353,16 +321,15 @@ func TestShadowCore_DeleteShadowDevice(t *testing.T) {
 }
 
 func TestShadowCore_GetMetrics(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "shadow_core_metrics_test.db")
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer store.Close()
 
-	sc := NewShadowCore(store)
+	sc := NewShadowCore()
 
 	msg := model.ShadowIngressMessage{
 		MessageID: "test-msg-1",
@@ -381,4 +348,74 @@ func TestShadowCore_GetMetrics(t *testing.T) {
 	if metrics["real_shadow_count"].(int) != 1 {
 		t.Errorf("Expected 1 real shadow, got %d", metrics["real_shadow_count"])
 	}
+}
+
+func TestShadowCore_GetShadowDevice_ConcurrentReadWrite(t *testing.T) {
+	tmpDir := testOutputDir(t)
+
+	store, err := storage.NewStorage(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create storage: %v", err)
+	}
+	defer store.Close()
+
+	sc := NewShadowCore()
+	const shadowID = "shadow-device-1"
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		i := 0
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				msg := model.ShadowIngressMessage{
+					MessageID: "msg",
+					DeviceID:  "device-1",
+					ChannelID: "channel-1",
+					Timestamp: time.Now(),
+					Points: []model.ShadowIngressPoint{
+						{PointID: "point-1", Value: float64(i), Quality: "good"},
+						{PointID: "point-2", Value: float64(i + 1), Quality: "good"},
+					},
+				}
+				if _, err := sc.WriteShadowDevice(msg); err != nil {
+					t.Errorf("WriteShadowDevice: %v", err)
+					return
+				}
+				i++
+			}
+		}
+	}()
+
+	for n := 0; n < 8; n++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+					device, err := sc.GetShadowDevice(shadowID)
+					if err != nil {
+						continue
+					}
+					for pid, pt := range device.Points {
+						_ = pid
+						_ = pt.Value
+					}
+				}
+			}
+		}()
+	}
+
+	time.Sleep(200 * time.Millisecond)
+	close(stop)
+	wg.Wait()
 }

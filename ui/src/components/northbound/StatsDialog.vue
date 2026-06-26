@@ -104,7 +104,7 @@
       <div v-for="(log, idx) in paginatedLogs" :key="idx" class="log-line">
         <span style="color: #6b7280; margin-right: 8px">[{{ formatTime(log.ts) }}]</span>
         <span :style="{ color: getLevelColor(log.level), fontWeight: 'bold', marginRight: '8px' }">{{ (log.level || 'INFO').toUpperCase() }}</span>
-        <span style="color: #1e293b">{{ log.msg }}</span>
+        <span style="color: var(--edgex-text-primary)">{{ log.msg }}</span>
         <span v-for="(val, key) in getExtraFields(log)" :key="key" style="color: #6b7280; margin-left: 8px; font-size: 12px">
           {{ key }}={{ val }}
         </span>
@@ -319,7 +319,7 @@ const downloadLogs = () => {
   font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
   font-size: 12px;
   line-height: 1.4;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   border: 1px solid #e5e7eb;
   border-radius: 0;
   padding: 8px;

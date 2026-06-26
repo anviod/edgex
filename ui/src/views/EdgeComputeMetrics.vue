@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="edge-compute-metrics-container">
+  <div class="page-shell edge-compute-metrics-container">
     <a-row :gutter="[16, 16]" class="metrics-row">
       <a-col :span="12" :md="4" class="metrics-col">
         <a-card class="metrics-card">
@@ -142,9 +142,7 @@ onUnmounted(() => {
 
 <style scoped>
 .edge-compute-metrics-container {
-  padding: 24px;
-  min-height: calc(100vh - 56px);
-  background: #f1f5f9;
+  /* page-shell 提供布局 */
 }
 
 .metrics-row {
@@ -164,7 +162,7 @@ onUnmounted(() => {
   border-radius: 0;
   padding: 16px;
   height: 100%;
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -228,7 +226,7 @@ onUnmounted(() => {
   border: 1px solid #e5e7eb;
   border-radius: 0;
   color: #374151;
-  background: #fafafa;
+  background: var(--edgex-surface-subtle);
 }
 
 .arco-card:hover {
@@ -237,7 +235,7 @@ onUnmounted(() => {
 }
 
 :deep(.arco-table-th) {
-  background: #fafafa;
+  background: var(--edgex-surface-subtle);
   border-bottom: 1px solid #e5e7eb;
   font-size: 11px;
   color: #6b7280;

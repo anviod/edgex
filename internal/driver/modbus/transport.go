@@ -18,6 +18,18 @@ import (
 	"go.uber.org/zap"
 )
 
+// normalizeModbusURL 补全 Modbus 连接 URL 的 scheme（如 127.0.0.1:502 → tcp://127.0.0.1:502）。
+func normalizeModbusURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	if strings.Contains(raw, "://") {
+		return raw
+	}
+	return "tcp://" + raw
+}
+
 const (
 	StateDisconnected driver.ConnState = driver.StateDisconnected
 	StateConnecting   driver.ConnState = driver.StateConnecting
@@ -298,6 +310,8 @@ func (t *ModbusTransport) Connect(ctx context.Context) error {
 			}
 		}
 	}
+
+	url = normalizeModbusURL(url)
 
 	//zap.L().Info("[Modbus] Establishing TCP connection",
 	//	zap.String("url", url),

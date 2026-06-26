@@ -1,0 +1,134 @@
+/* 北向通道配置弹窗共享样式 */
+.nb-mode-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  border: 1px solid;
+}
+
+.nb-mode-banner--push {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+  color: #0369a1;
+}
+
+.nb-mode-banner--passive {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+  color: #6d28d9;
+}
+
+.nb-mode-banner__tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.nb-mode-banner--push .nb-mode-banner__tag { background: #0ea5e9; }
+.nb-mode-banner--passive .nb-mode-banner__tag { background: #722ed1; }
+
+.nb-form-section__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.mono-text {
+  font-family: ui-monospace, 'JetBrains Mono', monospace !important;
+  font-size: 12px;
+}
+
+.table-container {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 10px;
+}
+
+.table-header--strategy {
+  flex-wrap: wrap;
+}
+
+.table-header__hint {
+  flex: 1;
+  font-size: 12px;
+  color: #94a3b8;
+  min-width: 140px;
+}
+
+.table-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.table-header__actions :deep(.arco-btn) {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.batch-interval-input {
+  width: 88px;
+  flex-shrink: 0;
+}
+
+.industrial-table-inline :deep(.arco-table-th),
+.industrial-table-inline :deep(.arco-table-td) {
+  white-space: nowrap;
+}
+
+.industrial-table-inline :deep(.arco-select-view-single) {
+  min-width: 112px;
+}
+
+.industrial-table-inline :deep(.strategy-interval-input) {
+  min-width: 88px;
+}
+
+.industrial-table-inline :deep(.arco-table-th) {
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.industrial-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.user-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.user-item {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.user-item .arco-input { flex: 1; }

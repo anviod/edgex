@@ -141,6 +141,10 @@ func (m *MockSouthboundManager) WritePoint(channelID, deviceID, pointID string, 
 	return nil
 }
 
+func (m *MockSouthboundManager) GetShadowPoint(channelID, deviceID, pointID string) (*model.ShadowPoint, error) {
+	return nil, fmt.Errorf("shadow point not available in mock")
+}
+
 func (m *MockSouthboundManager) GetWriteHistory() []writeOperation {
 	m.mu.Lock()
 	defer m.mu.Unlock()

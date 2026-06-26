@@ -160,7 +160,7 @@ const loadDevices = async () => {
 .target-editor-card {
   border-left: 4px solid #165dff;
   border-radius: 0;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
 }
 </style>
 

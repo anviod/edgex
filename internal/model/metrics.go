@@ -86,6 +86,9 @@ type DeviceMetrics struct {
 
 	// 时间戳
 	Timestamp time.Time `json:"timestamp"`
+
+	// 通信画像（RTT/MTU/Gap，来自 Shadow 优化器）
+	CommunicationProfile map[string]interface{} `json:"communicationProfile,omitempty"`
 }
 
 // PointMetrics 点位级监控指标

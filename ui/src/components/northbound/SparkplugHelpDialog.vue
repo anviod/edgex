@@ -14,7 +14,7 @@
         </a-alert>
 
         <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">Topic 结构</div>
-        <pre style="background: #f8fafc; padding: 12px; border-radius: 0; font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; margin-bottom: 16px; overflow-x: auto">namespace/group_id/message_type/edge_node_id/[device_id]</pre>
+        <pre style="background: var(--edgex-surface-inset); padding: 12px; border-radius: 0; font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; margin-bottom: 16px; overflow-x: auto">namespace/group_id/message_type/edge_node_id/[device_id]</pre>
 
         <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">消息类型</div>
         <a-table :data="messageTypes" :bordered="false" size="small" :pagination="false">
@@ -37,7 +37,7 @@
           <div style="font-size: 12px; font-weight: 600; color: #0ea5e9; margin-bottom: 8px">
             NBIRTH Topic (节点出生)
           </div>
-          <div style="display: flex; align-items: center; background: #f8fafc; padding: 8px; font-size: 13px; font-weight: 500">
+          <div style="display: flex; align-items: center; background: var(--edgex-surface-inset); padding: 8px; font-size: 13px; font-weight: 500">
             <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">
               spBv1.0/{{ groupId || '采集通' }}/NBIRTH/{{ nodeId || 'EdgeX' }}
             </span>
@@ -51,7 +51,7 @@
           <div style="font-size: 12px; font-weight: 600; color: #165dff; margin-bottom: 8px">
             DBIRTH Topic (设备出生)
           </div>
-          <div style="display: flex; align-items: center; background: #f8fafc; padding: 8px; font-size: 13px; font-weight: 500">
+          <div style="display: flex; align-items: center; background: var(--edgex-surface-inset); padding: 8px; font-size: 13px; font-weight: 500">
             <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">
               spBv1.0/{{ groupId || '采集通' }}/DBIRTH/{{ nodeId || 'EdgeX' }}/{{ deviceId }}
             </span>
@@ -62,7 +62,7 @@
         </a-card>
 
         <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">Payload 结构 (Protobuf)</div>
-        <pre style="background: #f8fafc; padding: 12px; border-radius: 0; font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; overflow-x: auto">{
+        <pre style="background: var(--edgex-surface-inset); padding: 12px; border-radius: 0; font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; overflow-x: auto">{
   "timestamp": 1678888888888,
   "metrics": [
     {
@@ -87,7 +87,7 @@
           <div style="font-size: 12px; font-weight: 600; color: #ff7d00; margin-bottom: 8px">
             NCMD Topic (节点命令)
           </div>
-          <div style="display: flex; align-items: center; background: #f8fafc; padding: 8px; font-size: 13px; font-weight: 500">
+          <div style="display: flex; align-items: center; background: var(--edgex-surface-inset); padding: 8px; font-size: 13px; font-weight: 500">
             <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">
               spBv1.0/{{ groupId || '采集通' }}/NCMD/{{ nodeId || 'EdgeX' }}
             </span>
@@ -101,7 +101,7 @@
           <div style="font-size: 12px; font-weight: 600; color: #00b42a; margin-bottom: 8px">
             DCMD Topic (设备命令)
           </div>
-          <div style="display: flex; align-items: center; background: #f8fafc; padding: 8px; font-size: 13px; font-weight: 500">
+          <div style="display: flex; align-items: center; background: var(--edgex-surface-inset); padding: 8px; font-size: 13px; font-weight: 500">
             <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">
               spBv1.0/{{ groupId || '采集通' }}/DCMD/{{ nodeId || 'EdgeX' }}/{{ deviceId }}
             </span>
@@ -112,7 +112,7 @@
         </a-card>
 
         <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">命令 Payload (Protobuf)</div>
-        <pre style="background: #f8fafc; padding: 12px; border-radius: 0; font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; overflow-x: auto">{
+        <pre style="background: var(--edgex-surface-inset); padding: 12px; border-radius: 0; font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; overflow-x: auto">{
   "timestamp": 1678888888888,
   "metrics": [
     {
@@ -137,7 +137,7 @@
           <div style="font-size: 12px; font-weight: 600; color: #f53f3f; margin-bottom: 8px">
             NDEATH Topic (节点死亡)
           </div>
-          <div style="display: flex; align-items: center; background: #f8fafc; padding: 8px; font-size: 13px; font-weight: 500">
+          <div style="display: flex; align-items: center; background: var(--edgex-surface-inset); padding: 8px; font-size: 13px; font-weight: 500">
             <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">
               spBv1.0/{{ groupId || '采集通' }}/NDEATH/{{ nodeId || 'EdgeX' }}
             </span>
@@ -151,7 +151,7 @@
           <div style="font-size: 12px; font-weight: 600; color: #722ed1; margin-bottom: 8px">
             DDEATH Topic (设备死亡)
           </div>
-          <div style="display: flex; align-items: center; background: #f8fafc; padding: 8px; font-size: 13px; font-weight: 500">
+          <div style="display: flex; align-items: center; background: var(--edgex-surface-inset); padding: 8px; font-size: 13px; font-weight: 500">
             <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">
               spBv1.0/{{ groupId || '采集通' }}/DDEATH/{{ nodeId || 'EdgeX' }}/{{ deviceId }}
             </span>
@@ -166,7 +166,7 @@
         </a-alert>
 
         <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px">状态 Payload (Protobuf)</div>
-        <pre style="background: #f8fafc; padding: 12px; border-radius: 0; font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; overflow-x: auto">{
+        <pre style="background: var(--edgex-surface-inset); padding: 12px; border-radius: 0; font-size: 13px; line-height: 1.5; border: 1px solid #e5e7eb; overflow-x: auto">{
   "timestamp": 1678888888888,
   "seq": 255
 }</pre>

@@ -918,7 +918,7 @@ onUnmounted(() => {
 /* 主容器 */
 .sync-control-container {
   min-height: calc(100vh - 56px);
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   display: flex;
   flex-direction: column;
 }
@@ -929,7 +929,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   border-bottom: 1px solid #e2e8f0;
 }
 
@@ -978,7 +978,7 @@ onUnmounted(() => {
 
 .info-value {
   font-size: 13px;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
   font-weight: 500;
 }
 
@@ -992,7 +992,7 @@ onUnmounted(() => {
   gap: 8px;
   padding: 5px 12px;
   border-radius: 4px;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
 }
 
 .status-online {
@@ -1032,7 +1032,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   border-right: 1px solid #e2e8f0;
   padding: 20px;
 }
@@ -1045,7 +1045,7 @@ onUnmounted(() => {
 
 /* 发现卡片 */
 .discovery-card {
-  background: white;
+  background: var(--edgex-surface-raised);
   border-radius: 8px;
 }
 
@@ -1084,7 +1084,7 @@ onUnmounted(() => {
 }
 
 .status-line .value {
-  color: #1e293b;
+  color: var(--edgex-text-primary);
   font-weight: 500;
 }
 
@@ -1099,7 +1099,7 @@ onUnmounted(() => {
 /* 发现节点列表 */
 .discovered-nodes-card {
   flex: 1;
-  background: white;
+  background: var(--edgex-surface-raised);
   border-radius: 8px;
 }
 
@@ -1115,13 +1115,13 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   border-radius: 8px;
   transition: all 0.15s ease;
 }
 
 .discovered-node-item:hover {
-  background: #f1f5f9;
+  background: var(--edgex-surface-muted);
 }
 
 .node-connected {
@@ -1151,7 +1151,7 @@ onUnmounted(() => {
 .node-name {
   font-size: 13px;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 .node-meta {
@@ -1172,7 +1172,7 @@ onUnmounted(() => {
 /* 主内容区 */
 .main-content {
   flex: 1;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   padding: 0;
 }
 
@@ -1203,7 +1203,7 @@ onUnmounted(() => {
 
 /* 同步模式卡片 */
 .sync-modes-card {
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   border: 1px solid #e2e8f0;
 }
 
@@ -1218,7 +1218,7 @@ onUnmounted(() => {
   align-items: flex-start;
   gap: 16px;
   padding: 20px;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   border-radius: 8px;
   cursor: pointer;
   border: 2px solid transparent;
@@ -1260,7 +1260,7 @@ onUnmounted(() => {
 .mode-title {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 .mode-desc {
@@ -1271,7 +1271,7 @@ onUnmounted(() => {
 
 /* 同步选项 */
 .sync-options-card {
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   border: 1px solid #e2e8f0;
 }
 
@@ -1306,7 +1306,7 @@ onUnmounted(() => {
 
 /* 同步历史 */
 .sync-history-card {
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
 }
 
 .timeline-content {
@@ -1318,7 +1318,7 @@ onUnmounted(() => {
 .timeline-title {
   font-size: 13px;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 .timeline-status {
@@ -1369,7 +1369,7 @@ onUnmounted(() => {
 
 .metric-card {
   flex: 1;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   border: 1px solid #e2e8f0;
   min-width: 160px;
 }
@@ -1388,7 +1388,7 @@ onUnmounted(() => {
 
 /* 连接状态 */
 .connections-card {
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   border: 1px solid #e2e8f0;
 }
 
@@ -1404,7 +1404,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: white;
+  background: var(--edgex-surface-raised);
   border-radius: 8px;
 }
 
@@ -1430,7 +1430,7 @@ onUnmounted(() => {
 .connection-name {
   font-size: 13px;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 .connection-peer-id {
@@ -1458,12 +1458,12 @@ onUnmounted(() => {
 .metric-value {
   font-size: 12px;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 /* 网络日志 */
 .network-log-card {
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   border: 1px solid #e2e8f0;
 }
 
@@ -1548,7 +1548,7 @@ onUnmounted(() => {
 .progress-title {
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 .progress-info {
@@ -1626,7 +1626,7 @@ onUnmounted(() => {
   display: flex;
   gap: 32px;
   padding: 16px;
-  background: white;
+  background: var(--edgex-surface-raised);
   border-radius: 8px;
   border: 1px solid #e2e8f0;
 }
@@ -1644,7 +1644,7 @@ onUnmounted(() => {
 
 .info-value {
   font-size: 13px;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
   font-weight: 500;
 }
 
@@ -1674,7 +1674,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: white;
+  background: var(--edgex-surface-raised);
   border-radius: 8px;
   border: 2px solid transparent;
   cursor: pointer;
@@ -1683,7 +1683,7 @@ onUnmounted(() => {
 
 .snapshot-item:hover {
   border-color: #e2e8f0;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
 }
 
 .snapshot-selected {
@@ -1700,7 +1700,7 @@ onUnmounted(() => {
 .snapshot-name {
   font-size: 13px;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 .snapshot-time {

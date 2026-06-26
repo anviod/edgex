@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/anviod/edgex/internal/model"
@@ -570,7 +571,7 @@ func (nm *NorthboundManager) GetConfig() model.NorthboundConfig {
 
 	cfg := nm.config
 	cfg.Status = status
-	return cfg
+	return model.SanitizeNorthboundForClient(cfg)
 }
 
 // MQTT Operations (Implemented in northbound_manager_ext.go)
@@ -667,13 +668,14 @@ func (nm *NorthboundManager) DeleteSparkplugBConfig(id string) error {
 
 // OPC UA Operations
 
-func (nm *NorthboundManager) UpsertOPCUAConfig(cfg model.OPCUAConfig) error {
+func (nm *NorthboundManager) UpsertOPCUAConfig(cfg model.OPCUAConfig) (model.OPCUAConfig, error) {
 	nm.mu.Lock()
 	defer nm.mu.Unlock()
 
 	found := false
 	for i, c := range nm.config.OPCUA {
 		if c.ID == cfg.ID {
+			cfg = model.MergeOPCUAConfig(c, cfg)
 			nm.config.OPCUA[i] = cfg
 			found = true
 			break
@@ -683,8 +685,17 @@ func (nm *NorthboundManager) UpsertOPCUAConfig(cfg model.OPCUAConfig) error {
 		nm.config.OPCUA = append(nm.config.OPCUA, cfg)
 	}
 
+	if strings.TrimSpace(cfg.ServerCertPEM) != "" || strings.TrimSpace(cfg.ServerKeyPEM) != "" {
+		if strings.TrimSpace(cfg.ServerCertPEM) == "" || strings.TrimSpace(cfg.ServerKeyPEM) == "" {
+			return model.OPCUAConfig{}, fmt.Errorf("server certificate and private key must both be configured")
+		}
+		if err := opcua.ValidateServerPEMPair(cfg.ServerCertPEM, cfg.ServerKeyPEM); err != nil {
+			return model.OPCUAConfig{}, err
+		}
+	}
+
 	if err := nm.saveConfig(); err != nil {
-		return err
+		return model.OPCUAConfig{}, err
 	}
 
 	server, exists := nm.opcuaServers[cfg.ID]
@@ -694,20 +705,76 @@ func (nm *NorthboundManager) UpsertOPCUAConfig(cfg model.OPCUAConfig) error {
 			server.Stop()
 			delete(nm.opcuaServers, cfg.ID)
 		}
-		return nil
+		return cfg, nil
 	}
 
 	if !exists {
 		newServer := opcua.NewServer(cfg, nm.sb)
 		if err := newServer.Start(); err != nil {
-			return err
+			return model.OPCUAConfig{}, err
 		}
 		nm.opcuaServers[cfg.ID] = newServer
-	} else {
-		return server.UpdateConfig(cfg)
+	} else if err := server.UpdateConfig(cfg); err != nil {
+		return model.OPCUAConfig{}, err
 	}
 
-	return nil
+	return cfg, nil
+}
+
+// UpdateOPCUACertificates updates server/trusted PEM blobs and restarts the OPC UA server.
+func (nm *NorthboundManager) UpdateOPCUACertificates(id string, certPEM, keyPEM string, trusted []string) (model.OPCUAConfig, error) {
+	nm.mu.Lock()
+	defer nm.mu.Unlock()
+
+	idx := -1
+	for i, c := range nm.config.OPCUA {
+		if c.ID == id {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return model.OPCUAConfig{}, fmt.Errorf("OPC UA server %s not found", id)
+	}
+
+	cfg := nm.config.OPCUA[idx]
+	if strings.TrimSpace(certPEM) != "" {
+		cfg.ServerCertPEM = certPEM
+	}
+	if strings.TrimSpace(keyPEM) != "" {
+		cfg.ServerKeyPEM = keyPEM
+	}
+	if trusted != nil {
+		cfg.TrustedCertsPEM = trusted
+	}
+	nm.config.OPCUA[idx] = cfg
+
+	if strings.TrimSpace(cfg.ServerCertPEM) != "" || strings.TrimSpace(cfg.ServerKeyPEM) != "" {
+		if strings.TrimSpace(cfg.ServerCertPEM) == "" || strings.TrimSpace(cfg.ServerKeyPEM) == "" {
+			return model.OPCUAConfig{}, fmt.Errorf("server certificate and private key must both be configured")
+		}
+		if err := opcua.ValidateServerPEMPair(cfg.ServerCertPEM, cfg.ServerKeyPEM); err != nil {
+			return model.OPCUAConfig{}, err
+		}
+	}
+
+	if err := nm.saveConfig(); err != nil {
+		return model.OPCUAConfig{}, err
+	}
+
+	if server, ok := nm.opcuaServers[id]; ok {
+		if err := server.UpdateConfig(cfg); err != nil {
+			return model.OPCUAConfig{}, err
+		}
+	} else if cfg.Enable {
+		newServer := opcua.NewServer(cfg, nm.sb)
+		if err := newServer.Start(); err != nil {
+			return model.OPCUAConfig{}, err
+		}
+		nm.opcuaServers[id] = newServer
+	}
+
+	return model.SanitizeOPCUAForClient(cfg), nil
 }
 
 func (nm *NorthboundManager) DeleteOPCUAConfig(id string) error {
@@ -731,10 +798,14 @@ func (nm *NorthboundManager) DeleteOPCUAConfig(id string) error {
 }
 
 func (nm *NorthboundManager) saveConfig() error {
-	if nm.saveFunc != nil {
-		return nm.saveFunc(nm.config)
+	if nm.saveFunc == nil {
+		return nil
 	}
-	return nil
+	cfg, err := model.NormalizeNorthboundForSave(nm.config)
+	if err != nil {
+		return err
+	}
+	return nm.saveFunc(cfg)
 }
 
 // UpdateConfig 更新北向配置并重启相关客户端/服务器
@@ -850,6 +921,74 @@ func (nm *NorthboundManager) updateHTTPClients(oldConfigs, newConfigs []model.HT
 			}
 		}
 	}
+}
+
+// RebuildOPCUAServers 重建所有已启用的 OPC UA Server 地址空间（仅重启北向 OPC UA 服务，不影响网关主进程与南向采集）。
+func (nm *NorthboundManager) RebuildOPCUAServers() {
+	nm.mu.RLock()
+	type rebuildItem struct {
+		srv *opcua.Server
+		cfg model.OPCUAConfig
+	}
+	var items []rebuildItem
+	for _, cfg := range nm.config.OPCUA {
+		if !cfg.Enable {
+			continue
+		}
+		if srv, ok := nm.opcuaServers[cfg.ID]; ok {
+			items = append(items, rebuildItem{srv: srv, cfg: cfg})
+		}
+	}
+	nm.mu.RUnlock()
+
+	for _, item := range items {
+		if err := item.srv.UpdateConfig(item.cfg); err != nil {
+			log.Printf("Failed to rebuild OPC UA server [%s]: %v", item.cfg.Name, err)
+		} else {
+			log.Printf("OPC UA server [%s] address space rebuilt", item.cfg.Name)
+		}
+	}
+}
+
+// SyncOPCUAServer 重建指定 OPC UA Server 的地址空间（同步南向点位读写权限等变更）。
+func (nm *NorthboundManager) SyncOPCUAServer(id string) error {
+	nm.mu.RLock()
+	var cfg model.OPCUAConfig
+	found := false
+	for _, c := range nm.config.OPCUA {
+		if c.ID == id {
+			cfg = c
+			found = true
+			break
+		}
+	}
+	srv, running := nm.opcuaServers[id]
+	nm.mu.RUnlock()
+
+	if !found {
+		return fmt.Errorf("OPC UA server config %s not found", id)
+	}
+	if !cfg.Enable {
+		return fmt.Errorf("OPC UA server %s is disabled", id)
+	}
+
+	if !running {
+		newServer := opcua.NewServer(cfg, nm.sb)
+		if err := newServer.Start(); err != nil {
+			return err
+		}
+		nm.mu.Lock()
+		nm.opcuaServers[id] = newServer
+		nm.mu.Unlock()
+		log.Printf("OPC UA server [%s] started during sync", cfg.Name)
+		return nil
+	}
+
+	if err := srv.UpdateConfig(cfg); err != nil {
+		return fmt.Errorf("rebuild OPC UA server [%s]: %w", cfg.Name, err)
+	}
+	log.Printf("OPC UA server [%s] address space synced", cfg.Name)
+	return nil
 }
 
 // updateOPCUAServers 更新 OPC UA 服务器

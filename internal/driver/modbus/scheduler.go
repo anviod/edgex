@@ -782,6 +782,16 @@ func (s *PointScheduler) SetMaxPacketSize(m uint16) {
 	}
 }
 
+// SetGroupThreshold 设置块读合并的最大地址间隙（来自 GapOptimizer）。
+func (s *PointScheduler) SetGroupThreshold(threshold uint16) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if threshold == 0 {
+		return
+	}
+	s.groupThreshold = threshold
+}
+
 func (s *PointScheduler) getEffectiveMaxPacketSize() uint16 {
 	s.mu.Lock()
 	defer s.mu.Unlock()

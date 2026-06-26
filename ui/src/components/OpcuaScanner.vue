@@ -14,10 +14,10 @@
       <div class="scanner-header-banner">
         <div class="endpoint-info">
           <span class="label">ENDPOINT</span>
-          <span class="value font-mono">{{ deviceConfig?.endpoint || '-' }}</span>
+          <span class="value font-mono">{{ effectiveEndpoint || '-' }}</span>
         </div>
         <div class="protocol-badge">
-          <span class="protocol-tag-simple">OPC-UA</span>
+          <span class="protocol-tag-simple">{{ formatProtocolTag('opc-ua') }}</span>
         </div>
       </div>
 
@@ -63,7 +63,7 @@
             size="small"
             :loading="loading"
             @click="startScan"
-            :disabled="!deviceConfig?.endpoint"
+            :disabled="!effectiveEndpoint"
             class="scan-btn"
           >
             <template #icon><IconScan /></template>
@@ -231,6 +231,7 @@
 import { ref, reactive, computed, watch, h, resolveComponent } from 'vue'
 import { IconScan, IconSearch } from '@arco-design/web-vue/es/icon'
 import request from '@/utils/request'
+import { formatProtocolTag } from '@/utils/protocolLabel'
 
 const ROOT_KEY = '__root__'
 
@@ -251,6 +252,10 @@ const props = defineProps({
     type: Object,
     default: () => ({})
   },
+  channelConfig: {
+    type: Object,
+    default: () => ({})
+  },
   existingPoints: {
     type: Array,
     default: () => []
@@ -258,6 +263,15 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:visible', 'cancel', 'points-added'])
+
+const effectiveEndpoint = computed(() => {
+  const devEp = props.deviceConfig?.endpoint
+  if (devEp && String(devEp).trim()) {
+    return String(devEp).trim()
+  }
+  const chCfg = props.channelConfig || {}
+  return chCfg.url || chCfg.endpoint || ''
+})
 
 const loading = ref(false)
 const adding = ref(false)
@@ -551,8 +565,8 @@ const resetState = () => {
 }
 
 const startScan = async () => {
-  if (!props.deviceConfig?.endpoint) {
-    emit('error', 'OPC UA 设备未配置 endpoint，无法扫描')
+  if (!effectiveEndpoint.value) {
+    emit('error', 'OPC UA 未配置 endpoint（可在通道或设备中设置 Endpoint URL）')
     return
   }
 
@@ -774,7 +788,7 @@ const addSelected = async () => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   border: 1px solid #e9ecef;
   margin-bottom: 12px;
 }
@@ -805,7 +819,7 @@ const addSelected = async () => {
 .industrial-input :deep(.arco-input-wrapper) {
   border-radius: 0;
   border-color: #dee2e6;
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
 }
 
 .industrial-input :deep(.arco-input-wrapper:hover) {
@@ -930,7 +944,7 @@ const addSelected = async () => {
 /* 表格样式 - 改为分栏布局 */
 .table-wrapper {
   border: 1px solid #e9ecef;
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   display: flex;
   flex-direction: column;
   min-height: 450px;

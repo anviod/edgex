@@ -1735,7 +1735,11 @@ func (em *EdgeComputeManager) persist() error {
 	for _, r := range em.rules {
 		rules = append(rules, r)
 	}
-	return em.saveFunc(rules)
+	normalized, err := model.NormalizeEdgeRulesForSave(rules)
+	if err != nil {
+		return err
+	}
+	return em.saveFunc(normalized)
 }
 
 func (em *EdgeComputeManager) restoreState() {

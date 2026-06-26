@@ -1,19 +1,23 @@
 <template>
-  <div class="device-list-container">
-    <div class="device-header">
+  <div class="page-shell device-list-container">
+    <div class="page-header device-header">
       <div class="header-left">
         <a-button type="outline" size="small" @click="router.push('/channels')">
           <template #icon><IconArrowLeft /></template>
           返回通道
         </a-button>
         <div class="header-info">
-          <span class="protocol-tag">{{ channelProtocol || 'UNKNOWN' }}</span>
+          <span class="protocol-tag">{{ formatProtocolTag(channelProtocol) }}</span>
           <h2 class="title-text">设备列表</h2>
         </div>
       </div>
       
       <div class="header-right">
         <a-space size="small">
+          <a-button type="outline" size="small" @click="router.push('/virtual-shadows')">
+            <template #icon><IconThunderbolt /></template>
+            虚拟影子
+          </a-button>
           <a-button v-if="selected.length > 0" status="danger" type="outline" size="small" @click="confirmBatchDelete">
             <template #icon><IconDelete /></template>
             批量删除 ({{ selected.length }})
@@ -21,6 +25,10 @@
           <a-button v-if="channelProtocol === 'bacnet-ip' || channelProtocol === 'opc-ua'" type="outline" status="success" size="small" @click="openScanDialog()">
             <template #icon><IconScan /></template>
             扫描设备
+          </a-button>
+          <a-button v-if="channelProtocol && channelProtocol.includes('modbus')" type="outline" status="success" size="small" @click="openBatchModbusDialog">
+            <template #icon><IconPlus /></template>
+            批量新增从站
           </a-button>
           <a-button type="outline" status="primary" size="small" @click="openDialog()">
             <template #icon><IconPlus /></template>
@@ -31,8 +39,8 @@
     </div>
 
     <a-spin :loading="loading" style="width: 100%">
-      <a-card class="industrial-card borderless-card">
-        <a-table
+      <div class="table-container">
+      <a-table
           :columns="tableColumns"
           :data="devices"
           :loading="loading"
@@ -105,7 +113,7 @@
             </a-space>
           </template>
         </a-table>
-      </a-card>
+      </div>
     </a-spin>
 
     <div class="device-footer">
@@ -116,7 +124,7 @@
     </div>
 
     <a-modal v-model:visible="dialog" :title="form.id && isEdit ? '编辑设备' : '新增设备'" width="800px" @ok="saveDevice" @cancel="closeDialog">
-      <a-form :model="form" layout="horizontal" :label-col-props="{ span: 6 }" :wrapper-col-props="{ span: 18 }">
+      <a-form :model="form" layout="horizontal" class="industrial-form form-controls-md" :label-col-props="{ span: 6 }" :wrapper-col-props="{ span: 18 }">
         <a-form-item field="id" label="设备ID" required>
           <a-input v-model="form.id" placeholder="设备唯一标识" :disabled="isEdit" />
         </a-form-item>
@@ -148,6 +156,62 @@
               <a-radio :value="1">1-based</a-radio>
             </a-radio-group>
           </a-form-item>
+
+          <a-divider orientation="left">寄存器区块（批量创建点位）</a-divider>
+          <a-form-item field="autoPointsEnabled" label="启用区块">
+            <a-switch v-model="form.autoPointsEnabled" />
+            <template #extra>创建设备时按区间自动生成保持寄存器点位（功能码 0x03）</template>
+          </a-form-item>
+          <template v-if="form.autoPointsEnabled">
+            <a-row :gutter="16">
+              <a-col :span="8">
+                <a-form-item field="autoPointsStart" label="起始地址">
+                  <a-input-number v-model="form.autoPointsStart" :min="0" :max="65535" />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item field="autoPointsEnd" label="结束地址">
+                  <a-input-number v-model="form.autoPointsEnd" :min="0" :max="65535" />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item field="autoPointsCount" label="点位数量">
+                  <a-input :model-value="autoPointsCountLabel" disabled />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-row :gutter="16">
+              <a-col :span="8">
+                <a-form-item field="autoPointsDatatype" label="数据类型">
+                  <a-select v-model="form.autoPointsDatatype" :options="[
+                    { label: 'int16', value: 'int16' },
+                    { label: 'uint16', value: 'uint16' },
+                    { label: 'int32', value: 'int32' },
+                    { label: 'float32', value: 'float32' }
+                  ]" />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item field="autoPointsReadWrite" label="读写">
+                  <a-select v-model="form.autoPointsReadWrite" :options="[
+                    { label: '只读 (R)', value: 'R' },
+                    { label: '读写 (RW)', value: 'RW' }
+                  ]" />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item field="autoPointsRegisterType" label="寄存器类型">
+                  <a-select v-model="form.autoPointsRegisterType" :options="[
+                    { label: '保持寄存器 (0x03)', value: 'holding' }
+                  ]" />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-form-item v-if="isEdit" field="regeneratePoints" label="重新生成">
+              <a-switch v-model="form.regeneratePoints" />
+              <template #extra>开启后保存时将按新区间重新生成点位（保留同 ID 现有点配置）</template>
+            </a-form-item>
+          </template>
         </template>
         
         <template v-if="channelProtocol === 'bacnet-ip'">
@@ -172,7 +236,13 @@
         
         <template v-if="channelProtocol === 'opc-ua'">
           <a-form-item field="endpoint" label="Endpoint URL">
-            <a-input v-model="form.config.endpoint" placeholder="opc.tcp://192.168.1.10:4840" />
+            <a-input
+              v-model="form.config.endpoint"
+              :placeholder="channelOpcUaEndpoint || 'opc.tcp://192.168.1.10:4840'"
+            />
+            <template v-if="channelOpcUaEndpoint" #extra>
+              留空时将自动使用通道 Endpoint：{{ channelOpcUaEndpoint }}
+            </template>
           </a-form-item>
           <a-row :gutter="16">
             <a-col :span="8">
@@ -267,6 +337,59 @@
       </a-form>
     </a-modal>
 
+    <a-modal
+      v-model:visible="batchModbusDialog"
+      title="批量新增 Modbus 从站"
+      width="720px"
+      :ok-loading="batchModbusLoading"
+      @ok="submitBatchModbus"
+      @cancel="batchModbusDialog = false"
+    >
+      <a-alert type="info" class="mb-3" :closable="false">
+        一次创建多台从站设备，每台按寄存器区间自动生成点位（保持寄存器 / 功能码 0x03）。
+      </a-alert>
+      <a-form :model="batchModbusForm" layout="horizontal" class="industrial-form form-controls-md" :label-col-props="{ span: 7 }" :wrapper-col-props="{ span: 17 }">
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="从站 ID 起" required>
+              <a-input-number v-model="batchModbusForm.slaveStart" :min="1" :max="247" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="从站 ID 止" required>
+              <a-input-number v-model="batchModbusForm.slaveEnd" :min="1" :max="247" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="寄存器起始" required>
+              <a-input-number v-model="batchModbusForm.regStart" :min="0" :max="65535" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="寄存器结束" required>
+              <a-input-number v-model="batchModbusForm.regEnd" :min="0" :max="65535" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-form-item label="采集间隔">
+          <a-input v-model="batchModbusForm.interval" placeholder="1s" />
+        </a-form-item>
+        <a-form-item label="数据类型">
+          <a-select v-model="batchModbusForm.datatype" :options="[
+            { label: 'int16', value: 'int16' },
+            { label: 'uint16', value: 'uint16' }
+          ]" />
+        </a-form-item>
+        <a-form-item label="预览">
+          <span class="text-gray">
+            将创建 {{ batchModbusPreview.slaves }} 台设备，每台 {{ batchModbusPreview.points }} 个点位，共 {{ batchModbusPreview.total }} 个点位
+          </span>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
     <HistoryModal v-model:visible="historyModalVisible" :device="historyDevice" />
 
     <a-modal v-model:visible="deleteDialog" title="确认删除" @ok="executeDelete" @cancel="deleteDialog = false">
@@ -325,8 +448,8 @@
           :columns="scanColumns" 
           :data="scanResults" 
           :loading="isScanning" 
-          :row-selection="scanRowSelection"
-          v-model:selected-keys="selectedScanDevices"
+          :row-selection="{ type: 'checkbox', showCheckedAll: true, onlyCurrent: false }"
+          v-model:selectedKeys="selectedScanDevices"
           row-key="device_id"
           size="small"
           :bordered="{ cell: true }"
@@ -356,11 +479,12 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
 import {
-  IconArrowLeft, IconPlus, IconDelete, IconScan, IconList,
+  IconArrowLeft, IconPlus, IconDelete, IconScan, IconList, IconThunderbolt,
   IconSettings, IconHistory, IconSearch, IconEye, IconLink,
   IconClockCircle, IconInfoCircle, IconCheckCircle, IconCloseCircle
 } from '@arco-design/web-vue/es/icon'
 import request from '@/utils/request'
+import { formatProtocolTag } from '@/utils/protocolLabel'
 import { base64ToUint8Array, uint8ArrayToHex, detectFileType, downloadBytes } from '@/utils/decode'
 import HistoryModal from '@/components/HistoryModal.vue'
 
@@ -371,6 +495,31 @@ const channelInfo = ref(null)
 const loading = ref(false)
 const channelId = route.params.channelId
 const channelProtocol = computed(() => channelInfo.value?.protocol || '')
+const channelOpcUaEndpoint = computed(() => {
+  const cfg = channelInfo.value?.config || {}
+  return cfg.url || cfg.endpoint || ''
+})
+
+const inheritOpcUaConfigFromChannel = (baseConfig = {}) => {
+  const cfg = channelInfo.value?.config || {}
+  const merged = { ...baseConfig }
+  const channelEndpoint = cfg.url || cfg.endpoint || ''
+  if (!merged.endpoint && channelEndpoint) {
+    merged.endpoint = channelEndpoint
+  }
+  const inheritKeys = [
+    'security_policy', 'security_mode', 'auth_method',
+    'username', 'password', 'certificate_file', 'private_key_file'
+  ]
+  for (const key of inheritKeys) {
+    if (merged[key] == null || merged[key] === '') {
+      if (cfg[key] != null && cfg[key] !== '') {
+        merged[key] = cfg[key]
+      }
+    }
+  }
+  return merged
+}
 
 const selected = ref([])
 const selectAll = ref(false)
@@ -516,9 +665,99 @@ const defaultForm = {
   storageEnable: false,
   storageStrategy: 'interval',
   storageInterval: 1,
-  storageMaxRecords: 1000
+  storageMaxRecords: 1000,
+  autoPointsEnabled: false,
+  autoPointsStart: 0,
+  autoPointsEnd: 199,
+  autoPointsDatatype: 'int16',
+  autoPointsReadWrite: 'R',
+  autoPointsRegisterType: 'holding',
+  regeneratePoints: false
 }
 const form = ref({ ...defaultForm })
+
+const batchModbusDialog = ref(false)
+const batchModbusLoading = ref(false)
+const batchModbusForm = ref({
+  slaveStart: 1,
+  slaveEnd: 7,
+  regStart: 0,
+  regEnd: 199,
+  interval: '1s',
+  datatype: 'int16',
+  readwrite: 'R',
+  register_type: 'holding',
+  function_code: 3
+})
+
+const autoPointsCountLabel = computed(() => {
+  const start = Number(form.value.autoPointsStart) || 0
+  const end = Number(form.value.autoPointsEnd) || 0
+  if (end < start) return '0'
+  return String(end - start + 1)
+})
+
+const batchModbusPreview = computed(() => {
+  const s1 = Number(batchModbusForm.value.slaveStart) || 0
+  const s2 = Number(batchModbusForm.value.slaveEnd) || 0
+  const r1 = Number(batchModbusForm.value.regStart) || 0
+  const r2 = Number(batchModbusForm.value.regEnd) || 0
+  const slaves = Math.max(0, Math.max(s1, s2) - Math.min(s1, s2) + 1)
+  const points = Math.max(0, Math.max(r1, r2) - Math.min(r1, r2) + 1)
+  return { slaves, points, total: slaves * points }
+})
+
+const openBatchModbusDialog = () => {
+  batchModbusDialog.value = true
+}
+
+const submitBatchModbus = async () => {
+  batchModbusLoading.value = true
+  try {
+    const f = batchModbusForm.value
+    const payload = {
+      slave_start: f.slaveStart,
+      slave_end: f.slaveEnd,
+      reg_start: f.regStart,
+      reg_end: f.regEnd,
+      interval: f.interval,
+      datatype: f.datatype,
+      readwrite: f.readwrite,
+      register_type: f.register_type,
+      function_code: f.function_code
+    }
+    const res = await request.post(`/api/channels/${channelId}/devices/batch-modbus`, payload)
+    const skipped = res.skipped?.length || 0
+    let msg = `成功创建 ${res.created || 0} 台从站设备`
+    if (skipped > 0) {
+      msg += `，跳过已存在 ${skipped} 台`
+    }
+    if (res.warnings?.length) {
+      Message.warning(msg + '（部分注册警告，见控制台）')
+      console.warn('batch-modbus warnings', res.warnings)
+    } else {
+      Message.success(msg)
+    }
+    batchModbusDialog.value = false
+    fetchDevices()
+  } catch (e) {
+    Message.error('批量创建失败: ' + (e.message || e))
+    throw e
+  } finally {
+    batchModbusLoading.value = false
+  }
+}
+
+const parseAutoPointsRange = (config) => {
+  const rng = config?.auto_points_range
+  if (!rng || typeof rng !== 'string') return null
+  const parts = rng.split('-')
+  if (parts.length !== 2) return null
+  const start = parseInt(parts[0], 10)
+  const end = parseInt(parts[1], 10)
+  if (Number.isNaN(start) || Number.isNaN(end)) return null
+  return { start, end }
+}
 
 const fetchDevices = async () => {
   loading.value = true
@@ -571,18 +810,27 @@ const openDialog = (item = null) => {
       storageEnable: storage.enable || false,
       storageStrategy: storage.strategy || 'interval',
       storageInterval: storage.interval || 1,
-      storageMaxRecords: storage.max_records || 1000
+      storageMaxRecords: storage.max_records || 1000,
+      autoPointsEnabled: !!config.auto_points_range,
+      autoPointsStart: parseAutoPointsRange(config)?.start ?? 0,
+      autoPointsEnd: parseAutoPointsRange(config)?.end ?? 199,
+      autoPointsDatatype: config.auto_points_datatype || 'int16',
+      autoPointsReadWrite: config.auto_points_readwrite || 'R',
+      autoPointsRegisterType: config.auto_points_register_type || 'holding',
+      regeneratePoints: false
     }
   } else {
     isEdit.value = false
     form.value = { ...defaultForm }
+    if (channelProtocol.value && channelProtocol.value.includes('modbus')) {
+      form.value.autoPointsEnabled = true
+    }
     if (channelProtocol.value === 'opc-ua') {
-      form.value.config = {
-        endpoint: 'opc.tcp://127.0.0.1:4840',
+      form.value.config = inheritOpcUaConfigFromChannel({
         security_policy: 'None',
         security_mode: 'None',
         auth_method: 'Anonymous'
-      }
+      })
     }
   }
   dialog.value = true
@@ -608,6 +856,17 @@ const saveDevice = async () => {
   } else if (channelProtocol.value && channelProtocol.value.includes('modbus')) {
     config.slave_id = form.value.modbusSlaveId
     config.start_address = form.value.startAddressMode
+    if (form.value.autoPointsEnabled) {
+      const start = Number(form.value.autoPointsStart) || 0
+      const end = Number(form.value.autoPointsEnd) || 0
+      config.auto_points_range = `${Math.min(start, end)}-${Math.max(start, end)}`
+      config.auto_points_datatype = form.value.autoPointsDatatype
+      config.auto_points_readwrite = form.value.autoPointsReadWrite
+      config.auto_points_register_type = form.value.autoPointsRegisterType
+      config.auto_points_function_code = 3
+    } else {
+      delete config.auto_points_range
+    }
   } else if (channelProtocol.value === 'bacnet-ip') {
     config.device_id = form.value.bacnetDeviceInstance
     config.bacnetDeviceInstance = form.value.bacnetDeviceInstance
@@ -620,7 +879,7 @@ const saveDevice = async () => {
       config.bacnetPort = form.value.bacnetPort
     }
   } else if (channelProtocol.value === 'opc-ua') {
-    Object.assign(config, form.value.config)
+    Object.assign(config, inheritOpcUaConfigFromChannel(form.value.config))
   }
 
   const payload = {
@@ -654,6 +913,20 @@ const saveDevice = async () => {
       method: method,
       data: payload
     })
+
+    if (isEdit.value && form.value.regeneratePoints && form.value.autoPointsEnabled) {
+      const start = Number(form.value.autoPointsStart) || 0
+      const end = Number(form.value.autoPointsEnd) || 0
+      await request.post(`/api/channels/${channelId}/devices/${form.value.id}/points/generate-registers`, {
+        start: Math.min(start, end),
+        end: Math.max(start, end),
+        datatype: form.value.autoPointsDatatype,
+        readwrite: form.value.autoPointsReadWrite,
+        register_type: form.value.autoPointsRegisterType,
+        function_code: 3,
+        mode: 'merge'
+      })
+    }
 
     Message.success(isEdit.value ? '更新成功' : '创建成功')
     closeDialog()
@@ -716,6 +989,61 @@ const scanInterface = ref(null)
 
 const scanStatus = ref('')
 const scanTimeout = ref(null)
+
+const normalizeScanResults = (res) => {
+  if (Array.isArray(res)) return res
+  if (res && Array.isArray(res.devices)) return res.devices
+  if (res && Array.isArray(res.data)) return res.data
+  return []
+}
+
+const getSelectedScanDevices = () => {
+  const keySet = new Set((selectedScanDevices.value || []).map((k) => String(k)))
+  return scanResults.value.filter((item) => keySet.has(String(item.device_id)))
+}
+
+const buildScannedDevicePayload = (scanItem) => {
+  const instanceId = scanItem.device_id
+  let id = ''
+  let name = ''
+  let config = {}
+
+  if (channelProtocol.value === 'bacnet-ip') {
+    id = instanceId != null ? `bacnet-${instanceId}` : ''
+    name = scanItem.object_name || scanItem.model_name || (instanceId != null ? String(instanceId) : '')
+    config = {
+      device_id: instanceId,
+      bacnetDeviceInstance: instanceId,
+      ip: scanItem.ip,
+      port: scanItem.port,
+      vendor_name: scanItem.vendor_name,
+      model_name: scanItem.model_name,
+    }
+  } else if (channelProtocol.value === 'opc-ua') {
+    const ep = scanItem.endpoint || channelOpcUaEndpoint.value || ''
+    id = scanItem.device_id || ep || ''
+    name = scanItem.name || scanItem.model_name || id
+    config = inheritOpcUaConfigFromChannel({
+      endpoint: ep,
+      name: scanItem.name,
+      vendor_name: scanItem.vendor_name,
+      model_name: scanItem.model_name,
+      version: scanItem.version,
+    })
+  } else {
+    id = instanceId != null ? String(instanceId) : (scanItem.id || '')
+    name = scanItem.name || scanItem.object_name || id
+  }
+
+  return {
+    id: String(id),
+    name: String(name),
+    interval: '10s',
+    enable: true,
+    config,
+    points: [],
+  }
+}
 
 const fetchInterfaces = async () => {
   try {
@@ -787,11 +1115,13 @@ const scanDevices = async () => {
     
     // 构建扫描参数
     const scanParams = {}
-    if (channelProtocol.value === 'bacnet-ip') {
+    if (channelProtocol.value === 'bacnet-ip' && scanInterface.value) {
       scanParams.interface_ip = scanInterface.value
     } else if (channelProtocol.value === 'opc-ua') {
-      // For OPC-UA, we can add endpoint parameter if needed
-      // For now, we'll use default endpoints
+      const ep = channelOpcUaEndpoint.value
+      if (ep) {
+        scanParams.endpoint = ep
+      }
     }
     
     // 增加超时设置
@@ -806,7 +1136,8 @@ const scanDevices = async () => {
     scanStatus.value = '扫描完成'
     
     // 处理后端响应格式 - 后端直接返回设备数组
-    scanResults.value = Array.isArray(res) ? res : (res.devices || [])
+    scanResults.value = normalizeScanResults(res)
+    selectedScanDevices.value = []
     if (stopMessage && typeof stopMessage === 'object' && typeof stopMessage.close === 'function') {
       stopMessage.close()
       stopMessage = null
@@ -847,41 +1178,26 @@ const scanDevices = async () => {
 }
 
 const addSelectedDevices = async () => {
+  const devicesToAdd = getSelectedScanDevices()
+  if (devicesToAdd.length === 0) {
+    Message.warning('请先选择要添加的设备')
+    return
+  }
+
   isAddingDevices.value = true
-  
+
   try {
-    for (const device of selectedScanDevices.value) {
-      let config = {}
-      if (channelProtocol.value === 'bacnet-ip') {
-        config = {
-          device_id: device.device_id,
-          bacnetDeviceInstance: device.device_id,
-          ip: device.ip,
-          port: device.port,
-          vendor_name: device.vendor_name,
-          model_name: device.model_name
-        }
-      } else if (channelProtocol.value === 'opc-ua') {
-        config = {
-          endpoint: device.endpoint,
-          name: device.name,
-          vendor_name: device.vendor_name,
-          model_name: device.model_name,
-          version: device.version
-        }
+    const payloads = devicesToAdd.map(buildScannedDevicePayload)
+    for (const payload of payloads) {
+      if (!payload.id || !payload.name) {
+        console.error('Invalid scan payload', { devicesToAdd, payloads })
+        throw new Error('扫描结果缺少设备标识，请重新扫描后重试')
       }
-      
-      await request.post(`/api/channels/${channelId}/devices`, {
-        id: device.device_id,
-        name: device.name || device.device_id,
-        interval: '10s',
-        enable: true,
-        config: config,
-        points: []
-      })
     }
-    
-    Message.success(`成功添加 ${selectedScanDevices.value.length} 个设备`)
+
+    await request.post(`/api/channels/${channelId}/devices`, payloads)
+
+    Message.success(`成功添加 ${payloads.length} 个设备`)
     scanDialog.value = false
     fetchDevices()
   } catch (e) {
@@ -954,12 +1270,6 @@ const scanColumns = computed(() => {
   }
 })
 
-const scanRowSelection = reactive({
-  type: 'checkbox',
-  showCheckedAll: true,
-  onlyCurrent: false,
-})
-
 onMounted(() => {
   fetchDevices()
   fetchRules()
@@ -968,13 +1278,11 @@ onMounted(() => {
 
 <style scoped>
 .device-list-container {
-  padding: 24px;
-  background-color: #f1f5f9;
-  min-height: calc(100vh - 56px);
+  /* page-shell 提供布局与背景 */
 }
 
 .dark-theme .device-list-container {
-  background-color: #0b1223 !important;
+  background: transparent !important;
 }
 
 .dark-theme .device-header {
@@ -1014,12 +1322,7 @@ onMounted(() => {
 }
 
 .device-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px dashed #cbd5e1;
+  /* 继承全局 .page-header */
 }
 
 .header-left {
@@ -1047,14 +1350,12 @@ onMounted(() => {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
   text-align: left;
 }
 
 .industrial-card {
-  border: 1px solid #cbd5e1 !important;
-  border-radius: 0;
-  box-shadow: 6px 6px 0px #e2e8f0;
+  /* 全局 .industrial-card 单框无阴影 */
 }
 
 /* 无边框卡片 */
@@ -1115,7 +1416,7 @@ onMounted(() => {
   padding: 12px;
   border: 1px dashed #cbd5e1;
   text-align: center;
-  background-color: #f8fafc;
+  background-color: var(--edgex-surface-inset);
 }
 
 .terminal-info {
@@ -1135,7 +1436,7 @@ onMounted(() => {
 .monospace-text {
   font-family: monospace;
   font-size: 11px;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
   font-weight: 500;
 }
 
@@ -1145,7 +1446,7 @@ onMounted(() => {
 }
 
 :deep(.arco-table-th) {
-  background-color: #f8fafc !important;
+  background-color: var(--edgex-surface-inset) !important;
   font-weight: bold !important;
   border-radius: 0 !important;
   padding: 12px !important;
@@ -1172,27 +1473,27 @@ onMounted(() => {
 }
 
 :deep(.arco-table-td.arco-table-td-row-select) {
-  background-color: #ffffff !important;
+  background-color: var(--edgex-surface-raised) !important;
   border-right: 1px solid #e5e7eb !important;
 }
 
 :deep(.arco-table-col-fixed-left .arco-table-th) {
-  background-color: #f8fafc !important;
+  background-color: var(--edgex-surface-inset) !important;
   border-right: 1px solid #e5e7eb !important;
 }
 
 :deep(.arco-table-col-fixed-left .arco-table-td) {
-  background-color: #ffffff !important;
+  background-color: var(--edgex-surface-raised) !important;
   border-right: 1px solid #e5e7eb !important;
 }
 
 :deep(.arco-table-col-fixed-right .arco-table-th) {
-  background-color: #f8fafc !important;
+  background-color: var(--edgex-surface-inset) !important;
   border-left: 1px solid #e5e7eb !important;
 }
 
 :deep(.arco-table-col-fixed-right .arco-table-td) {
-  background-color: #ffffff !important;
+  background-color: var(--edgex-surface-raised) !important;
   border-left: 1px solid #e5e7eb !important;
   border-right: none !important;
 }

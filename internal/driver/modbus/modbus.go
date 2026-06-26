@@ -9,13 +9,8 @@ import (
 	"github.com/anviod/edgex/internal/model"
 )
 
-func init() {
-	driver.RegisterDriver("modbus-tcp", NewModbusDriver)
-	driver.RegisterDriver("modbus-rtu", NewModbusDriver)
-	driver.RegisterDriver("modbus-rtu-over-tcp", NewModbusDriver)
-}
-
-// ModbusDriver implements driver.Driver interface
+// ModbusDriver 旧版驱动实现，保留供测试引用。
+// 生产注册由 ModbusExecutor 负责（modbus_executor.go）。
 type ModbusDriver struct {
 	config      model.DriverConfig
 	transport   *ModbusTransport

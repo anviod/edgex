@@ -1,7 +1,7 @@
 ﻿<template>
-    <div class="log-viewer-container">
+    <div class="log-viewer-container page-shell page-shell--compact">
         <!-- Toolbar -->
-        <div class="log-toolbar">
+        <div class="log-toolbar toolbar--standalone">
             <div class="toolbar-left">
                 <icon-cloud class="toolbar-icon" />
                 <span class="toolbar-title">实时日志</span>
@@ -221,19 +221,16 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 16px;
-  background-color: #ffffff;
+  padding-top: 16px;
+  padding-bottom: 16px;
 }
 
 .log-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   padding: 12px 16px;
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 0;
 }
 
 .toolbar-left {
@@ -250,7 +247,7 @@ onUnmounted(() => {
 .toolbar-title {
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 .toolbar-right {
@@ -268,7 +265,7 @@ onUnmounted(() => {
 .toolbar-right .switch-label {
   margin-right: 8px;
   font-size: 13px;
-  color: #64748b;
+  color: var(--edgex-text-secondary);
   white-space: nowrap;
 }
 
@@ -279,16 +276,16 @@ onUnmounted(() => {
   font-size: 13px;
   line-height: 1.5;
   padding: 16px;
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 0;
+  background-color: var(--edgex-terminal-bg);
+  border: 1px solid var(--edgex-border);
+  border-radius: var(--edgex-radius-lg);
   margin-bottom: 16px;
-  color: #1e293b;
+  color: var(--edgex-terminal-text);
 }
 
 .no-logs {
   text-align: center;
-  color: #94a3b8;
+  color: var(--edgex-text-tertiary);
   padding: 48px 0;
 }
 
@@ -334,7 +331,7 @@ onUnmounted(() => {
   flex: 1;
   word-break: break-all;
   white-space: pre-wrap;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 .log-extra {
@@ -357,7 +354,7 @@ onUnmounted(() => {
 }
 
 .log-terminal::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--edgex-surface-muted);
   border-radius: 0;
 }
 

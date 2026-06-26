@@ -66,7 +66,8 @@ func (m *MockDriver) GetConnectionMetrics() (int64, int64, string, string, time.
 
 func TestGetDevicePoints_ProtocolFields(t *testing.T) {
 	// 1. Setup ChannelManager
-	cm := core.NewChannelManager(nil, nil)
+	pipeline := core.NewDataPipeline(100)
+	cm := core.NewChannelManager(pipeline, nil)
 
 	// 2. Setup Modbus Channel & Device
 	modbusCh := &model.Channel{

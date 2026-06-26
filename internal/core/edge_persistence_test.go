@@ -1,7 +1,6 @@
 package core
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -11,11 +10,9 @@ import (
 
 func TestEdgeRulePersistence(t *testing.T) {
 	// 1. Setup Storage
-	tmpFile := "test_edge_persistence.db"
-	os.Remove(tmpFile)
-	defer os.Remove(tmpFile)
+	tmpDir := testOutputDir(t)
 
-	store, err := storage.NewStorage(tmpFile)
+	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}

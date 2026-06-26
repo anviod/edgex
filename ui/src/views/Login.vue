@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="login-container">
     <div class="login-scene">
       <div class="login-panel" 
@@ -88,6 +88,7 @@ import {
   IconCloseCircleFill, IconCheckCircleFill
 } from '@arco-design/web-vue/es/icon'
 import LoginApi from 'api/login.js'
+import InstallApi from 'api/install.js'
 import router from '@/router'
 import { userStore } from 'stores/user.js'
 import { configStore } from '@/stores/app.js'
@@ -188,7 +189,19 @@ onBeforeUnmount(() => {
   }
 })
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    const installRes = await InstallApi.checkInstallStatus()
+    if (installRes.code === '0' && installRes.data) {
+      if (!installRes.data.isInstalled) {
+        router.push('/install')
+        return
+      }
+    }
+  } catch (error) {
+    console.error('检查安装状态失败:', error)
+  }
+
   const logout = localStorage.getItem('logout')
   if (logout && logout !== '') {
     try {
@@ -437,7 +450,7 @@ const handleForgotPassword = () => {
 .login-container {
   position: fixed;
   inset: 0;
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -456,7 +469,7 @@ const handleForgotPassword = () => {
 .login-panel {
   width: 580px;
   padding: 32px 60px;
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   border: 1px solid #e5e7eb;
   border-radius: 0;
   box-shadow: 0 8px 20px -5px rgba(0, 0, 0, 0.05), 0 6px 8px -6px rgba(0, 0, 0, 0.05);
@@ -613,7 +626,7 @@ const handleForgotPassword = () => {
   font-family: monaco, monospace;
   color: #94a3b8;
   letter-spacing: 1px;
-  background: #f1f5f9;
+  background: var(--edgex-surface-muted);
   border: 1px solid #e2e8f0;
   border-radius: 0;
   padding: 1px 6px;
@@ -672,7 +685,7 @@ const handleForgotPassword = () => {
   color: #64748b;
   margin-bottom: 14px;
   padding: 8px 10px;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   border: 1px solid #e2e8f0;
   border-left: 3px solid #0ea5e9;
   border-radius: 0;

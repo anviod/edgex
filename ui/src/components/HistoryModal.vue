@@ -10,82 +10,105 @@
       <a-space>
         <a-button @click="onClose">关闭</a-button>
         <a-button type="primary" :loading="historyLoading" @click="fetchHistory">查询</a-button>
-        <a-button @click="downloadHistoryCSV" :disabled="historyData.length === 0">导出CSV</a-button>
+        <a-button @click="downloadHistoryCSV" :disabled="historyData.length === 0">导出 CSV</a-button>
       </a-space>
     </template>
 
     <div class="history-head">
-      <span class="history-title">历史数据</span>
-      <a-space>
+      <div class="history-head-left">
+        <span class="history-title">历史数据</span>
         <span class="history-device">设备：{{ device?.name || '-' }}</span>
-        <a-dropdown @select="handleColumnSelect">
-          <a-button size="small">
-            列筛选
-            <icon-filter />
-          </a-button>
-          <template #dropdown>
-            <a-menu>
-              <a-menu-item key="ts" :disabled="true">
-                <a-checkbox :checked="true" disabled>时间</a-checkbox>
-              </a-menu-item>
-              <a-menu-divider />
-              <a-menu-item v-for="header in historyHeaders" :key="header.key">
-                <a-checkbox 
-                  :checked="selectedColumns.includes(header.key)" 
-                  @change="checked => toggleColumn(header.key, checked)"
-                >
-                  {{ header.title }}
-                </a-checkbox>
-              </a-menu-item>
-            </a-menu>
-          </template>
-        </a-dropdown>
-      </a-space>
+        <span v-if="storageHint" class="history-meta">{{ storageHint }}</span>
+      </div>
+      <a-dropdown trigger="click">
+        <a-button size="small">
+          列筛选
+          <icon-filter />
+        </a-button>
+        <template #content>
+          <div class="column-filter-panel">
+            <div class="column-filter-item disabled">
+              <a-checkbox :model-value="true" disabled>时间</a-checkbox>
+            </div>
+            <a-divider :margin="8" />
+            <div v-for="header in historyHeaders" :key="header.key" class="column-filter-item">
+              <a-checkbox
+                :model-value="selectedColumns.includes(header.key)"
+                @change="checked => toggleColumn(header.key, checked)"
+              >
+                {{ header.title }}
+              </a-checkbox>
+            </div>
+          </div>
+        </template>
+      </a-dropdown>
     </div>
 
     <a-space direction="vertical" :size="16" fill>
-      <a-row :gutter="16">
-        <a-col :span="6">
+      <a-row :gutter="16" align="middle">
+        <a-col :span="5">
           <a-select
-            v-model:value="historyMode"
-            :options="[
-              { label: '最近记录', value: 'limit' },
-              { label: '时间范围', value: 'range' }
-            ]"
+            v-model="historyMode"
+            :options="historyModeOptions"
             placeholder="查询模式"
           />
         </a-col>
-        <a-col :span="6" v-if="historyMode === 'limit'">
-          <a-input-number v-model:value="historyLimit" :min="1" placeholder="记录数量" />
+        <a-col :span="5" v-if="historyMode === 'limit'">
+          <a-input-number
+            v-model="historyLimit"
+            :min="1"
+            :max="1000"
+            placeholder="记录数量"
+            style="width: 100%"
+          />
         </a-col>
-        <a-col :span="12" v-if="historyMode === 'range'">
-          <a-range-picker v-model:value="historyDateRange" show-time />
+        <a-col :span="10" v-if="historyMode === 'range'">
+          <a-range-picker
+            v-model="historyDateRange"
+            show-time
+            format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            :placeholder="['开始时间', '结束时间']"
+            style="width: 100%"
+          />
+        </a-col>
+        <a-col :span="4" v-if="historyMode === 'range'">
+          <a-space wrap>
+            <a-button size="mini" @click="setRangePreset('1h')">1 小时</a-button>
+            <a-button size="mini" @click="setRangePreset('24h')">24 小时</a-button>
+            <a-button size="mini" @click="setRangePreset('7d')">7 天</a-button>
+          </a-space>
         </a-col>
       </a-row>
 
+      <div class="history-summary">
+        <span>查询结果：<strong>{{ historyData.length }}</strong> 条</span>
+        <span v-if="historyMode === 'limit'" class="summary-hint">最多 1000 条 · 每分钟 1 条约 16.7 小时</span>
+        <span v-else-if="historyDateRange?.length === 2" class="summary-hint">
+          范围：{{ historyDateRange[0] }} ~ {{ historyDateRange[1] }}
+        </span>
+      </div>
+
       <a-table
         :columns="tableColumns"
-        :data="historyData"
+        :data="paginatedData"
         :loading="historyLoading"
-        :pagination="{
-          current: pagination.current,
-          pageSize: pagination.pageSize,
-          total: pagination.total,
-          onChange: handlePaginationChange
-        }"
+        :pagination="paginationConfig"
         size="small"
         :bordered="{ cell: true }"
         class="history-table"
-        :scroll="{ x: 'max-content' }"
+        row-key="rowKey"
+        :scroll="{ x: 'max-content', y: 480 }"
+        @page-change="handlePageChange"
+        @page-size-change="handlePageSizeChange"
       >
         <template #ts="{ record }">
-          <span class="cell-content" :data-text="formatFriendlyTime(record.ts)" @click="copyToClipboard(formatFriendlyTime(record.ts))">
-            {{ formatFriendlyTime(record.ts) }}
-          </span>
-        </template>
-        <template #cell="{ text }">
-          <span class="cell-content" :data-text="text" @click="copyToClipboard(text)">
-            {{ text }}
+          <span
+            class="cell-content"
+            :data-text="formatHistoryTime(record.ts)"
+            @click="copyToClipboard(formatHistoryTime(record.ts))"
+          >
+            {{ formatHistoryTime(record.ts) }}
           </span>
         </template>
       </a-table>
@@ -94,10 +117,12 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, reactive } from 'vue'
 import { Message } from '@arco-design/web-vue'
 import { IconFilter } from '@arco-design/web-vue/es/icon'
 import request from '@/utils/request'
+
+const MAX_HISTORY_LIMIT = 1000
 
 const props = defineProps({
   visible: Boolean,
@@ -115,47 +140,103 @@ const historyLoading = ref(false)
 const historyData = ref([])
 const historyHeaders = ref([])
 const historyDateRange = ref([])
-const historyLimit = ref(100)
+const historyLimit = ref(MAX_HISTORY_LIMIT)
 const historyMode = ref('limit')
-const pagination = ref({
+const selectedColumns = ref([])
+
+const pagination = reactive({
   current: 1,
-  pageSize: 20,
+  pageSize: 50,
   total: 0
 })
-const selectedColumns = ref([])
+
+const historyModeOptions = [
+  { label: '最近记录', value: 'limit' },
+  { label: '时间范围', value: 'range' }
+]
+
+const storageHint = computed(() => {
+  const storage = props.device?.storage
+  if (!storage?.enable) return '历史存储未启用'
+  const interval = storage.interval || 1
+  const maxRecords = storage.max_records || MAX_HISTORY_LIMIT
+  const strategyMap = {
+    interval: '定间隔快照',
+    minute_aligned: '整分钟快照',
+    realtime: '实时快照'
+  }
+  const strategy = strategyMap[storage.strategy] || storage.strategy || '整分钟快照'
+  return `${strategy} · 每 ${interval} 分钟 · 最多 ${maxRecords} 条`
+})
 
 const tableColumns = computed(() => {
   const columns = [
     {
       title: '时间',
       dataIndex: 'ts',
-      key: 'ts',
       width: 180,
       slotName: 'ts',
-      ellipsis: true
+      ellipsis: true,
+      fixed: 'left'
     }
   ]
-  
+
   historyHeaders.value.forEach(header => {
-    if (selectedColumns.value.includes(header.key)) {
-      columns.push({
-        title: header.title,
-        dataIndex: `data.${header.key.split('.')[1]}`,
-        key: header.key,
-        ellipsis: true,
-        scopedSlots: {
-          customRender: 'cell'
-        }
-      })
-    }
+    if (!selectedColumns.value.includes(header.key)) return
+    const pointKey = header.key.split('.')[1]
+    columns.push({
+      title: header.title,
+      dataIndex: pointKey,
+      width: 120,
+      ellipsis: true,
+      tooltip: true,
+      render: ({ record }) => {
+        const val = record.data?.[pointKey]
+        if (val === null || val === undefined || val === '') return '-'
+        return String(val)
+      }
+    })
   })
-  
+
   return columns
 })
 
-const handleColumnSelect = (key) => {
-  // 这个函数可以用来处理菜单项的额外逻辑，目前主要通过复选框控制
-  console.log('Column selected:', key)
+const paginatedData = computed(() => {
+  const start = (pagination.current - 1) * pagination.pageSize
+  return historyData.value.slice(start, start + pagination.pageSize).map((row, index) => ({
+    ...row,
+    rowKey: `${row.ts}-${start + index}`
+  }))
+})
+
+const paginationConfig = computed(() => ({
+  current: pagination.current,
+  pageSize: pagination.pageSize,
+  total: historyData.value.length,
+  showTotal: true,
+  showPageSize: true,
+  pageSizeOptions: [20, 50, 100, 200, 500]
+}))
+
+const formatDateTime = (date) => {
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+const formatHistoryTime = (ts) => {
+  if (ts === null || ts === undefined || ts === '') return '-'
+  const date = new Date(Number(ts) * 1000)
+  if (Number.isNaN(date.getTime())) return '-'
+  return formatDateTime(date)
+}
+
+const setRangePreset = (preset) => {
+  const end = new Date()
+  const start = new Date(end)
+  if (preset === '1h') start.setHours(end.getHours() - 1)
+  else if (preset === '24h') start.setDate(end.getDate() - 1)
+  else if (preset === '7d') start.setDate(end.getDate() - 7)
+  historyDateRange.value = [formatDateTime(start), formatDateTime(end)]
 }
 
 const toggleColumn = (key, checked) => {
@@ -173,6 +254,7 @@ watch(
   (val) => {
     historyDialog.value = val
     if (val) {
+      historyDevice.value = props.device
       resetHistoryQuery()
       fetchHistory()
     }
@@ -203,104 +285,99 @@ watch(historyDialog, (val) => {
 const resetHistoryQuery = () => {
   historyData.value = []
   historyHeaders.value = []
+  selectedColumns.value = []
   historyMode.value = 'limit'
-  historyLimit.value = 100
-  const end = new Date()
-  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000)
-  const toLocalISO = (d) => {
-    const offset = d.getTimezoneOffset() * 60000
-    return new Date(d.getTime() - offset).toISOString().slice(0, 16)
-  }
-  historyDateRange.value = [toLocalISO(start), toLocalISO(end)]
+  historyLimit.value = MAX_HISTORY_LIMIT
+  pagination.current = 1
+  pagination.pageSize = 50
+  pagination.total = 0
+  setRangePreset('24h')
 }
 
-const formatFriendlyTime = (ts) => {
-  if (!ts && ts !== 0) return '-'
-  const date = new Date(Number(ts) * 1000)
-  if (Number.isNaN(date.getTime())) return '-'
+const buildHistoryUrl = () => {
+  const deviceId = historyDevice.value?.id
+  if (!deviceId) return null
 
-  const diff = Date.now() - date.getTime()
-  const seconds = Math.floor(diff / 1000)
-  const minutes = Math.floor(seconds / 60)
-  const hours = Math.floor(minutes / 60)
-  const days = Math.floor(hours / 24)
+  const params = new URLSearchParams()
+  if (historyMode.value === 'range') {
+    if (!historyDateRange.value || historyDateRange.value.length !== 2) {
+      throw new Error('请选择时间范围')
+    }
+    params.set('start', historyDateRange.value[0])
+    params.set('end', historyDateRange.value[1])
+    params.set('limit', String(MAX_HISTORY_LIMIT))
+  } else {
+    params.set('limit', String(Math.min(historyLimit.value || MAX_HISTORY_LIMIT, MAX_HISTORY_LIMIT)))
+  }
 
-  if (seconds < 30) return '刚刚'
-  if (seconds < 60) return `${seconds}秒前`
-  if (minutes < 60) return `${minutes}分钟前`
-  if (hours < 24) return `${hours}小时前`
-  if (days < 7) return `${days}天前`
-
-  const fmt = (n) => n.toString().padStart(2, '0')
-  return `${date.getFullYear()}-${fmt(date.getMonth() + 1)}-${fmt(date.getDate())} ${fmt(date.getHours())}:${fmt(date.getMinutes())}:${fmt(date.getSeconds())}`
+  return `/api/devices/${deviceId}/history?${params.toString()}`
 }
 
 const fetchHistory = async () => {
-  if (!historyDevice.value || !historyDevice.value.id) {
-    return
-  }
+  if (!historyDevice.value?.id) return
 
   historyLoading.value = true
   historyData.value = []
   historyHeaders.value = []
+  pagination.current = 1
 
   try {
-    let url = `/api/devices/${historyDevice.value.id}/history`
-    if (historyMode.value === 'range') {
-      const start = historyDateRange.value[0] + ':00'
-      const end = historyDateRange.value[1] + ':00'
-      url += `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`
-    } else {
-      url += `?limit=${historyLimit.value}`
-    }
-    
-    // 添加分页参数
-    url += `&page=${pagination.value.current}&pageSize=${pagination.value.pageSize}`
-
+    const url = buildHistoryUrl()
     const res = await request.get(url, { timeout: 60000 })
-    // 处理 API 响应，支持两种格式：对象（带 data 和 total）或直接数组
+
+    let rows = []
     if (Array.isArray(res)) {
-      // 直接返回数组的情况
-      historyData.value = res
-      pagination.value.total = res.length
+      rows = res
     } else {
-      // 返回对象的情况（支持分页）
-      historyData.value = res?.data || []
-      pagination.value.total = res?.total || 0
+      rows = res?.data || []
     }
 
-    if (historyData.value.length > 0) {
+    historyData.value = rows
+    pagination.total = rows.length
+
+    if (rows.length > 0) {
       const keys = new Set()
-      historyData.value.forEach(row => {
+      rows.forEach(row => {
         if (row.data) {
           Object.keys(row.data).forEach(k => keys.add(k))
         }
       })
       historyHeaders.value = Array.from(keys).sort().map(k => ({ title: k, key: `data.${k}` }))
-      // 默认选择所有列
       selectedColumns.value = historyHeaders.value.map(header => header.key)
+    } else {
+      Message.info('该时间范围内暂无历史数据')
     }
   } catch (e) {
-    Message.error('获取历史数据失败: ' + e.message)
+    Message.error('获取历史数据失败: ' + (e.message || '未知错误'))
   } finally {
     historyLoading.value = false
   }
 }
 
-const handlePaginationChange = (page, pageSize) => {
-  pagination.value.current = page
-  pagination.value.pageSize = pageSize
-  fetchHistory()
+const handlePageChange = (page) => {
+  pagination.current = page
+}
+
+const handlePageSizeChange = (pageSize) => {
+  pagination.pageSize = pageSize
+  pagination.current = 1
 }
 
 const copyToClipboard = (text) => {
-  if (text) {
-    navigator.clipboard.writeText(text).then(() => {
-      Message.success('已复制到剪贴板')
-    }).catch(() => {
-      Message.error('复制失败')
-    })
+  if (!text || text === '-') return
+  navigator.clipboard.writeText(text).then(() => {
+    Message.success('已复制到剪贴板')
+  }).catch(() => {
+    Message.error('复制失败')
+  })
+}
+
+const escapeCsv = (value) => {
+  const text = value == null ? '' : String(value)
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`
   }
+  return text
 }
 
 const downloadHistoryCSV = () => {
@@ -309,29 +386,30 @@ const downloadHistoryCSV = () => {
     return
   }
 
-  const headers = ['时间', ...historyHeaders.value.map(h => h.title)]
-  const keys = ['ts', ...historyHeaders.value.map(h => h.key)]
-
+  const visibleHeaders = historyHeaders.value.filter(h => selectedColumns.value.includes(h.key))
+  const headers = ['时间', ...visibleHeaders.map(h => h.title)]
   const rows = historyData.value.map(row => {
-    return keys.map(key => {
-      if (key === 'ts') return formatFriendlyTime(row.ts)
-      const prop = key.split('.')[1]
-      return row.data ? (row.data[prop] ?? '') : ''
+    const line = [formatHistoryTime(row.ts)]
+    visibleHeaders.forEach(header => {
+      const prop = header.key.split('.')[1]
+      line.push(row.data?.[prop] ?? '')
     })
+    return line.map(escapeCsv).join(',')
   })
 
-  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+  const csvContent = '\uFEFF' + [headers.map(escapeCsv).join(','), ...rows].join('\n')
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
   const link = document.createElement('a')
   link.href = URL.createObjectURL(blob)
   link.download = `${historyDevice.value?.name || 'device'}_history_${new Date().toISOString().slice(0, 10)}.csv`
   link.click()
+  URL.revokeObjectURL(link.href)
 }
 </script>
 
 <style scoped>
-.history-modal.industrial-style .arco-modal-content {
-  background: #ffffff;
+.history-modal.industrial-style :deep(.arco-modal-content) {
+  background: var(--edgex-surface-raised);
   border: 1px solid #e5e7eb;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border-radius: 0;
@@ -345,6 +423,15 @@ const downloadHistoryCSV = () => {
   border-bottom: 1px solid #e5e7eb;
   margin-bottom: 12px;
   padding-bottom: 8px;
+  gap: 12px;
+}
+
+.history-modal .history-head-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .history-modal .history-title {
@@ -360,16 +447,48 @@ const downloadHistoryCSV = () => {
   white-space: nowrap;
 }
 
-.history-modal .history-table .arco-table {
-  background: #ffffff;
+.history-modal .history-meta {
+  color: #86909c;
+  font-size: 12px;
+}
+
+.history-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: #4e5969;
+}
+
+.history-summary .summary-hint {
+  color: #86909c;
+}
+
+.column-filter-panel {
+  padding: 8px 12px;
+  min-width: 180px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.column-filter-item {
+  padding: 4px 0;
+}
+
+.column-filter-item.disabled {
+  opacity: 0.7;
+}
+
+.history-modal .history-table :deep(.arco-table) {
+  background: var(--edgex-surface-raised);
   color: #333;
   border: 1px solid #e5e7eb;
   border-radius: 0;
   font-size: 12px;
 }
 
-.history-modal .history-table .arco-table thead th {
-  background: #f8fafc;
+.history-modal .history-table :deep(.arco-table thead th) {
+  background: var(--edgex-surface-inset);
   color: #333;
   border-bottom: 1px solid #e5e7eb;
   font-weight: 600;
@@ -379,16 +498,11 @@ const downloadHistoryCSV = () => {
   font-size: 12px;
 }
 
-.history-modal .history-table .arco-table tbody tr:hover {
+.history-modal .history-table :deep(.arco-table tbody tr:hover) {
   background: #f9fafb;
 }
 
-.history-modal .history-table .arco-table tbody tr.arco-table-row-selected {
-  background: #eff6ff;
-  border: 1px solid #dbeafe;
-}
-
-.history-modal .history-table .arco-table tbody td {
+.history-modal .history-table :deep(.arco-table tbody td) {
   border-bottom: 1px solid #e5e7eb;
   padding: 8px 12px;
   height: 32px;
@@ -406,6 +520,7 @@ const downloadHistoryCSV = () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .history-modal .cell-content:hover {
@@ -428,9 +543,4 @@ const downloadHistoryCSV = () => {
   margin-bottom: 8px;
   word-break: break-all;
 }
-
-.history-modal .history-table .arco-table-container {
-  border-radius: 0;
-}
 </style>
-

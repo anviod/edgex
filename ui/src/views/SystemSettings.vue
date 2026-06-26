@@ -1,5 +1,5 @@
 <template>
-  <div class="edge-compute-container">
+  <div class="page-shell edge-compute-container">
     <a-tabs v-model:active-key="activeTab" class="mb-4">
       <a-tab-pane key="time" title="时间同步" />
       <a-tab-pane key="network" title="网络接口" />
@@ -8,6 +8,7 @@
       <a-tab-pane key="hostname" title="主机设置" />
       <a-tab-pane key="ldap" title="LDAP 认证" />
       <a-tab-pane key="status" title="系统维护" />
+      <a-tab-pane key="data" title="数据管理" />
     </a-tabs>
 
     <!-- 时间同步 -->
@@ -54,6 +55,9 @@
 
     <!-- 系统维护 -->
     <SystemMaintenance v-if="activeTab === 'status'" />
+
+    <!-- 数据管理 -->
+    <DatabaseManagement v-if="activeTab === 'data'" />
   </div>
 </template>
 
@@ -68,6 +72,7 @@ import HASettings from './components/HASettings.vue'
 import HostnameSettings from './components/HostnameSettings.vue'
 import LDAPSettings from './components/LDAPSettings.vue'
 import SystemMaintenance from './components/SystemMaintenance.vue'
+import DatabaseManagement from './components/DatabaseManagement.vue'
 
 const activeTab = ref('time')
 
@@ -107,7 +112,7 @@ const hostnameConfig = reactive({
   name: 'edgex',
   enable_mdns: true,
   enable_bare: true,
-  http_port: 8082,
+  http_port: 8080,
   https_port: 443,
   interfaces: []
 })
@@ -218,9 +223,7 @@ onMounted(loadConfig)
 
 <style scoped>
 .edge-compute-container {
-  padding: 24px;
-  min-height: calc(100vh - 56px);
-  background: #f1f5f9;
+  /* page-shell 提供布局与背景 */
 }
 
 .card-title {
@@ -327,7 +330,7 @@ onMounted(loadConfig)
   border-radius: 0;
   padding: 16px;
   height: 100%;
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   position: relative;
 }
 

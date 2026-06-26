@@ -3,6 +3,8 @@ package core
 import (
 	"fmt"
 	"log"
+	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -11,6 +13,9 @@ import (
 
 	"github.com/expr-lang/expr"
 )
+
+// channel.device.point — 各段允许字母数字 _ -
+var pointRefPattern = regexp.MustCompile(`[a-zA-Z][a-zA-Z0-9_-]*(?:\.[a-zA-Z][a-zA-Z0-9_-]*){2,}`)
 
 type VirtualShadowEngine struct {
 	mu sync.RWMutex
@@ -35,7 +40,7 @@ func NewVirtualShadowEngine(sc *ShadowCore) *VirtualShadowEngine {
 	return vse
 }
 
-func (vse *VirtualShadowEngine) CreateVirtualDevice(deviceID string, formulaPoints map[string]string) error {
+func (vse *VirtualShadowEngine) CreateVirtualDevice(deviceID, channelID string, formulaPoints map[string]string) error {
 	vse.mu.Lock()
 	defer vse.mu.Unlock()
 
@@ -44,9 +49,13 @@ func (vse *VirtualShadowEngine) CreateVirtualDevice(deviceID string, formulaPoin
 	}
 
 	dependencies := vse.extractDependencies(formulaPoints)
+	if channelID == "" {
+		channelID = inferChannelFromDependencies(dependencies)
+	}
 
 	device := &model.VirtualDevice{
 		VirtualDeviceID: deviceID,
+		ChannelID:       channelID,
 		Version:         0,
 		UpdatedAt:       time.Now(),
 		FormulaPoints:   formulaPoints,
@@ -62,7 +71,25 @@ func (vse *VirtualShadowEngine) CreateVirtualDevice(deviceID string, formulaPoin
 
 	log.Printf("[VirtualShadowEngine] Created virtual device: %s with %d dependencies", deviceID, len(dependencies))
 
+	go vse.recomputeVirtualDevice(deviceID)
+
 	return nil
+}
+
+// ReplaceVirtualDevice 全量替换虚拟设备公式并触发重算。
+func (vse *VirtualShadowEngine) ReplaceVirtualDevice(deviceID, channelID string, formulaPoints map[string]string) error {
+	_ = vse.DeleteVirtualDevice(deviceID)
+	return vse.CreateVirtualDevice(deviceID, channelID, formulaPoints)
+}
+
+func inferChannelFromDependencies(deps []string) string {
+	for _, dep := range deps {
+		parts := strings.Split(dep, ".")
+		if len(parts) >= 3 {
+			return parts[0]
+		}
+	}
+	return ""
 }
 
 func (vse *VirtualShadowEngine) extractDependencies(formulaPoints map[string]string) []string {
@@ -83,18 +110,15 @@ func (vse *VirtualShadowEngine) extractDependencies(formulaPoints map[string]str
 }
 
 func (vse *VirtualShadowEngine) parseFormulaReferences(formula string) []string {
+	seen := make(map[string]struct{})
 	var refs []string
-
-	parts := strings.FieldsFunc(formula, func(r rune) bool {
-		return r == '+' || r == '-' || r == '*' || r == '/' || r == '(' || r == ')' || r == ' ' || r == ',' || r == '=' || r == '<' || r == '>' || r == '&' || r == '|'
-	})
-
-	for _, part := range parts {
-		if strings.Contains(part, ".") && !isNumber(part) {
-			refs = append(refs, part)
+	for _, m := range pointRefPattern.FindAllString(formula, -1) {
+		if _, ok := seen[m]; ok {
+			continue
 		}
+		seen[m] = struct{}{}
+		refs = append(refs, m)
 	}
-
 	return refs
 }
 
@@ -102,12 +126,27 @@ func isNumber(s string) bool {
 	return strings.Contains(s, ".") && len(strings.Split(s, ".")) == 2
 }
 
-func (vse *VirtualShadowEngine) handleShadowUpdate(deviceID string, points map[string]model.ShadowPoint) {
+func (vse *VirtualShadowEngine) handleShadowUpdate(shadowDeviceID string, points map[string]model.ShadowPoint) {
+	if IsVirtualShadowID(shadowDeviceID) {
+		return
+	}
+
+	device, err := vse.shadowCore.GetShadowDevice(shadowDeviceID)
+	if err != nil {
+		return
+	}
+
+	affected := make(map[string]struct{})
 	vse.mu.RLock()
-	affectedDevices := vse.dependencyGraph[deviceID]
+	for pointID := range points {
+		depKey := fmt.Sprintf("%s.%s.%s", device.ChannelID, device.PhysicalDeviceID, pointID)
+		for _, vdID := range vse.dependencyGraph[depKey] {
+			affected[vdID] = struct{}{}
+		}
+	}
 	vse.mu.RUnlock()
 
-	for _, vdID := range affectedDevices {
+	for vdID := range affected {
 		go vse.recomputeVirtualDevice(vdID)
 	}
 }
@@ -123,27 +162,49 @@ func (vse *VirtualShadowEngine) recomputeVirtualDevice(deviceID string) {
 
 	env := vse.buildEvaluationEnv(device.Dependencies)
 
-	updated := false
+	updatedPoints := make(map[string]model.ShadowPoint)
+	now := time.Now()
+
 	for pointID, formula := range device.FormulaPoints {
-		result, err := vse.evaluateFormula(formula, env)
-		if err != nil {
-			log.Printf("[VirtualShadowEngine] Formula evaluation failed for %s.%s: %v", deviceID, pointID, err)
-			continue
+		trimmed := strings.TrimSpace(formula)
+		var result interface{}
+		var err error
+
+		// 映射模式：公式即 channel.device.point，直接透传，避免 expr 误解析 '-' '.'
+		if refs := pointRefPattern.FindAllString(trimmed, -1); len(refs) == 1 && refs[0] == trimmed {
+			key := depToEnvKey(trimmed)
+			val, ok := env[key]
+			if !ok {
+				log.Printf("[VirtualShadowEngine] Source not ready for %s.%s (ref=%s)", deviceID, pointID, trimmed)
+				continue
+			}
+			result = val
+		} else {
+			rewritten := rewriteFormulaDeps(formula, device.Dependencies)
+			result, err = vse.evaluateFormula(rewritten, env)
+			if err != nil {
+				log.Printf("[VirtualShadowEngine] Formula evaluation failed for %s.%s: %v", deviceID, pointID, err)
+				continue
+			}
 		}
 
 		device.Version++
-		device.Points[pointID] = model.ShadowPoint{
-			Value:     result,
-			Timestamp: time.Now(),
-			Version:   device.Version,
-			Quality:   "good",
+		pt := model.ShadowPoint{
+			Value:       result,
+			Timestamp:   now,
+			CollectedAt: now,
+			UpdatedAt:   now,
+			Version:     device.Version,
+			Quality:     "good",
 		}
-		updated = true
+		device.Points[pointID] = pt
+		updatedPoints[pointID] = pt
 	}
 
-	if updated {
-		device.UpdatedAt = time.Now()
-		log.Printf("[VirtualShadowEngine] Recomputed virtual device: %s, version: %d", deviceID, device.Version)
+	if len(updatedPoints) > 0 {
+		device.UpdatedAt = now
+		//log.Printf("[VirtualShadowEngine] Recomputed virtual device: %s, version: %d", deviceID, device.Version)
+		vse.shadowCore.WriteVirtualShadowDevice(device.ChannelID, deviceID, updatedPoints)
 	}
 }
 
@@ -151,13 +212,10 @@ func (vse *VirtualShadowEngine) buildEvaluationEnv(dependencies []string) map[st
 	env := make(map[string]interface{})
 
 	for _, dep := range dependencies {
-		parts := strings.Split(dep, ".")
-		if len(parts) < 3 {
+		deviceID, pointID := parseDepRef(dep)
+		if deviceID == "" || pointID == "" {
 			continue
 		}
-
-		deviceID := parts[1]
-		pointID := strings.Join(parts[2:], ".")
 
 		shadowDeviceID := fmt.Sprintf("shadow-%s", deviceID)
 		shadowDevice, err := vse.shadowCore.GetShadowDevice(shadowDeviceID)
@@ -170,14 +228,37 @@ func (vse *VirtualShadowEngine) buildEvaluationEnv(dependencies []string) map[st
 			continue
 		}
 
-		env[dep] = point.Value
-
-		if _, exists := env[pointID]; !exists {
-			env[pointID] = point.Value
-		}
+		env[depToEnvKey(dep)] = point.Value
 	}
 
 	return env
+}
+
+func parseDepRef(dep string) (deviceID, pointID string) {
+	parts := strings.Split(dep, ".")
+	if len(parts) < 2 {
+		return "", ""
+	}
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return parts[len(parts)-2], parts[len(parts)-1]
+}
+
+func depToEnvKey(dep string) string {
+	return strings.NewReplacer(".", "_", "-", "_").Replace(dep)
+}
+
+func rewriteFormulaDeps(formula string, deps []string) string {
+	sorted := append([]string(nil), deps...)
+	sort.Slice(sorted, func(i, j int) bool {
+		return len(sorted[i]) > len(sorted[j])
+	})
+	result := formula
+	for _, dep := range sorted {
+		result = strings.ReplaceAll(result, dep, depToEnvKey(dep))
+	}
+	return result
 }
 
 func (vse *VirtualShadowEngine) evaluateFormula(formula string, env map[string]interface{}) (interface{}, error) {
@@ -192,6 +273,11 @@ func (vse *VirtualShadowEngine) evaluateFormula(formula string, env map[string]i
 	}
 
 	return result, nil
+}
+
+// RecomputeDevice 同步重算虚拟设备点位（供 API 刷新当前值）。
+func (vse *VirtualShadowEngine) RecomputeDevice(deviceID string) {
+	vse.recomputeVirtualDevice(deviceID)
 }
 
 func (vse *VirtualShadowEngine) GetVirtualDevice(deviceID string) (*model.VirtualDevice, error) {

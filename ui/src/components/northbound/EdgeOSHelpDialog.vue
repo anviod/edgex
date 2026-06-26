@@ -272,7 +272,7 @@ const handleCancel = () => {
   font-weight: 600;
   margin-top: 16px;
   margin-bottom: 8px;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 .help-content h3:first-child {
@@ -295,7 +295,7 @@ const handleCancel = () => {
 }
 
 .help-content pre {
-  background: #f1f5f9;
+  background: var(--edgex-surface-muted);
   padding: 16px;
   border-radius: 8px;
   overflow-x: auto;
@@ -306,7 +306,7 @@ const handleCancel = () => {
 }
 
 .help-content code {
-  background: #f1f5f9;
+  background: var(--edgex-surface-muted);
   padding: 2px 6px;
   border-radius: 4px;
   font-family: 'Monaco', 'Menlo', monospace;
@@ -333,14 +333,14 @@ const handleCancel = () => {
 
 .topic-table th,
 .config-table th {
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   font-weight: 600;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 .topic-table tr:nth-child(even),
 .config-table tr:nth-child(even) {
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
 }
 
 .topic-table tr:hover,

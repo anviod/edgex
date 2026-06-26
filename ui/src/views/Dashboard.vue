@@ -1,8 +1,7 @@
 ﻿<template>
-  <div class="dashboard-container">
-    <!-- Header with Theme Toggle -->
-    <div class="dashboard-header">
-      <h2 class="dashboard-title">系统概览</h2>
+  <div class="page-shell dashboard-page">
+    <div class="page-header">
+      <h2 class="page-title">系统概览</h2>
     </div>
 
     <!-- System Stats Cards -->
@@ -78,7 +77,7 @@
                 <span class="quality-score" :class="getQualityClass(ch.qualityScore)">{{ ch.qualityScore || '-' }}</span>
               </div>
               <div class="channel-meta">
-                {{ ch.protocol }}
+                {{ formatProtocolTag(ch.protocol) }}
                 <span class="divider">|</span>
                 <span :class="['status-text', ch.enable ? 'enabled' : 'disabled']">{{ ch.enable ? '启用' : '禁用' }}</span>
               </div>
@@ -192,6 +191,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import request from '@/utils/request'
+import { formatProtocolTag } from '@/utils/protocolLabel'
 import {
   IconRefresh,
   IconApps, IconLink, IconSettings, IconTool,
@@ -352,27 +352,8 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.dashboard-container {
-  padding: 24px;
-  background: #f1f5f9;
-  min-height: calc(100vh - 56px);
-}
-
-/* Dashboard Header */
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--arco-border, #e2e8f0);
-}
-
-.dashboard-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--arco-text-1, #1e293b);
-  margin: 0;
+.dashboard-page {
+  /* page-shell 提供布局 */
 }
 
 .dashboard-actions {
@@ -412,7 +393,7 @@ onUnmounted(() => {
 }
 
 .stat-card {
-  background: var(--arco-bg-2, #ffffff);
+  background: var(--edgex-surface-raised);
   border: 1px solid var(--arco-border, #e2e8f0);
   border-radius: 0;
   padding: 20px;
@@ -459,8 +440,6 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--arco-border, #e2e8f0);
 }
 
 .section-title {
@@ -484,7 +463,7 @@ onUnmounted(() => {
   border-radius: 0;
   font-size: 13px;
   font-weight: 500;
-  background: var(--arco-bg-2, #ffffff);
+  background: var(--edgex-surface-raised);
 }
 
 .status-badge.online {
@@ -502,7 +481,7 @@ onUnmounted(() => {
 .status-badge.disabled {
   border-color: var(--arco-border, #e2e8f0);
   color: var(--arco-text-3, #94a3b8);
-  background: var(--arco-bg-2, #ffffff);
+  background: var(--edgex-surface-raised);
 }
 
 .status-dot {
@@ -520,9 +499,9 @@ onUnmounted(() => {
 }
 
 .channel-card {
-  background: var(--arco-bg-2, #ffffff);
-  border: 1px solid var(--arco-border, #e2e8f0);
-  border-radius: 0;
+  background: var(--edgex-surface-raised);
+  border: 1px solid var(--edgex-border);
+  border-radius: var(--edgex-radius-lg);
   padding: 20px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -548,7 +527,7 @@ onUnmounted(() => {
   justify-content: center;
   margin-right: 12px;
   flex-shrink: 0;
-  background: var(--arco-bg-2, #ffffff);
+  background: var(--edgex-surface-raised);
 }
 
 .channel-icon.protocol-bacnet {
@@ -584,7 +563,7 @@ onUnmounted(() => {
 .channel-icon.protocol-default {
   border-color: var(--arco-border, #e2e8f0);
   color: var(--arco-text-3, #94a3b8);
-  background: var(--arco-bg-2, #ffffff);
+  background: var(--edgex-surface-raised);
 }
 
 .channel-info {
@@ -608,7 +587,7 @@ onUnmounted(() => {
   border: 1px solid var(--arco-border, #e2e8f0);
   border-radius: 0;
   font-weight: 500;
-  background: var(--arco-bg-2, #ffffff);
+  background: var(--edgex-surface-raised);
 }
 
 .quality-score.quality-perfect {
@@ -638,7 +617,7 @@ onUnmounted(() => {
 .quality-score.quality-none {
   border-color: var(--arco-border, #e2e8f0);
   color: var(--arco-text-3, #94a3b8);
-  background: var(--arco-bg-2, #ffffff);
+  background: var(--edgex-surface-raised);
 }
 
 .channel-meta {
@@ -721,7 +700,7 @@ onUnmounted(() => {
 
 /* Channel Metrics */
 .channel-metrics {
-  background: var(--arco-bg-2, #ffffff);
+  background: var(--edgex-surface-raised);
   border: 1px solid var(--arco-border, #e2e8f0);
   border-radius: 0;
   padding: 12px;
@@ -791,7 +770,7 @@ onUnmounted(() => {
 
 /* Empty Card */
 .empty-card {
-  background: var(--arco-bg-2, #ffffff);
+  background: var(--edgex-surface-raised);
   border: 1px solid var(--arco-border, #e2e8f0);
   border-radius: 0;
   padding: 40px;
@@ -849,7 +828,7 @@ onUnmounted(() => {
 }
 
 .northbound-card {
-  background: var(--arco-bg-2, #ffffff);
+  background: var(--edgex-surface-raised);
   border: 1px solid var(--arco-border, #e2e8f0);
   border-radius: 0;
   padding: 20px;
@@ -882,7 +861,7 @@ onUnmounted(() => {
 
 /* Edge Compute */
 .edge-compute-card {
-  background: var(--arco-bg-2, #ffffff);
+  background: var(--edgex-surface-raised);
   border: 1px solid var(--arco-border, #e2e8f0);
   border-radius: 0;
   padding: 24px;

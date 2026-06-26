@@ -346,7 +346,7 @@ onMounted(() => {
 .cluster-view-container {
   padding: 24px;
   min-height: calc(100vh - 56px);
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
 }
 
 /* 头部 */
@@ -385,7 +385,7 @@ onMounted(() => {
 
 .stat-card {
   flex: 1;
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   border: 1px solid #e2e8f0;
 }
 
@@ -419,7 +419,7 @@ onMounted(() => {
 /* 节点列表卡片 */
 .nodes-card {
   grid-column: 1;
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   border: 1px solid #e2e8f0;
 }
 
@@ -438,7 +438,7 @@ onMounted(() => {
 
 /* 集群状态卡片 */
 .cluster-status-card {
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   border: 1px solid #e2e8f0;
 }
 
@@ -473,7 +473,7 @@ onMounted(() => {
 
 /* 网络拓扑卡片 */
 .network-topology-card {
-  background: #ffffff;
+  background: var(--edgex-surface-raised);
   border: 1px solid #e2e8f0;
   flex: 1;
 }
@@ -481,7 +481,7 @@ onMounted(() => {
 .topology-container {
   position: relative;
   height: 220px;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -523,7 +523,7 @@ onMounted(() => {
 .center-label {
   font-size: 12px;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 .topology-peers {

@@ -1,9 +1,9 @@
 <template>
-  <div class="channel-list-container">
-    <div class="channel-header">
+  <div class="page-shell channel-list-container">
+    <div class="page-header channel-header">
       <div class="header-title">
-        <h2 class="title-text">采集通道</h2>
-        <div class="title-subtitle">管理工业设备通信通道及协议配置</div>
+        <h2 class="page-title title-text">采集通道</h2>
+        <div class="page-subtitle title-subtitle">管理工业设备通信通道及协议配置</div>
       </div>
       <div class="header-actions">
         <a-space size="medium">
@@ -84,7 +84,7 @@
             >
               <template #title>
                 <div class="card-title-content">
-                  <span class="protocol-tag">{{ item.protocol }}</span>
+                  <span class="protocol-tag">{{ formatProtocolTag(item.protocol) }}</span>
                   <span class="name-text text-truncate">{{ item.name }}</span>
                 </div>
               </template>
@@ -146,8 +146,8 @@
           </a-col>
         </a-row>
 
+        <div v-else class="table-container">
         <a-table 
-          v-else 
           :columns="tableColumns" 
           :data="channels" 
           :row-selection="selectionMode ? rowSelection : undefined"
@@ -210,6 +210,7 @@
             </a-space>
           </template>
         </a-table>
+        </div>
       </div>
       <a-empty v-else class="empty-placeholder" />
     </a-spin>
@@ -221,7 +222,7 @@
       :width="900"
       @ok="saveChannel"
     >
-      <a-form :model="dialog.form" layout="horizontal" :label-col-props="{ span: 6 }" :wrapper-col-props="{ span: 18 }">
+      <a-form :model="dialog.form" layout="horizontal" class="industrial-form form-controls-md" :label-col-props="{ span: 6 }" :wrapper-col-props="{ span: 18 }">
         <a-form-item field="id" label="ID" required>
           <a-input v-model="dialog.form.id" :disabled="dialog.isEdit" placeholder="请输入ID">
             <template #append v-if="!dialog.isEdit">
@@ -846,6 +847,7 @@ import { ref, onMounted, reactive, computed, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
 import request from '@/utils/request'
+import { formatProtocolTag } from '@/utils/protocolLabel'
 
 // 恢复使用 SVG 图标以避免导入问题
 
@@ -897,7 +899,7 @@ const protocols = [
 
 const tableColumns = [
   { title: '通道名称', slotName: 'name', width: 200 },
-  { title: '协议类型', dataIndex: 'protocol', width: 140 },
+  { title: '协议类型', dataIndex: 'protocol', width: 140, customRender: ({ record }) => formatProtocolTag(record?.protocol) },
   { title: '启用状态', slotName: 'enable', width: 100 },
   { title: '运行状态', slotName: 'runtime', width: 120 },
   { title: '关联设备', slotName: 'deviceCount', width: 100, align: 'center' },
@@ -973,6 +975,10 @@ const saveChannel = async () => {
     if (!dialog.form.id || !dialog.form.name) {
       Message.error('请填写完整信息')
       return
+    }
+
+    if (dialog.form.protocol === 'opc-ua' && dialog.form.config?.url) {
+      dialog.form.config.endpoint = dialog.form.config.url
     }
     
     if (dialog.isEdit) {
@@ -1425,18 +1431,16 @@ const ENIPHelpContent = {
 
 <style scoped>
 .channel-list-container {
-  padding: 24px;
-  min-height: calc(100vh - 56px);
-  background: #f1f5f9;
+  /* page-shell 提供布局与背景 */
 }
 
 .dark-theme .channel-list-container {
-  background: #070f1f !important;
+  background: transparent !important;
 }
 
 .dark-theme .channel-header {
-  background: #0f172a !important;
-  border-color: #334155 !important;
+  background: transparent !important;
+  border: none !important;
 }
 
 .dark-theme .title-text,
@@ -1475,16 +1479,7 @@ const ENIPHelpContent = {
 }
 
 .channel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding: 20px 24px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid var(--arco-border, #e2e8f0);
-  border-radius: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(10px);
+  /* 继承全局 .page-header：无框无线 */
 }
 
 .header-title {
@@ -1545,7 +1540,7 @@ const ENIPHelpContent = {
 
 .protocol-tag {
   padding: 2px 8px;
-  background: #f1f5f9;
+  background: var(--edgex-surface-muted);
   border: 1px solid #e2e8f0;
   border-radius: 0;
   font-size: 12px;
@@ -1557,7 +1552,7 @@ const ENIPHelpContent = {
 .name-text {
   font-size: 14px;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
   flex: 1;
   min-width: 0;
 }
@@ -1604,7 +1599,7 @@ const ENIPHelpContent = {
 :deep(.arco-table-small .arco-table-th) {
   font-weight: 600;
   color: #334155;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   border-bottom: 2px solid #e2e8f0;
 }
 
@@ -1614,7 +1609,7 @@ const ENIPHelpContent = {
 }
 
 :deep(.arco-table-small .arco-table-tr:hover) {
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
 }
 
 :deep(.arco-table-small .arco-table-tr.arco-table-tr-selected) {
@@ -1643,7 +1638,7 @@ const ENIPHelpContent = {
 .config-section {
   margin-top: 16px;
   padding: 20px;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   border: 1px solid #e2e8f0;
   border-radius: 0;
 }
@@ -1657,7 +1652,7 @@ const ENIPHelpContent = {
 .section-title {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 /* 帮助对话框 */
@@ -1672,7 +1667,7 @@ const ENIPHelpContent = {
 .help-section h3 {
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
   margin-bottom: 12px;
 }
 
@@ -1812,7 +1807,7 @@ const ENIPHelpContent = {
 }
 
 .info-value {
-  color: #1e293b;
+  color: var(--edgex-text-primary);
   font-size: 14px;
   font-weight: 500;
 }
@@ -1830,7 +1825,7 @@ const ENIPHelpContent = {
 .metric-card {
   flex: 1;
   min-width: 0;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   border: 1px solid #e2e8f0;
   border-radius: 0;
   padding: 20px;
@@ -1852,7 +1847,7 @@ const ENIPHelpContent = {
 .metric-value {
   font-size: 24px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
 }
 
 .metric-success {
@@ -1923,7 +1918,7 @@ const ENIPHelpContent = {
 .principle-section h4 {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
   margin-top: 16px;
   margin-bottom: 8px;
 }
@@ -2082,7 +2077,7 @@ const ENIPHelpContent = {
 .help-section-title {
   font-size: 15px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
   margin-bottom: 12px;
   display: flex;
   align-items: center;
@@ -2105,13 +2100,13 @@ const ENIPHelpContent = {
   display: flex;
   flex-direction: column;
   padding: 12px;
-  background: #f8fafc;
+  background: var(--edgex-surface-inset);
   border-radius: 4px;
 }
 
 .help-item-label {
   font-weight: 600;
-  color: #1e293b;
+  color: var(--edgex-text-primary);
   font-size: 13px;
   margin-bottom: 4px;
 }

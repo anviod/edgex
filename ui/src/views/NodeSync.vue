@@ -1,5 +1,5 @@
 <template>
-  <div class="node-sync-container">
+  <div class="page-shell node-sync-container">
     <!-- Tab 导航 -->
     <a-tabs v-model:active-key="activeTab" class="main-tabs">
       <a-tab-pane key="sync" title="同步控制" />
@@ -57,14 +57,14 @@ onMounted(() => {
 
 <style scoped>
 .node-sync-container {
-  min-height: calc(100vh - 56px);
-  background: #f8fafc;
+  /* page-shell 提供布局 */
 }
 
 .main-tabs {
-  padding: 16px 20px 0;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 0;
+  margin: 0 0 16px;
+  background: transparent;
+  border: none;
 }
 
 .main-tabs :deep(.arco-tabs-tab) {

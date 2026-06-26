@@ -1,0 +1,144 @@
+/*
+ * EdgeX 全局主题令牌 — Light / Dark
+ * 详见 docs/operations/样式参考.md
+ */
+
+:root {
+  --edgex-surface-base: #f8fafc;
+  --edgex-surface-raised: #ffffff;
+  --edgex-surface-muted: #f1f5f9;
+  --edgex-surface-subtle: #fafafa;
+  --edgex-surface-inset: #f8fafc;
+  --edgex-border: #e2e8f0;
+  --edgex-border-strong: #cbd5e1;
+  --edgex-text-primary: #1e293b;
+  --edgex-text-secondary: #64748b;
+  --edgex-text-tertiary: #94a3b8;
+  --edgex-text-muted: #86909c;
+  --edgex-primary: #0ea5e9;
+  --edgex-primary-hover: #0284c7;
+  --edgex-success: #16a34a;
+  --edgex-warning: #d97706;
+  --edgex-error: #dc2626;
+  --edgex-info: #3b82f6;
+  --edgex-radius-md: 6px;
+  --edgex-radius-lg: 8px;
+  --edgex-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --edgex-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  /* 日志终端：浅色模式下仍略深，便于阅读 */
+  --edgex-terminal-bg: #f1f5f9;
+  --edgex-terminal-text: #1e293b;
+  --edgex-push-bg: #f0f9ff;
+  --edgex-push-border: #bae6fd;
+  --edgex-passive-bg: #f5f3ff;
+  --edgex-passive-border: #ddd6fe;
+}
+
+.dark-theme {
+  --edgex-surface-base: #0f172a;
+  --edgex-surface-raised: #1e293b;
+  --edgex-surface-muted: #1f2937;
+  --edgex-surface-subtle: #334155;
+  --edgex-surface-inset: #111827;
+  --edgex-border: #334155;
+  --edgex-border-strong: #475569;
+  --edgex-text-primary: #f8fafc;
+  --edgex-text-secondary: #94a3b8;
+  --edgex-text-tertiary: #64748b;
+  --edgex-text-muted: #64748b;
+  --edgex-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --edgex-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --edgex-terminal-bg: #0b1220;
+  --edgex-terminal-text: #e2e8f0;
+  --edgex-push-bg: rgba(14, 165, 233, 0.12);
+  --edgex-push-border: rgba(14, 165, 233, 0.35);
+  --edgex-passive-bg: rgba(114, 46, 209, 0.12);
+  --edgex-passive-border: rgba(114, 46, 209, 0.35);
+}
+
+/* Arco 表单控件深色背景统一 */
+.dark-theme .form-controls-md :deep(.arco-input-wrapper),
+.dark-theme .form-controls-md :deep(.arco-select-view-single),
+.dark-theme .form-controls-md :deep(.arco-select-view-multiple),
+.dark-theme .form-controls-md :deep(.arco-input-number),
+.dark-theme .form-controls-md :deep(.arco-textarea-wrapper),
+.dark-theme .industrial-form :deep(.arco-input-wrapper),
+.dark-theme .industrial-form :deep(.arco-textarea-wrapper),
+.dark-theme .industrial-form :deep(.arco-select-view),
+.dark-theme .industrial-form :deep(.arco-input-number) {
+  background-color: var(--edgex-surface-subtle) !important;
+  border-color: var(--edgex-border) !important;
+  color: var(--edgex-text-primary) !important;
+}
+
+.dark-theme .industrial-form :deep(.arco-form-item-label),
+.dark-theme .field-label,
+.dark-theme .field-label-sm {
+  color: var(--edgex-text-secondary) !important;
+}
+
+/* 页面壳与卡片 — 深色主题 */
+.dark-theme .page-shell {
+  background: var(--edgex-surface-base);
+  color: var(--edgex-text-primary);
+}
+
+.dark-theme .stat-card,
+.dark-theme .channel-card,
+.dark-theme .minimal-line-card,
+.dark-theme .northbound-card,
+.dark-theme .edge-compute-card,
+.dark-theme .panel-card,
+.dark-theme .device-card,
+.dark-theme .point-chip,
+.dark-theme .point-block {
+  background: var(--edgex-surface-raised) !important;
+  border-color: var(--edgex-border) !important;
+  color: var(--edgex-text-primary);
+}
+
+.dark-theme .toolbar,
+.dark-theme .table-toolbar,
+.dark-theme .log-toolbar,
+.dark-theme .table-toolbar-industrial {
+  background: var(--edgex-surface-muted) !important;
+  border-color: var(--edgex-border) !important;
+}
+
+.dark-theme .table-container {
+  background: var(--edgex-surface-raised);
+  border-color: var(--edgex-border);
+}
+
+.dark-theme .industrial-card {
+  background: var(--edgex-surface-raised) !important;
+  border-color: var(--edgex-border) !important;
+}
+
+/* 登录 / 安装页 */
+.dark-theme .login-container,
+.dark-theme .login-panel,
+.dark-theme .install-wrapper,
+.dark-theme .install-card {
+  background: var(--edgex-surface-raised) !important;
+  border-color: var(--edgex-border) !important;
+  color: var(--edgex-text-primary);
+}
+
+.dark-theme .login-panel {
+  box-shadow: var(--edgex-shadow-md);
+}
+
+.dark-theme .panel-title,
+.dark-theme .page-title,
+.dark-theme .title-text,
+.dark-theme .section-title,
+.dark-theme .toolbar-title {
+  color: var(--edgex-text-primary) !important;
+}
+
+.dark-theme .page-subtitle,
+.dark-theme .subtitle,
+.dark-theme .panel-hint {
+  color: var(--edgex-text-secondary) !important;
+}

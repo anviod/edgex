@@ -1,5 +1,5 @@
 ﻿<template>
-    <div class="edge-compute-container">
+    <div class="page-shell page-shell--compact edge-compute-container">
         <a-tabs v-model:active-key="tab" class="mb-4">
             <a-tab-pane key="metrics" title="监控面板">
                 <EdgeComputeMetrics />
@@ -211,7 +211,7 @@
 
         <!-- Rule Dialog -->
         <a-modal v-model:visible="dialog" :title="editingRule ? '编辑规则' : '添加规则'" width="80%" modal-class="industrial-white-modal">
-            <a-form ref="form" :model="currentRule" layout="vertical" class="industrial-form">
+            <a-form ref="form" :model="currentRule" layout="vertical" class="industrial-form form-controls-md">
                 <div class="form-section">
                     <div class="section-title">基础配置</div>
                     <a-row :gutter="16">
@@ -1556,7 +1556,6 @@ onUnmounted(() => {
     height: 100%;
     display: flex;
     flex-direction: column;
-    padding: 16px;
     box-sizing: border-box;
 }
 
@@ -1602,7 +1601,7 @@ onUnmounted(() => {
 :deep(.arco-card) {
     border: 1px solid #e5e7eb;
     border-radius: 0;
-    background: #ffffff;
+    background: var(--edgex-surface-raised);
     position: relative;
 }
 
@@ -1624,7 +1623,7 @@ onUnmounted(() => {
 
 /* 表格工业风格样式 */
 :deep(.arco-table-th) {
-    background: #fafafa;
+    background: var(--edgex-surface-subtle);
     border-bottom: 1px solid #e5e7eb;
     font-size: 11px;
     color: #6b7280;
@@ -1705,7 +1704,7 @@ onUnmounted(() => {
 }
 
 .action-card {
-    background: #f8fafc;
+    background: var(--edgex-surface-inset);
     border: 1px solid #e2e8f0;
     padding: 16px;
     margin-bottom: 12px;
@@ -1723,7 +1722,7 @@ onUnmounted(() => {
 
 /* 批量操作工具栏：白色悬浮条 */
 .table-toolbar-industrial {
-    background: #ffffff;
+    background: var(--edgex-surface-raised);
     border: 1px solid #10b981;
     padding: 8px 16px;
     margin-bottom: 12px;
@@ -1741,7 +1740,7 @@ onUnmounted(() => {
 
 /* 表头样式 */
 .industrial-table :deep(.arco-table-th) {
-    background-color: #f8fafc !important;
+    background-color: var(--edgex-surface-inset) !important;
     font-weight: bold !important;
     border-radius: 0 !important;
     padding: 12px !important;
@@ -1779,7 +1778,7 @@ onUnmounted(() => {
     position: sticky !important;
     right: 0 !important;
     z-index: 1 !important;
-    background-color: #ffffff !important;
+    background-color: var(--edgex-surface-raised) !important;
 }
 
 /* 消除表格最后一列的右边框 */
@@ -1800,22 +1799,22 @@ onUnmounted(() => {
 
 /* 固定列样式 */
 .industrial-table :deep(.arco-table-col-fixed-left .arco-table-th) {
-    background-color: #f8fafc !important;
+    background-color: var(--edgex-surface-inset) !important;
     border-right: 1px solid #e5e7eb !important;
 }
 
 .industrial-table :deep(.arco-table-col-fixed-left .arco-table-td) {
-    background-color: #ffffff !important;
+    background-color: var(--edgex-surface-raised) !important;
     border-right: 1px solid #e5e7eb !important;
 }
 
 .industrial-table :deep(.arco-table-col-fixed-right .arco-table-th) {
-    background-color: #f8fafc !important;
+    background-color: var(--edgex-surface-inset) !important;
     border-left: 1px solid #e5e7eb !important;
 }
 
 .industrial-table :deep(.arco-table-td.arco-table-td-row-select) {
-    background-color: #ffffff !important;
+    background-color: var(--edgex-surface-raised) !important;
     border-right: 1px solid #e5e7eb !important;
 }
 
@@ -1944,7 +1943,7 @@ onUnmounted(() => {
 }
 
 .function-table :deep(.arco-table-th) {
-    background-color: #f8fafc;
+    background-color: var(--edgex-surface-inset);
     font-weight: 600;
     color: #374151;
     padding: 12px 16px;

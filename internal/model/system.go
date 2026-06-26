@@ -77,13 +77,21 @@ type HostnameConfig struct {
 	Interfaces []string `json:"interfaces"` // e.g. ["eth0", "wlan0"]
 }
 
+// SyncConfig controls multi-node configuration sync (libp2p gossip).
+type SyncConfig struct {
+	Enabled bool `json:"enabled" yaml:"enabled"`
+	Port    int  `json:"port,omitempty" yaml:"port,omitempty"`
+}
+
 // SystemConfig aggregates all system settings
 type SystemConfig struct {
+	Sync                SyncConfig           `json:"sync,omitempty" yaml:"sync,omitempty"`
 	Time                TimeConfig           `json:"time"`
 	Network             []NetworkInterface   `json:"network"`
 	Routes              []StaticRoute        `json:"routes"`
 	HA                  HAConfig             `json:"ha"`
 	Hostname            HostnameConfig       `json:"hostname"`
+	Location            string               `json:"location"`
 	LDAP                LDAPConfig           `json:"ldap"`
 	ConnectivityTargets []ConnectivityTarget `json:"connectivity_targets,omitempty"`
 }

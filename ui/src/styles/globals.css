@@ -83,11 +83,15 @@
  * 5. 移除所有阴影和圆角
  */
 
-/* 基础表格容器 */
-.arco-table-wrapper,
-.arco-table {
+/* 表格外框由 .table-container 统一提供，去掉 Arco 默认外边框 */
+.arco-table-wrapper {
   box-shadow: none !important;
   border-radius: 0 !important;
+  border: none !important;
+}
+
+.arco-table-container {
+  border: none !important;
 }
 
 /* 表头样式 */
@@ -188,14 +192,14 @@
 /* 固定列特殊处理 */
 .arco-table-col-fixed-left .arco-table-th,
 .arco-table-col-fixed-left .arco-table-td {
-  background: #ffffff !important;
+  background: var(--edgex-surface-raised, #ffffff) !important;
   border-right: 1px solid #e2e8f0 !important;
   box-shadow: none !important;
 }
 
 .arco-table-col-fixed-right .arco-table-th,
 .arco-table-col-fixed-right .arco-table-td {
-  background: #ffffff !important;
+  background: var(--edgex-surface-raised, #ffffff) !important;
   border-left: 1px solid #e2e8f0 !important;
   box-shadow: none !important;
 }
