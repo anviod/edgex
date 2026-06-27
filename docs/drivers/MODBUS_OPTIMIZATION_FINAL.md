@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # ✨ Modbus 批量读取优化 - 最终交付总结
 
 ## 🎉 优化完成！
@@ -43,8 +47,8 @@ internal/driver/modbus/
 
 ### 文档交付
 
-📄 [MODBUS_OPTIMIZATION.md](./MODBUS_OPTIMIZATION.md)  
-📄 [MODBUS_OPTIMIZATION_REPORT.md](./MODBUS_OPTIMIZATION_REPORT.md)  
+📄 [MODBUS_OPTIMIZATION.md](./MODBUS_OPTIMIZATION.html)  
+📄 [MODBUS_OPTIMIZATION_REPORT.md](./MODBUS_OPTIMIZATION_REPORT.html)  
 📄 [examples_modbus_optimization.go](./examples_modbus_optimization.go)  
 
 ---

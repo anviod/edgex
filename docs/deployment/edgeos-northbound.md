@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # edgeOS 北向通道实现文档
 
 ## 概述

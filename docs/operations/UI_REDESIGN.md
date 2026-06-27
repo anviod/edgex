@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # UI 改造说明 - 三级导航页面
 
 ## 📱 页面结构
@@ -315,7 +319,7 @@ http://localhost:8080
 
 - [ui/index.html](ui/index.html) - 前端页面
 - [internal/server/server.go](internal/server/server.go) - 后端 API 实现
-- [COMPLETION_SUMMARY.md](COMPLETION_SUMMARY.md) - 项目总结
+- [COMPLETION_SUMMARY.md](COMPLETION_SUMMARY.html) - 项目总结
 
 ---
 

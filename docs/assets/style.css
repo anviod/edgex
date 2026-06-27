@@ -218,6 +218,18 @@ pre {
   padding: 0;
 }
 
+.markdown-body .tok-keyword {
+  color: #2980b9;
+}
+
+.markdown-body .tok-string {
+  color: #27ae60;
+}
+
+.markdown-body .tok-number {
+  color: #e74c3c;
+}
+
 .copy-button {
   position: absolute;
   top: 12px;

@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # Omron FINS 南向采集驱动
 
 ## 概述

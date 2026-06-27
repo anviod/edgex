@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # 多从机 Modbus TCP 实现完成总结
 
 ## 📦 项目现状
@@ -278,7 +282,7 @@ Slave 6 is enabled, reading...
 
 ## 📚 相关文档
 
-- [MULTISLAVE_IMPLEMENTATION.md](MULTISLAVE_IMPLEMENTATION.md) - 详细实现指南
+- [MULTISLAVE_IMPLEMENTATION.md](MULTISLAVE_IMPLEMENTATION.html) - 详细实现指南
 - [config.yaml](config.yaml) - 默认配置示例
 - [config_multi_slave.yaml](config_multi_slave.yaml) - 多从机配置示例
 

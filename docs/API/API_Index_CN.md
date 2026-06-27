@@ -23,11 +23,11 @@ description: EdgeX API 文档（中文）
 
 ## 文档模块
 
-*   [认证与用户管理](Authentication_CN.md)
-*   [系统管理](System_Management_CN.md)
-*   [通道与设备管理 (南向)](Channel_Device_Management_CN.md)
-*   [边缘计算](Edge_Computing_CN.md)
-*   [北向配置](Northbound_Configuration_CN.md)
+*   [认证与用户管理](Authentication_CN.html)
+*   [系统管理](System_Management_CN.html)
+*   [通道与设备管理 (南向)](Channel_Device_Management_CN.html)
+*   [边缘计算](Edge_Computing_CN.html)
+*   [北向配置](Northbound_Configuration_CN.html)
 
 ## 通用响应格式
 

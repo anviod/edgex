@@ -33,7 +33,7 @@ hero_buttons:
 ### 最佳实践
 - [边缘计算最佳实践](EDGE_COMPUTING_BEST_PRACTICES.html)
 - [边缘计算场景手册](EDGE_COMPUTING_SCENARIO_MANUAL.html)
-- [边缘流](EDGE_FLOW.MD)
+- [边缘流](EDGE_FLOW.html)
 
 ### ScanEngine / ShadowCore
 - [影子设备设计](../architecture/6. 影子设备设计.html)

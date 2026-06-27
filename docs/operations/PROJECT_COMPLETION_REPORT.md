@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # 项目最终交付报告 - 三级架构完成
 
 ## 📋 执行摘要
@@ -421,10 +425,10 @@ channels:
 ## 📞 技术支持
 
 ### 文档资源
-- 📄 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.md) - 完整架构文档
-- 📄 [QUICK_START_THREE_LEVEL.md](./QUICK_START_THREE_LEVEL.md) - 快速启动
+- 📄 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html) - 完整架构文档
+- 📄 [QUICK_START_THREE_LEVEL.md](./QUICK_START_THREE_LEVEL.html) - 快速启动
 - 📄 [config_v2_three_level.yaml](./config_v2_three_level.yaml) - 配置示例
-- 📄 [THREE_LEVEL_IMPLEMENTATION_CHECKLIST.md](./THREE_LEVEL_IMPLEMENTATION_CHECKLIST.md) - 检查清单
+- 📄 [THREE_LEVEL_IMPLEMENTATION_CHECKLIST.md](./THREE_LEVEL_IMPLEMENTATION_CHECKLIST.html) - 检查清单
 
 ### 故障排查
 1. 查看应用日志输出

@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # EdgeX 存储架构
 
 ## 概述

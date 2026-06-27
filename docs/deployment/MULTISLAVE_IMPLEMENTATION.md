@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # 多从机 Modbus TCP 实现总结
 
 ## ✅ 完成状态

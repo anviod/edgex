@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # 🎉 采集状态机整合 - 最终总结
 
 ## 📦 交付总览
@@ -175,19 +179,19 @@ Panic 发生        → 直接失败
 
 ### 🔍 快速查询
 需要快速了解？
-→ 查看 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md)
+→ 查看 [QUICK_REFERENCE.md](./QUICK_REFERENCE.html)
 
 ### 👨‍💻 API 开发
 需要完整 API 文档？
-→ 查看 [STATE_MACHINE_API.md](./STATE_MACHINE_API.md)
+→ 查看 [STATE_MACHINE_API.md](./STATE_MACHINE_API.html)
 
 ### 🔧 系统集成
 需要集成指南？
-→ 查看 [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)
+→ 查看 [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.html)
 
 ### 📋 项目管理
 需要完成报告？
-→ 查看 [INTEGRATION_REPORT.md](./INTEGRATION_REPORT.md)
+→ 查看 [INTEGRATION_REPORT.md](./INTEGRATION_REPORT.html)
 
 ### 💾 代码示例
 需要使用示例？
@@ -254,17 +258,17 @@ state := dm.GetDeviceState(deviceID)
 ## 🎓 学习资源
 
 ### 初学者
-1. 阅读 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - 5分钟
+1. 阅读 [QUICK_REFERENCE.md](./QUICK_REFERENCE.html) - 5分钟
 2. 查看 [examples_state_machine.go](./examples_state_machine.go) - 10分钟
 3. 运行单元测试 - 2分钟
 
 ### 进阶开发者
-1. 阅读 [STATE_MACHINE_API.md](./STATE_MACHINE_API.md) - 15分钟
+1. 阅读 [STATE_MACHINE_API.md](./STATE_MACHINE_API.html) - 15分钟
 2. 研究 [node_status.go](./internal/core/node_status.go) - 30分钟
 3. 学习 [device_manager.go](./internal/core/device_manager.go) 集成 - 30分钟
 
 ### 系统运维
-1. 查看 [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) - 20分钟
+1. 查看 [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.html) - 20分钟
 2. 配置监控和告警 - 30分钟
 3. 制定操作规程 - 30分钟
 

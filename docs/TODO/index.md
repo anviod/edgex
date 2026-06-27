@@ -4,8 +4,8 @@
 |----|------|
 | 版本 | V1.1 |
 | 更新 | 2026-06-27 |
-| 架构基线 | [边缘计算南向采集优化方案2026第三季度.md](../[TODO]边缘计算南向采集优化方案2026第三季度.md) |
-| 总览 | [边缘网关架构设计总览.md](../edge/边缘网关架构设计总览.md) |
+| 架构基线 | [边缘计算南向采集优化方案2026第三季度.md](../[TODO]边缘计算南向采集优化方案2026第三季度.html) |
+| 总览 | [边缘网关架构设计总览.md](../edge/边缘网关架构设计总览.html) |
 
 ---
 
@@ -46,10 +46,10 @@ config.db → ChannelManager → ScanEngine → ExecutionLayer → Driver.ReadPo
 
 | 协议 | 文档 | 协议 ID | 后端 | 前端帮助 | 优先级 | 状态 |
 |------|------|---------|------|----------|--------|------|
-| IEC 60870-5-104 | [ICE104/采集驱动ICE104开发.md](./ICE104/采集驱动ICE104开发.md) | `iec60870-5-104` | ✅ | ✅ | P0 | **M1 已交付** |
-| Omron FINS | [Omron FINS TCP/采集驱动Omron FINS TCP开发.md](./Omron%20FINS%20TCP/采集驱动Omron%20FINS%20TCP开发.md) | `omron-fins` | ✅ | ✅ | — | 已完成 |
-| SNMP | [SNMP/SNMP采集驱动开发.md](./SNMP/SNMP采集驱动开发.md) | `snmp` | ✅ | ✅ | P1 | **v2c/v3 已交付** |
-| DL/T 645-2007 | [DLT-645-2007/DL-T-645-2007驱动开发.md](./DLT-645-2007/DL-T-645-2007驱动开发.md) | `dlt645` | 🟡 | ✅ | P2 | 模拟实现 |
+| IEC 60870-5-104 | [ICE104/采集驱动ICE104开发.md](./ICE104/采集驱动ICE104开发.html) | `iec60870-5-104` | ✅ | ✅ | P0 | **M1 已交付** |
+| Omron FINS | [Omron FINS TCP/采集驱动Omron FINS TCP开发.md](./Omron%20FINS%20TCP/采集驱动Omron%20FINS%20TCP开发.html) | `omron-fins` | ✅ | ✅ | — | 已完成 |
+| SNMP | [SNMP/SNMP采集驱动开发.md](./SNMP/SNMP采集驱动开发.html) | `snmp` | ✅ | ✅ | P1 | **v2c/v3 已交付** |
+| DL/T 645-2007 | [DLT-645-2007/DL-T-645-2007驱动开发.md](./DLT-645-2007/DL-T-645-2007驱动开发.html) | `dlt645` | 🟡 | ✅ | P2 | 模拟实现 |
 | Modbus / OPC UA / S7 / BACnet / EIP | — | 各现有 ID | ✅ | ✅ | — | 已完成 |
 
 **ICE104 M1 范围**（2026-06-27）：TCP 链路、TESTFR/STARTDT、总召唤读、自发上报缓存、单点遥控、decoder/transport 单测。
@@ -62,12 +62,12 @@ config.db → ChannelManager → ScanEngine → ExecutionLayer → Driver.ReadPo
 
 | 主题 | 文档 | 状态 |
 |------|------|------|
-| ScanEngine 重构 | [ScanEngine重构方案.md](./ScanEngine重构方案.md) | ✅ 已落地 |
-| ScanEngine 测试 | [ScanEngine重构测试报告.md](./ScanEngine重构测试报告.md) | ✅ |
+| ScanEngine 重构 | [ScanEngine重构方案.md](./ScanEngine重构方案.html) | ✅ 已落地 |
+| ScanEngine 测试 | [ScanEngine重构测试报告.md](./ScanEngine重构测试报告.html) | ✅ |
 | 通道设备状态 | Q3 §6.1 A2 + `channel_device_state.go` | ✅ |
-| 联机测试 | [联机测试方案.md](./联机测试方案.md) | 进行中 |
-| libp2p 同步 | [基于go-libp2p 同步通信规划方案.md](./基于go-libp2p%20同步通信规划方案.md) | 规划中 |
-| 双向通信测试 | [南向北向双向通信测试报告.md](./南向北向双向通信测试报告.md) | 部分完成 |
+| 联机测试 | [联机测试方案.md](./联机测试方案.html) | 进行中 |
+| libp2p 同步 | [基于go-libp2p 同步通信规划方案.md](./基于go-libp2p%20同步通信规划方案.html) | 规划中 |
+| 双向通信测试 | [南向北向双向通信测试报告.md](./南向北向双向通信测试报告.html) | 部分完成 |
 
 ---
 

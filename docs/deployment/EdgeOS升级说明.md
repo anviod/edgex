@@ -309,4 +309,4 @@ device-001:
 
 如有问题,请参考:
 - [EdgeX-EdgeOS 通信协议规范](./TODO/EdgeX-EdgeOS通信协议规范(MQTT-NATS).md)
-- [EdgeOS 设备级数据推送验证方案](./TODO/EdgeOS设备级数据推送验证方案.md)
+- [EdgeOS 设备级数据推送验证方案](./TODO/EdgeOS设备级数据推送验证方案.html)

@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # 采集状态机集成完成报告
 
 ## 📋 执行时间
@@ -249,8 +253,8 @@ fmt.Printf("设备状态: %d, 失败次数: %d\n",
 
 ## 📚 相关文档
 
-- [集成指南](./INTEGRATION_GUIDE.md) - 详细的集成说明
-- [API 文档](./STATE_MACHINE_API.md) - 完整的接口文档
+- [集成指南](./INTEGRATION_GUIDE.html) - 详细的集成说明
+- [API 文档](./STATE_MACHINE_API.html) - 完整的接口文档
 - [示例代码](./examples_state_machine.go) - 实际使用示例
 
 ---

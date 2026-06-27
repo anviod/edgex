@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # 📦 采集状态机整合完成清单
 
 ## ✅ 整合状态: **已完成**
@@ -227,9 +231,9 @@ state.NextRetryTime // 下次重试时间
 
 | 文档 | 用途 |
 |-----|------|
-| [STATE_MACHINE_API.md](./STATE_MACHINE_API.md) | API 开发参考 |
-| [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) | 系统集成指南 |
-| [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) | 运维操作速查 |
+| [STATE_MACHINE_API.md](./STATE_MACHINE_API.html) | API 开发参考 |
+| [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.html) | 系统集成指南 |
+| [QUICK_REFERENCE.md](./QUICK_REFERENCE.html) | 运维操作速查 |
 | [node_status_test.go](./internal/core/node_status_test.go) | 测试用例参考 |
 
 ---

@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # BACnet 故障隔离与恢复机制修复报告
 ```
 curl 'http://127.0.0.1:8082/api/channels/jxy3kvpohmetzct0/devices/bacnet-16/points' \

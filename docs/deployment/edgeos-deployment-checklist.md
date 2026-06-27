@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # edgeOS 北向通道部署清单
 
 ## 部署前检查

@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # 驱动连接问题解决方案
 
 ## 问题诊断
@@ -230,5 +234,5 @@ config:
 ---
 
 **需要帮助？** 查看相关文档：
-- [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.md) - 架构设计
-- [QUICK_START_THREE_LEVEL.md](./QUICK_START_THREE_LEVEL.md) - 快速启动
+- [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html) - 架构设计
+- [QUICK_START_THREE_LEVEL.md](./QUICK_START_THREE_LEVEL.html) - 快速启动

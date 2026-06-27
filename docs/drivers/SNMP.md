@@ -106,5 +106,5 @@ internal/driver/snmp/
 
 ## 相关文档
 
-- [SNMP 驱动开发方案（TODO）](../TODO/SNMP/SNMP采集驱动开发.md)
-- [南向采集 TODO 索引](../TODO/index.md)
+- [SNMP 驱动开发方案（TODO）](../TODO/SNMP/SNMP采集驱动开发.html)
+- [南向采集 TODO 索引](../TODO/index.html)

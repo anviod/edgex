@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # edgeOS 北向通道 UI 集成文档
 
 ## 概述

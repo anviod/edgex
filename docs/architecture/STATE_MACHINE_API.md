@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # 采集状态机 API 文档
 
 ## 概览

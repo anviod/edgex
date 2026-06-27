@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 在现有 Windows 实现基础上，补全五项能力：事务回滚、静态路由 UI、Linux Adapter、网络连通性验证、IPv6 支持。
 
 # 网络模块技术设计说明（Linux 适配与能力增强版）

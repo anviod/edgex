@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 这是登录的后台逻辑请参考
 ```go
 package middleware

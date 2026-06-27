@@ -1,7 +1,11 @@
+---
+layout: default
+---
+
 
 # SNMP 采集驱动开发方案
 
-> **实现状态（2026-06-27）**：✅ **v2c / v3 已交付** — 详见 [TODO 版完整方案](../../TODO/SNMP/SNMP采集驱动开发.md) 与 [用户文档](../../drivers/SNMP.md)。
+> **实现状态（2026-06-27）**：✅ **v2c / v3 已交付** — 详见 [TODO 版完整方案](../../TODO/SNMP/SNMP采集驱动开发.html) 与 [用户文档](../../drivers/SNMP.html)。
 
 ## 1. 概述
 

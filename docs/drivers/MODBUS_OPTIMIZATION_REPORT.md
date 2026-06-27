@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # 🚀 Modbus 驱动批量读取优化 - 完成报告
 
 ## ✅ 优化状态：已完成
@@ -290,7 +294,7 @@ config := model.DriverConfig{
 
 | 文档 | 用途 |
 |-----|------|
-| [MODBUS_OPTIMIZATION.md](./MODBUS_OPTIMIZATION.md) | 详细技术说明 |
+| [MODBUS_OPTIMIZATION.md](./MODBUS_OPTIMIZATION.html) | 详细技术说明 |
 | [modbus.go](./internal/driver/modbus/modbus.go) | 源代码实现 |
 | [modbus_optimization_test.go](./internal/driver/modbus/modbus_optimization_test.go) | 单元测试 |
 | [examples_modbus_optimization.go](./examples_modbus_optimization.go) | 使用示例 |

@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # 三菱 MC Protocol 南向采集驱动
 
 ## 概述

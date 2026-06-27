@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 
 # Omron FINS TCP 采集驱动开发方案
 

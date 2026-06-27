@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # edgex 运行时架构（双数据库：config.db + runtime.db）
 
 | 项 | 内容 |

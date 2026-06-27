@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # 三级架构快速入门
 
 ## 前提条件
@@ -17,7 +21,7 @@ go build ./cmd/main.go -o main.exe
 
 ### 2. 准备配置文件
 
-使用 `config_v2_three_level.yaml` 或创建自己的配置。参考 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.md)。
+使用 `config_v2_three_level.yaml` 或创建自己的配置。参考 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html)。
 
 ### 3. 运行
 
@@ -162,7 +166,7 @@ channels:
 
 ### 完整配置
 
-详见 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.md) 中的配置文件格式部分。
+详见 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html) 中的配置文件格式部分。
 
 ## 常见问题
 
@@ -248,7 +252,7 @@ edgex/
 
 ## 下一步
 
-1. 查看 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.md) 了解详细的架构设计
+1. 查看 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html) 了解详细的架构设计
 2. 根据需要修改 `config_v2_three_level.yaml` 配置
 3. 将 UI 更新为使用新的三级 API 端点
 4. 测试与实际设备的连接

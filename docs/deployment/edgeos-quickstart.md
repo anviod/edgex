@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # edgeOS 北向通道快速开始指南
 
 ## 1. 环境准备
@@ -369,7 +373,7 @@ client_id: "edgex-node-002-mqtt"
 
 ## 8. 下一步
 
-- 阅读完整文档: [edgeos-northbound.md](edgeos-northbound.md)
+- 阅读完整文档: [edgeos-northbound.md](edgeos-northbound.html)
 - 查看协议规范: [EdgeX-EdgeOS通信协议规范(MQTT-NATS).md](../doc/TODO/EdgeX-EdgeOS通信协议规范(MQTT-NATS).md)
 - 集成到现有 edgeOS 蜂群网络
 - 实现自定义消息处理逻辑

@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # 后端三级架构重构总结
 
 ## 完成情况
@@ -324,10 +328,10 @@ wscat -c ws://localhost:8082/api/ws/values
 
 ## 相关文档
 
-- 📄 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.md) - 完整的架构设计文档
-- 📄 [QUICK_START_THREE_LEVEL.md](./QUICK_START_THREE_LEVEL.md) - 快速入门指南
+- 📄 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html) - 完整的架构设计文档
+- 📄 [QUICK_START_THREE_LEVEL.md](./QUICK_START_THREE_LEVEL.html) - 快速入门指南
 - 📄 [config_v2_three_level.yaml](./config_v2_three_level.yaml) - 配置文件示例
-- 📄 [UI_REDESIGN.md](./UI_REDESIGN.md) - 前端 UI 设计文档
+- 📄 [UI_REDESIGN.md](./UI_REDESIGN.html) - 前端 UI 设计文档
 
 ## 总结
 

@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # 🎉 项目完全交付 - UI 与后端完整实现
 
 ## 📌 本次更新内容
@@ -251,10 +255,10 @@ http://localhost:8080
 - [config_multi_slave.yaml](config_multi_slave.yaml) - 多从机配置
 
 ### 文档文件
-- [UI_REDESIGN.md](UI_REDESIGN.md) - UI 改造详细说明
-- [COMPLETION_SUMMARY.md](COMPLETION_SUMMARY.md) - 项目完成总结
-- [MULTISLAVE_IMPLEMENTATION.md](MULTISLAVE_IMPLEMENTATION.md) - 多从机实现指南
-- [QUICK_REFERENCE.md](QUICK_REFERENCE.md) - 快速参考
+- [UI_REDESIGN.md](UI_REDESIGN.html) - UI 改造详细说明
+- [COMPLETION_SUMMARY.md](COMPLETION_SUMMARY.html) - 项目完成总结
+- [MULTISLAVE_IMPLEMENTATION.md](MULTISLAVE_IMPLEMENTATION.html) - 多从机实现指南
+- [QUICK_REFERENCE.md](QUICK_REFERENCE.html) - 快速参考
 
 ---
 

@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # edgeOS 北向通道开发完成总结
 
 ## 已完成的工作

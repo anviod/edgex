@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # 修复总结 - 驱动连接问题 (v2.0.1)
 
 ## 问题描述
@@ -111,8 +115,8 @@ $ go build ./cmd/main.go
 
 ## 相关文档
 
-- 📄 [DRIVER_CONNECTION_FIX.md](./DRIVER_CONNECTION_FIX.md) - 详细的问题诊断和解决方案
-- 📄 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.md) - 架构设计
+- 📄 [DRIVER_CONNECTION_FIX.md](./DRIVER_CONNECTION_FIX.html) - 详细的问题诊断和解决方案
+- 📄 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html) - 架构设计
 
 ## 测试步骤
 
