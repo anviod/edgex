@@ -1,3 +1,0 @@
-Sync docs/README_CN.md with root README deployment and driver matrix.
-
-Align Chinese docs readme with Q3 architecture overview, deployment workflow, driver progress table, user manual links, and test status from commit d433c00.
