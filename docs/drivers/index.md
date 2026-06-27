@@ -2,21 +2,22 @@
 layout: section-index
 title: 设备驱动
 description: EdgeX 南向采集驱动文档 — Modbus、BACnet、OPC UA、S7、EtherNet/IP、FINS、SNMP、IEC 104
+hero_eyebrow: Southbound Drivers
+hero_lead: 南向采集驱动的设计文档、测试报告、优化方案与故障分析 — 覆盖 Modbus、BACnet、OPC UA、S7、EtherNet/IP、Omron FINS、SNMP 等工业协议。
+hero_buttons:
+  - text: 返回首页
+    url: ../index.html
+    style: primary
+  - text: English
+    url: index_en.html
+    style: secondary
+  - text: 测试报告
+    url: ../testing/南向驱动测试报告.html
+    style: secondary
+  - text: 开发计划
+    url: ../development_plan/index.html
+    style: secondary
 ---
-
-<div class="section-index-hero">
-  <div class="eyebrow">Southbound Drivers</div>
-  <h1>设备驱动</h1>
-  <p>南向采集驱动的设计文档、测试报告、优化方案与故障分析 — 覆盖 Modbus、BACnet、OPC UA、S7、EtherNet/IP、Omron FINS、SNMP 等工业协议。</p>
-  <div class="hero-actions">
-    <a class="button-link button-link--primary" href="../index.html">返回首页</a>
-    <a class="button-link button-link--secondary" href="index_en.html">English</a>
-    <a class="button-link button-link--secondary" href="../testing/南向驱动测试报告.html">测试报告</a>
-    <a class="button-link button-link--secondary" href="../development_plan/index.html">开发计划</a>
-  </div>
-</div>
-
-<div class="markdown-body" markdown="1">
 
 ## 驱动支持矩阵
 
@@ -149,5 +150,3 @@ description: EdgeX 南向采集驱动文档 — Modbus、BACnet、OPC UA、S7、
 - [架构设计](../architecture/index.html) — ScanEngine 与 ShadowCore
 - [测试验证](../testing/index.html) — 测试方案与报告
 - [运维文档](../operations/index.html) — 驱动连接修复与运维
-
-</div>

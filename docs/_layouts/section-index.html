@@ -27,8 +27,26 @@
 
     <main class="section-index-main">
       <div class="shell shell--wide">
-        {% comment %} kramdown: markdown inside HTML blocks requires markdown="1" on the wrapper div {% endcomment %}
-        {{ content }}
+        <div class="section-index-hero">
+          {% if page.hero_eyebrow %}
+            <div class="eyebrow">{{ page.hero_eyebrow }}</div>
+          {% endif %}
+          <h1>{{ page.hero_title | default: page.title }}</h1>
+          {% if page.hero_lead %}
+            <p>{{ page.hero_lead }}</p>
+          {% endif %}
+          {% if page.hero_buttons %}
+            <div class="hero-actions">
+              {% for button in page.hero_buttons %}
+                <a class="button-link button-link--{{ button.style | default: 'secondary' }}" href="{{ button.url }}">{{ button.text }}</a>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="markdown-body">
+          {{ content }}
+        </div>
       </div>
     </main>
 

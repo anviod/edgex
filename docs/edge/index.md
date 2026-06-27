@@ -2,20 +2,19 @@
 layout: section-index
 title: 边缘计算
 description: EdgeX 边缘计算 — 规则引擎、ShadowCore 影子设备与场景编排
+hero_eyebrow: Edge Computing
+hero_lead: EdgeX 边缘计算功能文档 — 规则引擎、数据流转、ShadowCore 影子设备、ScanEngine 智能采集与场景编排。
+hero_buttons:
+  - text: 基础功能
+    url: 边缘计算基础功能.html
+    style: primary
+  - text: 架构设计
+    url: ../architecture/index.html
+    style: secondary
+  - text: 返回首页
+    url: ../index.html
+    style: secondary
 ---
-
-<div class="section-index-hero">
-  <div class="eyebrow">Edge Computing</div>
-  <h1>边缘计算</h1>
-  <p>EdgeX 边缘计算功能文档 — 规则引擎、数据流转、ShadowCore 影子设备、ScanEngine 智能采集与场景编排。</p>
-  <div class="hero-actions">
-    <a class="button-link button-link--primary" href="边缘计算基础功能.html">基础功能</a>
-    <a class="button-link button-link--secondary" href="../architecture/index.html">架构设计</a>
-    <a class="button-link button-link--secondary" href="../index.html">返回首页</a>
-  </div>
-</div>
-
-<div class="markdown-body" markdown="1">
 
 ## 目录
 
@@ -47,5 +46,3 @@ description: EdgeX 边缘计算 — 规则引擎、ShadowCore 影子设备与场
 - [架构设计](../architecture/index.html) — 完整架构与设计文档
 - [北向数据](../northbound/index.html) — MQTT / Sparkplug B 数据格式
 - [测试验证](../testing/index.html) — 影子设备集成测试
-
-</div>

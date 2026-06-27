@@ -2,20 +2,20 @@
 layout: section-index
 title: Device Drivers (English)
 description: EdgeX southbound collection drivers — Modbus, BACnet, OPC UA, S7, EtherNet/IP, FINS, SNMP, IEC 104
+hero_eyebrow: Southbound Drivers
+hero_title: Device Drivers
+hero_lead: Design docs, test reports, and optimization notes for EdgeX southbound drivers — Modbus, BACnet, OPC UA, S7, EtherNet/IP, Omron FINS, SNMP, IEC 104, and more.
+hero_buttons:
+  - text: Home
+    url: ../index.html
+    style: primary
+  - text: 中文版
+    url: index.html
+    style: secondary
+  - text: Test Report
+    url: ../testing/southbound-driver-test-report.html
+    style: secondary
 ---
-
-<div class="section-index-hero">
-  <div class="eyebrow">Southbound Drivers</div>
-  <h1>Device Drivers</h1>
-  <p>Design docs, test reports, and optimization notes for EdgeX southbound drivers — Modbus, BACnet, OPC UA, S7, EtherNet/IP, Omron FINS, SNMP, IEC 104, and more.</p>
-  <div class="hero-actions">
-    <a class="button-link button-link--primary" href="../index.html">Home</a>
-    <a class="button-link button-link--secondary" href="index.html">中文版</a>
-    <a class="button-link button-link--secondary" href="../testing/southbound-driver-test-report.html">Test Report</a>
-  </div>
-</div>
-
-<div class="markdown-body" markdown="1">
 
 ## Driver Support Matrix
 
@@ -86,5 +86,3 @@ Last run (2026-06-27): all main driver packages **PASS**; `bacnet/utsm` sub-pack
 - [SNMP Driver](SNMP.html)
 - [Architecture](../architecture/index.html)
 - [Development Plan](../development_plan/index.html)
-
-</div>

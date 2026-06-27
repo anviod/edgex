@@ -2,20 +2,20 @@
 layout: section-index
 title: EdgeX Documentation (English)
 description: English documentation index for EdgeX industrial edge gateway expert knowledge base
+hero_eyebrow: Expert Knowledge Base
+hero_title: EdgeX Documentation (English)
+hero_lead: English reference hub for driver matrices, test reports, and architecture documentation. Primary technical content is maintained in Chinese.
+hero_buttons:
+  - text: Home (中文)
+    url: ../index.html
+    style: primary
+  - text: Driver Matrix
+    url: ../drivers/index_en.html
+    style: secondary
+  - text: Test Report
+    url: ../testing/southbound-driver-test-report.html
+    style: secondary
 ---
-
-<div class="section-index-hero">
-  <div class="eyebrow">Expert Knowledge Base</div>
-  <h1>EdgeX Documentation (English)</h1>
-  <p>English reference hub for driver matrices, test reports, and architecture documentation. Primary technical content is maintained in Chinese.</p>
-  <div class="hero-actions">
-    <a class="button-link button-link--primary" href="../index.html">Home (中文)</a>
-    <a class="button-link button-link--secondary" href="../drivers/index_en.html">Driver Matrix</a>
-    <a class="button-link button-link--secondary" href="../testing/southbound-driver-test-report.html">Test Report</a>
-  </div>
-</div>
-
-<div class="markdown-body" markdown="1">
 
 ## Quick Links
 
@@ -46,5 +46,3 @@ Registered in `cmd/main.go`:
 | Mitsubishi SLMP | `mitsubishi-slmp` | Production |
 
 See [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) for test results and coverage.
-
-</div>
