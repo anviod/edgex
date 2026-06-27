@@ -310,18 +310,44 @@ pre {
 .hero-banner {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, #1a365d 0%, #2c5282 100%);
+  background:
+    linear-gradient(180deg, #1a365d 0%, #234e82 52%, #2c5282 100%);
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #f0f4f8;
   padding: clamp(44px, 5.5vw, 80px);
   min-height: 480px;
-  box-shadow: var(--shadow);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 12px 40px rgba(26, 54, 93, 0.22);
 }
 
-.hero-banner::before,
+.hero-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, transparent 72%);
+  pointer-events: none;
+}
+
 .hero-banner::after {
-  display: none;
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(255, 255, 255, 0.12) 38%,
+    transparent 100%
+  );
+  pointer-events: none;
 }
 
 .hero-grid {
@@ -333,49 +359,98 @@ pre {
   align-items: stretch;
 }
 
+.hero-copy {
+  position: relative;
+  padding-left: clamp(18px, 2vw, 28px);
+}
+
+.hero-copy::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.62) 0%,
+    rgba(255, 255, 255, 0.18) 100%
+  );
+}
+
+.hero-copy__header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: clamp(16px, 2.2vw, 24px);
+}
+
 .hero-copy .eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  font-size: 0.82rem;
+  gap: 10px;
+  margin: 0;
+  padding: 7px 14px 7px 12px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 0.76rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
+  color: rgba(244, 251, 255, 0.88);
+}
+
+.hero-copy .eyebrow::before {
+  content: "";
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
 }
 
 .hero-copy h1 {
   margin: 0;
   font-family: "Outfit", "Noto Sans SC", sans-serif;
   font-size: clamp(2.8rem, 5vw, 5.2rem);
-  line-height: 0.98;
-  letter-spacing: -0.04em;
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  color: #fff;
+  text-shadow: 0 2px 28px rgba(0, 0, 0, 0.18);
 }
 
 .hero-tagline {
   max-width: 900px;
-  margin: 22px 0 0;
-  color: rgba(244, 251, 255, 0.92);
-  font-size: clamp(1.08rem, 1.6vw, 1.28rem);
-  font-weight: 500;
-  line-height: 1.65;
+  margin: clamp(20px, 2.5vw, 28px) 0 0;
+  color: rgba(244, 251, 255, 0.9);
+  font-size: clamp(1.06rem, 1.5vw, 1.24rem);
+  font-weight: 400;
+  line-height: 1.72;
 }
 
 .hero-subline {
   max-width: 880px;
-  margin: 14px 0 0;
-  color: rgba(244, 251, 255, 0.72);
-  font-size: 1rem;
+  margin: 16px 0 0;
+  padding: 10px 16px;
+  border-left: 2px solid rgba(255, 255, 255, 0.28);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: rgba(0, 0, 0, 0.14);
+  color: rgba(244, 251, 255, 0.78);
+  font-family: "JetBrains Mono", "Consolas", monospace;
+  font-size: 0.84rem;
+  letter-spacing: 0.01em;
+  line-height: 1.6;
 }
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
-  margin-top: 32px;
+  gap: 12px;
+  margin-top: clamp(28px, 3vw, 36px);
 }
 
 .button-link {
@@ -383,11 +458,14 @@ pre {
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 0 18px;
-  border-radius: 4px;
+  padding: 0 20px;
+  border-radius: var(--radius-md);
   font-weight: 600;
   font-size: 0.92rem;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .button-link:hover {
@@ -397,28 +475,51 @@ pre {
 .button-link--primary {
   background: #fff;
   color: var(--brand-deep);
-  box-shadow: none;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.button-link--primary:hover {
+  background: #f4f7fb;
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .button-link--secondary {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.04);
   color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+}
+
+.button-link--secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .hero-features {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
-  margin-top: 36px;
+  margin-top: clamp(32px, 3.5vw, 40px);
+  padding-top: clamp(28px, 3vw, 36px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .hero-feature {
-  padding: 16px 18px;
+  padding: 16px 18px 16px 15px;
   border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 3px solid rgba(255, 255, 255, 0.22);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.hero-feature:hover {
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.16);
+  border-left-color: rgba(255, 255, 255, 0.42);
 }
 
 .hero-feature__label {
@@ -426,8 +527,9 @@ pre {
   margin-bottom: 8px;
   padding: 2px 8px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(240, 244, 248, 0.9);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(240, 244, 248, 0.92);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -437,17 +539,18 @@ pre {
 
 .hero-feature strong {
   display: block;
-  font-size: 0.98rem;
+  font-size: 0.96rem;
   font-weight: 700;
   color: #fff;
+  letter-spacing: 0.01em;
 }
 
 .hero-feature span {
   display: block;
   margin-top: 6px;
-  color: rgba(244, 251, 255, 0.72);
-  font-size: 0.88rem;
-  line-height: 1.5;
+  color: rgba(244, 251, 255, 0.68);
+  font-size: 0.86rem;
+  line-height: 1.55;
 }
 
 .hero-metrics {
@@ -459,53 +562,101 @@ pre {
 
 .metric-card {
   padding: 18px 20px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(8px);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.metric-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .metric-card strong {
   display: block;
   font-family: "Outfit", "Noto Sans SC", sans-serif;
-  font-size: 1.7rem;
+  font-size: 1.65rem;
+  font-weight: 800;
   line-height: 1.1;
+  color: #fff;
 }
 
 .metric-card span {
   display: block;
   margin-top: 6px;
-  color: rgba(244, 251, 255, 0.78);
-  font-size: 0.92rem;
+  color: rgba(244, 251, 255, 0.72);
+  font-size: 0.88rem;
 }
 
 .hero-panel {
   align-self: end;
+  position: relative;
   padding: 28px;
-  border-radius: 26px;
-  background: rgba(6, 21, 38, 0.28);
+  border-radius: var(--radius-lg);
+  background: rgba(6, 21, 38, 0.38);
   border: 1px solid rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.hero-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 28px;
+  right: 28px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.22) 20%,
+    rgba(255, 255, 255, 0.22) 80%,
+    transparent
+  );
 }
 
 .hero-panel__label {
   margin: 0 0 18px;
-  color: rgba(255, 255, 255, 0.72);
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.68);
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 700;
 }
 
 .hero-panel ul {
   margin: 0;
-  padding-left: 1.2rem;
+  padding: 0;
+  list-style: none;
 }
 
 .hero-panel li {
+  position: relative;
   margin-bottom: 12px;
-  color: rgba(244, 251, 255, 0.9);
-  font-size: 0.95rem;
+  padding-left: 16px;
+  color: rgba(244, 251, 255, 0.88);
+  font-size: 0.93rem;
+  line-height: 1.55;
+}
+
+.hero-panel li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.hero-panel li strong {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 700;
 }
 
 .landing-section {
@@ -995,13 +1146,22 @@ pre {
   }
 
   .hero-banner {
-    border-radius: 24px;
+    border-radius: var(--radius-lg);
     min-height: auto;
     padding: 28px 22px;
   }
 
+  .hero-copy {
+    padding-left: 16px;
+  }
+
   .hero-copy h1 {
     font-size: 2.4rem;
+  }
+
+  .hero-subline {
+    font-size: 0.78rem;
+    padding: 8px 12px;
   }
 
   .hero-features,
@@ -1015,7 +1175,7 @@ pre {
   .hero-panel,
   .section-index-hero {
     padding: 22px;
-    border-radius: 18px;
+    border-radius: var(--radius-lg);
   }
 
   .roadmap-table {
