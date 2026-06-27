@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	drv "github.com/anviod/edgex/internal/driver"
 	"github.com/anviod/edgex/internal/model"
 
 	"github.com/gofiber/fiber/v2"
@@ -25,16 +26,12 @@ func (s *Server) getChannelMetrics(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "channel not found"})
 	}
 
-	// 获取指标数据
-	metrics := model.GetGlobalMetricsCollector().GetChannelMetrics(channelID)
+	metrics := &model.ChannelMetrics{
+		Timestamp: time.Now(),
+		Protocol:  ch.Protocol,
+	}
 
-	// 补充连接时长和重连次数
-	metrics.ConnectionSeconds = 0
-	metrics.ReconnectCount = 0
-	metrics.LocalAddr = ""
-	metrics.RemoteAddr = ""
-
-	// 从 driver 获取连接信息和详细指标
+	// 从 driver 获取连接状态与详细指标（优先于 collector 默认值）
 	driver := s.cm.GetDriver(channelID)
 	if driver != nil {
 		connSec, reconCount, localAddr, remoteAddr, lastDisc := driver.GetConnectionMetrics()
@@ -43,10 +40,9 @@ func (s *Server) getChannelMetrics(c *fiber.Ctx) error {
 		metrics.LocalAddr = localAddr
 		metrics.RemoteAddr = remoteAddr
 		metrics.LastDisconnectTime = lastDisc
+		metrics.LinkUp = driver.Health() == drv.HealthStatusGood
 
-		// 检查是否是支持 GetMetrics 的驱动，以超时方式获取详细指标
-		if bacnetDriver, ok := driver.(interface{ GetMetrics() model.ChannelMetrics }); ok {
-			// 使用 goroutine + channel 实现超时控制（避免阻塞）
+		if metricsDriver, ok := driver.(interface{ GetMetrics() model.ChannelMetrics }); ok {
 			metricsChannel := make(chan model.ChannelMetrics, 1)
 			go func() {
 				defer func() {
@@ -54,45 +50,121 @@ func (s *Server) getChannelMetrics(c *fiber.Ctx) error {
 						zap.L().Warn("GetMetrics panic", zap.String("channelId", channelID), zap.Any("error", r))
 					}
 				}()
-				bacnetMetrics := bacnetDriver.GetMetrics()
-				metricsChannel <- bacnetMetrics
+				metricsChannel <- metricsDriver.GetMetrics()
 			}()
 
-			// 最多等待500ms获取详细指标
 			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 			defer cancel()
 
 			select {
-			case bacnetMetrics := <-metricsChannel:
-				// 成功获取详细指标，覆盖基础指标
-				metrics.QualityScore = bacnetMetrics.QualityScore
-				metrics.Protocol = bacnetMetrics.Protocol
-				metrics.SuccessRate = bacnetMetrics.SuccessRate
-				metrics.TimeoutCount = bacnetMetrics.TimeoutCount
-				metrics.CrcError = bacnetMetrics.CrcError
-				metrics.CrcErrorRate = bacnetMetrics.CrcErrorRate
-				metrics.RetryRate = bacnetMetrics.RetryRate
-				metrics.ExceptionCode = bacnetMetrics.ExceptionCode
-				metrics.AvgRtt = bacnetMetrics.AvgRtt
-				metrics.MaxRtt = bacnetMetrics.MaxRtt
-				metrics.MinRtt = bacnetMetrics.MinRtt
-				metrics.TotalRequests = bacnetMetrics.TotalRequests
-				metrics.SuccessCount = bacnetMetrics.SuccessCount
-				metrics.FailureCount = bacnetMetrics.FailureCount
-				metrics.PacketLoss = bacnetMetrics.PacketLoss
-				metrics.Trend = bacnetMetrics.Trend
-				metrics.RecentErrors = bacnetMetrics.RecentErrors
+			case driverMetrics := <-metricsChannel:
+				mergeDriverChannelMetrics(metrics, &driverMetrics)
 			case <-ctx.Done():
-				// 超时，使用基础指标（已经从GetConnectionMetrics获取）
 				zap.L().Warn("GetMetrics timeout", zap.String("channelId", channelID))
 			}
 		}
 	}
 
+	// 合并 collector 中已观测到的请求统计（仅在有真实流量时覆盖）
+	if mc := model.GetGlobalMetricsCollector(); mc != nil {
+		collected := mc.GetChannelMetrics(channelID)
+		if collected != nil && collected.TotalRequests > 0 {
+			mergeCollectorChannelMetrics(metrics, collected)
+		}
+	}
+
+	finalizeChannelMetrics(metrics)
+
 	// 更新时间戳
 	metrics.Timestamp = time.Now()
 
 	return c.JSON(metrics)
+}
+
+func mergeDriverChannelMetrics(dst, src *model.ChannelMetrics) {
+	dst.QualityScore = src.QualityScore
+	if src.Protocol != "" {
+		dst.Protocol = src.Protocol
+	}
+	dst.SuccessRate = src.SuccessRate
+	dst.TimeoutCount = src.TimeoutCount
+	dst.CrcError = src.CrcError
+	dst.CrcErrorRate = src.CrcErrorRate
+	dst.RetryRate = src.RetryRate
+	dst.ExceptionCode = src.ExceptionCode
+	dst.AvgRtt = src.AvgRtt
+	dst.MaxRtt = src.MaxRtt
+	dst.MinRtt = src.MinRtt
+	dst.TotalRequests = src.TotalRequests
+	dst.SuccessCount = src.SuccessCount
+	dst.FailureCount = src.FailureCount
+	dst.PacketLoss = src.PacketLoss
+	dst.Trend = src.Trend
+	dst.RecentErrors = src.RecentErrors
+	if src.ConnectionSeconds > 0 {
+		dst.ConnectionSeconds = src.ConnectionSeconds
+	}
+	if src.ReconnectCount > 0 {
+		dst.ReconnectCount = src.ReconnectCount
+	}
+	if src.LocalAddr != "" {
+		dst.LocalAddr = src.LocalAddr
+	}
+	if src.RemoteAddr != "" {
+		dst.RemoteAddr = src.RemoteAddr
+	}
+	if !src.LastDisconnectTime.IsZero() {
+		dst.LastDisconnectTime = src.LastDisconnectTime
+	}
+}
+
+func mergeCollectorChannelMetrics(dst, src *model.ChannelMetrics) {
+	if src.TotalRequests > dst.TotalRequests {
+		dst.TotalRequests = src.TotalRequests
+		dst.SuccessCount = src.SuccessCount
+		dst.FailureCount = src.FailureCount
+		dst.SuccessRate = src.SuccessRate
+		dst.PacketLoss = src.PacketLoss
+		dst.AvgRtt = src.AvgRtt
+		dst.MaxRtt = src.MaxRtt
+		dst.MinRtt = src.MinRtt
+		dst.TimeoutCount = src.TimeoutCount
+		dst.CrcError = src.CrcError
+		dst.CrcErrorRate = src.CrcErrorRate
+		dst.RetryRate = src.RetryRate
+		dst.ExceptionCode = src.ExceptionCode
+		dst.Trend = src.Trend
+		dst.RecentErrors = src.RecentErrors
+		if src.QualityScore > 0 {
+			dst.QualityScore = src.QualityScore
+		}
+	}
+}
+
+func finalizeChannelMetrics(metrics *model.ChannelMetrics) {
+	if !metrics.LinkUp {
+		metrics.QualityScore = 0
+		metrics.SuccessRate = 0
+		metrics.PacketLoss = 0
+		metrics.AvgRtt = 0
+		return
+	}
+
+	if metrics.TotalRequests == 0 {
+		metrics.SuccessRate = 0
+		metrics.PacketLoss = 0
+		metrics.AvgRtt = 0
+		metrics.CrcErrorRate = 0
+		metrics.RetryRate = 0
+		return
+	}
+
+	if metrics.SuccessRate <= 0 && metrics.TotalRequests > 0 && metrics.SuccessCount > 0 {
+		metrics.SuccessRate = float64(metrics.SuccessCount) / float64(metrics.TotalRequests)
+	}
+	if metrics.PacketLoss <= 0 && metrics.TotalRequests > 0 {
+		metrics.PacketLoss = 1.0 - metrics.SuccessRate
+	}
 }
 
 // getDeviceMetrics 获取设备监控指标
@@ -126,9 +198,11 @@ func (s *Server) getDeviceMetrics(c *fiber.Ctx) error {
 	// 获取设备指标
 	metrics := model.GetGlobalMetricsCollector().GetDeviceMetrics(deviceID)
 
-	// 补充设备基本信息
-	metrics.State = 0
-	if device.Enable {
+	// 补充设备基本信息（含通道链路有效状态）
+	dev := s.cm.GetDevice(channelID, deviceID)
+	if dev != nil {
+		metrics.State = dev.State
+	} else if device.Enable {
 		node := s.cm.GetStateManager().GetNode(deviceID)
 		if node != nil {
 			metrics.State = int(node.Runtime.State)

@@ -204,6 +204,25 @@ func (c *CommunicationManageTemplate) onCollectSuccess(node *DeviceNodeTemplate)
 	}
 }
 
+// MarkOffline 将设备标记为离线（例如通道链路断开时批量更新）。
+func (c *CommunicationManageTemplate) MarkOffline(deviceID string) {
+	c.mu.RLock()
+	node, ok := c.nodes[deviceID]
+	c.mu.RUnlock()
+	if !ok || node == nil {
+		return
+	}
+
+	oldState := node.Runtime.State
+	node.Runtime.State = NodeStateOffline
+	node.Runtime.SuccessCount = 0
+	node.Runtime.LastFailTime = time.Now()
+
+	if oldState != node.Runtime.State && c.OnStateChange != nil {
+		c.OnStateChange(deviceID, oldState, node.Runtime.State)
+	}
+}
+
 // FinalizeCollect 最终裁决函数
 // 根据采集上下文统计信息，决定本次采集的整体结果并更新节点状态
 //

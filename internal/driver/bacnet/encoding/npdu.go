@@ -32,7 +32,6 @@ func (e *Encoder) NPDU(n *btypes.NPDU) {
 	}
 	e.write(meta)
 	if meta.HasDestination() {
-		n.Destination.SetLength()
 		e.write(n.Destination.Net)
 
 		// Address

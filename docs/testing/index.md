@@ -23,3 +23,7 @@ description: EdgeX 测试验证文档
 
 ### 验证报告
 - [验证报告](VERIFICATION_REPORT.md)
+
+### 南向驱动测试
+- [南向驱动测试报告](南向驱动测试报告.md) — 单元测试、性能基准、边界场景矩阵（2026-06-27）
+- [Southbound Driver Test Report (EN)](southbound-driver-test-report.md)

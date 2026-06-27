@@ -2,6 +2,7 @@ package tsm
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 )
@@ -72,7 +73,10 @@ func TestDataTransaction(t *testing.T) {
 		}
 	}()
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		b, err := tsm.Receive(ids[0], time.Duration(5)*time.Second)
 		if err != nil {
 			t.Error(err)
@@ -96,4 +100,5 @@ func TestDataTransaction(t *testing.T) {
 		return
 	}
 	t.Log(s)
+	wg.Wait()
 }

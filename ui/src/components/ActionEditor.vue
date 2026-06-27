@@ -1,5 +1,5 @@
 ﻿<template>
-  <a-card class="action-editor-card" :bordered="true">
+  <div class="action-editor">
     <a-row :gutter="12">
       <!-- Type Selection -->
       <a-col :span="24" :md="6">
@@ -391,7 +391,7 @@
 
       </a-col>
     </a-row>
-  </a-card>
+  </div>
 </template>
 
 <script setup>

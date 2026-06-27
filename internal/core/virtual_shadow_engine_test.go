@@ -351,11 +351,18 @@ func TestVirtualShadowEngine_PipelineFanOut(t *testing.T) {
 	}
 
 	deadline := time.Now().Add(2 * time.Second)
-	for {
+	var virtualSum *model.Value
+	for time.Now().Before(deadline) {
 		mu.Lock()
-		n := len(received)
+		for i := range received {
+			if received[i].DeviceID == "virtual-sum" && received[i].PointID == "sum" {
+				copy := received[i]
+				virtualSum = &copy
+				break
+			}
+		}
 		mu.Unlock()
-		if n > 0 || time.Now().After(deadline) {
+		if virtualSum != nil {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -363,15 +370,6 @@ func TestVirtualShadowEngine_PipelineFanOut(t *testing.T) {
 
 	mu.Lock()
 	defer mu.Unlock()
-
-	var virtualSum *model.Value
-	for i := range received {
-		if received[i].DeviceID == "virtual-sum" && received[i].PointID == "sum" {
-			copy := received[i]
-			virtualSum = &copy
-			break
-		}
-	}
 	if virtualSum == nil {
 		t.Fatalf("pipeline did not receive virtual point, got %d values", len(received))
 	}

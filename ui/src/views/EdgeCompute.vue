@@ -427,17 +427,15 @@
                     <div v-if="!currentRule.actions || currentRule.actions.length === 0" class="empty-box">
                         无动作
                     </div>
-                    <div v-else>
-                        <div v-for="(action, index) in currentRule.actions" :key="index" class="action-card">
+                    <div v-else class="actions-list">
+                        <div v-for="(action, index) in currentRule.actions" :key="index" class="action-row">
                             <div class="action-index">STEP {{ index + 1 }}</div>
                             <ActionEditor 
+                                class="flex-1"
                                 v-model="currentRule.actions[index]" 
                                 :channels="channels" 
                                 @remove="removeAction(index)" 
                             />
-                            <a-button type="text" status="danger" @click="removeAction(index)" class="mt-2">
-                                <IconDelete />
-                            </a-button>
                         </div>
                     </div>
                 </div>

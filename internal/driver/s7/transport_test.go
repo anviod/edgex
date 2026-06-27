@@ -423,12 +423,12 @@ func TestMetrics(t *testing.T) {
 		"ip": "127.0.0.1",
 	})
 
-	// 初始状态
+	// 初始状态（未连接时仍暴露已配置的目标地址）
 	connSec, reconCount, localAddr, remoteAddr, lastDisc := transport.GetConnectionMetrics()
 	assert.Equal(t, int64(0), connSec)
 	assert.Equal(t, int64(0), reconCount)
 	assert.Empty(t, localAddr)
-	assert.Empty(t, remoteAddr)
+	assert.Equal(t, "127.0.0.1:102", remoteAddr)
 	assert.True(t, lastDisc.IsZero())
 
 	// 模拟连接

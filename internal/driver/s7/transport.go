@@ -528,7 +528,11 @@ func (t *S7Transport) GetConnectionMetrics() (connectionSeconds int64, reconnect
 	lastDisconnectTime = t.lastDisconnectTime
 
 	if !t.connected.Load() {
-		return 0, reconnectCount, t.localAddr, t.remoteAddr, lastDisconnectTime
+		remoteAddr = t.remoteAddr
+		if remoteAddr == "" && t.ip != "" {
+			remoteAddr = fmt.Sprintf("%s:%d", t.ip, t.port)
+		}
+		return 0, reconnectCount, t.localAddr, remoteAddr, lastDisconnectTime
 	}
 
 	connectionSeconds = int64(time.Since(t.connectTime).Seconds())

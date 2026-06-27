@@ -7,4 +7,8 @@ export const CHANNEL_HELP_PROTOCOLS = [
   { value: 's7', label: 'S7' },
   { value: 'dlt645', label: 'DLT645' },
   { value: 'ethernet-ip', label: 'EtherNet/IP' },
+  { value: 'omron-fins', label: 'Omron FINS' },
+  { value: 'mitsubishi-slmp', label: 'Mitsubishi MC' },
+  { value: 'iec60870-5-104', label: 'IEC 60870-5-104' },
+  { value: 'snmp', label: 'SNMP' },
 ]

@@ -13,6 +13,7 @@
         <div class="channel-metrics-score" :class="qualityTier.className">
           <div class="channel-metrics-score__ring">
             <a-progress
+              v-if="showScoreRing"
               type="circle"
               :percent="qualityScore"
               :color="qualityTier.color"
@@ -21,7 +22,7 @@
               :size="112"
             />
             <div class="channel-metrics-score__center">
-              <span class="channel-metrics-score__value">{{ qualityScore }}</span>
+              <span class="channel-metrics-score__value">{{ qualityScoreDisplay }}</span>
               <span class="channel-metrics-score__label">质量评分</span>
             </div>
           </div>
@@ -58,17 +59,17 @@
         <div class="channel-metric-stat">
           <span class="channel-metric-stat__label">成功率</span>
           <span class="channel-metric-stat__value" :class="successRateClass">
-            {{ formatMetricsPercent(metrics.successRate) }}
+            {{ formatMetricsPercent(metrics.successRate, metrics) }}
           </span>
         </div>
         <div class="channel-metric-stat">
           <span class="channel-metric-stat__label">平均 RTT</span>
-          <span class="channel-metric-stat__value">{{ formatMetricsDuration(metrics.avgRtt) }}</span>
+          <span class="channel-metric-stat__value">{{ formatMetricsDuration(metrics.avgRtt, metrics) }}</span>
         </div>
         <div class="channel-metric-stat">
           <span class="channel-metric-stat__label">丢包率</span>
           <span class="channel-metric-stat__value" :class="packetLossClass">
-            {{ formatMetricsPercent(metrics.packetLoss) }}
+            {{ formatMetricsPercent(metrics.packetLoss, metrics) }}
           </span>
         </div>
       </section>
@@ -78,23 +79,23 @@
         <div class="channel-metrics-detail__grid">
           <div class="channel-metrics-detail__cell">
             <span class="channel-metrics-detail__label">CRC 错误率</span>
-            <span class="channel-metrics-detail__val">{{ formatMetricsPercent(metrics.crcErrorRate) }}</span>
+            <span class="channel-metrics-detail__val">{{ formatMetricsPercent(metrics.crcErrorRate, metrics) }}</span>
           </div>
           <div class="channel-metrics-detail__cell">
             <span class="channel-metrics-detail__label">重试率</span>
-            <span class="channel-metrics-detail__val">{{ formatMetricsPercent(metrics.retryRate) }}</span>
+            <span class="channel-metrics-detail__val">{{ formatMetricsPercent(metrics.retryRate, metrics) }}</span>
           </div>
           <div class="channel-metrics-detail__cell">
             <span class="channel-metrics-detail__label">总请求数</span>
-            <span class="channel-metrics-detail__val">{{ metrics.totalRequests ?? 0 }}</span>
+            <span class="channel-metrics-detail__val">{{ totalRequests }}</span>
           </div>
           <div class="channel-metrics-detail__cell">
             <span class="channel-metrics-detail__label">成功请求数</span>
-            <span class="channel-metrics-detail__val is-success">{{ metrics.successRequests ?? 0 }}</span>
+            <span class="channel-metrics-detail__val is-success">{{ successCount }}</span>
           </div>
           <div class="channel-metrics-detail__cell">
             <span class="channel-metrics-detail__label">失败请求数</span>
-            <span class="channel-metrics-detail__val is-danger">{{ metrics.failedRequests ?? 0 }}</span>
+            <span class="channel-metrics-detail__val is-danger">{{ failureCount }}</span>
           </div>
           <div class="channel-metrics-detail__cell">
             <span class="channel-metrics-detail__label">重连次数</span>
@@ -113,6 +114,7 @@ import { computed } from 'vue'
 import {
   computeQualityScore,
   getQualityTier,
+  getQualityScoreDisplay,
   formatMetricsPercent,
   formatMetricsDuration,
   formatConnectionDuration,
@@ -120,6 +122,11 @@ import {
   getNetworkConnectionText,
   getSuccessRateClass,
   getPacketLossClass,
+  getTotalRequests,
+  getSuccessCount,
+  getFailureCount,
+  hasObservedTraffic,
+  isChannelLinkUp,
 } from '@/utils/channelMetrics'
 
 const props = defineProps({
@@ -129,12 +136,16 @@ const props = defineProps({
 })
 
 const qualityScore = computed(() => computeQualityScore(props.metrics))
-const qualityTier = computed(() => getQualityTier(qualityScore.value))
+const qualityTier = computed(() => getQualityTier(qualityScore.value, props.metrics))
+const qualityScoreDisplay = computed(() => getQualityScoreDisplay(qualityScore.value, props.metrics))
+const showScoreRing = computed(() => hasObservedTraffic(props.metrics) && isChannelLinkUp(props.metrics))
 
 const connectionDuration = computed(() => {
-  const seconds = props.metrics?.connectionSeconds
-  const text = formatConnectionDuration(seconds)
-  return seconds === undefined || seconds === null ? text : `已连接 ${text}`
+  if (!isChannelLinkUp(props.metrics)) {
+    return formatConnectionDuration(undefined, props.metrics)
+  }
+  const text = formatConnectionDuration(props.metrics?.connectionSeconds, props.metrics)
+  return text === '未连接' ? text : `已连接 · ${text}`
 })
 
 const network = computed(() => {
@@ -142,8 +153,12 @@ const network = computed(() => {
   return getNetworkConnectionText(props.metrics, info)
 })
 
-const successRateClass = computed(() => getSuccessRateClass(props.metrics?.successRate))
-const packetLossClass = computed(() => getPacketLossClass(props.metrics?.packetLoss))
+const totalRequests = computed(() => getTotalRequests(props.metrics))
+const successCount = computed(() => getSuccessCount(props.metrics))
+const failureCount = computed(() => getFailureCount(props.metrics))
+
+const successRateClass = computed(() => getSuccessRateClass(props.metrics?.successRate, props.metrics))
+const packetLossClass = computed(() => getPacketLossClass(props.metrics?.packetLoss, props.metrics))
 </script>
 
 <style scoped>

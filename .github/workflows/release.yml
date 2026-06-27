@@ -38,6 +38,8 @@ jobs:
         run: go mod download
 
       - name: Run unit tests
+        env:
+          CGO_ENABLED: '0'
         run: go test ./... -v -count=1
 
       - name: Build for Linux

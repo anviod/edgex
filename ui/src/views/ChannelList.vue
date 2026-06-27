@@ -5,8 +5,8 @@
         <h2 class="page-title title-text">采集通道</h2>
         <div class="page-subtitle title-subtitle">管理工业设备通信通道及协议配置</div>
       </div>
-      <div class="header-actions">
-        <a-space size="medium">
+      <div class="header-actions channel-header-actions">
+        <a-space size="small">
           <a-radio-group v-model="viewMode" type="button" size="small">
             <a-radio value="card">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
@@ -27,8 +27,8 @@
               </svg>
             </a-radio>
           </a-radio-group>
-          <a-divider direction="vertical" />
-          <a-space size="small">
+        </a-space>
+        <a-space size="small" wrap>
             <a-button v-if="selectionMode && selectedChannels.length > 0" status="warning" size="small" @click="openBatchConfig">
               <template #icon>
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
@@ -77,7 +77,6 @@
               </template>
               帮助说明
             </a-button>
-          </a-space>
         </a-space>
       </div>
     </div>
@@ -590,6 +589,334 @@
           </a-row>
         </div>
 
+        <!-- Omron FINS Config -->
+        <div v-if="dialog.form.protocol === 'omron-fins'" class="config-section">
+          <div class="modal-section__title modal-section__title--sub">基础连接</div>
+          <a-form-item field="config.ip" label="PLC IP 地址" required>
+            <a-input v-model="dialog.form.config.ip" placeholder="192.168.1.100" />
+          </a-form-item>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.port" label="PLC 端口">
+                <a-input-number v-model="dialog.form.config.port" :min="1" :max="65535" placeholder="9600 (默认)" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.mode" label="传输模式">
+                <a-select v-model="dialog.form.config.mode" placeholder="TCP">
+                  <a-option value="TCP">TCP</a-option>
+                  <a-option value="UDP">UDP</a-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.model" label="PLC 型号">
+                <a-select v-model="dialog.form.config.model" placeholder="请选择" allow-clear>
+                  <a-option value="CP1E">CP1E</a-option>
+                  <a-option value="CP1H">CP1H</a-option>
+                  <a-option value="CJ">CJ 系列</a-option>
+                  <a-option value="CS">CS 系列</a-option>
+                  <a-option value="NJ">NJ 系列</a-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+          </a-row>
+
+          <div class="modal-section__title modal-section__title--sub">FINS 节点地址</div>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.src_network_addr" label="源网络地址">
+                <a-input-number v-model="dialog.form.config.src_network_addr" :min="0" :max="255" placeholder="0" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.src_node_addr" label="源节点地址">
+                <a-input-number v-model="dialog.form.config.src_node_addr" :min="0" :max="255" placeholder="1" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.src_unit_addr" label="源单元地址">
+                <a-input-number v-model="dialog.form.config.src_unit_addr" :min="0" :max="255" placeholder="255" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.dst_network_addr" label="目标网络地址">
+                <a-input-number v-model="dialog.form.config.dst_network_addr" :min="0" :max="255" placeholder="0" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.dst_node_addr" label="目标节点地址">
+                <a-input-number v-model="dialog.form.config.dst_node_addr" :min="0" :max="255" placeholder="PLC IP 末段" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.dst_unit_addr" label="目标单元地址">
+                <a-input-number v-model="dialog.form.config.dst_unit_addr" :min="0" :max="255" placeholder="0" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+
+          <div class="modal-section__title modal-section__title--sub">通信参数</div>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.timeout" label="超时时间 (ms)">
+                <a-input-number v-model="dialog.form.config.timeout" :min="500" :max="30000" placeholder="3000" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.max_retries" label="重试次数">
+                <a-input-number v-model="dialog.form.config.max_retries" :min="0" :max="10" placeholder="3" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.heartbeat_interval" label="心跳间隔 (ms)">
+                <a-input-number v-model="dialog.form.config.heartbeat_interval" :min="0" :max="300000" placeholder="30000" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.maxFrameLength" label="批量读取字数上限">
+                <a-input-number v-model="dialog.form.config.maxFrameLength" :min="1" :max="500" placeholder="64" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.min_interval" label="指令间隔 (ms)">
+                <a-input-number v-model="dialog.form.config.min_interval" :min="0" :max="1000" placeholder="0" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8" v-if="dialog.form.config.mode === 'UDP'">
+              <a-form-item field="config.local_port" label="本地 UDP 端口">
+                <a-input-number v-model="dialog.form.config.local_port" :min="0" :max="65535" placeholder="0 (自动)" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </div>
+
+        <!-- Mitsubishi MC Config -->
+        <div v-if="dialog.form.protocol === 'mitsubishi-slmp'" class="config-section">
+          <div class="modal-section__title modal-section__title--sub">基础连接</div>
+          <a-form-item field="config.ip" label="PLC IP 地址" required>
+            <a-input v-model="dialog.form.config.ip" placeholder="192.168.1.10" />
+          </a-form-item>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.port" label="PLC 端口">
+                <a-input-number v-model="dialog.form.config.port" :min="1" :max="65535" placeholder="5000 (默认)" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.frame_type" label="帧类型">
+                <a-select v-model="dialog.form.config.frame_type" placeholder="3E">
+                  <a-option value="3E">3E (Q/L/iQ-R)</a-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.station_no" label="站号">
+                <a-input-number v-model="dialog.form.config.station_no" :min="0" :max="255" placeholder="0" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.network_no" label="网络号">
+                <a-input-number v-model="dialog.form.config.network_no" :min="0" :max="255" placeholder="0" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.pc_no" label="PC 编号">
+                <a-input-number v-model="dialog.form.config.pc_no" :min="0" :max="255" placeholder="255" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+
+          <div class="modal-section__title modal-section__title--sub">通信参数</div>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.timeout" label="超时时间 (ms)">
+                <a-input-number v-model="dialog.form.config.timeout" :min="500" :max="30000" placeholder="3000" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.max_retries" label="重试次数">
+                <a-input-number v-model="dialog.form.config.max_retries" :min="0" :max="10" placeholder="2" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.batch_read_max" label="批量读取上限">
+                <a-input-number v-model="dialog.form.config.batch_read_max" :min="1" :max="500" placeholder="64" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </div>
+
+        <!-- IEC 60870-5-104 Config -->
+        <div v-if="dialog.form.protocol === 'iec60870-5-104'" class="config-section">
+          <div class="modal-section__title modal-section__title--sub">基础连接</div>
+          <a-form-item field="config.ip" label="设备 IP 地址" required>
+            <a-input v-model="dialog.form.config.ip" placeholder="192.168.1.100" />
+          </a-form-item>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.port" label="端口">
+                <a-input-number v-model="dialog.form.config.port" :min="1" :max="65535" placeholder="2404 (默认)" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.commonAddress" label="公共地址 CA">
+                <a-input-number v-model="dialog.form.config.commonAddress" :min="1" :max="65535" placeholder="1" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.generalCallInterval" label="总召唤间隔 (秒)">
+                <a-input-number v-model="dialog.form.config.generalCallInterval" :min="0" :max="86400" placeholder="300" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <div class="modal-section__title modal-section__title--sub">协议定时器</div>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="6">
+              <a-form-item field="config.t0" label="T0 (秒)">
+                <a-input-number v-model="dialog.form.config.t0" :min="1" :max="120" placeholder="10" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="6">
+              <a-form-item field="config.t1" label="T1 (秒)">
+                <a-input-number v-model="dialog.form.config.t1" :min="1" :max="120" placeholder="15" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="6">
+              <a-form-item field="config.t2" label="T2 (秒)">
+                <a-input-number v-model="dialog.form.config.t2" :min="1" :max="120" placeholder="10" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="6">
+              <a-form-item field="config.t3" label="T3 (秒)">
+                <a-input-number v-model="dialog.form.config.t3" :min="1" :max="120" placeholder="20" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </div>
+
+        <!-- SNMP Config -->
+        <div v-if="dialog.form.protocol === 'snmp'" class="config-section">
+          <div class="modal-section__title modal-section__title--sub">基础连接</div>
+          <a-form-item field="config.ip" label="设备 IP 地址" required>
+            <a-input v-model="dialog.form.config.ip" placeholder="192.168.1.1" />
+          </a-form-item>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.port" label="端口">
+                <a-input-number v-model="dialog.form.config.port" :min="1" :max="65535" placeholder="161 (默认)" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.snmpVersion" label="SNMP 版本">
+                <a-select v-model="dialog.form.config.snmpVersion" placeholder="v2c">
+                  <a-option value="v2c">v2c</a-option>
+                  <a-option value="v3">v3</a-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.timeout" label="超时 (ms)">
+                <a-input-number v-model="dialog.form.config.timeout" :min="500" :max="60000" placeholder="3000" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.retries" label="重试次数">
+                <a-input-number v-model="dialog.form.config.retries" :min="0" :max="10" placeholder="3" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.maxBulkSize" label="GETBULK 数量">
+                <a-input-number v-model="dialog.form.config.maxBulkSize" :min="1" :max="100" placeholder="10" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.sendInterval" label="发送间隔 (ms)">
+                <a-input-number v-model="dialog.form.config.sendInterval" :min="0" :max="5000" placeholder="100" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+
+          <div v-if="!dialog.form.config.snmpVersion || dialog.form.config.snmpVersion === 'v2c'">
+            <div class="modal-section__title modal-section__title--sub">SNMP v2c</div>
+            <a-form-item field="config.community" label="Community 社区字符串">
+              <a-input v-model="dialog.form.config.community" placeholder="public" />
+            </a-form-item>
+          </div>
+
+          <div v-if="dialog.form.config.snmpVersion === 'v3'">
+            <div class="modal-section__title modal-section__title--sub">SNMP v3 安全</div>
+            <a-form-item field="config.securityName" label="安全名称 (用户名)" required>
+              <a-input v-model="dialog.form.config.securityName" placeholder="admin" />
+            </a-form-item>
+            <a-row :gutter="[24, 16]" class="field-grid">
+              <a-col :span="8">
+                <a-form-item field="config.securityLevel" label="安全级别">
+                  <a-select v-model="dialog.form.config.securityLevel" placeholder="authPriv">
+                    <a-option value="noAuthNoPriv">noAuthNoPriv</a-option>
+                    <a-option value="authNoPriv">authNoPriv</a-option>
+                    <a-option value="authPriv">authPriv</a-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item field="config.authProtocol" label="认证协议">
+                  <a-select v-model="dialog.form.config.authProtocol" placeholder="SHA256">
+                    <a-option value="MD5">MD5</a-option>
+                    <a-option value="SHA1">SHA1</a-option>
+                    <a-option value="SHA224">SHA224</a-option>
+                    <a-option value="SHA256">SHA256</a-option>
+                    <a-option value="SHA384">SHA384</a-option>
+                    <a-option value="SHA512">SHA512</a-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item field="config.privProtocol" label="加密协议">
+                  <a-select v-model="dialog.form.config.privProtocol" placeholder="AES128">
+                    <a-option value="DES">DES</a-option>
+                    <a-option value="AES128">AES128</a-option>
+                    <a-option value="AES192">AES192</a-option>
+                    <a-option value="AES256">AES256</a-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-row :gutter="[24, 16]" class="field-grid">
+              <a-col :span="12">
+                <a-form-item field="config.authPassword" label="认证密码">
+                  <a-input-password v-model="dialog.form.config.authPassword" placeholder="AuthPass123" />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item field="config.privPassword" label="加密密码">
+                  <a-input-password v-model="dialog.form.config.privPassword" placeholder="PrivPass123" />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-row :gutter="[24, 16]" class="field-grid">
+              <a-col :span="12">
+                <a-form-item field="config.contextName" label="上下文名称">
+                  <a-input v-model="dialog.form.config.contextName" placeholder="可选" />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item field="config.contextEngineID" label="上下文 Engine ID">
+                  <a-input v-model="dialog.form.config.contextEngineID" placeholder="可选" />
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </div>
+        </div>
+
         <!-- EtherNet/IP Config -->
         <div v-if="dialog.form.protocol === 'ethernet-ip'" class="config-section">
           <div class="modal-section__title modal-section__title--sub">基础连接</div>
@@ -785,7 +1112,11 @@ const protocols = [
   { label: 'OPC UA', value: 'opc-ua' },
   { label: 'S7', value: 's7' },
   { label: 'DLT645', value: 'dlt645' },
-  { label: 'EtherNet/IP', value: 'ethernet-ip' }
+  { label: 'EtherNet/IP', value: 'ethernet-ip' },
+  { label: 'Omron FINS', value: 'omron-fins' },
+  { label: 'Mitsubishi MC', value: 'mitsubishi-slmp' },
+  { label: 'IEC 60870-5-104', value: 'iec60870-5-104' },
+  { label: 'SNMP', value: 'snmp' }
 ]
 
 const tableColumns = [
@@ -913,38 +1244,27 @@ const deleteChannel = async (channel) => {
 const openMetricsDialog = async (channel) => {
   metricsDialog.channel = channel
   metricsDialog.error = null
-  
-  // 检查通道是否已有缓存的指标数据
-  if (channel.metrics && Object.keys(channel.metrics).length > 0) {
-    // 直接使用缓存数据，不显示加载状态
-    metricsDialog.metrics = channel.metrics
+  metricsDialog.metrics = null
+  metricsDialog.loading = true
+  metricsDialog.show = true
+
+  try {
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('加载超时')), 2000)
+    )
+
+    const metricsResPromise = request({
+      url: `/api/channels/${channel.id}/metrics`,
+      method: 'get'
+    })
+
+    const metricsRes = await Promise.race([metricsResPromise, timeoutPromise])
+    metricsDialog.metrics = metricsRes
+  } catch (error) {
+    metricsDialog.error = `获取监控指标失败: ${error.message}`
+    console.error('Failed to get channel metrics:', error)
+  } finally {
     metricsDialog.loading = false
-    metricsDialog.show = true
-  } else {
-    // 需要加载指标数据
-    metricsDialog.loading = true
-    metricsDialog.show = true
-    
-    try {
-      // 设置2秒超时
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('加载超时')), 2000)
-      )
-      
-      const metricsResPromise = request({
-        url: `/api/channels/${channel.id}/metrics`,
-        method: 'get'
-      })
-      
-      const metricsRes = await Promise.race([metricsResPromise, timeoutPromise])
-      console.log('Metrics response:', metricsRes)
-      metricsDialog.metrics = metricsRes
-    } catch (error) {
-      metricsDialog.error = `获取监控指标失败: ${error.message}`
-      console.error('Failed to get channel metrics:', error)
-    } finally {
-      metricsDialog.loading = false
-    }
   }
 }
 
@@ -1033,7 +1353,7 @@ const fetchChannels = async () => {
           
           if (metrics) {
             const score = computeQualityScore(metrics)
-            const runtime = runtimeFromQualityScore(score)
+            const runtime = runtimeFromQualityScore(score, metrics)
 
             channels.value[channelIndex] = {
               ...channels.value[channelIndex],

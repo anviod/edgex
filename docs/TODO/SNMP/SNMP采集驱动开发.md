@@ -1,6 +1,58 @@
 
 # SNMP 采集驱动开发方案
 
+> **实现状态（2026-06-27）**：✅ **v2c / v3 已交付** — 后端 `internal/driver/snmp/`，协议 ID `snmp`，前端通道配置与帮助已注册。基于纯 Go 库 `github.com/gosnmp/gosnmp`（CGO_ENABLED=0）。
+
+| 能力 | v2c | v3 | 说明 |
+|------|-----|-----|------|
+| GET 单 OID | ✅ | ✅ | 单点或批量 GET |
+| GETBULK | ✅ | ✅ | 同 community/用户分组批量读 |
+| GETNEXT / WALK | ✅ | ✅ | `ScanObjects` MIB 扫描 |
+| SET 写 OID | ✅ | ✅ | `WritePoint` |
+| Community 认证 | ✅ | — | 点位地址 `community\|OID` |
+| USM 认证 | — | ✅ | MD5/SHA/SHA224/SHA256/SHA384/SHA512 |
+| 加密 | — | ✅ | DES/AES128/AES192/AES256 |
+| 安全级别 | — | ✅ | noAuthNoPriv / authNoPriv / authPriv |
+| contextName / contextEngineID | — | ✅ | 可选 |
+| 超时 / 重试 / 发送间隔 | ✅ | ✅ | timeout、retries、sendInterval |
+| ScanEngine 集成 | ✅ | ✅ | ReadPoints / WritePoint，无独立采集 goroutine |
+| 设备扫描 | ✅ | ✅ | ObjectScanner.ScanObjects |
+
+**通道配置 JSON 示例（v2c）**：
+
+```json
+{
+  "ip": "192.168.1.1",
+  "port": 161,
+  "snmpVersion": "v2c",
+  "community": "public",
+  "timeout": 3000,
+  "retries": 3,
+  "maxBulkSize": 10,
+  "sendInterval": 100
+}
+```
+
+**通道配置 JSON 示例（v3）**：
+
+```json
+{
+  "ip": "192.168.1.1",
+  "port": 161,
+  "snmpVersion": "v3",
+  "securityName": "admin",
+  "securityLevel": "authPriv",
+  "authProtocol": "SHA256",
+  "authPassword": "AuthPass123",
+  "privProtocol": "AES128",
+  "privPassword": "PrivPass123",
+  "timeout": 3000,
+  "retries": 3
+}
+```
+
+---
+
 ## 1. 概述
 
 ### 1.1 协议简介

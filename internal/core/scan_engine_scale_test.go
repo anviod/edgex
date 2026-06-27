@@ -81,6 +81,10 @@ func TestScanEngine_TenThousandTagsBenchmark(t *testing.T) {
 
 	se.Run()
 	time.Sleep(3 * time.Second)
+
+	if se.GetMetrics() != nil {
+		t.Logf("scan engine metrics: %+v", se.GetMetrics().Snapshot())
+	}
 	se.Stop()
 
 	t.Logf("10k Tag scale test: devices=%d points=%d register=%v tasks=%d",

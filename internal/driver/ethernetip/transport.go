@@ -308,7 +308,11 @@ func (t *ENIPTransport) GetConnectionMetrics() (
 	defer t.mu.Unlock()
 
 	if t.connectTime.IsZero() {
-		return 0, 0, "", "", time.Time{}
+		remoteAddr := t.remoteAddr
+		if remoteAddr == "" && t.ip != "" {
+			remoteAddr = fmt.Sprintf("%s:%d", t.ip, t.port)
+		}
+		return 0, 0, "", remoteAddr, time.Time{}
 	}
 
 	connectionSeconds = int64(time.Since(t.connectTime).Seconds())

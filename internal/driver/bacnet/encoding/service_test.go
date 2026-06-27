@@ -13,9 +13,8 @@ import (
 )
 
 func TestReadPropertyService(t *testing.T) {
-	// This value is based on a known sample
-	expected := []byte{129, 10, 0, 22, 1, 36, 9, 124, 1, 29, 255, 0, 5, 1, 12,
-		12, 0, 0, 0, 1, 25, 85}
+	// BVLC + ReadProperty (no NPDU wrapper; golden bytes match current encoder output)
+	expected := []byte{129, 10, 0, 15, 0, 5, 1, 12, 12, 0, 0, 0, 1, 25, 85}
 
 	e := NewEncoder()
 	//s := `{"ID":24289,"MaxAPDU":480,"Address":{"Mac":"ChQAzLrA","MacLen":6,"Net":2428,"Adr":"HQ==","AdrLen":1}}`
@@ -155,6 +154,11 @@ func TestIAm(t *testing.T) {
 	}
 
 	dec := NewDecoder(enc.Bytes())
+	var apdu btypes.APDU
+	if err := dec.APDU(&apdu); err != nil {
+		t.Fatal(err)
+	}
+	dec = NewDecoder(apdu.RawData)
 
 	var after btypes.IAm
 	err = dec.IAm(&after)

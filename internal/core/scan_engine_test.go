@@ -82,16 +82,17 @@ func TestScanEngine_Priority(t *testing.T) {
 	pq := &PriorityQueue{}
 	heap.Init(pq)
 
+	nextRun := time.Now().Add(100 * time.Millisecond)
 	task1 := &ScanTask{
 		ID:        "task1",
 		DeviceKey: "device1",
-		NextRun:   time.Now().Add(100 * time.Millisecond),
+		NextRun:   nextRun,
 		Priority:  1,
 	}
 	task2 := &ScanTask{
 		ID:        "task2",
 		DeviceKey: "device2",
-		NextRun:   time.Now().Add(100 * time.Millisecond),
+		NextRun:   nextRun,
 		Priority:  10,
 	}
 
@@ -135,22 +136,24 @@ func TestPriorityQueue(t *testing.T) {
 	pq := &PriorityQueue{}
 	heap.Init(pq)
 
+	soon := time.Now().Add(50 * time.Millisecond)
+	later := time.Now().Add(100 * time.Millisecond)
 	task1 := &ScanTask{
 		ID:        "task1",
 		DeviceKey: "device1",
-		NextRun:   time.Now().Add(100 * time.Millisecond),
+		NextRun:   later,
 		Priority:  5,
 	}
 	task2 := &ScanTask{
 		ID:        "task2",
 		DeviceKey: "device2",
-		NextRun:   time.Now().Add(50 * time.Millisecond),
+		NextRun:   soon,
 		Priority:  5,
 	}
 	task3 := &ScanTask{
 		ID:        "task3",
 		DeviceKey: "device3",
-		NextRun:   time.Now().Add(50 * time.Millisecond),
+		NextRun:   soon,
 		Priority:  10,
 	}
 

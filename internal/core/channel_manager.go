@@ -162,8 +162,36 @@ func (cm *ChannelManager) GetDeviceDiagnostics(deviceID string) map[string]any {
 		out["consecutive_failures"] = node.Runtime.FailCount
 	}
 	var pointIDs []string
+	now := time.Now()
+	scanTasks := make([]map[string]any, 0)
 	for _, task := range cm.scanEngineAdapter.scanEngine.GetTasksByDeviceKey(deviceID) {
 		pointIDs = append(pointIDs, task.PointIDs...)
+		task.mu.RLock()
+		lagMs := float64(0)
+		if !task.NextRun.IsZero() && now.After(task.NextRun) {
+			lagMs = float64(now.Sub(task.NextRun).Milliseconds())
+		}
+		degradeOnFailure := true
+		if task.Params != nil {
+			if v, ok := task.Params["degradeOnFailure"].(bool); ok {
+				degradeOnFailure = v
+			}
+		}
+		scanTasks = append(scanTasks, map[string]any{
+			"task_id":              task.ID,
+			"scan_class":           task.ScanClass,
+			"interval_ms":          task.Interval.Milliseconds(),
+			"base_interval_ms":     task.BaseInterval.Milliseconds(),
+			"status":               task.Status.String(),
+			"lag_ms":               lagMs,
+			"consecutive_failures": task.ConsecutiveFailures,
+			"point_count":          len(task.PointIDs),
+			"degrade_on_failure":   degradeOnFailure,
+		})
+		task.mu.RUnlock()
+	}
+	if len(scanTasks) > 0 {
+		out["scan_tasks"] = scanTasks
 	}
 	if cm.pointDegradation != nil && len(pointIDs) > 0 {
 		out["point_degradation"] = cm.pointDegradation.SnapshotDevice(deviceID, pointIDs)
@@ -172,6 +200,24 @@ func (cm *ChannelManager) GetDeviceDiagnostics(deviceID string) map[string]any {
 }
 
 func (cm *ChannelManager) finalizeScanCollect(deviceID string, result *ExecuteResult) {
+	channelID := cm.channelIDForDevice(deviceID)
+	recordCollectCycle := func(success bool) {
+		if channelID == "" {
+			return
+		}
+		if mc := model.GetGlobalMetricsCollector(); mc != nil {
+			mc.RecordCycle(channelID, success)
+		}
+	}
+
+	if result != nil && isChannelLinkError(result.Error) {
+		if channelID != "" {
+			cm.markChannelDevicesOffline(channelID)
+		}
+		recordCollectCycle(false)
+		return
+	}
+
 	node := cm.stateManager.GetNode(deviceID)
 	if node == nil {
 		return
@@ -199,6 +245,7 @@ func (cm *ChannelManager) finalizeScanCollect(deviceID string, result *ExecuteRe
 	}
 
 	cm.stateManager.FinalizeCollect(node, ctx)
+	recordCollectCycle(result != nil && result.Success)
 }
 
 func (cm *ChannelManager) SetStatusHandler(h func(deviceID string, status int)) {
@@ -498,6 +545,7 @@ func (cm *ChannelManager) tryConnectChannel(channelID string) {
 	defer cancel()
 	if err := d.Connect(ctx); err != nil {
 		zap.L().Warn("Channel connect failed", zap.String("channel_id", channelID), zap.Error(err))
+		cm.markChannelDevicesOffline(channelID)
 	}
 }
 
@@ -520,6 +568,7 @@ func (cm *ChannelManager) StartChannel(channelID string) error {
 	// 连接驱动
 	err := d.Connect(cm.ctx)
 	if err != nil {
+		cm.markChannelDevicesOffline(channelID)
 		zap.L().Error("Failed to connect driver for channel", zap.String("channel", ch.Name), zap.Error(err))
 		return err
 	}
@@ -592,10 +641,9 @@ func (cm *ChannelManager) GetChannels() []model.Channel {
 			}
 		}
 		// Also update Device Runtime
+		d := cm.drivers[c.ID]
 		for i := range c.Devices {
-			if node := cm.stateManager.GetNode(c.Devices[i].ID); node != nil {
-				c.Devices[i].State = int(node.Runtime.State)
-			}
+			cm.applyDeviceRuntimeState(&c, d, &c.Devices[i])
 		}
 
 		channels = append(channels, c)
@@ -666,21 +714,12 @@ func (cm *ChannelManager) GetChannelDevices(channelID string) []model.Device {
 	defer cm.mu.RUnlock()
 
 	if ch, ok := cm.channels[channelID]; ok {
+		d := cm.drivers[channelID]
 		// Return a copy with state populated
 		devices := make([]model.Device, len(ch.Devices))
 		for i, dev := range ch.Devices {
 			devices[i] = dev
-			// Populate state
-			if node := cm.stateManager.GetNode(dev.ID); node != nil {
-				devices[i].State = int(node.Runtime.State)
-				devices[i].NodeRuntime = &model.NodeRuntime{
-					FailCount:     node.Runtime.FailCount,
-					SuccessCount:  node.Runtime.SuccessCount,
-					LastFailTime:  node.Runtime.LastFailTime,
-					NextRetryTime: node.Runtime.NextRetryTime,
-					State:         int(node.Runtime.State),
-				}
-			}
+			cm.applyDeviceRuntimeState(ch, d, &devices[i])
 			if mc := model.GetGlobalMetricsCollector(); mc != nil {
 				metrics := mc.GetDeviceMetrics(dev.ID)
 				devices[i].QualityScore = metrics.HealthScore
@@ -701,16 +740,8 @@ func (cm *ChannelManager) GetDevice(channelID, deviceID string) *model.Device {
 			if dev.ID == deviceID {
 				// Return a copy with state populated
 				d := ch.Devices[i]
-				if node := cm.stateManager.GetNode(d.ID); node != nil {
-					d.State = int(node.Runtime.State)
-					d.NodeRuntime = &model.NodeRuntime{
-						FailCount:     node.Runtime.FailCount,
-						SuccessCount:  node.Runtime.SuccessCount,
-						LastFailTime:  node.Runtime.LastFailTime,
-						NextRetryTime: node.Runtime.NextRetryTime,
-						State:         int(node.Runtime.State),
-					}
-				}
+				driver := cm.drivers[channelID]
+				cm.applyDeviceRuntimeState(ch, driver, &d)
 				if mc := model.GetGlobalMetricsCollector(); mc != nil {
 					metrics := mc.GetDeviceMetrics(d.ID)
 					d.QualityScore = metrics.HealthScore

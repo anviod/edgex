@@ -7,11 +7,13 @@ import (
 	_ "github.com/anviod/edgex/internal/driver/bacnet"     // 导入BACnet驱动
 	_ "github.com/anviod/edgex/internal/driver/dlt645"     // 导入DLT645驱动
 	_ "github.com/anviod/edgex/internal/driver/ethernetip" // 导入EtherNet/IP驱动
+	_ "github.com/anviod/edgex/internal/driver/ice104"     // 导入ICE104驱动
 	_ "github.com/anviod/edgex/internal/driver/mitsubishi" // 导入Mitsubishi驱动
 	_ "github.com/anviod/edgex/internal/driver/modbus"     // 导入Modbus驱动
 	_ "github.com/anviod/edgex/internal/driver/omron"      // 导入Omron驱动
 	_ "github.com/anviod/edgex/internal/driver/opcua"      // 导入OPC UA驱动
 	_ "github.com/anviod/edgex/internal/driver/s7"         // 导入S7驱动
+	_ "github.com/anviod/edgex/internal/driver/snmp"       // 导入SNMP驱动
 	"github.com/anviod/edgex/internal/model"
 )
 
@@ -372,6 +374,75 @@ func TestOmronConnectionMetrics(t *testing.T) {
 	testGetMetrics(t, d, "Omron FINS")
 }
 
+// TestICE104ConnectionMetrics 测试 ICE104 驱动的连接指标收集
+func TestICE104ConnectionMetrics(t *testing.T) {
+	d, ok := driver.GetDriver("iec60870-5-104")
+	if !ok || d == nil {
+		t.Fatalf("iec60870-5-104 driver not available")
+	}
+
+	config := model.DriverConfig{
+		ChannelID: "test-channel",
+		Config: map[string]any{
+			"ip":            "127.0.0.1",
+			"port":          2404,
+			"commonAddress": 1,
+		},
+	}
+	if err := d.Init(config); err != nil {
+		t.Fatalf("Failed to init ICE104 driver: %v", err)
+	}
+
+	_, reconCount, localAddr, remoteAddr, lastDisc := d.GetConnectionMetrics()
+	if reconCount != 0 {
+		t.Errorf("Expected reconnect count 0, got %d", reconCount)
+	}
+	if localAddr != "" {
+		t.Errorf("Expected empty local addr, got '%s'", localAddr)
+	}
+	if remoteAddr != "127.0.0.1:2404" {
+		t.Errorf("Expected remote addr '127.0.0.1:2404', got '%s'", remoteAddr)
+	}
+	if !lastDisc.IsZero() {
+		t.Errorf("Expected zero last disconnect time, got %v", lastDisc)
+	}
+}
+
+// TestSNMPConnectionMetrics 测试 SNMP 驱动的连接指标收集
+func TestSNMPConnectionMetrics(t *testing.T) {
+	d, ok := driver.GetDriver("snmp")
+	if !ok || d == nil {
+		t.Fatalf("snmp driver not available")
+	}
+
+	config := model.DriverConfig{
+		ChannelID: "test-channel",
+		Config: map[string]any{
+			"ip":          "127.0.0.1",
+			"port":        161,
+			"snmpVersion": "v2c",
+			"community":   "public",
+		},
+	}
+	if err := d.Init(config); err != nil {
+		t.Fatalf("Failed to init SNMP driver: %v", err)
+	}
+
+	_, reconCount, localAddr, remoteAddr, lastDisc := d.GetConnectionMetrics()
+	if reconCount != 0 {
+		t.Errorf("Expected reconnect count 0, got %d", reconCount)
+	}
+	if localAddr != "" {
+		t.Errorf("Expected empty local addr, got '%s'", localAddr)
+	}
+	if remoteAddr != "127.0.0.1:161" {
+		t.Errorf("Expected remote addr '127.0.0.1:161', got '%s'", remoteAddr)
+	}
+	if !lastDisc.IsZero() {
+		t.Errorf("Expected zero last disconnect time, got %v", lastDisc)
+	}
+}
+
 // TestMitsubishiConnectionMetrics 测试Mitsubishi驱动的连接指标收集
 func TestMitsubishiConnectionMetrics(t *testing.T) {
 	// 创建Mitsubishi驱动实例
@@ -418,5 +489,5 @@ func TestMitsubishiConnectionMetrics(t *testing.T) {
 	}
 
 	// 测试GetMetrics方法（如果支持）
-	testGetMetrics(t, d, "Mitsubishi SLMP")
+	testGetMetrics(t, d, "Mitsubishi MC")
 }

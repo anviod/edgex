@@ -1,9 +1,10 @@
 module github.com/anviod/edgex
 
-go 1.25.7
+go 1.26.4
 
 require (
 	github.com/anviod/ethernet-ip v0.0.6
+	github.com/anviod/fins v0.0.0-20260623041119-337148808ff7
 	github.com/anviod/gos7 v0.0.1
 	github.com/awcullen/opcua v1.4.0
 	github.com/eclipse/paho.mqtt.golang v1.5.1
@@ -53,6 +54,7 @@ require (
 	github.com/goburrow/serial v0.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/gosnmp/gosnmp v1.38.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/ipfs/go-cid v0.5.0 // indirect

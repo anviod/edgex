@@ -612,6 +612,21 @@
   display: none;
 }
 
+.channel-list-container .page-header.channel-header .channel-header-actions {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: space-between;
+}
+
+@media (max-width: 900px) {
+  .channel-list-container .page-header.channel-header .channel-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    row-gap: var(--space-3);
+    justify-content: flex-start;
+  }
+}
+
 .minimal-line-card {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);

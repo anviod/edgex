@@ -266,7 +266,8 @@ func TestDeviceStorageManager_Interval_Execution(t *testing.T) {
 		t.Errorf("Expected 0 records before interval, got %d", len(history))
 	}
 
-	time.Sleep(150 * time.Millisecond)
+	// Wait past first tick (100ms) but before second (200ms).
+	time.Sleep(120 * time.Millisecond)
 
 	history, _ = dsm.GetHistory(deviceID, 10)
 	if len(history) != 1 {

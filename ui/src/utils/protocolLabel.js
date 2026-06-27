@@ -7,7 +7,11 @@ export const SOUTH_PROTOCOLS = [
   'opc-ua',
   's7',
   'dlt645',
-  'ethernet-ip'
+  'ethernet-ip',
+  'omron-fins',
+  'mitsubishi-slmp',
+  'iec60870-5-104',
+  'snmp'
 ]
 
 const ALIAS_MAP = {
@@ -39,6 +43,8 @@ export function getProtocolTransport(protocol) {
   if (tag === 'unknown') return 'Unknown'
   if (tag.includes('bacnet') || tag.includes('snmp')) return 'UDP'
   if (tag.includes('rtu') && !tag.includes('over-tcp')) return 'Serial'
+  if (tag === 'omron-fins') return 'TCP/UDP'
+  if (tag === 'iec60870-5-104') return 'TCP'
   if (tag.includes('tcp') || tag.includes('opc-ua') || tag === 's7' || tag === 'ethernet-ip') return 'TCP'
   return 'TCP/IP'
 }

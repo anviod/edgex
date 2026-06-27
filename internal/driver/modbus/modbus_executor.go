@@ -265,30 +265,7 @@ func (d *ModbusExecutor) SetDeviceConfig(config map[string]any) error {
 	}
 
 	if d.scheduler != nil {
-		if v, ok := config["max_gap"]; ok {
-			switch val := v.(type) {
-			case int:
-				d.scheduler.SetGroupThreshold(uint16(val))
-			case float64:
-				d.scheduler.SetGroupThreshold(uint16(val))
-			}
-		}
-		if v, ok := config["group_threshold"]; ok {
-			switch val := v.(type) {
-			case int:
-				d.scheduler.SetGroupThreshold(uint16(val))
-			case float64:
-				d.scheduler.SetGroupThreshold(uint16(val))
-			}
-		}
-		if v, ok := config["batchSize"]; ok {
-			switch val := v.(type) {
-			case int:
-				d.scheduler.SetMaxPacketSize(uint16(val))
-			case float64:
-				d.scheduler.SetMaxPacketSize(uint16(val))
-			}
-		}
+		applySchedulerIOConfig(d.scheduler, config)
 	}
 
 	return nil
@@ -299,4 +276,80 @@ func (d *ModbusExecutor) GetConnectionMetrics() (connectionSeconds int64, reconn
 		return d.transport.GetConnectionMetrics()
 	}
 	return 0, 0, "", "", time.Time{}
+}
+
+func (d *ModbusExecutor) GetMetrics() model.ChannelMetrics {
+	connSec, reconCount, localAddr, remoteAddr, lastDisc := d.GetConnectionMetrics()
+
+	totalRequests := int64(0)
+	successCount := int64(0)
+	failureCount := int64(0)
+
+	if d.scheduler != nil {
+		d.scheduler.mu.Lock()
+		totalRequests = d.scheduler.txTotal
+		successCount = d.scheduler.rxTotal
+		failureCount = d.scheduler.errorsTotal
+		d.scheduler.mu.Unlock()
+	}
+
+	successRate := 0.0
+	if totalRequests > 0 {
+		successRate = float64(successCount) / float64(totalRequests)
+	}
+
+	return model.ChannelMetrics{
+		QualityScore:       d.calculateQualityScore(),
+		Protocol:           "Modbus",
+		SuccessRate:        successRate,
+		TimeoutCount:       failureCount,
+		CrcErrorRate:       0,
+		RetryRate:          0,
+		TotalRequests:      totalRequests,
+		SuccessCount:       successCount,
+		FailureCount:       failureCount,
+		PacketLoss:         1.0 - successRate,
+		ReconnectCount:     reconCount,
+		ConnectionSeconds:  connSec,
+		LocalAddr:          localAddr,
+		RemoteAddr:         remoteAddr,
+		LastDisconnectTime: lastDisc,
+		Timestamp:          time.Now(),
+	}
+}
+
+func (d *ModbusExecutor) calculateQualityScore() int {
+	if d.transport == nil || !d.transport.IsConnected() {
+		return 0
+	}
+
+	score := 70
+	if d.connController != nil && d.connController.GetState() == core.ConnStateDead {
+		return 0
+	}
+
+	if d.scheduler != nil {
+		d.scheduler.mu.Lock()
+		total := d.scheduler.txTotal
+		success := d.scheduler.rxTotal
+		d.scheduler.mu.Unlock()
+
+		if total > 0 {
+			rate := float64(success) / float64(total)
+			if rate > 0.95 {
+				score += 20
+			} else if rate > 0.90 {
+				score += 10
+			} else if rate < 0.80 {
+				score -= 10
+			}
+		}
+	}
+
+	if score < 0 {
+		score = 0
+	} else if score > 100 {
+		score = 100
+	}
+	return score
 }

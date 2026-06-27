@@ -55,6 +55,11 @@ func TestValidateServerPEMPair(t *testing.T) {
 
 func TestMaterializeServerCerts(t *testing.T) {
 	dir := testOutputDir(t)
+	origWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origWD) })
 	if err := os.Chdir(dir); err != nil {
 		t.Fatal(err)
 	}
@@ -78,6 +83,11 @@ func TestMaterializeServerCerts(t *testing.T) {
 
 func TestMaterializeTrustedCerts(t *testing.T) {
 	dir := testOutputDir(t)
+	origWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origWD) })
 	if err := os.Chdir(dir); err != nil {
 		t.Fatal(err)
 	}

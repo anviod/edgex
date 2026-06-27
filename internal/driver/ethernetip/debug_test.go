@@ -677,7 +677,7 @@ func TestENIPDecoder_EncodeValue(t *testing.T) {
 			name:     "STRING 类型写入",
 			dataType: "STRING",
 			value:    "Hi",
-			expected: []byte{0x02, 0x00, 0x00, 0x00, 'H', 'i'}, // CIP STRING format: [length:2][capacity:2][data]
+			expected: []byte{0x02, 0x00, 0xFF, 0x00, 'H', 'i'}, // CIP STRING format: [length:2][capacity:2][data]
 		},
 	}
 

@@ -2296,6 +2296,8 @@ const getProtocolAddressLabel = () => {
         case 'ethernet-ip': return 'Tag 名称'
         case 'mitsubishi-slmp': return '地址'
         case 'omron-fins': return '地址'
+        case 'iec60870-5-104': return 'IOA'
+        case 'snmp': return 'OID 地址'
         case 'dlt645': return '数据标识'
         default: return '地址'
     }
@@ -2307,6 +2309,8 @@ const getProtocolAddressPlaceholder = () => {
         case 'ethernet-ip': return 'Program:Main.MyTag'
         case 'mitsubishi-slmp': return 'D100'
         case 'omron-fins': return 'CIO1.2'
+        case 'iec60870-5-104': return '400'
+        case 'snmp': return 'public|1.3.6.1.2.1.1.1.0'
         case 'dlt645': return '02-01-01-00'
         default: return '输入地址'
     }
@@ -2318,6 +2322,8 @@ const getProtocolAddressTooltip = () => {
         case 'ethernet-ip': return '例如: Program:Main.MyTag'
         case 'mitsubishi-slmp': return '格式: D100, M0, X0, D20.2, D100.16L'
         case 'omron-fins': return '格式: CIO1.2, D100, W3.4, EM10.100'
+        case 'iec60870-5-104': return 'IOA 0–65535；group 字段填写 TypeID，如 M_ME_NC_1'
+        case 'snmp': return 'v2c: community|OID；v3: securityName|OID，如 public|1.3.6.1.2.1.1.1.0'
         case 'dlt645': return '格式: XX-XX-XX-XX'
         default: return ''
     }

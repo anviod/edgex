@@ -44,6 +44,10 @@ import OpcUaHelp from './OpcUaHelp.vue'
 import S7Help from './S7Help.vue'
 import Dlt645Help from './Dlt645Help.vue'
 import EthernetIpHelp from './EthernetIpHelp.vue'
+import FinsHelp from './FinsHelp.vue'
+import MitsubishiHelp from './MitsubishiHelp.vue'
+import Ice104Help from './Ice104Help.vue'
+import SnmpHelp from './SnmpHelp.vue'
 
 const PROTOCOL_COMPONENTS = {
   'modbus-tcp': ModbusTcpHelp,
@@ -54,6 +58,10 @@ const PROTOCOL_COMPONENTS = {
   s7: S7Help,
   dlt645: Dlt645Help,
   'ethernet-ip': EthernetIpHelp,
+  'omron-fins': FinsHelp,
+  'mitsubishi-slmp': MitsubishiHelp,
+  'iec60870-5-104': Ice104Help,
+  snmp: SnmpHelp,
 }
 
 const props = defineProps({

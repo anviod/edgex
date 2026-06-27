@@ -3,14 +3,15 @@ package omron
 import (
 	"context"
 	"fmt"
-	"log"
-	"math/rand"
-	"regexp"
-	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/anviod/edgex/internal/driver"
 	"github.com/anviod/edgex/internal/model"
+	finslib "github.com/anviod/fins"
+
+	"go.uber.org/zap"
 )
 
 func init() {
@@ -19,131 +20,148 @@ func init() {
 	})
 }
 
+type finsBackend interface {
+	Init(cfg finslib.DriverConfig) error
+	Connect(ctx context.Context) error
+	Disconnect() error
+	ReadPoints(ctx context.Context, points []finslib.Point) (map[string]finslib.Value, error)
+	WritePoint(ctx context.Context, point finslib.Point, value interface{}) error
+	Health() finslib.HealthStatus
+	SetSlaveID(slaveID uint8) error
+	SetDeviceConfig(config map[string]interface{}) error
+	GetConnectionMetrics() finslib.ConnectionMetrics
+	GetSchedulerStats() finslib.SchedulerStats
+}
+
 type OmronFinsDriver struct {
 	config  model.DriverConfig
-	simData map[string]interface{} // Simulate data storage
-
-	// Connection metrics
-	connectionStartTime time.Time
-	reconnectCount      int64
-	lastDisconnectTime  time.Time
+	backend finsBackend
 }
 
 func NewOmronFinsDriver() driver.Driver {
-	return &OmronFinsDriver{
-		simData: make(map[string]interface{}),
-	}
+	return &OmronFinsDriver{}
 }
 
 func (d *OmronFinsDriver) Init(cfg model.DriverConfig) error {
 	d.config = cfg
+	finsCfg := toFinsLibConfig(cfg.Config)
+
+	backendCfg := finslib.DriverConfig{
+		Protocol: "omron-fins",
+		Config:   finsCfg,
+	}
+
+	var backend finsBackend
+	switch transportMode(cfg.Config) {
+	case "UDP":
+		backend = newUDPBackend()
+	default:
+		backend = finslib.NewFinsTCPDriver()
+	}
+
+	if err := backend.Init(backendCfg); err != nil {
+		return fmt.Errorf("omron fins init failed: %w", err)
+	}
+
+	d.backend = backend
+	zap.L().Info("[FINS] Driver initialized",
+		zap.String("mode", transportMode(cfg.Config)),
+		zap.Any("config", finsCfg),
+	)
 	return nil
 }
 
 func (d *OmronFinsDriver) Connect(ctx context.Context) error {
-	d.connectionStartTime = time.Now()
-	d.reconnectCount++
-
-	cfg := d.config.Config
-	ip, _ := cfg["ip"].(string)
-	port := 9600
-	if p, ok := cfg["port"].(float64); ok {
-		port = int(p)
-	} else if p, ok := cfg["port"].(int); ok {
-		port = p
+	if d.backend == nil {
+		return fmt.Errorf("omron fins driver not initialized")
 	}
-
-	modelStr, _ := cfg["model"].(string)
-
-	mode, _ := cfg["mode"].(string)
-	if mode == "" {
-		mode = "TCP"
+	if err := d.backend.Connect(ctx); err != nil {
+		return fmt.Errorf("omron fins connection failed: %w", err)
 	}
-
-	log.Printf("Omron FINS Driver connecting to %s:%d (%s) (Model: %s)...", ip, port, mode, modelStr)
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(100 * time.Millisecond):
-	}
-	log.Printf("Omron FINS Driver connected (Simulated)")
 	return nil
 }
 
 func (d *OmronFinsDriver) Disconnect() error {
-	d.lastDisconnectTime = time.Now()
-	log.Println("Omron FINS Driver disconnected")
-	return nil
+	if d.backend == nil {
+		return nil
+	}
+	return d.backend.Disconnect()
 }
 
 func (d *OmronFinsDriver) Health() driver.HealthStatus {
-	return driver.HealthStatusGood
+	if d.backend == nil {
+		return driver.HealthStatusBad
+	}
+	return toDriverHealth(d.backend.Health())
 }
 
 func (d *OmronFinsDriver) SetSlaveID(slaveID uint8) error {
-	// Not strictly used in FINS IP usually, but might map to Unit No.
-	return nil
+	if d.backend == nil {
+		return nil
+	}
+	return d.backend.SetSlaveID(slaveID)
 }
 
 func (d *OmronFinsDriver) SetDeviceConfig(config map[string]any) error {
-	// Handle device specific config if needed
-	return nil
+	if d.backend == nil {
+		return nil
+	}
+	return d.backend.SetDeviceConfig(config)
 }
 
 func (d *OmronFinsDriver) GetConnectionMetrics() (connectionSeconds int64, reconnectCount int64, localAddr string, remoteAddr string, lastDisconnectTime time.Time) {
-	connectionSeconds = 0
-	if !d.connectionStartTime.IsZero() {
-		connectionSeconds = int64(time.Since(d.connectionStartTime).Seconds())
-	}
-
-	reconnectCount = d.reconnectCount
-	lastDisconnectTime = d.lastDisconnectTime
-
-	// Extract addresses from config
-	if cfg := d.config.Config; cfg != nil {
-		if ip, ok := cfg["ip"].(string); ok {
-			port := 9600
-			if p, ok := cfg["port"].(float64); ok {
-				port = int(p)
-			} else if p, ok := cfg["port"].(int); ok {
-				port = p
-			}
-			remoteAddr = fmt.Sprintf("%s:%d", ip, port)
+	if d.backend == nil {
+		if d.config.Config != nil {
+			return 0, 0, "", remoteAddrFromConfig(d.config.Config), time.Time{}
 		}
+		return
 	}
-
-	return
+	metrics := d.backend.GetConnectionMetrics()
+	if metrics.RemoteAddr == "" && d.config.Config != nil {
+		metrics.RemoteAddr = remoteAddrFromConfig(d.config.Config)
+	}
+	return connectionMetricsTuple(metrics)
 }
 
-// GetMetrics 返回Omron FINS驱动的详细指标
+func (d *OmronFinsDriver) ReadPoints(ctx context.Context, points []model.Point) (map[string]model.Value, error) {
+	if d.backend == nil {
+		return nil, fmt.Errorf("omron fins driver not initialized")
+	}
+	results, err := d.backend.ReadPoints(ctx, toFinsPoints(points))
+	if err != nil {
+		return nil, err
+	}
+	return fromFinsValues(results), nil
+}
+
+func (d *OmronFinsDriver) WritePoint(ctx context.Context, p model.Point, value any) error {
+	if d.backend == nil {
+		return fmt.Errorf("omron fins driver not initialized")
+	}
+	return d.backend.WritePoint(ctx, toFinsPoint(p), value)
+}
+
 func (d *OmronFinsDriver) GetMetrics() model.ChannelMetrics {
-	// 获取基础连接指标
 	connSec, reconCount, localAddr, remoteAddr, lastDisc := d.GetConnectionMetrics()
 
-	// Omron FINS驱动目前没有详细的统计信息，使用模拟数据
-	totalRequests := int64(60) // 假设有一些请求
-	successCount := int64(58)  // 96.7%成功率
-	failureCount := int64(2)
+	totalRequests, successCount, failureCount := int64(0), int64(0), int64(0)
+	if d.backend != nil {
+		stats := d.backend.GetSchedulerStats()
+		totalRequests = stats.TotalRequests
+		successCount = stats.SuccessCount
+		failureCount = stats.FailureCount
+	}
 
-	// 计算成功率
 	successRate := 0.0
 	if totalRequests > 0 {
 		successRate = float64(successCount) / float64(totalRequests)
 	}
 
-	// 构建指标
-	metrics := model.ChannelMetrics{
-		QualityScore:       d.calculateQualityScore(),
+	return model.ChannelMetrics{
+		QualityScore:       d.calculateQualityScore(successRate),
 		Protocol:           "Omron FINS",
 		SuccessRate:        successRate,
 		TimeoutCount:       failureCount,
-		CrcError:           0, // FINS使用TCP，不适用CRC
-		CrcErrorRate:       0.0,
-		RetryRate:          0.0, // 可以后续添加重试统计
-		ExceptionCode:      0,
-		AvgRtt:             0, // 可以后续添加RTT统计
-		MaxRtt:             0,
-		MinRtt:             0,
 		TotalRequests:      totalRequests,
 		SuccessCount:       successCount,
 		FailureCount:       failureCount,
@@ -155,118 +173,203 @@ func (d *OmronFinsDriver) GetMetrics() model.ChannelMetrics {
 		LastDisconnectTime: lastDisc,
 		Timestamp:          time.Now(),
 	}
-
-	return metrics
 }
 
-// calculateQualityScore 计算Omron FINS质量评分
-func (d *OmronFinsDriver) calculateQualityScore() int {
-	// Omron FINS驱动目前没有连接状态检查，假设连接正常
-	score := 83 // Omron FINS通常比较稳定
+func (d *OmronFinsDriver) calculateQualityScore(successRate float64) int {
+	score := 85
 
-	// 根据重连次数降低分数
-	if d.reconnectCount > 10 {
-		score -= 20
-	} else if d.reconnectCount > 5 {
-		score -= 10
-	} else if d.reconnectCount > 0 {
+	if successRate < 0.5 {
+		score -= 30
+	} else if successRate < 0.8 {
+		score -= 15
+	} else if successRate < 0.95 {
 		score -= 5
 	}
 
-	// 确保分数在0-100范围内
+	if d.backend != nil && d.backend.Health() != finslib.HealthStatusUp {
+		score -= 40
+	}
+
+	_, reconCount, _, _, _ := d.GetConnectionMetrics()
+	if reconCount > 10 {
+		score -= 20
+	} else if reconCount > 5 {
+		score -= 10
+	} else if reconCount > 0 {
+		score -= 5
+	}
+
 	if score < 0 {
 		score = 0
 	} else if score > 100 {
 		score = 100
 	}
-
 	return score
 }
 
-func (d *OmronFinsDriver) ReadPoints(ctx context.Context, points []model.Point) (map[string]model.Value, error) {
-	results := make(map[string]model.Value)
-	for _, p := range points {
-		val, err := d.readPoint(p)
-		quality := "Good"
-		if err != nil {
-			quality = "Bad"
-			log.Printf("Error reading point %s: %v", p.Name, err)
-			// For simulation, maybe return a default or just log
-		}
-		// If val is nil (error), we might still want to return something or skip
-		if val != nil {
-			results[p.Name] = model.Value{
-				Value:   val,
-				TS:      time.Now(),
-				Quality: quality,
-			}
-		}
-	}
-	return results, nil
+// udpBackend implements finsBackend using fins/udp client and fins decoder/scheduler logic.
+type udpBackend struct {
+	cfg map[string]interface{}
+
+	client   udpClient
+	decoder  *finslib.Decoder
+	scheduler *udpScheduler
+
+	mu          sync.RWMutex
+	initialized bool
+	slaveID     uint8
+	deviceCfg   map[string]interface{}
+
+	connectTime        time.Time
+	lastDisconnectTime time.Time
+	reconnectCount     atomic.Int32
+	connected          atomic.Bool
+	remoteAddr         string
 }
 
-func (d *OmronFinsDriver) readPoint(p model.Point) (interface{}, error) {
-	// If we wrote a value, return it
-	if val, ok := d.simData[p.ID]; ok {
-		return val, nil
+type udpClient interface {
+	Close()
+	ReadWords(memoryArea byte, address uint16, readCount uint16) ([]uint16, error)
+	ReadBytes(memoryArea byte, address uint16, readCount uint16) ([]byte, error)
+	ReadBits(memoryArea byte, address uint16, bitOffset byte, readCount uint16) ([]bool, error)
+	WriteWords(memoryArea byte, address uint16, data []uint16) error
+	WriteBytes(memoryArea byte, address uint16, b []byte) error
+	WriteBits(memoryArea byte, address uint16, bitOffset byte, data []bool) error
+	SetTimeoutMs(t uint)
+}
+
+func newUDPBackend() *udpBackend {
+	return &udpBackend{
+		deviceCfg: make(map[string]interface{}),
+	}
+}
+
+func (b *udpBackend) Init(cfg finslib.DriverConfig) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.initialized {
+		return fmt.Errorf("udp backend already initialized")
 	}
 
-	// Generate random simulated data based on type
-	switch p.DataType {
-	case "BOOL", "BIT":
-		return rand.Intn(2) == 1, nil
-	case "INT8":
-		return int8(rand.Intn(256) - 128), nil
-	case "UINT8":
-		return uint8(rand.Intn(256)), nil
-	case "INT16":
-		return int16(rand.Intn(65536) - 32768), nil
-	case "UINT16":
-		return uint16(rand.Intn(65536)), nil
-	case "INT32":
-		return int32(rand.Intn(100000)), nil
-	case "UINT32":
-		return uint32(rand.Intn(100000)), nil
-	case "INT64":
-		return int64(rand.Intn(1000000)), nil
-	case "UINT64":
-		return uint64(rand.Intn(1000000)), nil
-	case "FLOAT":
-		return rand.Float32() * 100, nil
-	case "DOUBLE":
-		return rand.Float64() * 100, nil
-	case "STRING":
-		return fmt.Sprintf("OmronData-%d", rand.Intn(100)), nil
+	b.cfg = toFinsLibConfig(cfg.Config)
+	for k, v := range b.cfg {
+		b.deviceCfg[k] = v
+	}
+
+	decoder := finslib.NewDecoder()
+	b.decoder = decoder
+	b.scheduler = newUDPScheduler(b, decoder, b.cfg)
+	b.remoteAddr = remoteAddrFromConfig(b.cfg)
+	b.initialized = true
+	return nil
+}
+
+func (b *udpBackend) Connect(ctx context.Context) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if !b.initialized {
+		return fmt.Errorf("udp backend not initialized")
+	}
+
+	client, err := dialUDPClient(b.cfg)
+	if err != nil {
+		return err
+	}
+
+	if b.client != nil {
+		b.client.Close()
+	}
+
+	b.client = client
+	if timeout := configInt(b.cfg, "timeout"); timeout > 0 {
+		b.client.SetTimeoutMs(uint(timeout))
+	}
+
+	b.connected.Store(true)
+	b.connectTime = time.Now()
+	b.reconnectCount.Add(1)
+	b.scheduler.setClient(b.client)
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
 	default:
-		return rand.Intn(100), nil
 	}
-}
 
-func (d *OmronFinsDriver) WritePoint(ctx context.Context, p model.Point, value interface{}) error {
-	d.simData[p.ID] = value
-	log.Printf("Omron FINS WritePoint: %s = %v", p.Name, value)
 	return nil
 }
 
-// Helper to validate address format (used by ChannelManager via public helper or just implicitly here)
-// Address Format: AREA ADDRESS[.BIT][.LEN[H][L]]
-// e.g. D100, CIO1.2, W3.4, H4.15L
-func ParseOmronAddress(address string) error {
-	address = strings.ToUpper(address)
+func (b *udpBackend) Disconnect() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 
-	// Supported Areas: CIO, A, W, H, D, P, F, EM(digits)
-	// Regex breakdown:
-	// ^(CIO|A|W|H|D|P|F|EM\d*)  -> Area
-	// (\d+)                     -> Address Index
-	// (\.\d+)?                  -> Optional Bit (.0 to .15)
-	// ([HL]|\.\d+[HL]?)?        -> Optional String Len/Endian (simplified check)
+	if b.client != nil {
+		b.client.Close()
+		b.client = nil
+	}
+	if b.connected.Load() {
+		b.lastDisconnectTime = time.Now()
+	}
+	b.connected.Store(false)
+	b.scheduler.setClient(nil)
+	return nil
+}
 
-	// Let's use a simpler regex for validation
-	// Matches: D100, D100.1, EM10.100, CIO0.0
-	re := regexp.MustCompile(`^(CIO|A|W|H|D|P|F|EM\d*)(\d+)(\.\d+)?([HL]|\.\d+[HL]?)?$`)
+func (b *udpBackend) ReadPoints(ctx context.Context, points []finslib.Point) (map[string]finslib.Value, error) {
+	if !b.connected.Load() || b.client == nil {
+		return nil, fmt.Errorf("omron fins udp not connected")
+	}
+	return b.scheduler.ReadPoints(ctx, points)
+}
 
-	if !re.MatchString(address) {
-		return fmt.Errorf("invalid omron fins address format")
+func (b *udpBackend) WritePoint(ctx context.Context, point finslib.Point, value interface{}) error {
+	if !b.connected.Load() || b.client == nil {
+		return fmt.Errorf("omron fins udp not connected")
+	}
+	return b.scheduler.WritePoint(ctx, point, value)
+}
+
+func (b *udpBackend) Health() finslib.HealthStatus {
+	if b.connected.Load() && b.client != nil {
+		return finslib.HealthStatusUp
+	}
+	return finslib.HealthStatusDown
+}
+
+func (b *udpBackend) SetSlaveID(slaveID uint8) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.slaveID = slaveID
+	return nil
+}
+
+func (b *udpBackend) SetDeviceConfig(config map[string]interface{}) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for k, v := range config {
+		b.deviceCfg[k] = v
 	}
 	return nil
+}
+
+func (b *udpBackend) GetConnectionMetrics() finslib.ConnectionMetrics {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	return finslib.ConnectionMetrics{
+		Connected:          b.connected.Load(),
+		ConnectTime:        b.connectTime,
+		LastDisconnectTime: b.lastDisconnectTime,
+		ReconnectCount:     b.reconnectCount.Load(),
+		RemoteAddr:         b.remoteAddr,
+	}
+}
+
+func (b *udpBackend) GetSchedulerStats() finslib.SchedulerStats {
+	if b.scheduler == nil {
+		return finslib.SchedulerStats{}
+	}
+	return b.scheduler.GetStats()
 }

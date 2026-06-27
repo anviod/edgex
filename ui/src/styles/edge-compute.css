@@ -263,6 +263,21 @@
   margin-bottom: var(--space-4);
 }
 
+.industrial-white-modal .section-header-row {
+  margin-bottom: var(--space-5);
+}
+
+.industrial-white-modal .section-header-row .section-title {
+  margin-bottom: 0;
+}
+
+.industrial-white-modal .actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
 .industrial-white-modal .source-row {
   display: flex;
   align-items: flex-start;
@@ -289,20 +304,50 @@
   border-radius: var(--radius-sm);
 }
 
-.industrial-white-modal .action-card {
+.industrial-white-modal .action-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-5);
   padding: var(--space-5) var(--space-6);
-  margin-bottom: var(--space-4);
+  margin-bottom: 0;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
 
+.industrial-white-modal .action-row .action-editor {
+  flex: 1;
+  min-width: 0;
+}
+
+.industrial-white-modal .action-row .action-editor .arco-row {
+  row-gap: var(--space-4);
+}
+
+.industrial-white-modal .action-row .action-editor .arco-form-item {
+  margin-bottom: var(--space-5);
+}
+
+.industrial-white-modal .action-row .action-editor .arco-col:last-child > .arco-form-item:last-child,
+.industrial-white-modal .action-row .action-editor .arco-col > div > .arco-form-item:last-child {
+  margin-bottom: 0;
+}
+
 .industrial-white-modal .action-index {
-  font-size: 11px;
+  flex-shrink: 0;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--text-tertiary);
-  margin-bottom: var(--space-3);
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   white-space: nowrap;
 }
 

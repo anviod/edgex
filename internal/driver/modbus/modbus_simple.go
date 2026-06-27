@@ -195,7 +195,7 @@ func (d *ModbusSimpleDriver) ReadPoints(ctx context.Context, points []model.Poin
 			zap.L().Warn("[ModbusSimple] 连接不可用且不允许重试",
 				zap.String("channelID", d.config.ChannelID),
 			)
-			return nil, nil
+			return nil, core.ErrConnectionUnavailable
 		}
 
 		if waitTime > 0 {
@@ -348,10 +348,52 @@ func (d *ModbusSimpleDriver) SetDeviceConfig(config map[string]any) error {
 	}
 
 	decoder := NewPointDecoder(byteOrder4, startAddress, addressBase)
-	d.scheduler = NewPointScheduler(d.transport, decoder, 125, 120, 10*time.Millisecond)
+
+	batchSize := uint16(120)
+	if v, ok := config["batchSize"]; ok {
+		switch val := v.(type) {
+		case int:
+			batchSize = uint16(val)
+		case float64:
+			batchSize = uint16(val)
+		}
+	}
+
+	d.scheduler = NewPointScheduler(d.transport, decoder, 125, batchSize, 10*time.Millisecond)
 	d.scheduler.SetSlaveID(d.slaveID)
+	applySchedulerIOConfig(d.scheduler, config)
 
 	return nil
+}
+
+func applySchedulerIOConfig(scheduler *PointScheduler, config map[string]any) {
+	if scheduler == nil || config == nil {
+		return
+	}
+	if v, ok := config["max_gap"]; ok {
+		switch val := v.(type) {
+		case int:
+			scheduler.SetGroupThreshold(uint16(val))
+		case float64:
+			scheduler.SetGroupThreshold(uint16(val))
+		}
+	}
+	if v, ok := config["group_threshold"]; ok {
+		switch val := v.(type) {
+		case int:
+			scheduler.SetGroupThreshold(uint16(val))
+		case float64:
+			scheduler.SetGroupThreshold(uint16(val))
+		}
+	}
+	if v, ok := config["batchSize"]; ok {
+		switch val := v.(type) {
+		case int:
+			scheduler.SetMaxPacketSize(uint16(val))
+		case float64:
+			scheduler.SetMaxPacketSize(uint16(val))
+		}
+	}
 }
 
 func (d *ModbusSimpleDriver) GetConnectionMetrics() (connectionSeconds int64, reconnectCount int64, localAddr string, remoteAddr string, lastDisconnectTime time.Time) {

@@ -169,11 +169,11 @@ func (cm *ConnectionManager) RecordFailure() (shouldRetry bool, backoff time.Dur
 
 func (cm *ConnectionManager) calculateBackoff(attempt int) time.Duration {
 	backoff := cm.baseDelay * time.Duration(math.Pow(cm.backoffFactor, float64(attempt)))
-	if backoff > cm.maxDelay {
+	if cm.maxDelay > 0 && backoff > cm.maxDelay {
 		backoff = cm.maxDelay
 	}
 
-	jitter := time.Duration(rand.Intn(50)) * time.Millisecond
+	jitter := time.Duration(rand.Intn(50)+1) * time.Millisecond
 	return backoff + jitter
 }
 

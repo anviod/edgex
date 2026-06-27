@@ -43,6 +43,8 @@ const tcpParams = [
   { label: '设备 IP', example: '192.168.1.100' },
   { label: '端口', example: '8001', desc: '以网关/表计文档为准' },
   { label: '超时时间', desc: '建议 2000–5000 ms' },
+  { label: '发送间隔', desc: '多表轮询间隔 sendInterval，默认 200 ms' },
+  { label: '前导字节', desc: '串口模式唤醒 0xFE 个数，默认 4' },
 ]
 
 const faqItems = [

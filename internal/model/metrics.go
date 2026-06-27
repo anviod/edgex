@@ -29,6 +29,7 @@ type ChannelMetrics struct {
 	// 连接指标
 	LocalAddr          string    `json:"localAddr"`          // 本地地址 (IP:Port)
 	RemoteAddr         string    `json:"remoteAddr"`         // 远程地址 (IP:Port)
+	LinkUp             bool      `json:"linkUp"`             // 通道链路是否已建立
 	ReconnectCount     int64     `json:"reconnectCount"`     // 重连次数
 	ConnectionSeconds  int64     `json:"connectionSeconds"`  // 当前连接时长(秒)
 	LastDisconnectTime time.Time `json:"lastDisconnectTime"` // 最后断开时间
@@ -244,9 +245,7 @@ func (mc *MetricsCollector) GetChannelMetrics(channelID string) *ChannelMetrics 
 	}
 
 	return &ChannelMetrics{
-		QualityScore: 100,
-		SuccessRate:  1.0,
-		Timestamp:    time.Now(),
+		Timestamp: time.Now(),
 	}
 }
 
@@ -261,9 +260,7 @@ func (mc *MetricsCollector) GetDeviceMetrics(deviceID string) *DeviceMetrics {
 	}
 
 	return &DeviceMetrics{
-		HealthScore: 100,
-		State:       0,
-		Timestamp:   time.Now(),
+		Timestamp: time.Now(),
 	}
 }
 
@@ -529,9 +526,7 @@ func (mc *MetricsCollector) getOrCreateChannelMetrics(channelID string) *Channel
 	}
 
 	metrics := &ChannelMetrics{
-		QualityScore: 100,
-		SuccessRate:  1.0,
-		Timestamp:    time.Now(),
+		Timestamp: time.Now(),
 	}
 	mc.channelMetrics[channelID] = metrics
 	return metrics
@@ -544,9 +539,7 @@ func (mc *MetricsCollector) getOrCreateDeviceMetrics(deviceID string) *DeviceMet
 	}
 
 	metrics := &DeviceMetrics{
-		HealthScore: 100,
-		State:       0,
-		Timestamp:   time.Now(),
+		Timestamp: time.Now(),
 	}
 	mc.deviceMetrics[deviceID] = metrics
 	return metrics

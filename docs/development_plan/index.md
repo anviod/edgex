@@ -1,12 +1,55 @@
 ---
-layout: default
+layout: section-index
 title: 开发计划
-description: EdgeX 开发计划与路线图
+description: EdgeX 开发计划与路线图 — Q3/Q4 驱动交付、ScanEngine、ShadowCore、多节点同步
 ---
 
-# 开发计划
+<div class="section-index-hero">
+  <div class="eyebrow">Roadmap & Planning</div>
+  <h1>开发计划</h1>
+  <p>EdgeX 项目开发规划、路线图与待实现功能 — 驱动扩展、ScanEngine 采集优化、ShadowCore 影子设备与多节点同步通信。</p>
+  <div class="hero-actions">
+    <a class="button-link button-link--primary" href="../index.html">返回首页</a>
+    <a class="button-link button-link--secondary" href="../drivers/index.html">驱动总览</a>
+    <a class="button-link button-link--secondary" href="../architecture/index.html">架构设计</a>
+  </div>
+</div>
 
-本专题专栏汇总 EdgeX 项目的开发规划、路线图和待实现功能，方便团队了解项目进展和未来方向。
+<div class="markdown-body">
+
+## 路线图总览
+
+### 已完成 ✅
+
+#### 驱动支持
+- **Modbus TCP/RTU**: 完整支持，智能 MTU 探测与指数退避
+- **BACnet IP**: 设备发现、对象扫描、点位读写、半开探测
+- **OPC UA 客户端**: 订阅与监控，断线自动重连
+- **Siemens S7**: S7-200Smart/1200/1500/300/400 全系列
+- **EtherNet/IP (ODVA)**: Rockwell PLC 全系列支持
+- **Omron FINS TCP/UDP**: CIO/D/W/H/EM 区域批量读写
+- **SNMP v2c/v3**: Community / USM 认证，OID 批量采集
+- **IEC 60870-5-104 M1**: 总召唤、自发上报、单点遥控
+
+#### 核心特性
+- ConnectionManager 公共连接管理组件
+- 全驱动采集健康检测（取消独立心跳）
+- 指数退避 + 冷却期策略
+- ScanEngine 基础：RTT/MTU/Gap 管理器（开发中）
+- ShadowCore 影子设备系统（开发中）
+
+### 开发中 🚧
+
+| 模块 | 状态 | 预计完成 | 说明 |
+| :--- | :--- | :--- | :--- |
+| **DL/T 645-2007** | 开发中 | Q3 2026 | 多功能电能表通信协议 |
+| **ScanEngine 采集优化** | 开发中 | Q3 2026 | 设备画像、批量调度、通道质量监控 |
+| **ShadowCore 增强** | 开发中 | Q3 2026 | 虚拟影子、WAL 压缩、跨通道聚合 |
+| **多节点同步通信** | 预研中 | Q3 2026 | 基于 go-libp2p 的分布式配置同步 |
+| **高可用接管** | 预研中 | Q3 2026 | 故障自动接管与租约机制 |
+| **IEC 104 M2** | 待启动 | Q4 2026 | 遥调、时钟同步、SOE、双点遥控 |
+
+---
 
 ## 目录
 
@@ -22,74 +65,28 @@ description: EdgeX 开发计划与路线图
 
 ---
 
-## 路线图总览
+## Q3 2026 重点交付
 
-### 已完成 ✅
+1. **ScanEngine 南向采集优化**
+   - RTT 管理器：EWMA 算法动态超时
+   - MTU 管理器：自动探测最大传输单元
+   - Gap 优化器：寄存器 Gap 合并策略
+   - 设备智能画像与采集调度器
 
-#### 驱动支持
-- **Modbus TCP/RTU**: 完整支持，智能采集优化
-- **BACnet IP**: 设备发现、对象扫描、点位读写
-- **OPC UA 客户端**: 订阅与监控，断线自动重连
-- **Siemens S7**: S7-200Smart/1200/1500/300/400 全系列
-- **EtherNet/IP (ODVA)**: Rockwell PLC 全系列支持
+2. **ShadowCore 影子设备**
+   - 统一内部数据模型
+   - WAL 持久化与快速恢复
+   - 真实/虚拟影子设备支持
 
-#### 核心特性
-- 智能采集优化（RTT/MTU/Gap 管理器）
-- 影子设备系统
-- 设备智能画像
-- 连接状态机与指数退避
-- 采集健康检测
-
-### 开发中 🚧
-
-#### 协议驱动
-
-| 驱动 | 状态 | 预计完成 | 说明 |
-| :--- | :--- | :--- | :--- |
-| **Omron FINS TCP** | 规划中 | Q3 2026 | 欧姆龙 PLC 通信协议 |
-| **DL/T 645-2007** | 规划中 | Q3 2026 | 多功能电能表通信协议 |
-| **IEC 60870-5-104** | 规划中 | Q4 2026 | 电力自动化通信协议 |
-| **SNMP** | 规划中 | Q4 2026 | 简单网络管理协议 |
-
-#### 架构特性
-
-| 特性 | 状态 | 预计完成 | 说明 |
-| :--- | :--- | :--- | :--- |
-| **多节点同步通信** | 规划中 | Q3 2026 | 基于 go-libp2p 的分布式配置同步 |
-| **高可用接管** | 规划中 | Q3 2026 | 故障自动接管与租约机制 |
-
----
-
-## 驱动开发计划详情
-
-### Q3 2026 计划
-
-1. **Omron FINS TCP 驱动**
-   - 支持 CIO、W、H、D、A、P、F、EM 区域读写
-   - 位操作与字符串操作支持
-   - 与现有 ConnectionManager 集成
-
-2. **DL/T 645-2007 驱动**
+3. **DL/T 645-2007 驱动**
    - 电能量采集（有功/无功电能）
    - 需量采集与变量采集
    - 谐波数据与冻结数据支持
 
-3. **多节点同步通信**
+4. **多节点同步通信**
    - 基于 go-libp2p 的 P2P 网络
    - 配置自动发现与同步
    - 设备控制权租约机制
-
-### Q4 2026 计划
-
-1. **IEC 60870-5-104 驱动**
-   - 遥信、遥测、遥脉数据采集
-   - 总召唤与时钟同步
-   - 遥控遥调功能
-
-2. **SNMP 驱动**
-   - SNMP v2c 与 v3 支持
-   - OID 批量读取与 MIB 遍历
-   - 网络设备监控
 
 ---
 
@@ -116,15 +113,16 @@ description: EdgeX 开发计划与路线图
 
 ## 项目进度跟踪
 
-### 2026年6月更新
-- ✅ 完成 EtherNet/IP (ODVA) 协议支持
-- ✅ 实现 ConnectionManager 公共组件
-- ✅ 完成全驱动采集健康检测集成
-- ✅ 取消独立心跳机制，统一采集驱动检测
-- ✅ BACnet 半开探测逻辑优化
+### 2026年6月
+- ✅ IEC 104 M1 交付（总召唤、自发上报、遥控）
+- ✅ SNMP v2c/v3 与 Omron FINS 驱动完成
+- ✅ ConnectionManager 公共组件发布
+- ✅ 全驱动采集健康检测集成
+- ✅ CGO-free CI 流水线稳定
+- 🚧 ScanEngine / ShadowCore Q3 架构开发中
 - 🚧 多节点同步通信方案设计中
 
-### 2026年5月更新
+### 2026年5月
 - ✅ S7 协议完整支持
 - ✅ 连接生命周期系统构建
 - ✅ 指数退避与冷却期策略
@@ -133,6 +131,10 @@ description: EdgeX 开发计划与路线图
 
 ## 相关文档
 
-- [驱动总览](../drivers/index.html) - 已支持驱动的完整文档
-- [架构设计](../architecture/index.html) - 系统架构与设计文档
-- [测试验证](../testing/index.html) - 测试方案与验证报告
+- [驱动总览](../drivers/index.html) — 已支持驱动的完整文档
+- [架构设计](../architecture/index.html) — ScanEngine 与 ShadowCore 设计
+- [边缘计算](../edge/index.html) — 边缘计算功能与场景
+- [测试验证](../testing/index.html) — 测试方案与验证报告
+- [Q3 采集优化方案](../%5BTODO%5D边缘计算南向采集优化方案2026第三季度.html) — ScanEngine 详细规划
+
+</div>

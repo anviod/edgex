@@ -82,6 +82,27 @@
   box-shadow: var(--shadow-md) !important;
   border: 1px solid var(--border) !important;
   background: var(--bg) !important;
+  width: max-content !important;
+  min-width: max-content !important;
+  max-width: min(480px, 90vw);
+}
+
+.arco-trigger-popup:has(.arco-select-dropdown) .arco-trigger-popup-wrapper {
+  width: max-content !important;
+  min-width: max-content !important;
+  max-width: min(480px, 90vw);
+}
+
+.arco-select-dropdown-list-wrapper,
+.arco-select-dropdown-list {
+  min-width: max-content;
+}
+
+.arco-select-option,
+.arco-select-option-content {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .arco-select-option-selected {
