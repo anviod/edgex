@@ -157,3 +157,39 @@
 2026-06-26T23:29:56.700+0800	info	core/virtual_shadow_engine.go:178	[VirtualShadowEngine] Source not ready for v1.hr_0 (ref=cg85dqveijgh1hqc.modbus-slave-1.hr_0)
 2026-06-26T23:29:56.700+0800	info	core/virtual_shadow_engine.go:178	[VirtualShadowEngine] Source not ready for v1.hr_1 (ref=cg85dqveijgh1hqc.modbus-slave-1.hr_1)
 2026-06-26T23:29:56.700+0800	info	core/virtual_shadow_engine.go:178	[VirtualShadowEngine] Source not ready for v1.hr_2 (ref=cg85dqveijgh1hqc.modbus-slave-1.hr_2)
+2026-06-27T14:22:32.950+0800	info	cmd/main.go:103	Logger initialized	{"level": "info", "file": "logs/gateway.edgex.log"}
+2026-06-27T14:22:32.950+0800	info	cmd/main.go:104	Build info	{"version": "dev", "build_time": "unknown", "commit_id": "unknown"}
+2026-06-27T14:22:32.950+0800	info	cmd/main.go:113	Node ID generated	{"nodeID": "NODE-ADMINISTRATORDEMACBOOK_PRO.LOCAL"}
+2026-06-27T14:22:32.950+0800	info	cmd/main.go:115	Data directory ready	{"path": "data"}
+2026-06-27T14:22:32.950+0800	info	cmd/main.go:125	Initializing data pipeline...
+2026-06-27T14:22:32.950+0800	info	cmd/main.go:127	Data pipeline initialized
+2026-06-27T14:22:32.950+0800	info	cmd/main.go:136	Initializing Edge Compute Manager...
+2026-06-27T14:22:32.951+0800	info	cmd/main.go:144	Edge Compute Manager started
+2026-06-27T14:22:32.951+0800	info	cmd/main.go:147	Initializing Channel Manager...
+2026-06-27T14:22:32.951+0800	info	core/shadow_core.go:120	[ShadowCore] Started (memory-only)
+2026-06-27T14:22:32.951+0800	info	cmd/main.go:168	ShadowCore and VirtualShadowEngine initialized
+2026-06-27T14:22:32.952+0800	info	cmd/main.go:172	Initializing Northbound Manager...
+2026-06-27T14:22:32.952+0800	info	cmd/main.go:201	Core components initialized
+2026-06-27T14:22:32.952+0800	info	cmd/main.go:218	Sync Manager disabled (set system.sync.enabled=true to enable)
+2026-06-27T14:22:32.952+0800	info	cmd/main.go:222	Initializing Web Server...
+2026-06-27T14:22:32.972+0800	info	core/virtual_shadow_engine.go:72	[VirtualShadowEngine] Created virtual device: v1 with 3 dependencies
+2026-06-27T14:22:32.972+0800	info	cmd/main.go:265	Web Server initialized
+2026-06-27T14:22:32.973+0800	info	core/virtual_shadow_engine.go:178	[VirtualShadowEngine] Source not ready for v1.hr_0 (ref=cg85dqveijgh1hqc.modbus-slave-1.hr_0)
+2026-06-27T14:22:32.973+0800	info	core/virtual_shadow_engine.go:178	[VirtualShadowEngine] Source not ready for v1.hr_1 (ref=cg85dqveijgh1hqc.modbus-slave-1.hr_1)
+2026-06-27T14:22:32.973+0800	info	cmd/main.go:276	Web server starting	{"addr": ":8080"}
+2026-06-27T14:22:32.973+0800	info	core/virtual_shadow_engine.go:178	[VirtualShadowEngine] Source not ready for v1.hr_2 (ref=cg85dqveijgh1hqc.modbus-slave-1.hr_2)
+2026-06-27T14:22:32.973+0800	info	modbus/modbus_executor.go:125	[ModbusExecutor] 初始化完成	{"channelID": "cg85dqveijgh1hqc", "protocol": "", "slaveID": 1}
+2026-06-27T14:22:33.033+0800	info	driver/connection_manager.go:118	[ConnMgr] Connection state changed	{"driver": "modbus", "from": "Disconnected", "to": "Connecting"}
+2026-06-27T14:22:33.033+0800	info	core/virtual_shadow_engine.go:330	[VirtualShadowEngine] Deleted virtual device: v1
+2026-06-27T14:22:33.033+0800	info	core/virtual_shadow_engine.go:72	[VirtualShadowEngine] Created virtual device: v1 with 3 dependencies
+2026-06-27T14:22:33.033+0800	info	core/virtual_shadow_engine.go:178	[VirtualShadowEngine] Source not ready for v1.hr_0 (ref=cg85dqveijgh1hqc.modbus-slave-1.hr_0)
+2026-06-27T14:22:33.034+0800	info	core/virtual_shadow_engine.go:178	[VirtualShadowEngine] Source not ready for v1.hr_1 (ref=cg85dqveijgh1hqc.modbus-slave-1.hr_1)
+2026-06-27T14:22:33.034+0800	info	core/virtual_shadow_engine.go:178	[VirtualShadowEngine] Source not ready for v1.hr_2 (ref=cg85dqveijgh1hqc.modbus-slave-1.hr_2)
+2026-06-27T14:22:33.034+0800	warn	modbus/transport.go:351	[Modbus] Open TCP connection failed	{"error": "dial tcp 127.0.0.1:502: connect: connection refused"}
+2026-06-27T14:22:33.034+0800	warn	modbus/transport.go:351	[Modbus] Open TCP connection failed	{"error": "dial tcp 127.0.0.1:502: connect: connection refused"}
+2026-06-27T14:22:33.035+0800	warn	modbus/transport.go:351	[Modbus] Open TCP connection failed	{"error": "dial tcp 127.0.0.1:502: connect: connection refused"}
+2026-06-27T14:22:33.044+0800	error	driver/connection_manager.go:191	[ConnMgr] Entering coolDown	{"driver": "modbus", "retryCount": 3, "maxRetries": 3, "coolDownDuration": 60, "coolDownAttempts": 1}
+2026-06-27T14:22:33.044+0800	error	core/channel_manager.go:532	Failed to connect driver for channel	{"channel": "1", "error": "Modbus connection failed, entering coolDown: dial tcp 127.0.0.1:502: connect: connection refused"}
+2026-06-27T14:22:33.044+0800	error	cmd/main.go:296	Failed to start channel	{"channel": "1", "error": "Modbus connection failed, entering coolDown: dial tcp 127.0.0.1:502: connect: connection refused"}
+2026-06-27T14:22:33.044+0800	info	cmd/main.go:299	All channels initialization completed
+2026-06-27T14:22:33.044+0800	info	cmd/main.go:303	Northbound manager started

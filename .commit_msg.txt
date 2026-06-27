@@ -1,0 +1,3 @@
+Fix landing page HTML rendered as code blocks on GitHub Pages.
+
+Move homepage markup into a Jekyll include so kramdown no longer treats indented block HTML as fenced code output.
