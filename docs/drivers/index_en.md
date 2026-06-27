@@ -15,7 +15,7 @@ description: EdgeX southbound collection drivers — Modbus, BACnet, OPC UA, S7,
   </div>
 </div>
 
-<div class="markdown-body">
+<div class="markdown-body" markdown="1">
 
 ## Driver Support Matrix
 

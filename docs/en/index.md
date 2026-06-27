@@ -15,7 +15,7 @@ description: English documentation index for EdgeX industrial edge gateway exper
   </div>
 </div>
 
-<div class="markdown-body">
+<div class="markdown-body" markdown="1">
 
 ## Quick Links
 

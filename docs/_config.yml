@@ -1,5 +1,8 @@
 # 站点配置
 encoding: utf-8
+markdown: kramdown
+kramdown:
+  parse_block_html: true
 name: EdgeX 知识库
 description: EdgeX 工业边缘网关专家知识库 — 南向驱动、架构设计与运维文档
 
