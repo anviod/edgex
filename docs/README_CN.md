@@ -5,7 +5,7 @@
 Industrial Edge Gateway（边缘网关）是一款轻量级工业边缘计算网关，连接工业现场设备（南向）与云端/上层应用（北向），并提供本地边缘计算能力。后端采用 Go，管理界面采用 Vue 3 + Vuetify。
 
 <div align="center">
-  <img src="./img/dataMain_cn.svg" width="100%">
+  <img src="./img/dataMain_CN.svg" width="100%">
 </div>
 
 ## 项目概述
