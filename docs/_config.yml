@@ -1,7 +1,7 @@
 # 站点配置
 encoding: utf-8
-name: EdgeX 文档
-description: EdgeX 项目文档网站
+name: EdgeX 知识库
+description: EdgeX 工业边缘网关专家知识库 — 南向驱动、架构设计与运维文档
 
 # 主题设置
 remote_theme: pages-themes/cayman@v0.2.0

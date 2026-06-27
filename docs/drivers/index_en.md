@@ -21,17 +21,17 @@ description: EdgeX southbound collection drivers — Modbus, BACnet, OPC UA, S7,
 
 | Protocol | Registry Key | Status | Read | Write | Scan / Discover | ConnectionManager | Unit Tests |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| **Modbus TCP/RTU** | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | ✅ Production | ✅ | ✅ | — | ✅ | 33 tests, 27% cov |
-| **Modbus Simple** | `modbus-*-simple` | ✅ Production | ✅ | ✅ | — | ✅ | (shared) |
-| **BACnet IP** | `bacnet-ip` | ✅ Production | ✅ | ✅ | Scan + ScanObjects | Partial | 80+ tests, 59% cov |
-| **OPC UA Client** | `opc-ua` | ✅ Production | ✅ | ✅ | Scan + ScanObjects | ✅ | 25 tests, 40% cov |
-| **Siemens S7** | `s7` | ✅ Production | ✅ | ✅ | — | ✅ | 52 tests, 42% cov |
-| **EtherNet/IP** | `ethernet-ip` | ✅ Production | ✅ | ✅ | — | ✅ | 57 tests, 30% cov |
-| **Omron FINS** | `omron-fins` | ✅ Production | ✅ | ✅ | — | ✅ | 6 tests, 25% cov |
-| **SNMP v2c/v3** | `snmp` | ✅ Production | ✅ | ✅ | ScanObjects | ✅ | 15 tests, 34% cov |
-| **IEC 60870-5-104** | `iec60870-5-104` | 🚧 M1 delivered | ✅ | ✅ (single command) | — | 🚧 In progress | 8 tests, 23% cov |
-| **DL/T645-2007** | `dlt645` | ⚠️ Stub | Simulated | Simulated | — | — | No tests |
-| **Mitsubishi SLMP** | `mitsubishi-slmp` | ✅ Production | ✅ | ✅ | — | ✅ | 7 tests |
+| **Modbus TCP/RTU** | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | Production | Yes | Yes | — | Yes | 33 tests, 27% cov |
+| **Modbus Simple** | `modbus-*-simple` | Production | Yes | Yes | — | Yes | (shared) |
+| **BACnet IP** | `bacnet-ip` | Production | Yes | Yes | Scan + ScanObjects | Partial | 80+ tests, 59% cov |
+| **OPC UA Client** | `opc-ua` | Production | Yes | Yes | Scan + ScanObjects | Yes | 25 tests, 40% cov |
+| **Siemens S7** | `s7` | Production | Yes | Yes | — | Yes | 52 tests, 42% cov |
+| **EtherNet/IP** | `ethernet-ip` | Production | Yes | Yes | — | Yes | 57 tests, 30% cov |
+| **Omron FINS** | `omron-fins` | Production | Yes | Yes | — | Yes | 6 tests, 25% cov |
+| **SNMP v2c/v3** | `snmp` | Production | Yes | Yes | ScanObjects | Yes | 15 tests, 34% cov |
+| **IEC 60870-5-104** | `iec60870-5-104` | M1 delivered | Yes | Yes (single command) | — | In progress | 8 tests, 23% cov |
+| **DL/T645-2007** | `dlt645` | Implemented | Yes | Yes | — | Yes | 17 tests |
+| **Mitsubishi SLMP** | `mitsubishi-slmp` | Production | Yes | Yes | — | Yes | 7 tests |
 
 > All drivers above are registered via blank imports in `cmd/main.go`. Only document drivers that exist in code.
 

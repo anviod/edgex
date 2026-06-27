@@ -26,10 +26,10 @@ CGO_ENABLED=0 go test -bench=. -benchmem ./internal/driver/ethernetip -run=^$ -c
 
 | Scope | Result | Coverage | Notes |
 | :--- | :--- | :--- | :--- |
-| Main driver packages | ✅ PASS | 12–59% | All production drivers pass |
-| `bacnet/utsm` sub-package | ✅ PASS | — | Async UTSM unit tests |
-| `internal/driver/...` overall | ✅ PASS | — | All sub-packages |
-| `internal/core/...` | ✅ PASS | 47.9% | Includes VirtualShadowEngine pipeline fan-out |
+| Main driver packages | PASS | 12–59% | All production drivers pass |
+| `bacnet/utsm` sub-package | PASS | — | Async UTSM unit tests |
+| `internal/driver/...` overall | PASS | — | All sub-packages |
+| `internal/core/...` | PASS | 47.9% | Includes VirtualShadowEngine pipeline fan-out |
 
 ---
 
@@ -37,16 +37,16 @@ CGO_ENABLED=0 go test -bench=. -benchmem ./internal/driver/ethernetip -run=^$ -c
 
 | Driver | Registry Key | ~Tests | Coverage | Status |
 | :--- | :--- | :---: | :---: | :---: |
-| Modbus | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` (+ simple variants) | 33 | 27.0% | ✅ Production |
-| BACnet IP | `bacnet-ip` | 80+ | 59.1% | ✅ Production |
-| OPC UA | `opc-ua` | 25 | 40.3% | ✅ Production |
-| Siemens S7 | `s7` | 52 | 42.0% | ✅ Production |
-| EtherNet/IP | `ethernet-ip` | 57 | 30.3% | ✅ Production |
-| Omron FINS | `omron-fins` | 6 | 25.3% | ✅ Production |
-| SNMP | `snmp` | 15 | 33.9% | ✅ Production |
-| IEC 60870-5-104 | `iec60870-5-104` | 8 | 23.4% | 🚧 M1 partial |
-| DL/T645 | `dlt645` | 0 | 0.0% | ⚠️ Stub |
-| Mitsubishi SLMP | `mitsubishi-slmp` | 0 | 0.0% | ⚠️ Stub |
+| Modbus | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` (+ simple variants) | 33 | 27.0% | Production |
+| BACnet IP | `bacnet-ip` | 80+ | 59.1% | Production |
+| OPC UA | `opc-ua` | 25 | 40.3% | Production |
+| Siemens S7 | `s7` | 52 | 42.0% | Production |
+| EtherNet/IP | `ethernet-ip` | 57 | 30.3% | Production |
+| Omron FINS | `omron-fins` | 6 | 25.3% | Production |
+| SNMP | `snmp` | 15 | 33.9% | Production |
+| IEC 60870-5-104 | `iec60870-5-104` | 8 | 23.4% | M1 partial |
+| DL/T645 | `dlt645` | 0 | 0.0% | Stub |
+| Mitsubishi SLMP | `mitsubishi-slmp` | 0 | 0.0% | Stub |
 
 ---
 
@@ -75,13 +75,13 @@ See also [ScanEngine Refactoring Test Report](../TODO/ScanEngine重构测试报�
 
 | Scenario | Modbus | BACnet | OPC UA | S7 | ENIP | SNMP | Core |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Timeout / backoff | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ |
-| Reconnect / half-open probe | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ |
-| Cooldown / Dead state | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Invalid config / address | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
-| Channel offline | — | — | — | — | — | — | ✅ |
-| Scan priority | — | — | — | — | — | — | ✅ |
-| Fault isolation | — | ✅ | — | — | — | — | — |
+| Timeout / backoff | 是 | 是 | 是 | 是 | 是 | — | 是 |
+| Reconnect / half-open probe | 是 | 是 | 是 | 是 | 是 | — | 是 |
+| Cooldown / Dead state | 是 | 是 | 是 | 是 | 是 | — | — |
+| Invalid config / address | 是 | 是 | — | 是 | 是 | 是 | 是 |
+| Channel offline | — | — | — | — | — | — | 是 |
+| Scan priority | — | — | — | — | — | — | 是 |
+| Fault isolation | — | 是 | — | — | — | — | — |
 
 ---
 

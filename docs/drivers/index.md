@@ -24,17 +24,17 @@ description: EdgeX 南向采集驱动文档 — Modbus、BACnet、OPC UA、S7、
 
 | 协议 | 注册名 | 状态 | 读 | 写 | 扫描/发现 | 连接管理 | 单元测试 |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| **Modbus TCP/RTU** | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | ✅ 生产就绪 | ✅ | ✅ | — | ✅ | 33 项，27% 覆盖 |
-| **Modbus Simple** | `modbus-*-simple` | ✅ 生产就绪 | ✅ | ✅ | — | ✅ | 同上 |
-| **BACnet IP** | `bacnet-ip` | ✅ 生产就绪 | ✅ | ✅ | Scan + ScanObjects | 故障隔离 | 80+ 项，59% 覆盖 |
-| **OPC UA Client** | `opc-ua` | ✅ 生产就绪 | ✅ | ✅ | Scan + ScanObjects | ✅ | 25 项，40% 覆盖 |
-| **Siemens S7** | `s7` | ✅ 生产就绪 | ✅ | ✅ | — | ✅ | 52 项，42% 覆盖 |
-| **EtherNet/IP** | `ethernet-ip` | ✅ 生产就绪 | ✅ | ✅ | — | ✅ | 57 项，30% 覆盖 |
-| **Omron FINS** | `omron-fins` | ✅ 生产就绪 | ✅ | ✅ | — | ✅ | 6 项，25% 覆盖 |
-| **SNMP v2c/v3** | `snmp` | ✅ 生产就绪 | ✅ | ✅ | ScanObjects | ✅ | 15 项，34% 覆盖 |
-| **IEC 60870-5-104** | `iec60870-5-104` | 🚧 M1 已交付 | ✅ | ✅ 单点遥控 | — | 🚧 开发中 | 8 项，23% 覆盖 |
-| **DL/T645-2007** | `dlt645` | ✅ 已实现 | ✅ | ✅ | — | ✅ | 17 项 |
-| **Mitsubishi SLMP** | `mitsubishi-slmp` | ✅ 生产就绪 | ✅ | ✅ | — | ✅ | 7 项 |
+| **Modbus TCP/RTU** | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | 生产就绪 | 是 | 是 | — | 是 | 33 项，27% 覆盖 |
+| **Modbus Simple** | `modbus-*-simple` | 生产就绪 | 是 | 是 | — | 是 | 同上 |
+| **BACnet IP** | `bacnet-ip` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 故障隔离 | 80+ 项，59% 覆盖 |
+| **OPC UA Client** | `opc-ua` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 是 | 25 项，40% 覆盖 |
+| **Siemens S7** | `s7` | 生产就绪 | 是 | 是 | — | 是 | 52 项，42% 覆盖 |
+| **EtherNet/IP** | `ethernet-ip` | 生产就绪 | 是 | 是 | — | 是 | 57 项，30% 覆盖 |
+| **Omron FINS** | `omron-fins` | 生产就绪 | 是 | 是 | — | 是 | 6 项，25% 覆盖 |
+| **SNMP v2c/v3** | `snmp` | 生产就绪 | 是 | 是 | ScanObjects | 是 | 15 项，34% 覆盖 |
+| **IEC 60870-5-104** | `iec60870-5-104` | M1 已交付 | 是 | 是 单点遥控 | — | 开发中 | 8 项，23% 覆盖 |
+| **DL/T645-2007** | `dlt645` | 已实现 | 是 | 是 | — | 是 | 17 项 |
+| **Mitsubishi SLMP** | `mitsubishi-slmp` | 生产就绪 | 是 | 是 | — | 是 | 7 项 |
 
 ### 主要配置参数
 
