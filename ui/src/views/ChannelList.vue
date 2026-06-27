@@ -265,7 +265,19 @@
           <a-switch v-model="dialog.form.enable" />
         </a-form-item>
 
-        <div class="modal-section__title">协议配置</div>
+        <div class="modal-section__title config-section-header">
+          <span>协议配置</span>
+          <a-tooltip content="用推荐值填充尚未填写的配置项，不会覆盖已有内容">
+            <a-button type="outline" size="mini" :disabled="!dialog.form.protocol" @click="fillDefaultConfig">
+              <template #icon>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                </svg>
+              </template>
+              填充默认参数
+            </a-button>
+          </a-tooltip>
+        </div>
 
         <!-- Modbus TCP & Modbus RTU Over TCP Config -->
         <div v-if="dialog.form.protocol === 'modbus-tcp' || dialog.form.protocol === 'modbus-rtu-over-tcp'" class="config-section">
@@ -1117,11 +1129,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, computed, h } from 'vue'
+import { ref, onMounted, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
 import request from '@/utils/request'
 import { formatProtocolTag } from '@/utils/protocolLabel'
+import { applyChannelDefaultConfig, getChannelDefaultConfig } from '@/utils/channelDefaultConfig'
 import ChannelProtocolHelpDrawer from '@/components/channel-help/ChannelProtocolHelpDrawer.vue'
 import ChannelMetricsPanel from '@/components/channel/ChannelMetricsPanel.vue'
 import { computeQualityScore, runtimeFromQualityScore } from '@/utils/channelMetrics'
@@ -1228,6 +1241,13 @@ const goToDevices = (channel) => {
   router.push(`/channels/${channel.id}/devices`)
 }
 
+const fillDefaultConfig = () => {
+  const protocol = dialog.form.protocol
+  if (!protocol) return
+  dialog.form.config = applyChannelDefaultConfig(protocol, dialog.form.config)
+  Message.success('已填充推荐参数（仅空字段）')
+}
+
 const openAddDialog = () => {
   dialog.isEdit = false
   dialog.form = {
@@ -1235,7 +1255,7 @@ const openAddDialog = () => {
     name: '',
     protocol: 'modbus-tcp',
     enable: true,
-    config: {},
+    config: getChannelDefaultConfig('modbus-tcp'),
     devices: []
   }
   dialog.show = true
@@ -1438,11 +1458,25 @@ const fetchChannels = async () => {
   }
 }
 
+watch(
+  () => dialog.form.protocol,
+  (protocol, prev) => {
+    if (!dialog.show || dialog.isEdit || !protocol || protocol === prev) return
+    // Adding a channel: switching protocol replaces config with that protocol's defaults.
+    dialog.form.config = getChannelDefaultConfig(protocol)
+  }
+)
+
 onMounted(() => {
   fetchChannels()
 })
 </script>
 
 <style scoped>
-/* v3.0 — styles in src/styles/ */
+.config-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 </style>

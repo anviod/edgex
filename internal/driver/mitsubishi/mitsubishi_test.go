@@ -11,14 +11,30 @@ import (
 	"github.com/anviod/edgex/internal/model"
 )
 
-func TestMitsubishiDriverInitRequiresIP(t *testing.T) {
+func TestMitsubishiDriverInitAllowsEmptyIP(t *testing.T) {
 	d := NewMitsubishiDriver()
 	err := d.Init(model.DriverConfig{
 		ChannelID: "test",
 		Config:    map[string]any{"port": 5000},
 	})
-	if err == nil {
-		t.Fatal("expected init error without ip")
+	if err != nil {
+		t.Fatalf("expected init to succeed without ip: %v", err)
+	}
+}
+
+func TestMitsubishiDriverConnectRequiresIP(t *testing.T) {
+	d := NewMitsubishiDriver()
+	if err := d.Init(model.DriverConfig{
+		ChannelID: "test",
+		Config:    map[string]any{"port": 5000},
+	}); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := d.Connect(ctx); err == nil {
+		t.Fatal("expected connect error without ip")
 	}
 }
 

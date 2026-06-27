@@ -52,6 +52,9 @@ func (d *MitsubishiDriver) Connect(ctx context.Context) error {
 	if d.transport == nil {
 		return fmt.Errorf("mitsubishi driver not initialized")
 	}
+	if d.driverCfg.ip == "" {
+		return fmt.Errorf("mitsubishi ip is required")
+	}
 	if err := d.transport.Connect(ctx); err != nil {
 		return fmt.Errorf("mitsubishi connection failed: %w", err)
 	}

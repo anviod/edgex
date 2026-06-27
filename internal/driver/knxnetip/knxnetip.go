@@ -29,40 +29,19 @@ func NewKNXnetIPDriver() driver.Driver {
 }
 
 func (d *KNXnetIPDriver) Init(cfg model.DriverConfig) error {
+	if cfg.Config == nil {
+		cfg.Config = map[string]any{}
+	}
 	d.config = cfg
-	tc := parseTransportConfig(cfg.Config)
-
-	if tc.ip == "" && tc.discovery {
-		ctx, cancel := context.WithTimeout(context.Background(), tc.discoveryTimeout)
-		defer cancel()
-		gateways, err := DiscoverGateways(ctx, tc)
-		if err != nil {
-			return fmt.Errorf("KNXnet/IP: gateway discovery failed: %w", err)
-		}
-		gw := gateways[0]
-		tc.ip = gw.IP
-		if gw.Port > 0 {
-			tc.port = gw.Port
-		}
-		if cfg.Config == nil {
-			cfg.Config = map[string]any{}
-		}
-		cfg.Config["ip"] = tc.ip
-		cfg.Config["port"] = tc.port
-		d.config = cfg
-	}
-
-	if tc.ip == "" {
-		return fmt.Errorf("KNXnet/IP: gateway IP (ip) is required, or enable discovery")
-	}
-
 	d.decoder = NewKNXDecoder()
 	d.transport = NewKNXTransport(cfg.Config)
 	d.scheduler = NewKNXScheduler(d.transport, d.decoder)
 
+	tc := parseTransportConfig(cfg.Config)
 	zap.L().Info("[KNXnet/IP] driver initialized",
 		zap.String("gateway", tc.remoteAddr()),
 		zap.String("mode", tc.mode),
+		zap.Bool("discovery", tc.discovery),
 	)
 	return nil
 }
@@ -71,7 +50,40 @@ func (d *KNXnetIPDriver) Connect(ctx context.Context) error {
 	if d.transport == nil {
 		return fmt.Errorf("KNXnet/IP driver not initialized")
 	}
+	if err := d.ensureGatewayConfigured(ctx); err != nil {
+		return err
+	}
 	return d.transport.Connect(ctx)
+}
+
+func (d *KNXnetIPDriver) ensureGatewayConfigured(ctx context.Context) error {
+	tc := parseTransportConfig(d.config.Config)
+	if tc.ip != "" {
+		return nil
+	}
+	if !tc.discovery {
+		return fmt.Errorf("KNXnet/IP: gateway IP (ip) is required, or enable discovery")
+	}
+
+	discoveryCtx, cancel := context.WithTimeout(ctx, tc.discoveryTimeout)
+	defer cancel()
+
+	gateways, err := DiscoverGateways(discoveryCtx, tc)
+	if err != nil {
+		return fmt.Errorf("KNXnet/IP: gateway discovery failed: %w", err)
+	}
+	gw := gateways[0]
+	if d.config.Config == nil {
+		d.config.Config = map[string]any{}
+	}
+	d.config.Config["ip"] = gw.IP
+	if gw.Port > 0 {
+		d.config.Config["port"] = gw.Port
+	}
+
+	d.transport = NewKNXTransport(d.config.Config)
+	d.scheduler = NewKNXScheduler(d.transport, d.decoder)
+	return nil
 }
 
 func (d *KNXnetIPDriver) Disconnect() error {

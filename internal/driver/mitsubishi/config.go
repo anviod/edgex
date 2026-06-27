@@ -20,14 +20,11 @@ type driverConfig struct {
 
 func parseDriverConfig(cfg map[string]any) (driverConfig, error) {
 	if cfg == nil {
-		return driverConfig{}, fmt.Errorf("mitsubishi config is nil")
+		cfg = map[string]any{}
 	}
 
 	ip, _ := cfg["ip"].(string)
 	ip = strings.TrimSpace(ip)
-	if ip == "" {
-		return driverConfig{}, fmt.Errorf("mitsubishi ip is required")
-	}
 
 	dc := driverConfig{
 		ip:           ip,

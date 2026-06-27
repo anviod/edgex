@@ -66,14 +66,30 @@ func TestTransportMode(t *testing.T) {
 	}
 }
 
-func TestOmronFinsDriverInitRequiresIP(t *testing.T) {
+func TestOmronFinsDriverInitAllowsEmptyIP(t *testing.T) {
 	d := NewOmronFinsDriver()
 	err := d.Init(model.DriverConfig{
 		ChannelID: "test",
 		Config:    map[string]any{"port": 9600},
 	})
-	if err == nil {
-		t.Fatal("expected init error without plcIP")
+	if err != nil {
+		t.Fatalf("expected init to succeed without plcIP: %v", err)
+	}
+}
+
+func TestOmronFinsDriverConnectRequiresIP(t *testing.T) {
+	d := NewOmronFinsDriver()
+	if err := d.Init(model.DriverConfig{
+		ChannelID: "test",
+		Config:    map[string]any{"port": 9600},
+	}); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := d.Connect(ctx); err == nil {
+		t.Fatal("expected connect error without plcIP")
 	}
 }
 

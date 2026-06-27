@@ -152,12 +152,17 @@ func TestWritePointWithSimulator(t *testing.T) {
 	assert.Equal(t, byte(0x01), written[0])
 }
 
-func TestInitRequiresIP(t *testing.T) {
+func TestInitAllowsMissingIP(t *testing.T) {
 	d := NewKNXnetIPDriver()
 	err := d.Init(model.DriverConfig{
 		ChannelID: "test",
 		Config:    map[string]any{"port": 3671},
 	})
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	err = d.Connect(ctx)
 	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "ip") || strings.Contains(err.Error(), "discovery"))
 }
@@ -227,7 +232,7 @@ func TestDiscoverGatewaysWithSimulator(t *testing.T) {
 	assert.Equal(t, host, gateways[0].IP)
 }
 
-func TestInitWithDiscovery(t *testing.T) {
+func TestConnectWithDiscovery(t *testing.T) {
 	sim := NewSimulator()
 	group, _ := parseGroupAddress("2/1/5")
 	sim.SetGroupValue(group, []byte{0x01})

@@ -56,7 +56,7 @@ func (d *OmronFinsDriver) Init(cfg model.DriverConfig) error {
 	case "UDP":
 		backend = newUDPBackend()
 	default:
-		backend = finslib.NewFinsTCPDriver()
+		backend = newTCPBackend()
 	}
 
 	if err := backend.Init(backendCfg); err != nil {
@@ -205,6 +205,139 @@ func (d *OmronFinsDriver) calculateQualityScore(successRate float64) int {
 		score = 100
 	}
 	return score
+}
+
+// tcpBackend defers finslib TCP driver creation until Connect so channels can be added without plcIP.
+type tcpBackend struct {
+	cfg finslib.DriverConfig
+
+	mu          sync.RWMutex
+	inner       finsBackend
+	initialized bool
+}
+
+func newTCPBackend() *tcpBackend {
+	return &tcpBackend{}
+}
+
+func (b *tcpBackend) Init(cfg finslib.DriverConfig) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.initialized {
+		return fmt.Errorf("tcp backend already initialized")
+	}
+
+	b.cfg = cfg
+	b.initialized = true
+	return nil
+}
+
+func (b *tcpBackend) Connect(ctx context.Context) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if !b.initialized {
+		return fmt.Errorf("tcp backend not initialized")
+	}
+
+	if b.inner == nil {
+		inner := finslib.NewFinsTCPDriver()
+		if err := inner.Init(b.cfg); err != nil {
+			return err
+		}
+		b.inner = inner
+	}
+	return b.inner.Connect(ctx)
+}
+
+func (b *tcpBackend) Disconnect() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.inner == nil {
+		return nil
+	}
+	return b.inner.Disconnect()
+}
+
+func (b *tcpBackend) ReadPoints(ctx context.Context, points []finslib.Point) (map[string]finslib.Value, error) {
+	b.mu.RLock()
+	inner := b.inner
+	b.mu.RUnlock()
+
+	if inner == nil {
+		return nil, fmt.Errorf("omron fins tcp not connected")
+	}
+	return inner.ReadPoints(ctx, points)
+}
+
+func (b *tcpBackend) WritePoint(ctx context.Context, point finslib.Point, value interface{}) error {
+	b.mu.RLock()
+	inner := b.inner
+	b.mu.RUnlock()
+
+	if inner == nil {
+		return fmt.Errorf("omron fins tcp not connected")
+	}
+	return inner.WritePoint(ctx, point, value)
+}
+
+func (b *tcpBackend) Health() finslib.HealthStatus {
+	b.mu.RLock()
+	inner := b.inner
+	b.mu.RUnlock()
+
+	if inner == nil {
+		return finslib.HealthStatusDown
+	}
+	return inner.Health()
+}
+
+func (b *tcpBackend) SetSlaveID(slaveID uint8) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.inner != nil {
+		return b.inner.SetSlaveID(slaveID)
+	}
+	return nil
+}
+
+func (b *tcpBackend) SetDeviceConfig(config map[string]interface{}) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.cfg.Config == nil {
+		b.cfg.Config = make(map[string]interface{})
+	}
+	for k, v := range config {
+		b.cfg.Config[k] = v
+	}
+	b.inner = nil
+	return nil
+}
+
+func (b *tcpBackend) GetConnectionMetrics() finslib.ConnectionMetrics {
+	b.mu.RLock()
+	inner := b.inner
+	b.mu.RUnlock()
+
+	if inner == nil {
+		return finslib.ConnectionMetrics{RemoteAddr: remoteAddrFromConfig(b.cfg.Config)}
+	}
+	return inner.GetConnectionMetrics()
+}
+
+func (b *tcpBackend) GetSchedulerStats() finslib.SchedulerStats {
+	b.mu.RLock()
+	inner := b.inner
+	b.mu.RUnlock()
+
+	if inner == nil {
+		return finslib.SchedulerStats{}
+	}
+	return inner.GetSchedulerStats()
 }
 
 // udpBackend implements finsBackend using fins/udp client and fins decoder/scheduler logic.
