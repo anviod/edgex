@@ -15,6 +15,7 @@ import (
 	_ "github.com/anviod/edgex/internal/driver/dlt645"
 	_ "github.com/anviod/edgex/internal/driver/ethernetip"
 	_ "github.com/anviod/edgex/internal/driver/ice104"
+	_ "github.com/anviod/edgex/internal/driver/knxnetip"
 	_ "github.com/anviod/edgex/internal/driver/mitsubishi"
 	_ "github.com/anviod/edgex/internal/driver/modbus"
 	_ "github.com/anviod/edgex/internal/driver/omron"

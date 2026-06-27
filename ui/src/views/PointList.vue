@@ -2296,6 +2296,7 @@ const getProtocolAddressLabel = () => {
         case 'ethernet-ip': return 'Tag 名称'
         case 'mitsubishi-slmp': return '地址'
         case 'omron-fins': return '地址'
+        case 'knxnet-ip': return '组地址'
         case 'iec60870-5-104': return 'IOA'
         case 'snmp': return 'OID 地址'
         case 'dlt645': return '数据标识'
@@ -2309,6 +2310,7 @@ const getProtocolAddressPlaceholder = () => {
         case 'ethernet-ip': return 'Program:Main.MyTag'
         case 'mitsubishi-slmp': return 'D100'
         case 'omron-fins': return 'CIO1.2'
+        case 'knxnet-ip': return '1/2/3 或 1/2/3,1.1.1,2'
         case 'iec60870-5-104': return '400'
         case 'snmp': return 'public|1.3.6.1.2.1.1.1.0'
         case 'dlt645': return '02-01-01-00'
@@ -2322,6 +2324,7 @@ const getProtocolAddressTooltip = () => {
         case 'ethernet-ip': return '例如: Program:Main.MyTag'
         case 'mitsubishi-slmp': return '格式: D100, M0, X0, D20.2, D100.16L'
         case 'omron-fins': return '格式: CIO1.2, D100, W3.4, EM10.100'
+        case 'knxnet-ip': return '格式: main/middle/sub，可选 ",area.line.device,bit"；例如 1/2/3,1.1.1,2'
         case 'iec60870-5-104': return 'IOA 0–65535；group 字段填写 TypeID，如 M_ME_NC_1'
         case 'snmp': return 'v2c: community|OID；v3: securityName|OID，如 public|1.3.6.1.2.1.1.1.0'
         case 'dlt645': return '格式: XX-XX-XX-XX'
@@ -2554,6 +2557,11 @@ const openAddDialog = () => {
 		pointDialog.registerIndex = startAddress
 	} else if (channelProtocol.value === 'bacnet-ip') {
 		pointDialog.form.address = 'AnalogInput:1'
+	} else if (channelProtocol.value === 'knxnet-ip') {
+		pointDialog.form.address = '1/1/1'
+		pointDialog.form.datatype = 'bool'
+		pointDialog.byteLength = 1
+		pointDialog.parseType = 'UINT8'
 	} else if (channelProtocol.value === 'dlt645') {
         if (deviceInfo.value && deviceInfo.value.config) {
             const addr = deviceInfo.value.config.station_address || deviceInfo.value.config.address || ''

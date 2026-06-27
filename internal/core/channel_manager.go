@@ -1041,6 +1041,8 @@ func (cm *ChannelManager) validatePoint(ch *model.Channel, point *model.Point) e
 		return cm.validateMitsubishiPoint(point)
 	case "omron-fins":
 		return cm.validateOmronFinsPoint(point)
+	case "knxnet-ip":
+		return cm.validateKNXnetIPPoint(point)
 	default:
 		return nil
 	}
@@ -1055,6 +1057,18 @@ func (cm *ChannelManager) validateOmronFinsPoint(point *model.Point) error {
 	re := regexp.MustCompile(`^(?i)(CIO|A|W|H|D|P|F|EM\d*)(\d+)(\.\d+)?([HL]|\.\d+[HL]?)?$`)
 	if !re.MatchString(point.Address) {
 		return fmt.Errorf("invalid omron address format: e.g. D100, W3.4, CIO1.2, EM10.100")
+	}
+	return nil
+}
+
+func (cm *ChannelManager) validateKNXnetIPPoint(point *model.Point) error {
+	if point.Address == "" {
+		return fmt.Errorf("knxnet-ip address cannot be empty")
+	}
+	// main/middle/sub or main/sub, optional ,individual or ,bit
+	re := regexp.MustCompile(`^\d+/\d+(/\d+)?(,\d+(\.\d+\.\d+)?(,\d+)?)?$`)
+	if !re.MatchString(point.Address) {
+		return fmt.Errorf("invalid knxnet-ip address format: e.g. 1/2/3 or 0/0/1,1.1.1,2")
 	}
 	return nil
 }

@@ -695,6 +695,70 @@
           </a-row>
         </div>
 
+        <!-- KNXnet/IP Config -->
+        <div v-if="dialog.form.protocol === 'knxnet-ip'" class="config-section">
+          <div class="modal-section__title modal-section__title--sub">基础连接</div>
+          <a-form-item field="config.ip" label="网关 IP">
+            <a-input v-model="dialog.form.config.ip" placeholder="192.168.1.50（启用自动发现时可留空）" />
+          </a-form-item>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.port" label="端口">
+                <a-input-number v-model="dialog.form.config.port" :min="1" :max="65535" placeholder="3671 (默认)" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.mode" label="传输模式">
+                <a-select v-model="dialog.form.config.mode" placeholder="UDP">
+                  <a-option value="UDP">UDP</a-option>
+                  <a-option value="TCP">TCP</a-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.timeout" label="超时时间 (ms)">
+                <a-input-number v-model="dialog.form.config.timeout" :min="100" :max="60000" placeholder="3000" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+
+          <div class="modal-section__title modal-section__title--sub">通信参数</div>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.max_retries" label="重试次数">
+                <a-input-number v-model="dialog.form.config.max_retries" :min="0" :max="10" placeholder="3" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.heartbeat_interval" label="心跳间隔 (ms)">
+                <a-input-number v-model="dialog.form.config.heartbeat_interval" :min="0" :max="300000" placeholder="60000" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.local_ip" label="本地 IP (可选)">
+                <a-input v-model="dialog.form.config.local_ip" placeholder="192.168.1.10" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+
+          <div class="modal-section__title modal-section__title--sub">网关发现 (SEARCH)</div>
+          <a-form-item field="config.discovery" label="启用自动发现">
+            <a-switch v-model="dialog.form.config.discovery" />
+          </a-form-item>
+          <a-row v-if="dialog.form.config.discovery" :gutter="[24, 16]" class="field-grid">
+            <a-col :span="12">
+              <a-form-item field="config.discovery_timeout" label="发现超时 (ms)">
+                <a-input-number v-model="dialog.form.config.discovery_timeout" :min="500" :max="30000" placeholder="5000" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item field="config.discovery_multicast" label="多播地址">
+                <a-input v-model="dialog.form.config.discovery_multicast" placeholder="224.0.23.12:3671" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </div>
+
         <!-- Mitsubishi MC Config -->
         <div v-if="dialog.form.protocol === 'mitsubishi-slmp'" class="config-section">
           <div class="modal-section__title modal-section__title--sub">基础连接</div>
@@ -1114,6 +1178,7 @@ const protocols = [
   { label: 'DLT645', value: 'dlt645' },
   { label: 'EtherNet/IP', value: 'ethernet-ip' },
   { label: 'Omron FINS', value: 'omron-fins' },
+  { label: 'KNXnet/IP', value: 'knxnet-ip' },
   { label: 'Mitsubishi MC', value: 'mitsubishi-slmp' },
   { label: 'IEC 60870-5-104', value: 'iec60870-5-104' },
   { label: 'SNMP', value: 'snmp' }

@@ -160,6 +160,15 @@
             <a-input v-model="form.dlt645Address" placeholder="210220003011" />
           </a-form-item>
         </template>
+
+        <template v-if="channelProtocol === 'knxnet-ip'">
+          <a-form-item field="knxIndividualAddress" label="默认个体地址 (可选)">
+            <a-input v-model="form.knxIndividualAddress" placeholder="1.1.1" />
+            <template #extra>
+              点位地址支持 `1/2/3` 或 `1/2/3,1.1.1,2`；这里可预设设备级个体地址用于统一管理。
+            </template>
+          </a-form-item>
+        </template>
         
         <template v-if="channelProtocol && channelProtocol.includes('modbus')">
           <a-form-item field="modbusSlaveId" label="从机ID" required>
@@ -725,6 +734,7 @@ const defaultForm = {
   bacnetDeviceInstance: 0,
   bacnetIp: '',
   bacnetPort: 47808,
+  knxIndividualAddress: '',
   config: {},
   storageEnable: false,
   storageStrategy: 'interval',
@@ -889,6 +899,7 @@ const openDialog = (item = null) => {
       bacnetDeviceInstance: config.bacnetDeviceInstance || config.device_id || config.InstanceID || config.instance_id || 0,
       bacnetIp: config.bacnetIp || config.ip || '',
       bacnetPort: config.bacnetPort || config.port || 47808,
+      knxIndividualAddress: config.knx_individual_addr || config.individual_address || '',
       storageEnable: storage.enable || false,
       storageStrategy: storage.strategy || 'interval',
       storageInterval: storage.interval || 1,
@@ -962,6 +973,13 @@ const saveDevice = async () => {
     }
   } else if (channelProtocol.value === 'opc-ua') {
     Object.assign(config, inheritOpcUaConfigFromChannel(form.value.config))
+  } else if (channelProtocol.value === 'knxnet-ip') {
+    const individualAddress = String(form.value.knxIndividualAddress || '').trim()
+    if (individualAddress) {
+      config.knx_individual_addr = individualAddress
+    } else {
+      delete config.knx_individual_addr
+    }
   }
 
   const payload = {
