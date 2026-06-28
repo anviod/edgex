@@ -127,14 +127,14 @@ docker run -d \
 | BACnet IP | `bacnet-ip` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 80+ 项 / 59% | [BACnet 设计说明](docs/drivers/BACnet_设计说明.md) |
 | OPC UA Client | `opc-ua` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 25 项 / 40% | [OPC UA 设计](docs/drivers/OPC_UA_Design.md) |
 | Siemens S7 | `s7` | 生产就绪 | 是 | 是 | — | 52 项 / 42% | [S7 协议](docs/drivers/PLC_S7.md) |
-| EtherNet/IP (ODVA) | `ethernet-ip` | 生产就绪 | 是 | 是 | — | 57 项 / 30% | [EIP 实现方案](docs/drivers/EtherNet_IP驱动真实通信实现方案.md) |
-| Omron FINS (TCP/UDP) | `omron-fins` | 生产就绪 | 是 | 是 | — | 6 项 / 25% | [FINS 协议](docs/drivers/PLC_FINS.md) |
-| SNMP v2c/v3 | `snmp` | 生产就绪 | 是 | 是 | ScanObjects | 15 项 / 34% | [SNMP 驱动](docs/drivers/SNMP.md) |
-| IEC 60870-5-104 | `iec60870-5-104` | M1 已交付 | 是 | 单点遥控 | — | 8 项 / 23% | [ICE104 开发计划](docs/TODO/ICE104/采集驱动ICE104开发.md) |
-| DL/T645-2007 | `dlt645` | 已实现 | 是 | 是 | — | 17 项 | [DL/T645 驱动](docs/drivers/DLT645.md) |
-| Mitsubishi SLMP (MC) | `mitsubishi-slmp` | 生产就绪 | 是 | 是 | — | 7 项 | [三菱 MC 驱动](docs/drivers/PLC_MITSUBISHI.md) |
-| Profinet IO | `profinet-io` | 已实现 | 是 | 是 | — | 6 项 | [Profinet IO](docs/drivers/PLC_Profinet_IO.md) |
-| KNXnet/IP | `knxnet-ip` | 生产就绪 | 是 | 是 | 网关发现 | 10 项 | [设备驱动](docs/drivers/index.md) |
+| EtherNet/IP (ODVA) | `ethernet-ip` | 生产就绪 | 是 | 是 | — | 60 项 / 30% | [EIP 实现方案](docs/drivers/EtherNet_IP驱动真实通信实现方案.md) |
+| Omron FINS (TCP/UDP) | `omron-fins` | 生产就绪 | 是 | 是 | — | 12 项 / 31% | [FINS 协议](docs/drivers/PLC_FINS.md) |
+| SNMP v2c/v3 | `snmp` | 生产就绪 | 是 | 是 | ScanObjects | 22 项 / 45% | [SNMP 驱动](docs/drivers/SNMP.md) |
+| IEC 60870-5-104 | `iec60870-5-104` | M1 已交付 | 是 | 单点遥控 | — | 16 项 / 45% | [ICE104 开发计划](docs/TODO/ICE104/采集驱动ICE104开发.md) |
+| DL/T645-2007 | `dlt645` | 已实现 | 是 | 是 | — | 24 项 / 71% | [DL/T645 驱动](docs/drivers/DLT645.md) |
+| Mitsubishi SLMP (MC) | `mitsubishi-slmp` | 生产就绪 | 是 | 是 | — | 13 项 / 57% | [三菱 MC 驱动](docs/drivers/PLC_MITSUBISHI.md) |
+| Profinet IO | `profinet-io` | 已实现 | 是 | 是 | — | 11 项 / 49% | [Profinet IO](docs/drivers/PLC_Profinet_IO.md) |
+| KNXnet/IP | `knxnet-ip` | 生产就绪 | 是 | 是 | 网关发现 | 13 项 / 67% | [设备驱动](docs/drivers/index.md) |
 
 **状态说明**
 
@@ -184,7 +184,7 @@ CGO_ENABLED=0 go test ./internal/driver/... -count=1 -cover
 CGO_ENABLED=0 go test ./internal/core/... -count=1 -cover
 ```
 
-**2026-06-28 测试结果**：`CGO_ENABLED=0 go test ./internal/driver/... ./internal/core/... ./internal/integration/...` 全部通过。12 个南向驱动均有点位读/写 Mock 测试；驱动包覆盖率约 27–66%（因协议而异）；`internal/core/...` 覆盖率 47.9%。
+**2026-06-28 测试结果**：`CGO_ENABLED=0 go test ./internal/driver/... ./internal/core/... ./internal/integration/...` 全部通过。12 个南向驱动生产路径均使用真实协议栈；驱动包覆盖率约 27–70%；`internal/core/...` 覆盖率 48.0%。
 
 详细报告：[南向驱动测试报告](docs/testing/南向驱动测试报告.md) | [GitHub Pages](https://anviod.github.io/edgex/testing/南向驱动测试报告.html)
 

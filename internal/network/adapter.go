@@ -20,6 +20,7 @@ import (
 type NetworkAdapter interface {
 	ApplyInterfaceConfig(iface model.NetworkInterface) error
 	ApplyStaticRoute(route model.StaticRoute) error
+	RemoveStaticRoute(route model.StaticRoute) error
 	GetInterfaces() ([]model.NetworkInterface, error)
 	GetRoutes() ([]model.StaticRoute, error)
 	ValidateConnectivity(targets []model.ConnectivityTarget) (model.ConnectivityReport, error)
@@ -27,10 +28,14 @@ type NetworkAdapter interface {
 
 // NewNetworkAdapter creates a platform-specific network adapter
 func NewNetworkAdapter() NetworkAdapter {
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "windows":
 		return &WindowsAdapter{}
+	case "darwin":
+		return &DarwinAdapter{}
+	default:
+		return &LinuxAdapter{}
 	}
-	return &LinuxAdapter{}
 }
 
 // WindowsAdapter implements NetworkAdapter for Windows
@@ -207,6 +212,37 @@ func (a *WindowsAdapter) ApplyStaticRoute(route model.StaticRoute) error {
 	return nil
 }
 
+func (a *WindowsAdapter) RemoveStaticRoute(route model.StaticRoute) error {
+	route = normalizeStaticRoute(route)
+	isIPv6 := strings.Contains(route.Destination, ":")
+
+	if isIPv6 {
+		netshArgs := []string{"interface", "ipv6", "delete", "route",
+			fmt.Sprintf("prefix=%s/%d", route.Destination, route.Prefix),
+			fmt.Sprintf("interface=%s", route.Interface),
+		}
+		if route.Gateway != "" {
+			netshArgs = append(netshArgs, fmt.Sprintf("nexthop=%s", route.Gateway))
+		}
+		cmd := exec.Command("netsh", netshArgs...)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to delete ipv6 route: %s, output: %s", err, output)
+		}
+		return nil
+	}
+
+	netshArgs := []string{"interface", "ip", "delete", "route",
+		fmt.Sprintf("%s/%d", route.Destination, route.Prefix),
+		route.Interface,
+		route.Gateway,
+	}
+	cmd := exec.Command("netsh", netshArgs...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to delete route: %s, output: %s", err, output)
+	}
+	return nil
+}
+
 type netshInfo struct {
 	DHCPEnabled     bool
 	Gateways        []string
@@ -297,6 +333,10 @@ func (a *WindowsAdapter) GetInterfaces() ([]model.NetworkInterface, error) {
 
 	var result []model.NetworkInterface
 	for _, i := range ifaces {
+		if isLoopbackInterface(i.Name, i.Flags) {
+			continue
+		}
+
 		info, hasInfo := nameMap[i.Name]
 
 		ni := model.NetworkInterface{

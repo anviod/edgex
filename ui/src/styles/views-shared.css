@@ -334,6 +334,12 @@
   background: rgba(219, 39, 119, 0.05);
 }
 
+.channel-icon.protocol-profinet-io {
+  border-color: #0891b2;
+  color: #0891b2;
+  background: rgba(8, 145, 178, 0.05);
+}
+
 .channel-icon.protocol-default {
   border-color: var(--border);
   color: var(--text-tertiary);

@@ -169,6 +169,70 @@
             </template>
           </a-form-item>
         </template>
+
+        <template v-if="channelProtocol === 'profinet-io'">
+          <a-form-item field="pnioDeviceName" label="设备名称" required>
+            <a-input v-model="form.pnioDeviceName" placeholder="io-device-1" />
+          </a-form-item>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item field="pnioIp" label="设备 IP 地址" required>
+                <a-input v-model="form.pnioIp" placeholder="192.168.1.20" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item field="pnioPort" label="设备端口">
+                <a-input-number v-model="form.pnioPort" :min="1" :max="65535" placeholder="34964" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="8">
+              <a-form-item field="pnioSlot" label="槽号">
+                <a-input-number v-model="form.pnioSlot" :min="0" :max="65535" placeholder="3" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="pnioSubslot" label="子槽号">
+                <a-input-number v-model="form.pnioSubslot" :min="0" :max="65535" placeholder="1" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="pnioApi" label="API 列表">
+                <a-input v-model="form.pnioApi" placeholder="0" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="8">
+              <a-form-item field="pnioIdent" label="标识">
+                <a-input v-model="form.pnioIdent" placeholder="" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="pnioSubIdent" label="子标识">
+                <a-input v-model="form.pnioSubIdent" placeholder="" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="pnioProperties" label="属性">
+                <a-input v-model="form.pnioProperties" placeholder="" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item field="pnioInputLength" label="输入数据长度">
+                <a-input-number v-model="form.pnioInputLength" :min="0" :max="65535" placeholder="64" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item field="pnioOutputLength" label="输出数据长度">
+                <a-input-number v-model="form.pnioOutputLength" :min="0" :max="65535" placeholder="32" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </template>
         
         <template v-if="channelProtocol && channelProtocol.includes('modbus')">
           <a-form-item field="modbusSlaveId" label="从机ID" required>
@@ -735,6 +799,17 @@ const defaultForm = {
   bacnetIp: '',
   bacnetPort: 47808,
   knxIndividualAddress: '',
+  pnioDeviceName: '',
+  pnioIp: '',
+  pnioPort: 34964,
+  pnioSlot: 0,
+  pnioSubslot: 1,
+  pnioApi: '',
+  pnioIdent: '',
+  pnioSubIdent: '',
+  pnioProperties: '',
+  pnioInputLength: 0,
+  pnioOutputLength: 0,
   config: {},
   storageEnable: false,
   storageStrategy: 'interval',
@@ -900,6 +975,17 @@ const openDialog = (item = null) => {
       bacnetIp: config.bacnetIp || config.ip || '',
       bacnetPort: config.bacnetPort || config.port || 47808,
       knxIndividualAddress: config.knx_individual_addr || config.individual_address || '',
+      pnioDeviceName: config.device_name || config.deviceName || '',
+      pnioIp: config.ip || '',
+      pnioPort: config.port || 34964,
+      pnioSlot: config.slot ?? 0,
+      pnioSubslot: config.subslot ?? config.sub_slot ?? 1,
+      pnioApi: config.api || config.api_list || '',
+      pnioIdent: config.ident || config.identifier || '',
+      pnioSubIdent: config.sub_ident || config.subIdent || '',
+      pnioProperties: config.properties || config.property || '',
+      pnioInputLength: config.input_length || config.inputLength || 0,
+      pnioOutputLength: config.output_length || config.outputLength || 0,
       storageEnable: storage.enable || false,
       storageStrategy: storage.strategy || 'interval',
       storageInterval: storage.interval || 1,
@@ -980,6 +1066,18 @@ const saveDevice = async () => {
     } else {
       delete config.knx_individual_addr
     }
+  } else if (channelProtocol.value === 'profinet-io') {
+    config.device_name = form.value.pnioDeviceName
+    config.ip = form.value.pnioIp
+    config.port = form.value.pnioPort || 34964
+    config.slot = form.value.pnioSlot ?? 0
+    config.subslot = form.value.pnioSubslot ?? 1
+    if (form.value.pnioApi) config.api = form.value.pnioApi
+    if (form.value.pnioIdent) config.ident = form.value.pnioIdent
+    if (form.value.pnioSubIdent) config.sub_ident = form.value.pnioSubIdent
+    if (form.value.pnioProperties) config.properties = form.value.pnioProperties
+    if (form.value.pnioInputLength) config.input_length = form.value.pnioInputLength
+    if (form.value.pnioOutputLength) config.output_length = form.value.pnioOutputLength
   }
 
   const payload = {

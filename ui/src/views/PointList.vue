@@ -336,6 +336,77 @@
                         v-model:form="pointDialog.form"
                         :device-info="deviceInfo"
                     />
+
+                    <template v-else-if="channelProtocol === 'knxnet-ip'">
+                        <div class="modal-section__title modal-section__title--sub">KNX 组地址</div>
+                        <div class="advanced-block point-advanced-block">
+                            <div class="batch-form-row">
+                                <div class="form-field">
+                                    <div class="field-label">主组</div>
+                                    <a-input-number
+                                        v-model="pointDialog.knx.mainGroup"
+                                        :min="0"
+                                        :max="31"
+                                        :precision="0"
+                                        placeholder="0-31"
+                                        @change="updateKNXAddress"
+                                    />
+                                </div>
+                                <div class="form-field">
+                                    <div class="field-label">中组</div>
+                                    <a-input-number
+                                        v-model="pointDialog.knx.middleGroup"
+                                        :min="0"
+                                        :max="7"
+                                        :precision="0"
+                                        placeholder="0-7"
+                                        @change="updateKNXAddress"
+                                    />
+                                </div>
+                                <div class="form-field">
+                                    <div class="field-label">子组</div>
+                                    <a-input-number
+                                        v-model="pointDialog.knx.subGroup"
+                                        :min="0"
+                                        :max="255"
+                                        :precision="0"
+                                        placeholder="0-255"
+                                        @change="updateKNXAddress"
+                                    />
+                                </div>
+                            </div>
+                            <div class="batch-form-row">
+                                <div class="form-field">
+                                    <div class="field-label">个体地址（可选）</div>
+                                    <a-input
+                                        v-model="pointDialog.knx.individualAddress"
+                                        placeholder="例如 1.1.1"
+                                        @input="updateKNXAddress"
+                                    />
+                                </div>
+                                <div class="form-field">
+                                    <div class="field-label">位宽（可选）</div>
+                                    <a-input-number
+                                        v-model="pointDialog.knx.bitWidth"
+                                        :min="0"
+                                        :max="7"
+                                        :precision="0"
+                                        placeholder="0-7，0 为省略"
+                                        allow-clear
+                                        @change="updateKNXAddress"
+                                    />
+                                </div>
+                            </div>
+                            <div class="form-field">
+                                <div class="field-label">生成地址预览</div>
+                                <a-input
+                                    v-model="pointDialog.form.address"
+                                    readonly
+                                    placeholder="main/middle/sub"
+                                />
+                            </div>
+                        </div>
+                    </template>
                     
                     <!-- Other Protocols -->
                     <template v-else>
@@ -1648,6 +1719,13 @@ const pointDialog = reactive({
     bacnetInstance: 1,
     dlt645DeviceAddr: '',
     dlt645DataID: '',
+    knx: {
+        mainGroup: 1,
+        middleGroup: 1,
+        subGroup: 1,
+        individualAddress: '',
+        bitWidth: null
+    },
     byteLength: 4,
     wordOrderOption: 'ABCD',
     parseType: 'FLOAT32',
@@ -2297,6 +2375,7 @@ const getProtocolAddressLabel = () => {
         case 'mitsubishi-slmp': return '地址'
         case 'omron-fins': return '地址'
         case 'knxnet-ip': return '组地址'
+        case 'profinet-io': return 'IO 地址'
         case 'iec60870-5-104': return 'IOA'
         case 'snmp': return 'OID 地址'
         case 'dlt645': return '数据标识'
@@ -2311,6 +2390,7 @@ const getProtocolAddressPlaceholder = () => {
         case 'mitsubishi-slmp': return 'D100'
         case 'omron-fins': return 'CIO1.2'
         case 'knxnet-ip': return '1/2/3 或 1/2/3,1.1.1,2'
+        case 'profinet-io': return '3:1:0 或 3:2:5.3#LE'
         case 'iec60870-5-104': return '400'
         case 'snmp': return 'public|1.3.6.1.2.1.1.1.0'
         case 'dlt645': return '02-01-01-00'
@@ -2325,6 +2405,7 @@ const getProtocolAddressTooltip = () => {
         case 'mitsubishi-slmp': return '格式: D100, M0, X0, D20.2, D100.16L'
         case 'omron-fins': return '格式: CIO1.2, D100, W3.4, EM10.100'
         case 'knxnet-ip': return '格式: main/middle/sub，可选 ",area.line.device,bit"；例如 1/2/3,1.1.1,2'
+        case 'profinet-io': return '格式: SLOT:SUB_SLOT:INDEX[.BIT][#ENDIAN]；例如 3:1:0 (int16), 3:2:10 (float), 3:2:5.3 (bit)'
         case 'iec60870-5-104': return 'IOA 0–65535；group 字段填写 TypeID，如 M_ME_NC_1'
         case 'snmp': return 'v2c: community|OID；v3: securityName|OID，如 public|1.3.6.1.2.1.1.1.0'
         case 'dlt645': return '格式: XX-XX-XX-XX'
@@ -2383,6 +2464,76 @@ const updateDLT645Address = () => {
     }
 }
 
+const toKNXInt = (value, min, max) => {
+    const num = Number(value)
+    if (!Number.isFinite(num)) return null
+    return Math.min(max, Math.max(min, Math.trunc(num)))
+}
+
+const resetKNXFields = () => {
+    pointDialog.knx.mainGroup = 1
+    pointDialog.knx.middleGroup = 1
+    pointDialog.knx.subGroup = 1
+    pointDialog.knx.individualAddress = ''
+    pointDialog.knx.bitWidth = null
+}
+
+const composeKNXAddress = () => {
+    const mainGroup = toKNXInt(pointDialog.knx.mainGroup, 0, 31)
+    const middleGroup = toKNXInt(pointDialog.knx.middleGroup, 0, 7)
+    const subGroup = toKNXInt(pointDialog.knx.subGroup, 0, 255)
+
+    if (mainGroup === null || middleGroup === null || subGroup === null) {
+        return ''
+    }
+
+    const parts = [`${mainGroup}/${middleGroup}/${subGroup}`]
+    const individualAddress = String(pointDialog.knx.individualAddress || '').trim()
+    const bitWidth = toKNXInt(pointDialog.knx.bitWidth, 0, 7)
+
+    if (individualAddress) {
+        parts.push(individualAddress)
+    }
+    if (bitWidth && bitWidth > 0) {
+        parts.push(String(bitWidth))
+    }
+
+    return parts.join(',')
+}
+
+const updateKNXAddress = () => {
+    pointDialog.form.address = composeKNXAddress()
+}
+
+const parseKNXAddressToUI = (addrStr) => {
+    resetKNXFields()
+
+    const raw = String(addrStr || '').trim()
+    if (!raw) {
+        updateKNXAddress()
+        return
+    }
+
+    const [groupPart, ...optionalParts] = raw.split(',').map(part => part.trim())
+    const groupParts = groupPart.includes('/') ? groupPart.split('/') : groupPart.split('.')
+    if (groupParts.length === 3) {
+        pointDialog.knx.mainGroup = toKNXInt(groupParts[0], 0, 31) ?? 1
+        pointDialog.knx.middleGroup = toKNXInt(groupParts[1], 0, 7) ?? 1
+        pointDialog.knx.subGroup = toKNXInt(groupParts[2], 0, 255) ?? 1
+    }
+
+    optionalParts.forEach(part => {
+        if (!part) return
+        if (/^\d+$/.test(part)) {
+            pointDialog.knx.bitWidth = toKNXInt(part, 0, 7)
+        } else {
+            pointDialog.knx.individualAddress = part
+        }
+    })
+
+    updateKNXAddress()
+}
+
 const parseAddressToUI = (addrStr) => {
 	if (channelProtocol.value.startsWith('modbus')) {
 		const addr = parseInt(addrStr)
@@ -2404,6 +2555,8 @@ const parseAddressToUI = (addrStr) => {
 			pointDialog.bacnetType = parts[0]
 			pointDialog.bacnetInstance = parseInt(parts[1]) || 0
 		}
+	} else if (channelProtocol.value === 'knxnet-ip') {
+		parseKNXAddressToUI(addrStr)
 	} else if (channelProtocol.value === 'dlt645') {
         const parts = addrStr.split('#')
         if (parts.length === 2) {
@@ -2412,6 +2565,21 @@ const parseAddressToUI = (addrStr) => {
         }
     }
 }
+
+watch(
+    () => [
+        pointDialog.knx.mainGroup,
+        pointDialog.knx.middleGroup,
+        pointDialog.knx.subGroup,
+        pointDialog.knx.individualAddress,
+        pointDialog.knx.bitWidth
+    ],
+    () => {
+        if (pointDialog.visible && channelProtocol.value === 'knxnet-ip') {
+            updateKNXAddress()
+        }
+    }
+)
 
 // Delete Dialog State
 const deleteDialog = reactive({
@@ -2543,6 +2711,7 @@ const openAddDialog = () => {
 	pointDialog.bacnetInstance = 1
     pointDialog.dlt645DeviceAddr = ''
     pointDialog.dlt645DataID = ''
+    resetKNXFields()
     pointDialog.byteLength = 4
     pointDialog.wordOrderOption = 'ABCD'
     pointDialog.parseType = 'FLOAT32'
@@ -2558,10 +2727,15 @@ const openAddDialog = () => {
 	} else if (channelProtocol.value === 'bacnet-ip') {
 		pointDialog.form.address = 'AnalogInput:1'
 	} else if (channelProtocol.value === 'knxnet-ip') {
-		pointDialog.form.address = '1/1/1'
+		updateKNXAddress()
 		pointDialog.form.datatype = 'bool'
 		pointDialog.byteLength = 1
 		pointDialog.parseType = 'UINT8'
+	} else if (channelProtocol.value === 'profinet-io') {
+		pointDialog.form.address = '3:1:0'
+		pointDialog.form.datatype = 'int16'
+		pointDialog.byteLength = 2
+		pointDialog.parseType = 'INT16'
 	} else if (channelProtocol.value === 'dlt645') {
         if (deviceInfo.value && deviceInfo.value.config) {
             const addr = deviceInfo.value.config.station_address || deviceInfo.value.config.address || ''
@@ -2579,6 +2753,7 @@ const openAddDialog = () => {
 
 const openEditDialog = (point) => {
     pointDialog.isEdit = true
+    resetKNXFields()
     
     // Try to find full config from deviceInfo if available
     if (deviceInfo.value && deviceInfo.value.points) {
@@ -2656,6 +2831,10 @@ const openEditDialog = (point) => {
 const submitPoint = async () => {
     pointDialog.loading = true
     try {
+        if (channelProtocol.value === 'knxnet-ip') {
+            updateKNXAddress()
+        }
+
         const url = pointDialog.isEdit 
             ? `/api/channels/${channelId.value}/devices/${deviceId.value}/points/${pointDialog.form.id}`
             : `/api/channels/${channelId.value}/devices/${deviceId.value}/points`

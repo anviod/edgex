@@ -49,6 +49,7 @@ import MitsubishiHelp from './MitsubishiHelp.vue'
 import Ice104Help from './Ice104Help.vue'
 import SnmpHelp from './SnmpHelp.vue'
 import KnxHelp from './KnxHelp.vue'
+import ProfinetHelp from './ProfinetHelp.vue'
 
 const PROTOCOL_COMPONENTS = {
   'modbus-tcp': ModbusTcpHelp,
@@ -64,6 +65,7 @@ const PROTOCOL_COMPONENTS = {
   'iec60870-5-104': Ice104Help,
   snmp: SnmpHelp,
   'knxnet-ip': KnxHelp,
+  'profinet-io': ProfinetHelp,
 }
 
 const props = defineProps({

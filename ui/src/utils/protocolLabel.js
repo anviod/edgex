@@ -10,6 +10,7 @@ export const SOUTH_PROTOCOLS = [
   'ethernet-ip',
   'omron-fins',
   'knxnet-ip',
+  'profinet-io',
   'mitsubishi-slmp',
   'iec60870-5-104',
   'snmp'
@@ -29,7 +30,10 @@ const ALIAS_MAP = {
   'ethernet/ip': 'ethernet-ip',
   knx: 'knxnet-ip',
   'knxnet/ip': 'knxnet-ip',
-  'knxnet ip': 'knxnet-ip'
+  'knxnet ip': 'knxnet-ip',
+  profinet: 'profinet-io',
+  'profinet io': 'profinet-io',
+  'profinet-io': 'profinet-io'
 }
 
 /** 页面 protocol-tag 统一显示通道协议 ID（如 modbus-tcp） */
@@ -49,6 +53,7 @@ export function getProtocolTransport(protocol) {
   if (tag.includes('rtu') && !tag.includes('over-tcp')) return 'Serial'
   if (tag === 'omron-fins') return 'TCP/UDP'
   if (tag === 'knxnet-ip') return 'TCP/UDP'
+  if (tag === 'profinet-io') return 'TCP/Ethernet'
   if (tag === 'iec60870-5-104') return 'TCP'
   if (tag.includes('tcp') || tag.includes('opc-ua') || tag === 's7' || tag === 'ethernet-ip') return 'TCP'
   return 'TCP/IP'

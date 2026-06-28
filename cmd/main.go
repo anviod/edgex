@@ -1,12 +1,12 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"syscall"
 
 	"github.com/anviod/edgex/internal/config"
@@ -20,13 +20,13 @@ import (
 	_ "github.com/anviod/edgex/internal/driver/modbus"
 	_ "github.com/anviod/edgex/internal/driver/omron"
 	_ "github.com/anviod/edgex/internal/driver/opcua"
+	_ "github.com/anviod/edgex/internal/driver/profinetio"
 	_ "github.com/anviod/edgex/internal/driver/s7"
 	_ "github.com/anviod/edgex/internal/driver/snmp"
 	"github.com/anviod/edgex/internal/model"
 	"github.com/anviod/edgex/internal/pkg/logger"
 	"github.com/anviod/edgex/internal/server"
 	"github.com/anviod/edgex/internal/storage"
-	"github.com/anviod/edgex/internal/sync"
 
 	"go.uber.org/zap"
 )
@@ -63,6 +63,7 @@ func main() {
 	var store *storage.Storage
 	var cfg *config.Config
 	var cfgManager *config.ConfigManager
+	var runtimeReady bool
 	var err error
 
 	if configExists {
@@ -75,13 +76,13 @@ func main() {
 			zap.String("config_db", store.GetConfigPath()),
 			zap.String("runtime_db", store.GetPath()))
 
-		// 检查配置数据是否可用（config.db 存在但为空时进入安装模式）
+		// config.db 存在但无业务配置时进入安装模式，仅启动 Web 服务
 		configStore, _ := storage.NewConfigStore(store.GetConfigDB())
-		hasConfig, _ := configStore.HasConfigData()
-		if hasConfig {
+		runtimeReady, _ = configStore.HasConfigData()
+		if runtimeReady {
 			zap.L().Info("Configuration data found in config.db")
 		} else {
-			zap.L().Info("config.db is empty, entering install mode")
+			zap.L().Info("config.db is empty, entering install mode (web UI only)")
 		}
 
 		zap.L().Info("Loading configuration from database...")
@@ -95,6 +96,7 @@ func main() {
 		zap.L().Info("config.db not found, starting with default empty config (install mode)")
 		cfgManager = config.NewConfigManagerWithEmptyConfig(*confDir)
 		cfg = cfgManager.GetConfig()
+		runtimeReady = false
 		zap.L().Info("Default config loaded for installation")
 	}
 
@@ -109,11 +111,6 @@ func main() {
 		zap.String("build_time", model.BuildTime),
 		zap.String("commit_id", model.CommitID),
 	)
-
-	// 1. Setup node data directory structure
-	// Generate node ID
-	nodeID := sync.GetDefaultNodeID()
-	zap.L().Info("Node ID generated", zap.String("nodeID", nodeID))
 
 	zap.L().Info("Data directory ready", zap.String("path", dataDir))
 
@@ -203,27 +200,13 @@ func main() {
 	}
 	zap.L().Info("Core components initialized")
 
-	var syncManager *sync.SyncManager = nil
-	if store != nil && cfg.System.Sync.Enabled {
-		syncPort := cfg.System.Sync.Port
-		if syncPort == 0 {
-			syncPort = 9090
-		}
-		syncManager, err = sync.NewSyncManager(context.Background(), dataDir, syncPort)
-		if err != nil {
-			zap.L().Warn("Sync Manager init failed", zap.Error(err))
-			syncManager = nil
-		} else {
-			syncManager.SeedSnapshot(nodeID, cfg)
-			zap.L().Info("Sync Manager enabled (DB snapshot mode, no YAML path mutation)")
-		}
-	} else {
-		zap.L().Info("Sync Manager disabled (set system.sync.enabled=true to enable)")
-	}
+	// Cluster sync (internal/sync) is temporarily disabled at startup.
+	// Sync API routes remain registered but return 503 until re-enabled in main.
+	zap.L().Info("Sync Manager disabled (cluster sync temporarily bypassed)")
 
 	// 4. Init Web Server
 	zap.L().Info("Initializing Web Server...")
-	srv := server.NewServer(cm, store, pipeline, nbm, ecm, sm, dsm, cfgManager, syncManager, logBroadcaster)
+	srv := server.NewServer(cm, store, pipeline, nbm, ecm, sm, dsm, cfgManager, nil, logBroadcaster)
 	if shadowCore != nil {
 		srv.SetShadowCore(shadowCore)
 	}
@@ -267,6 +250,38 @@ func main() {
 	})
 	zap.L().Info("Web Server initialized")
 
+	startDataPlane := func() {
+		go func() {
+			current := cfgManager.GetConfig()
+			for _, chConfig := range current.Channels {
+				ch := chConfig
+				ch.StopChan = make(chan struct{})
+
+				err := cm.AddChannel(&ch)
+				if err != nil {
+					zap.L().Error("Failed to add channel", zap.String("channel", ch.Name), zap.Error(err))
+					continue
+				}
+
+				err = cm.StartChannel(ch.ID)
+				if err != nil {
+					zap.L().Error("Failed to start channel", zap.String("channel", ch.Name), zap.Error(err))
+				}
+			}
+			zap.L().Info("All channels initialization completed")
+
+			nbm.Start()
+			nbm.RebuildOPCUAServers()
+			zap.L().Info("Northbound manager started")
+		}()
+	}
+
+	var dataPlaneOnce sync.Once
+	startDataPlaneOnce := func() {
+		dataPlaneOnce.Do(startDataPlane)
+	}
+	srv.SetRuntimeStartHook(startDataPlaneOnce)
+
 	pipeline.Start()
 
 	// 5. Start Web Server first (before any potentially blocking operations)
@@ -282,33 +297,12 @@ func main() {
 		}
 	}()
 
-	// 6. Start Channels then Northbound (sequential to ensure OPC UA address space includes all devices)
-	go func() {
-		for _, chConfig := range cfg.Channels {
-			ch := chConfig
-			ch.StopChan = make(chan struct{})
-
-			err := cm.AddChannel(&ch)
-			if err != nil {
-				zap.L().Error("Failed to add channel", zap.String("channel", ch.Name), zap.Error(err))
-				continue
-			}
-
-			err = cm.StartChannel(ch.ID)
-			if err != nil {
-				zap.L().Error("Failed to start channel", zap.String("channel", ch.Name), zap.Error(err))
-			}
-		}
-		zap.L().Info("All channels initialization completed")
-
-		nbm.Start()
-		nbm.RebuildOPCUAServers()
-		zap.L().Info("Northbound manager started")
-	}()
-	defer nbm.Stop()
-
-	if syncManager != nil {
-		syncManager.SeedSnapshot(syncManager.GetPeerIDString(), cfg)
+	// 6. Start channels and northbound only after install completes (config persisted in DB)
+	if runtimeReady {
+		startDataPlaneOnce()
+		defer nbm.Stop()
+	} else {
+		zap.L().Info("Skipping channel and northbound startup (install mode)")
 	}
 
 	// 7. Wait for shutdown signal
@@ -317,11 +311,6 @@ func main() {
 	<-sigChan
 
 	zap.L().Info("Shutting down...")
-
-	// Stop sync manager
-	if syncManager != nil {
-		syncManager.Stop()
-	}
 
 	cm.Shutdown()
 }

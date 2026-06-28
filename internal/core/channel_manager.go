@@ -1017,7 +1017,7 @@ func (cm *ChannelManager) registerProtocolToScanEngine(protocol string) {
 		cm.scanEngineAdapter.scanEngine.RegisterProtocol(protocol, ProtocolTypeSerial)
 	case "opc-ua", "http", "rest", "mqtt":
 		cm.scanEngineAdapter.scanEngine.RegisterProtocol(protocol, ProtocolTypeParallel)
-	case "s7", "bacnet-ip", "ethernet-ip":
+	case "s7", "bacnet-ip", "ethernet-ip", "profinet-io":
 		cm.scanEngineAdapter.scanEngine.RegisterProtocol(protocol, ProtocolTypeLimited)
 	default:
 		cm.scanEngineAdapter.scanEngine.RegisterProtocol(protocol, ProtocolTypeSerial)
@@ -1043,6 +1043,8 @@ func (cm *ChannelManager) validatePoint(ch *model.Channel, point *model.Point) e
 		return cm.validateOmronFinsPoint(point)
 	case "knxnet-ip":
 		return cm.validateKNXnetIPPoint(point)
+	case "profinet-io":
+		return cm.validateProfinetIOPoint(point)
 	default:
 		return nil
 	}
@@ -1140,6 +1142,17 @@ func (cm *ChannelManager) validateDLT645Point(point *model.Point) error {
 func (cm *ChannelManager) validateEtherNetIPPoint(point *model.Point) error {
 	if point.Address == "" {
 		return fmt.Errorf("ethernet/ip tag name cannot be empty")
+	}
+	return nil
+}
+
+func (cm *ChannelManager) validateProfinetIOPoint(point *model.Point) error {
+	if point.Address == "" {
+		return fmt.Errorf("profinet-io address cannot be empty")
+	}
+	re := regexp.MustCompile(`^\d+:\d+:\d+(?:\.\d+)?(?:#(?:BE|LE|be|le))?$`)
+	if !re.MatchString(point.Address) {
+		return fmt.Errorf("invalid profinet-io address format: expected SLOT:SUB_SLOT:INDEX[.BIT][#ENDIAN], e.g. 3:1:0")
 	}
 	return nil
 }

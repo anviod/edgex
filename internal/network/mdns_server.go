@@ -4,74 +4,96 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/anviod/edgex/internal/model"
-
-	"github.com/grandcat/zeroconf"
 )
 
-// MDNSServer manages mDNS services
+// MDNSServer manages mDNS services.
 type MDNSServer struct {
-	servers []*zeroconf.Server
-	mu      sync.Mutex
+	responder *mdnsResponder
+	status    HostnameMDNSStatus
+	mu        sync.Mutex
 }
 
-// NewMDNSServer creates a new MDNSServer
+// HostnameMDNSStatus reports mDNS broadcast state for the UI/API.
+type HostnameMDNSStatus struct {
+	Enabled  bool     `json:"enabled"`
+	Active   bool     `json:"active"`
+	Hostname string   `json:"hostname"`
+	IPs      []string `json:"ips,omitempty"`
+	Error    string   `json:"error,omitempty"`
+}
+
+// NewMDNSServer creates a new MDNSServer.
 func NewMDNSServer() *MDNSServer {
 	return &MDNSServer{}
 }
 
-// Start starts the mDNS services based on configuration
-func (s *MDNSServer) Start(cfg model.HostnameConfig) error {
-	s.Stop() // Stop existing first
+// Status returns the latest mDNS broadcast status.
+func (s *MDNSServer) Status() HostnameMDNSStatus {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.status
+}
 
-	if !cfg.EnableMDNS {
-		return nil
+func isUsableMDNSInterface(name string, flags net.Flags) bool {
+	if isLoopbackInterface(name, flags) {
+		return false
 	}
-
-	if cfg.Name == "" {
-		cfg.Name = "edgex"
+	if flags&net.FlagUp == 0 {
+		return false
 	}
+	lower := strings.ToLower(name)
+	switch {
+	case strings.HasPrefix(lower, "utun"),
+		strings.HasPrefix(lower, "awdl"),
+		strings.HasPrefix(lower, "llw"),
+		strings.HasPrefix(lower, "gif"),
+		strings.HasPrefix(lower, "stf"):
+		return false
+	}
+	return true
+}
 
-	// Resolve interfaces
-	var ifaces []net.Interface
-	if len(cfg.Interfaces) > 0 {
-		for _, name := range cfg.Interfaces {
-			if iface, err := net.InterfaceByName(name); err == nil {
-				ifaces = append(ifaces, *iface)
-			} else {
+// collectIPv4Addresses returns IPv4 addresses and the interfaces they came from.
+// When names is empty, all usable non-loopback up interfaces are scanned.
+func collectIPv4Addresses(names []string) ([]string, []net.Interface, error) {
+	var selected []net.Interface
+	if len(names) > 0 {
+		for _, name := range names {
+			iface, err := net.InterfaceByName(name)
+			if err != nil {
 				log.Printf("Warning: Interface %s not found for mDNS", name)
+				continue
 			}
+			selected = append(selected, *iface)
 		}
-	}
-
-	// Collect IPs for Proxy
-	// If no interfaces specified, we use all multicast interfaces (default behavior if we pass nil to Register)
-	// But RegisterProxy requires explicit IPs if we want to override the hostname resolution.
-	// Actually, RegisterProxy takes `host` string and `ips` []string.
-	// If we want `device-name.local` to resolve to our IPs, we need to provide them.
-
-	var ips []string
-	targetInterfaces := ifaces
-	if len(targetInterfaces) == 0 {
-		// If no interfaces specified, get all
+		if len(selected) == 0 {
+			return nil, nil, fmt.Errorf("no valid interfaces found for mDNS")
+		}
+	} else {
 		allIfaces, err := net.Interfaces()
-		if err == nil {
-			targetInterfaces = allIfaces
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to list interfaces: %w", err)
 		}
+		selected = allIfaces
 	}
 
-	for _, iface := range targetInterfaces {
-		if (iface.Flags&net.FlagUp) == 0 || (iface.Flags&net.FlagLoopback) != 0 {
+	seenIPs := make(map[string]struct{})
+	var ips []string
+	var usedIfaces []net.Interface
+
+	for _, iface := range selected {
+		if !isUsableMDNSInterface(iface.Name, iface.Flags) {
 			continue
 		}
 		addrs, err := iface.Addrs()
 		if err != nil {
 			continue
 		}
+		var ifaceIPs []string
 		for _, addr := range addrs {
 			var ip net.IP
 			switch v := addr.(type) {
@@ -80,72 +102,109 @@ func (s *MDNSServer) Start(cfg model.HostnameConfig) error {
 			case *net.IPAddr:
 				ip = v.IP
 			}
-			if ip != nil && ip.To4() != nil { // Currently prefer IPv4, but could support IPv6
-				ips = append(ips, ip.String())
+			if ip == nil || ip.To4() == nil || ip.IsLoopback() {
+				continue
 			}
+			ipStr := ip.String()
+			ifaceIPs = append(ifaceIPs, ipStr)
+		}
+		if len(ifaceIPs) == 0 {
+			continue
+		}
+		usedIfaces = append(usedIfaces, iface)
+		for _, ipStr := range ifaceIPs {
+			if _, ok := seenIPs[ipStr]; ok {
+				continue
+			}
+			seenIPs[ipStr] = struct{}{}
+			ips = append(ips, ipStr)
 		}
 	}
 
 	if len(ips) == 0 {
-		log.Println("Warning: No IPs found for mDNS broadcast")
+		return nil, usedIfaces, fmt.Errorf("no IPv4 addresses available for mDNS broadcast")
 	}
 
-	hostName := fmt.Sprintf("%s.local.", cfg.Name)
+	if len(usedIfaces) == 0 {
+		usedIfaces = listMDNSMulticastInterfaces()
+	}
 
-	// Helper to register service
-	register := func(serviceType string, port int, txt []string) error {
-		// We use RegisterProxy to control the hostname and IPs
-		server, err := zeroconf.RegisterProxy(
-			cfg.Name,    // Instance Name
-			serviceType, // Service Type
-			"local.",    // Domain
-			port,        // Port
-			hostName,    // Hostname (Target for SRV)
-			ips,         // IPs for A records
-			txt,         // TXT records
-			ifaces,      // Interfaces to broadcast on
-		)
-		if err != nil {
-			return err
-		}
-		s.servers = append(s.servers, server)
+	return ips, usedIfaces, nil
+}
+
+// Start starts the mDNS services based on configuration.
+func (s *MDNSServer) Start(cfg model.HostnameConfig) error {
+	s.Stop()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.status = HostnameMDNSStatus{
+		Enabled:  cfg.EnableMDNS,
+		Hostname: cfg.Name,
+	}
+
+	if !cfg.EnableMDNS {
 		return nil
 	}
 
-	// Register HTTP
+	if cfg.Name == "" {
+		cfg.Name = "edgex"
+		s.status.Hostname = cfg.Name
+	}
+
+	ips, ifaces, err := collectIPv4Addresses(cfg.Interfaces)
+	if err != nil {
+		s.status.Error = err.Error()
+		log.Printf("Warning: %v", err)
+		return err
+	}
+	s.status.IPs = append([]string(nil), ips...)
+
+	hostName := fmt.Sprintf("%s.local.", cfg.Name)
+	services := []mdnsServiceDef{}
+
 	if cfg.HTTPPort > 0 {
-		if err := register("_http._tcp", cfg.HTTPPort, []string{"txtv=0", "lo=1", "la=2"}); err != nil {
-			return fmt.Errorf("failed to register http service: %v", err)
-		}
+		services = append(services, mdnsServiceDef{
+			Instance: cfg.Name,
+			Type:     "_http._tcp",
+			Port:     cfg.HTTPPort,
+			TXT:      []string{"path=/"},
+		})
 	}
 
-	// Register HTTPS
-	if cfg.HTTPSPort > 0 {
-		if err := register("_https._tcp", cfg.HTTPSPort, []string{"txtv=0", "lo=1", "la=2"}); err != nil {
-			return fmt.Errorf("failed to register https service: %v", err)
-		}
-	}
-
-	// Register Gateway
-	// Using port 80 or HTTP port as default for Gateway service
 	gwPort := cfg.HTTPPort
 	if gwPort == 0 {
-		gwPort = 80
+		gwPort = 8080
 	}
-	if err := register("_gateway._tcp", gwPort, []string{"model=edgex", "version=1.0"}); err != nil {
-		return fmt.Errorf("failed to register gateway service: %v", err)
+	services = append(services, mdnsServiceDef{
+		Instance: cfg.Name,
+		Type:     "_gateway._tcp",
+		Port:     gwPort,
+		TXT:      []string{"model=edgex", "version=1.0"},
+	})
+
+	responder, err := newMDNSResponder(hostName, ips, services, ifaces)
+	if err != nil {
+		s.status.Error = err.Error()
+		return fmt.Errorf("failed to start mDNS: %w", err)
 	}
 
+	s.responder = responder
+	s.status.Active = true
 	log.Printf("mDNS services started for hostname: %s (%v)", cfg.Name, ips)
 	return nil
 }
 
-// Stop stops all mDNS services
+// Stop stops all mDNS services.
 func (s *MDNSServer) Stop() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, server := range s.servers {
-		server.Shutdown()
+	if s.responder != nil {
+		s.responder.Shutdown()
+		s.responder = nil
 	}
-	s.servers = nil
+	if s.status.Active {
+		s.status.Active = false
+	}
 }

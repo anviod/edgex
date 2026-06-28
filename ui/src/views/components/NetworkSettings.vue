@@ -2,7 +2,10 @@
   <!-- 网络接口 -->
   <a-card v-if="activeTab === 'network'" class="settings-panel">
     <a-card-header>
-      <div class="card-title">网络接口</div>
+      <div class="card-title-row">
+        <div class="card-title">网络接口</div>
+        <span v-if="networkBackend.label" class="backend-badge">管理工具: {{ networkBackend.label }}</span>
+      </div>
     </a-card-header>
     <a-card-body>
       <div class="table-container saas-table">
@@ -55,21 +58,32 @@
 
       <div class="table-toolbar-industrial">
         <span class="toolbar-title">连通性验证（配置变更时自动检查）</span>
-        <a-button type="primary" size="small" @click="addConnectivityTarget">
-          <template #icon><icon-plus /></template>
-          添加检查目标
-        </a-button>
+        <div class="toolbar-actions">
+          <a-button size="small" :loading="connectivityChecking" @click="$emit('check-connectivity')">
+            立即检测
+          </a-button>
+          <a-button type="primary" size="small" @click="addConnectivityTarget">
+            <template #icon><icon-plus /></template>
+            添加检查目标
+          </a-button>
+        </div>
+      </div>
+      <div v-if="connectivityReport" class="connectivity-report" :class="connectivityReport.success ? 'is-ok' : 'is-fail'">
+        <span>{{ connectivityReport.success ? '连通性验证通过' : '连通性验证失败' }}</span>
+        <span v-for="(item, idx) in connectivityReport.details || []" :key="idx" class="report-item">
+          {{ item.target }}: {{ item.message }}
+        </span>
       </div>
       <div class="table-container saas-table">
       <a-table :columns="connectivityColumns" :data="connectivityTargets" size="small" :bordered="false" class="industrial-table-inline">
-        <template #type="{ record, index }">
-          <a-select v-model="connectivityTargets[index].type" :options="connectivityTypeOptions" size="small" class="rect-input" />
+        <template #type="{ index }">
+          <a-select v-model="connectivityTargets[index].type" :options="connectivityTypeOptions" size="small" class="rect-input" @change="onConnectivityChange" />
         </template>
-        <template #target="{ record, index }">
-          <a-input v-model="connectivityTargets[index].target" placeholder="例如: 8.8.8.8 或 http://baidu.com" size="small" class="rect-input" />
+        <template #target="{ index }">
+          <a-input v-model="connectivityTargets[index].target" placeholder="例如: 8.8.8.8 或 http://baidu.com" size="small" class="rect-input" @change="onConnectivityChange" />
         </template>
-        <template #timeout="{ record, index }">
-          <a-input-number v-model="connectivityTargets[index].timeout" :min="1" size="small" class="rect-input" />
+        <template #timeout="{ index }">
+          <a-input-number v-model="connectivityTargets[index].timeout" :min="1" size="small" class="rect-input" @change="onConnectivityChange" />
         </template>
         <template #actions="{ index }">
           <a-button type="text" size="small" status="danger" @click="removeConnectivityTarget(index)">
@@ -82,7 +96,7 @@
   </a-card>
 
   <a-card v-if="activeTab === 'routes'" class="settings-panel">
-    <a-card-header class="d-flex justify-space-between align-items-center">
+    <a-card-header class="card-title-row">
       <div class="card-title">静态路由</div>
       <a-button type="primary" @click="openRouteDialog()">
         <template #icon><icon-plus /></template>
@@ -91,12 +105,12 @@
     </a-card-header>
     <a-card-body>
       <div class="table-container saas-table">
-      <a-table :columns="routesColumns" :data="staticRoutes" size="small" :bordered="false" class="industrial-table-inline">
+      <a-table :columns="routesColumns" :data="routeRows" size="small" :bordered="false" class="industrial-table-inline">
         <template #destination="{ record }">
           {{ record.destination }}/{{ record.prefix }}
         </template>
-        <template #enabled="{ record, index }">
-          <a-switch v-model="staticRoutes[index].enabled" @change="$emit('save')" />
+        <template #enabled="{ index }">
+          <a-switch :model-value="Boolean(routeRows[index]?.enabled)" @change="(value) => setRouteEnabled(index, value)" />
         </template>
         <template #actions="{ record, index }">
           <a-button type="text" size="small" @click="openRouteDialog(record, index)">
@@ -239,7 +253,7 @@
         <a-input v-model="routeDialog.form.gateway" class="rect-input" />
       </a-form-item>
       <a-form-item field="interface" label="出接口">
-        <a-select v-model="routeDialog.form.interface" :options="networkInterfaces.map(i => ({ label: i.name, value: i.name }))" class="rect-input" />
+        <a-select v-model="routeDialog.form.interface" :options="interfaceOptions" class="rect-input" />
       </a-form-item>
       <a-form-item field="metric" label="优先级">
         <a-input-number v-model="routeDialog.form.metric" :min="1" class="rect-input" />
@@ -275,10 +289,30 @@ const props = defineProps({
   staticRoutes: {
     type: Array,
     default: () => []
+  },
+  networkBackend: {
+    type: Object,
+    default: () => ({ type: '', label: '' })
+  },
+  connectivityReport: {
+    type: Object,
+    default: null
+  },
+  connectivityChecking: {
+    type: Boolean,
+    default: false
+  },
+  onAddRoute: {
+    type: Function,
+    default: null
+  },
+  onDeleteRoute: {
+    type: Function,
+    default: null
   }
 })
 
-const emit = defineEmits(['update:networkInterfaces', 'update:connectivityTargets', 'update:staticRoutes', 'save'])
+const emit = defineEmits(['update:networkInterfaces', 'update:connectivityTargets', 'update:staticRoutes', 'save', 'check-connectivity'])
 
 // 监听 activeTab 变化，关闭弹窗
 watch(() => props.activeTab, (newTab) => {
@@ -363,6 +397,27 @@ const safeIPs = (record) => {
     .map(normalizeIP)
     .filter(ip => ip)
 }
+
+const routeRows = computed(() => safeArray(props.staticRoutes).map((route) => {
+  if (!route || typeof route !== 'object') {
+    return { destination: '', prefix: 24, gateway: '', interface: '', metric: 100, enabled: false }
+  }
+  return {
+    destination: typeof route.destination === 'string' ? route.destination : '',
+    prefix: Number.isFinite(route.prefix) ? route.prefix : 24,
+    gateway: typeof route.gateway === 'string' ? route.gateway : '',
+    interface: typeof route.interface === 'string' ? route.interface : '',
+    metric: Number.isFinite(route.metric) ? route.metric : 100,
+    enabled: Boolean(route.enabled)
+  }
+}))
+
+const interfaceOptions = computed(() => safeArray(props.networkInterfaces)
+  .map((iface) => ({
+    label: iface?.name || '',
+    value: iface?.name || ''
+  }))
+  .filter((item) => item.value))
 
 const interfaceDialog = reactive({
   visible: false,
@@ -460,12 +515,18 @@ const addConnectivityTarget = () => {
     type: 'ip', target: '', timeout: 2
   })
   emit('update:connectivityTargets', updatedTargets)
+  emit('save')
+}
+
+const onConnectivityChange = () => {
+  emit('save')
 }
 
 const removeConnectivityTarget = (idx) => {
   const updatedTargets = [...props.connectivityTargets]
   updatedTargets.splice(idx, 1)
   emit('update:connectivityTargets', updatedTargets)
+  emit('save')
 }
 
 const removeGatewayConfig = (idx) => {
@@ -482,26 +543,100 @@ const openRouteDialog = (route = null, index = -1) => {
   routeDialog.visible = true
 }
 
-const saveRoute = () => {
-  const updatedRoutes = [...props.staticRoutes]
-  if (routeDialog.index === -1) {
-    updatedRoutes.push({ ...routeDialog.form })
-  } else {
-    updatedRoutes[routeDialog.index] = { ...routeDialog.form }
+const saveRoute = async () => {
+  const route = { ...routeDialog.form }
+  if (!route.destination?.trim()) {
+    return
   }
-  emit('update:staticRoutes', updatedRoutes)
-  routeDialog.visible = false
-  emit('save') // Optional: save immediately
+  try {
+    if (routeDialog.index === -1) {
+      if (props.onAddRoute) {
+        await props.onAddRoute(route)
+      } else {
+        const updatedRoutes = [...props.staticRoutes, route]
+        emit('update:staticRoutes', updatedRoutes)
+        emit('save')
+      }
+    } else {
+      const updatedRoutes = [...props.staticRoutes]
+      updatedRoutes[routeDialog.index] = route
+      emit('update:staticRoutes', updatedRoutes)
+      emit('save')
+    }
+    routeDialog.visible = false
+  } catch {
+    // Parent shows error message.
+  }
 }
 
-const deleteRoute = (idx) => {
-  const updatedRoutes = [...props.staticRoutes]
-  updatedRoutes.splice(idx, 1)
+const deleteRoute = async (idx) => {
+  const route = props.staticRoutes[idx]
+  if (!route) return
+  try {
+    if (props.onDeleteRoute) {
+      await props.onDeleteRoute(route)
+    } else {
+      const updatedRoutes = [...props.staticRoutes]
+      updatedRoutes.splice(idx, 1)
+      emit('update:staticRoutes', updatedRoutes)
+      emit('save')
+    }
+  } catch {
+    // Parent shows error message.
+  }
+}
+
+const setRouteEnabled = (idx, enabled) => {
+  const updatedRoutes = safeArray(props.staticRoutes).map((route) => {
+    if (!route || typeof route !== 'object') return route
+    return { ...route }
+  })
+  if (!updatedRoutes[idx] || typeof updatedRoutes[idx] !== 'object') return
+  updatedRoutes[idx] = { ...updatedRoutes[idx], enabled: Boolean(enabled) }
   emit('update:staticRoutes', updatedRoutes)
   emit('save')
 }
 </script>
 
 <style scoped>
-/* v3.0 — styles in src/styles/ */
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.backend-badge {
+  font-size: 12px;
+  color: var(--color-text-3);
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.connectivity-report {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.connectivity-report.is-ok {
+  background: rgba(0, 180, 42, 0.08);
+  color: #00b42a;
+}
+
+.connectivity-report.is-fail {
+  background: rgba(245, 63, 63, 0.08);
+  color: #f53f3f;
+}
+
+.report-item {
+  color: var(--color-text-2);
+}
 </style>

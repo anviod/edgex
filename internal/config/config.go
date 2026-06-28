@@ -93,7 +93,11 @@ func DefaultConfig() *Config {
 	cfg.EdgeRules = []model.EdgeRule{}
 	cfg.System = model.SystemConfig{
 		Hostname: model.HostnameConfig{
-			Name: "edgex-gateway",
+			Name:       "edgex",
+			EnableMDNS: true,
+			EnableBare: true,
+			HTTPPort:   cfg.Server.Port,
+			HTTPSPort:  443,
 		},
 	}
 	cfg.Users = []model.UserConfig{}

@@ -3,7 +3,7 @@
  */
 
 .system-settings-page {
-  gap: var(--space-6);
+  gap: var(--space-4);
 }
 
 .system-settings-page .page-header {
@@ -12,6 +12,10 @@
 
 .system-settings-page > .main-tabs {
   flex-shrink: 0;
+}
+
+.system-settings-page > .main-tabs > .arco-tabs-nav {
+  margin-bottom: var(--space-1);
 }
 
 .system-settings-page > .main-tabs .arco-tabs-nav-tab {
@@ -27,12 +31,17 @@
   display: none;
 }
 
-.settings-body {
+.system-settings-page .settings-body {
   display: flex;
   flex-direction: column;
   gap: var(--section-gap);
-  padding-top: var(--space-6);
+  padding-top: var(--space-1);
   min-width: 0;
+}
+
+.system-settings-page > .main-tabs + .settings-body > .settings-panel,
+.system-settings-page > .main-tabs + .settings-body > .settings-stack > .settings-panel:first-child {
+  margin-top: 0 !important;
 }
 
 .settings-stack {
@@ -63,7 +72,7 @@
 
 .system-settings-page .settings-panel > .arco-card-body,
 .system-settings-page .settings-panel.arco-card > .arco-card-body {
-  padding: var(--space-6) !important;
+  padding: var(--space-5) !important;
 }
 
 .system-settings-page .settings-panel .card-title {
@@ -138,6 +147,18 @@
   padding-bottom: var(--space-2);
   font-weight: 500;
   color: var(--text-secondary);
+}
+
+/*
+ * Reduce "double title" effect:
+ * when a form starts right after a card header, tone down the first field label
+ * so the card title remains the primary heading while preserving label semantics.
+ */
+.system-settings-page .settings-panel > .arco-card-body > .industrial-form > .arco-form-item:first-child .arco-form-item-label,
+.system-settings-page .settings-panel > .arco-card-body > .industrial-form > .arco-row:first-child .arco-form-item:first-child .arco-form-item-label {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 /* ── 表格区域 ── */

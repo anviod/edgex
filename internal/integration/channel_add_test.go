@@ -13,6 +13,7 @@ import (
 	_ "github.com/anviod/edgex/internal/driver/modbus"
 	_ "github.com/anviod/edgex/internal/driver/omron"
 	_ "github.com/anviod/edgex/internal/driver/opcua"
+	_ "github.com/anviod/edgex/internal/driver/profinetio"
 	_ "github.com/anviod/edgex/internal/driver/s7"
 	_ "github.com/anviod/edgex/internal/driver/snmp"
 	"github.com/anviod/edgex/internal/model"
@@ -32,6 +33,8 @@ func TestAddChannel_AllProtocols_MinimalConfig(t *testing.T) {
 		{name: "bacnet-ip", protocol: "bacnet-ip", config: map[string]any{}},
 		{name: "opc-ua", protocol: "opc-ua", config: map[string]any{}},
 		{name: "s7", protocol: "s7", config: map[string]any{}},
+		{name: "profinet-io", protocol: "profinet-io", config: map[string]any{}},
+		{name: "profinet-io-simulation", protocol: "profinet-io", config: map[string]any{"simulation": true}},
 		{name: "ethernet-ip", protocol: "ethernet-ip", config: map[string]any{}},
 		{name: "omron-fins", protocol: "omron-fins", config: map[string]any{}},
 		{name: "knxnet-ip-no-ip", protocol: "knxnet-ip", config: map[string]any{"port": 3671}},
@@ -182,6 +185,22 @@ func protocolFixtures() []protocolFixture {
 			config:   map[string]any{},
 			device:   model.Device{ID: "dev-dlt645", Name: "DLT645 Device", Config: map[string]any{"station_address": "123456789012"}},
 			point:    model.Point{ID: "pt-dlt645", Name: "Voltage", Address: "123456789012#02-01-01-00", DataType: "uint16"},
+		},
+		{
+			protocol: "profinet-io",
+			config:   map[string]any{"simulation": true},
+			device: model.Device{
+				ID:   "dev-pnio",
+				Name: "Profinet IO Device",
+				Config: map[string]any{
+					"device_name": "io-device-1",
+					"ip":          "192.168.1.20",
+					"port":        34964,
+					"slot":        3,
+					"subslot":     1,
+				},
+			},
+			point: model.Point{ID: "pt-pnio", Name: "Input0", Address: "3:1:0", DataType: "int16"},
 		},
 	}
 }

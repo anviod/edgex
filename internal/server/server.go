@@ -72,6 +72,7 @@ type Server struct {
 	serverMu            sync.Mutex
 	portSwitching       bool
 	storageAttachHook   func(*storage.Storage)
+	runtimeStartHook    func()
 	shadowSubscribeOnce sync.Once
 }
 
@@ -155,6 +156,11 @@ func (s *Server) BroadcastShadowPoint(channelID, deviceID, pointID string, point
 // SetStorageAttachHook 注册存储绑定回调（安装流程创建 DB 后回传 main 等组件）。
 func (s *Server) SetStorageAttachHook(fn func(*storage.Storage)) {
 	s.storageAttachHook = fn
+}
+
+// SetRuntimeStartHook 注册数据采集/北向启动回调（安装完成后或正常启动时调用）。
+func (s *Server) SetRuntimeStartHook(fn func()) {
+	s.runtimeStartHook = fn
 }
 
 func (s *Server) Start(addr string) error {
@@ -367,6 +373,11 @@ func (s *Server) setupRoutes() {
 	api.Post("/system/restart", s.handleRestart)
 	api.Get("/system/network/interfaces", s.getNetworkInterfaces)
 	api.Get("/system/network/routes", s.getRoutes)
+	api.Post("/system/network/routes", s.addRoute)
+	api.Delete("/system/network/routes", s.deleteRoute)
+	api.Get("/system/network/info", s.getNetworkInfo)
+	api.Get("/system/hostname/status", s.getHostnameAccessStatus)
+	api.Post("/system/network/connectivity", s.checkConnectivity)
 
 	// 第一级：采集通道列表
 	api.Get("/channels", s.getChannels)

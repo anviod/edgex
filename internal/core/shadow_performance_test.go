@@ -222,7 +222,7 @@ func BenchmarkShadowCore_CompareAndSwap(b *testing.B) {
 }
 
 func TestPerformance_WriteLatency(t *testing.T) {
-	tmpDir := testOutputDir(b)
+	tmpDir := testOutputDir(t)
 
 	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
@@ -279,7 +279,7 @@ func TestPerformance_WriteLatency(t *testing.T) {
 }
 
 func TestPerformance_ReadLatency(t *testing.T) {
-	tmpDir := testOutputDir(b)
+	tmpDir := testOutputDir(t)
 
 	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
@@ -341,7 +341,7 @@ func TestPerformance_ReadLatency(t *testing.T) {
 }
 
 func TestPerformance_Throughput(t *testing.T) {
-	tmpDir := testOutputDir(b)
+	tmpDir := testOutputDir(t)
 
 	store, err := storage.NewStorage(tmpDir)
 	if err != nil {
@@ -381,7 +381,7 @@ func TestPerformance_Throughput(t *testing.T) {
 }
 
 func TestPerformance_MemoryUsage(t *testing.T) {
-	tmpDir := testOutputDir(b)
+	tmpDir := testOutputDir(t)
 
 	store, err := storage.NewStorage(tmpDir)
 	if err != nil {

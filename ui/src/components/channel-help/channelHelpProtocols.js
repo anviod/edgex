@@ -12,4 +12,5 @@ export const CHANNEL_HELP_PROTOCOLS = [
   { value: 'iec60870-5-104', label: 'IEC 60870-5-104' },
   { value: 'snmp', label: 'SNMP' },
   { value: 'knxnet-ip', label: 'KNXnet/IP' },
+  { value: 'profinet-io', label: 'Profinet IO' },
 ]

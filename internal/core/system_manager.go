@@ -39,15 +39,6 @@ func NewSystemManager(cfg *config.Config) *SystemManager {
 		cfg.System.Time.Mode = "manual"
 		cfg.System.Time.Manual.Timezone = "Asia/Shanghai"
 	}
-	if cfg.System.Hostname.Name == "" {
-		cfg.System.Hostname.Name = "edgex"
-	}
-	if cfg.System.Hostname.HTTPPort == 0 {
-		cfg.System.Hostname.HTTPPort = 8082
-	}
-	if cfg.System.Hostname.HTTPSPort == 0 {
-		cfg.System.Hostname.HTTPSPort = 443
-	}
 
 	sm := &SystemManager{
 		config:     cfg,
@@ -55,10 +46,11 @@ func NewSystemManager(cfg *config.Config) *SystemManager {
 		dnsProxy:   network.NewDNSProxy(),
 		netManager: network.NewNetworkManager(),
 	}
+	sm.normalizeHostnameConfig()
 
-	// Start network services
-	go sm.mdnsServer.Start(cfg.System.Hostname)
-	go sm.dnsProxy.Start(cfg.System.Hostname)
+	// Start network services (hostname discovery must run at startup, not only on settings save).
+	sm.startHostnameServices()
+
 	go sm.netManager.ApplyConfig(cfg.System.Network, cfg.System.Routes)
 
 	return sm
@@ -67,37 +59,47 @@ func NewSystemManager(cfg *config.Config) *SystemManager {
 func (sm *SystemManager) GetConfig() model.SystemConfig {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
-	return sm.config.System
+	cfg := sm.config.System
+	cfg.Hostname = sm.effectiveHostnameConfigLocked()
+	return cfg
 }
 
 func (sm *SystemManager) UpdateConfig(newConfig model.SystemConfig) error {
 	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
-	// Update config in memory
+	previousRoutes := append([]model.StaticRoute(nil), sm.config.System.Routes...)
 	sm.config.System = newConfig
-
-	// Persist (DB-first, fallback to files)
-	if err := sm.persist(); err != nil {
-		return fmt.Errorf("failed to save system config: %v", err)
+	if newConfig.Hostname.HTTPPort > 0 {
+		sm.config.Server.Port = newConfig.Hostname.HTTPPort
 	}
 
-	// Apply changes (Mocking the system calls)
-	go sm.applyConfig(newConfig)
+	if err := sm.persist(); err != nil {
+		sm.mu.Unlock()
+		return fmt.Errorf("failed to save system config: %v", err)
+	}
+	sm.mu.Unlock()
+
+	go sm.applyConfig(newConfig, previousRoutes)
 
 	return nil
 }
 
-func (sm *SystemManager) applyConfig(cfg model.SystemConfig) {
-	// Apply network settings
-	if err := sm.mdnsServer.Start(cfg.Hostname); err != nil {
-		fmt.Printf("Error updating mDNS: %v\n", err)
-	}
-	if err := sm.dnsProxy.Start(cfg.Hostname); err != nil {
-		fmt.Printf("Error updating DNS Proxy: %v\n", err)
-	}
+func (sm *SystemManager) startHostnameServices() {
+	sm.mu.RLock()
+	hostnameCfg := sm.effectiveHostnameConfigLocked()
+	sm.mu.RUnlock()
 
-	if err := sm.netManager.ApplyConfigWithTransaction(cfg.Network, cfg.Routes, cfg.ConnectivityTargets); err != nil {
+	if err := sm.mdnsServer.Start(hostnameCfg); err != nil {
+		fmt.Printf("Error starting mDNS: %v\n", err)
+	}
+	if err := sm.dnsProxy.Start(hostnameCfg); err != nil {
+		fmt.Printf("Error starting DNS proxy: %v\n", err)
+	}
+}
+
+func (sm *SystemManager) applyConfig(cfg model.SystemConfig, previousRoutes []model.StaticRoute) {
+	sm.startHostnameServices()
+
+	if err := sm.netManager.ApplyConfigWithRouteSync(cfg.Network, cfg.Routes, previousRoutes, cfg.ConnectivityTargets); err != nil {
 		fmt.Printf("Error updating network config: %v\n", err)
 	}
 
@@ -109,7 +111,32 @@ func (sm *SystemManager) applyConfig(cfg model.SystemConfig) {
 }
 
 func (sm *SystemManager) GetNetworkInterfaces() ([]model.NetworkInterface, error) {
-	return sm.netManager.GetInterfaces()
+	live, err := sm.netManager.GetInterfaces()
+	if err != nil {
+		return nil, err
+	}
+	sm.mu.RLock()
+	configured := sm.config.System.Network
+	sm.mu.RUnlock()
+	return network.MergeConfiguredInterfaces(live, configured), nil
+}
+
+func (sm *SystemManager) GetNetworkBackendInfo() network.BackendInfo {
+	return sm.netManager.GetBackendInfo()
+}
+
+func (sm *SystemManager) GetHostnameAccessStatus() network.HostnameAccessStatus {
+	cfg := sm.effectiveHostnameConfig()
+	return network.BuildHostnameAccessStatus(cfg, sm.mdnsServer.Status(), sm.dnsProxy.Status())
+}
+
+func (sm *SystemManager) ValidateConnectivity(targets []model.ConnectivityTarget) (model.ConnectivityReport, error) {
+	if len(targets) == 0 {
+		sm.mu.RLock()
+		targets = sm.config.System.ConnectivityTargets
+		sm.mu.RUnlock()
+	}
+	return sm.netManager.ValidateConnectivity(targets)
 }
 
 func (sm *SystemManager) GetUser(username string) (*model.UserConfig, bool) {
@@ -152,4 +179,107 @@ func (sm *SystemManager) UpdateUserPassword(username, newPassword string) error 
 
 func (sm *SystemManager) GetRoutes() ([]model.StaticRoute, error) {
 	return sm.netManager.GetRoutes()
+}
+
+func (sm *SystemManager) AddRoute(route model.StaticRoute) error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	route = network.NormalizeStaticRoute(route)
+	if route.Destination == "" {
+		return fmt.Errorf("destination is required")
+	}
+
+	for _, existing := range sm.config.System.Routes {
+		if network.RouteKey(existing) == network.RouteKey(route) {
+			return fmt.Errorf("route already exists")
+		}
+	}
+
+	if err := sm.netManager.ApplyStaticRoute(route); err != nil {
+		return err
+	}
+
+	sm.config.System.Routes = append(sm.config.System.Routes, route)
+	return sm.persist()
+}
+
+func (sm *SystemManager) DeleteRoute(route model.StaticRoute) error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	route = network.NormalizeStaticRoute(route)
+	key := network.RouteKey(route)
+	if key == "" {
+		return fmt.Errorf("invalid route")
+	}
+
+	var (
+		found     bool
+		removed   model.StaticRoute
+		remaining []model.StaticRoute
+	)
+	for _, existing := range sm.config.System.Routes {
+		if network.RouteKey(existing) == key {
+			found = true
+			removed = existing
+			continue
+		}
+		remaining = append(remaining, existing)
+	}
+	if !found {
+		if err := sm.netManager.RemoveStaticRoute(route); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := sm.netManager.RemoveStaticRoute(removed); err != nil {
+		return err
+	}
+
+	sm.config.System.Routes = remaining
+	return sm.persist()
+}
+
+func (sm *SystemManager) normalizeHostnameConfig() {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.normalizeHostnameConfigLocked()
+}
+
+func (sm *SystemManager) normalizeHostnameConfigLocked() {
+	if sm.config.System.Hostname.Name == "" {
+		sm.config.System.Hostname.Name = "edgex"
+	}
+	if sm.config.Server.Port > 0 {
+		sm.config.System.Hostname.HTTPPort = sm.config.Server.Port
+	} else if sm.config.System.Hostname.HTTPPort == 0 {
+		sm.config.System.Hostname.HTTPPort = 8080
+	}
+	if sm.config.System.Hostname.HTTPSPort == 0 {
+		sm.config.System.Hostname.HTTPSPort = 443
+	}
+}
+
+func (sm *SystemManager) effectiveHostnameConfig() model.HostnameConfig {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.effectiveHostnameConfigLocked()
+}
+
+func (sm *SystemManager) effectiveHostnameConfigLocked() model.HostnameConfig {
+	cfg := sm.config.System.Hostname
+	if cfg.Name == "" {
+		cfg.Name = "edgex"
+	}
+	if sm.config.Server.Port > 0 {
+		cfg.HTTPPort = sm.config.Server.Port
+	} else if cfg.HTTPPort == 0 {
+		cfg.HTTPPort = 8080
+	}
+	if cfg.HTTPSPort == 0 {
+		cfg.HTTPSPort = 443
+	}
+	return cfg
 }

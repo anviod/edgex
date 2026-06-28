@@ -771,6 +771,36 @@
           </a-row>
         </div>
 
+        <!-- Profinet IO Config -->
+        <div v-if="dialog.form.protocol === 'profinet-io'" class="config-section">
+          <div class="modal-section__title modal-section__title--sub">基础连接</div>
+          <a-form-item field="config.local_interface" label="本地网口" required>
+            <a-input v-model="dialog.form.config.local_interface" placeholder="eth0" />
+            <template #extra>绑定用于 PROFINET 通信的物理网卡，需裸机部署</template>
+          </a-form-item>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.timeout" label="超时时间 (ms)">
+                <a-input-number v-model="dialog.form.config.timeout" :min="100" :max="60000" placeholder="3000" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.max_retries" label="重试次数">
+                <a-input-number v-model="dialog.form.config.max_retries" :min="0" :max="10" placeholder="3" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.heartbeat_interval" label="心跳间隔 (ms)">
+                <a-input-number v-model="dialog.form.config.heartbeat_interval" :min="0" :max="300000" placeholder="30000" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-form-item field="config.simulation" label="模拟模式">
+            <a-switch v-model="dialog.form.config.simulation" />
+            <template #extra>开发测试时使用，无需真实 PROFINET IO 设备</template>
+          </a-form-item>
+        </div>
+
         <!-- Mitsubishi MC Config -->
         <div v-if="dialog.form.protocol === 'mitsubishi-slmp'" class="config-section">
           <div class="modal-section__title modal-section__title--sub">基础连接</div>
@@ -1192,6 +1222,7 @@ const protocols = [
   { label: 'EtherNet/IP', value: 'ethernet-ip' },
   { label: 'Omron FINS', value: 'omron-fins' },
   { label: 'KNXnet/IP', value: 'knxnet-ip' },
+  { label: 'Profinet IO', value: 'profinet-io' },
   { label: 'Mitsubishi MC', value: 'mitsubishi-slmp' },
   { label: 'IEC 60870-5-104', value: 'iec60870-5-104' },
   { label: 'SNMP', value: 'snmp' }

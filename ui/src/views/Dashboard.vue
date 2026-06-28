@@ -280,6 +280,7 @@ const getProtocolClass = (protocol) => {
     'bacnet-ip': 'protocol-bacnet',
     'opc-ua': 'protocol-opc',
     's7': 'protocol-s7',
+    'profinet-io': 'protocol-profinet-io',
     'ethernet-ip': 'protocol-ip',
     'mitsubishi-slmp': 'protocol-mitsubishi',
     'omron-fins': 'protocol-omron'

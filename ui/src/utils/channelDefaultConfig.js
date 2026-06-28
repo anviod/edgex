@@ -91,6 +91,13 @@ export const CHANNEL_DEFAULT_CONFIGS = {
     discovery_timeout: 3000,
     discovery_multicast: '224.0.23.12:3671',
   },
+  'profinet-io': {
+    local_interface: 'eth0',
+    timeout: 3000,
+    max_retries: 3,
+    heartbeat_interval: 30000,
+    simulation: false,
+  },
   'mitsubishi-slmp': {
     port: 5000,
     frame_type: '3E',

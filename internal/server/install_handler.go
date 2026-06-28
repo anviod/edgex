@@ -408,6 +408,11 @@ func (s *Server) executeInstall(cfg *model.InstallConfig) {
 	installStatusMutex.Unlock()
 	addLog("初始化安装流程完成")
 
+	if s.runtimeStartHook != nil {
+		s.runtimeStartHook()
+		addLog("数据采集与北向服务已启动")
+	}
+
 	if cfg.Port != 0 && s.GetListenPort() != 0 && cfg.Port != s.GetListenPort() {
 		addLog(fmt.Sprintf("正在切换到新端口: %d", cfg.Port))
 		go func() {
@@ -455,6 +460,9 @@ func (s *Server) saveSystemConfigToDB(cfg *model.InstallConfig) error {
 	currentCfg := s.cfgManager.GetConfig()
 	currentCfg.Server.Port = cfg.Port
 	currentCfg.System.Hostname.Name = cfg.GatewayName
+	currentCfg.System.Hostname.HTTPPort = cfg.Port
+	currentCfg.System.Hostname.EnableMDNS = true
+	currentCfg.System.Hostname.EnableBare = true
 	currentCfg.System.Location = cfg.GatewayLocation
 
 	return config.SaveConfigToDB(db, currentCfg)

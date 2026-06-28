@@ -26,14 +26,14 @@ hero_buttons:
 | **BACnet IP** | `bacnet-ip` | Production | Yes | Yes | Scan + ScanObjects | Partial | 80+ tests, 59% cov |
 | **OPC UA Client** | `opc-ua` | Production | Yes | Yes | Scan + ScanObjects | Yes | 25 tests, 40% cov |
 | **Siemens S7** | `s7` | Production | Yes | Yes | — | Yes | 52 tests, 42% cov |
-| **EtherNet/IP** | `ethernet-ip` | Production | Yes | Yes | — | Yes | 57 tests, 30% cov |
-| **Omron FINS** | `omron-fins` | Production | Yes | Yes | — | Yes | 6 tests, 25% cov |
-| **SNMP v2c/v3** | `snmp` | Production | Yes | Yes | ScanObjects | Yes | 15 tests, 34% cov |
-| **IEC 60870-5-104** | `iec60870-5-104` | M1 delivered | Yes | Yes (single command) | — | In progress | 8 tests, 23% cov |
-| **DL/T645-2007** | `dlt645` | Implemented | Yes | Yes | — | Yes | 17 tests |
-| **Mitsubishi SLMP** | `mitsubishi-slmp` | Production | Yes | Yes | — | Yes | 7 tests |
-| **Profinet IO** | `profinet-io` | Implemented | Yes | Yes | — | Yes | 6 tests |
-| **KNXnet/IP** | `knxnet-ip` | Production | Yes | Yes | Gateway discovery | Yes | 10 tests |
+| **EtherNet/IP** | `ethernet-ip` | Production | Yes | Yes | — | Yes | 60 tests, 30% cov |
+| **Omron FINS** | `omron-fins` | Production | Yes | Yes | — | Yes | 12 tests, 31% cov |
+| **SNMP v2c/v3** | `snmp` | Production | Yes | Yes | ScanObjects | Yes | 22 tests, 45% cov |
+| **IEC 60870-5-104** | `iec60870-5-104` | M1 delivered | Yes | Yes (single command) | — | Yes | 16 tests, 45% cov |
+| **DL/T645-2007** | `dlt645` | Implemented | Yes | Yes | — | Yes | 24 tests, 71% cov |
+| **Mitsubishi SLMP** | `mitsubishi-slmp` | Production | Yes | Yes | — | Yes | 13 tests, 57% cov |
+| **Profinet IO** | `profinet-io` | Implemented | Yes | Yes | — | Yes | 11 tests, 49% cov |
+| **KNXnet/IP** | `knxnet-ip` | Production | Yes | Yes | Gateway discovery | Yes | 13 tests, 67% cov |
 
 > All drivers above are registered via blank imports in `cmd/main.go`. Only document drivers that exist in code.
 
