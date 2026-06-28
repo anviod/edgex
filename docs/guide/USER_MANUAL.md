@@ -34,7 +34,7 @@ description: EdgeX 用户手册
 
 ### 主要功能
 
-- **多协议数据采集**：支持 Modbus、BACnet、OPC UA、S7、EtherNet/IP 等多种工业协议
+- **多协议数据采集**：支持 Modbus、BACnet、OPC UA、S7、EtherNet/IP、FINS、SNMP、IEC 104、DL/T645、Mitsubishi MC、Profinet IO、KNXnet/IP 等工业协议
 - **边缘计算**：支持阈值告警、状态管理、窗口计算等边缘智能分析
 - **数据转发**：支持 MQTT、OPC UA 等多种北向数据转发方式
 - **设备管理**：支持设备的添加、编辑、删除和监控
@@ -278,7 +278,7 @@ description: EdgeX 用户手册
 1. **添加通道**
    - 进入「南向采集」→「通道管理」
    - 点击「添加通道」
-   - 选择协议类型（Modbus/BACnet/OPC UA/S7 等）
+   - 选择协议类型（Modbus、BACnet、OPC UA、S7、EtherNet/IP、FINS、SNMP、IEC 104、DL/T645、Mitsubishi MC、Profinet IO、KNXnet/IP 等）
    - 配置通道参数
 
 2. **添加设备**
@@ -396,13 +396,22 @@ description: EdgeX 用户手册
 
 ### 支持的协议
 
-| 协议 | 状态 | 说明 |
-| :--- | :--- | :--- |
-| **Modbus TCP / RTU / RTU Over TCP** | ✅ 已实现 | 智能采集优化，自动探测 MTU，指数退避重连 |
-| **BACnet IP** | ✅ 已实现 | 设备发现、对象扫描、点位读写、批量读失败自动回退 |
-| **OPC UA 客户端** | ✅ 已实现 | 订阅与监控、断线自动重连、数据质量判断 |
-| **Siemens S7** | ✅ 已实现 | S7-200Smart/1200/1500/300/400 全系列 |
-| **EtherNet/IP (ODVA)** | ✅ 已实现 | Rockwell PLC 全系列，Tag 地址格式批量读取 |
+> 完整驱动矩阵与测试覆盖见 [设备驱动](../drivers/index.html)
+
+| 协议 | 注册名 | 状态 | 说明 |
+| :--- | :--- | :--- | :--- |
+| **Modbus TCP / RTU / RTU Over TCP** | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | ✅ 生产就绪 | 智能 MTU 探测、指数退避、24h 冷却期 |
+| **BACnet IP** | `bacnet-ip` | ✅ 生产就绪 | 设备发现、对象扫描、批量读失败自动回退 |
+| **OPC UA 客户端** | `opc-ua` | ✅ 生产就绪 | 订阅与监控、Scan/ScanObjects、断线自动重连 |
+| **Siemens S7** | `s7` | ✅ 生产就绪 | S7-200Smart/1200/1500/300/400 全系列 |
+| **EtherNet/IP (ODVA)** | `ethernet-ip` | ✅ 生产就绪 | Rockwell PLC；Tag 地址格式批量读取 |
+| **Omron FINS (TCP/UDP)** | `omron-fins` | ✅ 生产就绪 | CIO/D/W/H/EM 等区域；TCP/UDP 双模式 |
+| **SNMP v2c/v3** | `snmp` | ✅ 生产就绪 | Community / USM；OID 批量采集；ScanObjects |
+| **IEC 60870-5-104** | `iec60870-5-104` | ✅ M1 已交付 | 总召唤、自发上报、单点遥控 |
+| **DL/T645-2007** | `dlt645` | ✅ 已实现 | 电表协议；串口/TCP 双模式 |
+| **Mitsubishi SLMP** | `mitsubishi-slmp` | ✅ 生产就绪 | MC Protocol |
+| **Profinet IO** | `profinet-io` | ✅ 已实现 | DCP/RPC I/O 模块读写；本地网口绑定 |
+| **KNXnet/IP** | `knxnet-ip` | ✅ 生产就绪 | 网关发现；组地址读写；TCP/UDP 双模式 |
 
 ### 连接健康检测
 
@@ -421,6 +430,11 @@ description: EdgeX 用户手册
 | Modbus | 5 次 | 可配置 |
 | EtherNet/IP | 5 次 | 可配置 |
 | OPC UA | 5 次 | 订阅回调触发 |
+| FINS | 5 次 | 可配置 |
+| SNMP | 5 次 | 可配置 |
+| DL/T645 | 5 次 | 可配置 |
+| Profinet IO | 5 次 | 可配置 |
+| KNXnet/IP | 5 次 | 可配置 |
 
 ### 设备管理
 

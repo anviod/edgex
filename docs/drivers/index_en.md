@@ -1,10 +1,10 @@
 ---
 layout: section-index
 title: Device Drivers (English)
-description: EdgeX southbound collection drivers — Modbus, BACnet, OPC UA, S7, EtherNet/IP, FINS, SNMP, IEC 104
+description: EdgeX southbound collection drivers — Modbus, BACnet, OPC UA, S7, EtherNet/IP, FINS, SNMP, IEC 104, DL/T645, Mitsubishi MC, Profinet IO, KNXnet/IP
 hero_eyebrow: Southbound Drivers
 hero_title: Device Drivers
-hero_lead: Design docs, test reports, and optimization notes for EdgeX southbound drivers — Modbus, BACnet, OPC UA, S7, EtherNet/IP, Omron FINS, SNMP, IEC 104, and more.
+hero_lead: Design docs, test reports, and optimization notes for EdgeX southbound drivers — Modbus, BACnet, OPC UA, S7, EtherNet/IP, Omron FINS, SNMP, IEC 104, DL/T645, Mitsubishi MC, Profinet IO, KNXnet/IP, and more.
 hero_buttons:
   - text: Home
     url: ../index.html
@@ -32,6 +32,8 @@ hero_buttons:
 | **IEC 60870-5-104** | `iec60870-5-104` | M1 delivered | Yes | Yes (single command) | — | In progress | 8 tests, 23% cov |
 | **DL/T645-2007** | `dlt645` | Implemented | Yes | Yes | — | Yes | 17 tests |
 | **Mitsubishi SLMP** | `mitsubishi-slmp` | Production | Yes | Yes | — | Yes | 7 tests |
+| **Profinet IO** | `profinet-io` | Implemented | Yes | Yes | — | Yes | 6 tests |
+| **KNXnet/IP** | `knxnet-ip` | Production | Yes | Yes | Gateway discovery | Yes | 10 tests |
 
 > All drivers above are registered via blank imports in `cmd/main.go`. Only document drivers that exist in code.
 
@@ -48,7 +50,10 @@ hero_buttons:
 | EtherNet/IP | `ip`, `port`, `slot`, tag path, connection type |
 | Omron FINS | `plcIP`/`ip`, `plcPort`/`port`, `timeout`, src/dst node addresses, TCP/UDP mode |
 | Mitsubishi MC | `ip`, `port`, `frame_type`, `network_no`, `station_no`, `timeout` |
+| Profinet IO | `local_interface`, `timeout`, `simulation`; device `ip`, `port`, `slot`, `subslot` |
+| KNXnet/IP | `ip`, `port`, `mode` (TCP/UDP), `discovery`, `discovery_timeout`, `discovery_multicast` |
 | SNMP | `snmpVersion`, `targetIP`, `community` (v2c), USM auth/priv (v3), `maxBulkSize` |
+| DLT645 | `connectionType` (serial/tcp), `port`, `ip`, `baudRate`, `timeout`, meter address + DI |
 | IEC 104 | `ip`, `port`, `commonAddress`, T0–T3 timers, general call interval |
 
 ---
@@ -62,7 +67,7 @@ Shared **ConnectionManager** (`internal/driver/connection_manager.go`):
 - Collection health: successful read = healthy; no separate heartbeat
 - Low-frequency probe when scan interval exceeds 3× threshold
 
-**Supported**: S7, Modbus, EtherNet/IP, OPC UA, FINS, SNMP, Mitsubishi MC
+**Supported**: S7, Modbus, EtherNet/IP, OPC UA, FINS, SNMP, DL/T645, Profinet IO, KNXnet/IP
 
 ---
 

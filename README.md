@@ -31,7 +31,7 @@ config.db → ChannelManager → ScanEngine → ExecutionLayer → Driver.ReadPo
 
 **北向协议**：MQTT、Sparkplug B、OPC UA Server、edgeOS(MQTT/NATS)。
 
-**近期进展**（2026-06）：ScanEngine 重构已落地；新增 SNMP、IEC 104、DL/T645、Mitsubishi SLMP 驱动注册；通道设备状态跟踪；文档站点全面更新。
+**近期进展**（2026-06）：ScanEngine 重构已落地；新增 SNMP、IEC 104、DL/T645、Mitsubishi SLMP、Profinet IO、KNXnet/IP 驱动注册；通道设备状态跟踪；文档站点全面更新。
 
 ---
 
@@ -131,8 +131,10 @@ docker run -d \
 | Omron FINS (TCP/UDP) | `omron-fins` | 生产就绪 | 是 | 是 | — | 6 项 / 25% | [FINS 协议](docs/drivers/PLC_FINS.md) |
 | SNMP v2c/v3 | `snmp` | 生产就绪 | 是 | 是 | ScanObjects | 15 项 / 34% | [SNMP 驱动](docs/drivers/SNMP.md) |
 | IEC 60870-5-104 | `iec60870-5-104` | M1 已交付 | 是 | 单点遥控 | — | 8 项 / 23% | [ICE104 开发计划](docs/TODO/ICE104/采集驱动ICE104开发.md) |
-| DL/T645-2007 | `dlt645` | 开发中 | 是 | 是 | — | 17 项 / 66% | [DL/T645 驱动](docs/drivers/DLT645.md) |
-| Mitsubishi SLMP (MC) | `mitsubishi-slmp` | 开发中 | 是 | 是 | — | 7 项 / 53% | [三菱 MC 驱动](docs/drivers/PLC_MITSUBISHI.md) |
+| DL/T645-2007 | `dlt645` | 已实现 | 是 | 是 | — | 17 项 | [DL/T645 驱动](docs/drivers/DLT645.md) |
+| Mitsubishi SLMP (MC) | `mitsubishi-slmp` | 生产就绪 | 是 | 是 | — | 7 项 | [三菱 MC 驱动](docs/drivers/PLC_MITSUBISHI.md) |
+| Profinet IO | `profinet-io` | 已实现 | 是 | 是 | — | 6 项 | [Profinet IO](docs/drivers/PLC_Profinet_IO.md) |
+| KNXnet/IP | `knxnet-ip` | 生产就绪 | 是 | 是 | 网关发现 | 10 项 | [设备驱动](docs/drivers/index.md) |
 
 **状态说明**
 
@@ -140,11 +142,11 @@ docker run -d \
 | :--- | :--- |
 | 生产就绪 | 协议栈完整，具备现场联调与单元/场景测试覆盖 |
 | M1 已交付 | 核心功能可用，后续里程碑（M2）待完成 |
-| 开发中 | 代码已实现并通过单元测试，待现场设备联调验收 |
+| 已实现 | 代码已实现并通过单元测试，待现场设备联调验收 |
 
 **ICE104 M1 范围**：TCP 链路、TESTFR/STARTDT、总召唤读、自发上报缓存、单点遥控。M2 待办：时钟同步、遥脉召唤、双点遥控/设定值、S 帧窗口、模拟器联调报告。
 
-**DL/T645 / Mitsubishi SLMP**：协议读写与连接管理已实现；单元测试以 Mock 链路/模拟器为主，现场电表/PLC 联调验收进行中（Q3 TODO P2）。
+**DL/T645 / Profinet IO**：协议读写与连接管理已实现；单元测试以 Mock 链路/模拟器为主，现场设备联调验收进行中。
 
 驱动开发规范与 Q3 架构约束：[docs/TODO/index.md](docs/TODO/index.md)
 
@@ -161,7 +163,7 @@ docker run -d \
 | :--- | :--- |
 | 安装指南 | 系统要求、二进制/Docker/源码三种安装方式 |
 | 部署流程 | 环境准备、防火墙、配置目录、systemd 服务、健康检查 |
-| 南向采集 | 通道配置、设备发现、点位扫描、Modbus/BACnet/OPC UA 等协议操作 |
+| 南向采集 | 通道配置、设备发现、点位扫描、Modbus/BACnet/OPC UA/S7 等 12 种协议操作 |
 | 北向数据共享 | MQTT、Sparkplug B、OPC UA Server、edgeOS 通道配置 |
 | 边缘计算 | 规则引擎、表达式语法、Read-Modify-Write、工作流编排 |
 | 系统管理 | 用户认证、LDAP/AD、日志查询与导出 |
@@ -233,7 +235,7 @@ Mozilla Public License 2.0 (MPL-2.0)
 
 ## English
 
-Industrial Edge Gateway is a lightweight edge computing gateway for industrial IoT. It connects southbound field devices (Modbus, BACnet, OPC UA, S7, EtherNet/IP, FINS, SNMP, IEC 104, etc.) to northbound systems (MQTT, Sparkplug B, OPC UA Server) with local rule-based edge computing.
+Industrial Edge Gateway is a lightweight edge computing gateway for industrial IoT. It connects southbound field devices (Modbus, BACnet, OPC UA, S7, EtherNet/IP, FINS, SNMP, IEC 104, DL/T645, Mitsubishi MC, Profinet IO, KNXnet/IP) to northbound systems (MQTT, Sparkplug B, OPC UA Server) with local rule-based edge computing.
 
 - **Documentation**: [https://anviod.github.io/edgex/](https://anviod.github.io/edgex/)
 - **User Manual**: [USER_MANUAL](docs/guide/USER_MANUAL.md)

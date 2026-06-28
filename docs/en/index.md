@@ -32,17 +32,20 @@ hero_buttons:
 
 Registered in `cmd/main.go`:
 
-| Protocol | Key | Status |
+| Protocol | Registry Key | Status |
 | :--- | :--- | :--- |
-| Modbus | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | Production |
+| Modbus TCP/RTU | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | Production |
+| Modbus Simple | `modbus-*-simple` | Production |
 | BACnet IP | `bacnet-ip` | Production |
-| OPC UA | `opc-ua` | Production |
+| OPC UA Client | `opc-ua` | Production |
 | Siemens S7 | `s7` | Production |
 | EtherNet/IP | `ethernet-ip` | Production |
 | Omron FINS | `omron-fins` | Production |
-| SNMP | `snmp` | Production |
-| IEC 60870-5-104 | `iec60870-5-104` | M1 partial |
-| DL/T645 | `dlt645` | Implemented |
+| SNMP v2c/v3 | `snmp` | Production |
+| IEC 60870-5-104 | `iec60870-5-104` | M1 delivered |
+| DL/T645-2007 | `dlt645` | Implemented |
 | Mitsubishi SLMP | `mitsubishi-slmp` | Production |
+| Profinet IO | `profinet-io` | Implemented |
+| KNXnet/IP | `knxnet-ip` | Production |
 
 See [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) for test results and coverage.
