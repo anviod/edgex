@@ -184,7 +184,7 @@ CGO_ENABLED=0 go test ./internal/driver/... -count=1 -cover
 CGO_ENABLED=0 go test ./internal/core/... -count=1 -cover
 ```
 
-**2026-06-27 测试结果**：`CGO_ENABLED=0 go test ./...` 全部通过。驱动包汇总覆盖率约 12–59%（因协议而异）；`internal/core/...` 覆盖率 47.9%。
+**2026-06-28 测试结果**：`CGO_ENABLED=0 go test ./internal/driver/... ./internal/core/... ./internal/integration/...` 全部通过。12 个南向驱动均有点位读/写 Mock 测试；驱动包覆盖率约 27–66%（因协议而异）；`internal/core/...` 覆盖率 47.9%。
 
 详细报告：[南向驱动测试报告](docs/testing/南向驱动测试报告.md) | [GitHub Pages](https://anviod.github.io/edgex/testing/南向驱动测试报告.html)
 

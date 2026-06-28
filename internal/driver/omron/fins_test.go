@@ -155,6 +155,63 @@ func TestOmronFinsDriverTCPWithMockPLC(t *testing.T) {
 	}
 }
 
+func TestOmronFinsDriverWritePointWithMockPLC(t *testing.T) {
+	mock := finslib.NewMockPLC()
+	mock.SetWord(finslib.MemoryAreaDMWord, 100, 1234)
+
+	addr, err := mock.Start()
+	if err != nil {
+		t.Fatalf("mock plc start: %v", err)
+	}
+	defer mock.Close()
+
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		t.Fatalf("split addr: %v", err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatalf("parse port: %v", err)
+	}
+
+	d := NewOmronFinsDriver()
+	cfg := model.DriverConfig{
+		ChannelID: "test",
+		Config: map[string]any{
+			"ip":      host,
+			"port":    port,
+			"timeout": 2000,
+			"mode":    "TCP",
+		},
+	}
+	if err := d.Init(cfg); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := d.Connect(ctx); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	defer d.Disconnect()
+
+	point := model.Point{ID: "p1", Name: "d100", Address: "D100", DataType: "UINT16"}
+	if err := d.WritePoint(ctx, point, uint16(5678)); err != nil {
+		t.Fatalf("write point: %v", err)
+	}
+
+	results, err := d.ReadPoints(ctx, []model.Point{point})
+	if err != nil {
+		t.Fatalf("read after write: %v", err)
+	}
+	if results["p1"].Quality != "Good" {
+		t.Fatalf("expected good quality, got %s", results["p1"].Quality)
+	}
+	if results["p1"].Value.(uint16) != 5678 {
+		t.Fatalf("expected 5678, got %v", results["p1"].Value)
+	}
+}
+
 func TestToFinsDataType(t *testing.T) {
 	cases := map[string]finslib.DataType{
 		"bool":   finslib.DataTypeBIT,
