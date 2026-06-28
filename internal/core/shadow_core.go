@@ -147,6 +147,7 @@ func (sc *ShadowCore) WriteShadowDevice(msg model.ShadowIngressMessage) (*model.
 	device.UpdatedAt = time.Now()
 	now := device.UpdatedAt
 
+	changed := make(map[string]model.ShadowPoint, len(msg.Points))
 	for _, point := range msg.Points {
 		collectedAt := point.CollectedAt
 		if collectedAt.IsZero() {
@@ -167,11 +168,12 @@ func (sc *ShadowCore) WriteShadowDevice(msg model.ShadowIngressMessage) (*model.
 			Version:        device.Version,
 		}
 		device.Points[point.PointID] = shadowPoint
+		changed[point.PointID] = shadowPoint
 	}
 
 	sc.optimizer.UpdateShadowDeviceProfile(device)
 
-	go sc.notifySubscribers(shadowDeviceID, cloneShadowPoints(device.Points))
+	go sc.notifySubscribers(shadowDeviceID, cloneShadowPoints(changed))
 
 	return &model.ShadowWriteResponse{
 		Success:   true,

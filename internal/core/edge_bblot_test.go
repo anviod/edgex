@@ -45,29 +45,31 @@ func TestBblotPersistence(t *testing.T) {
 
 	ecm.LoadRules([]model.EdgeRule{rule})
 
+	minuteKey := time.Now().Format("2006-01-02 15:04")
+	expectedKey := fmt.Sprintf("%s_%s", ruleID, minuteKey)
+
 	// 4. Trigger Rule
-	// Send p1 = 15 (Trigger)
 	pipeline.Push(model.Value{
 		PointID: "p1",
 		Value:   15,
 		TS:      time.Now(),
 	})
 
-	time.Sleep(200 * time.Millisecond) // Wait for processing and async save
-
-	// 5. Verify bblot record
-	minuteKey := time.Now().Format("2006-01-02 15:04")
-	expectedKey := fmt.Sprintf("%s_%s", ruleID, minuteKey)
-
+	deadline := time.Now().Add(3 * time.Second)
 	found := false
-	store.LoadAll("bblot", func(k, v []byte) error {
-		if string(k) == expectedKey {
-			found = true
-			t.Logf("Found bblot record: %s", string(k))
-			// We could deserialize v to model.RuleMinuteSnapshot to check details if needed
+	for time.Now().Before(deadline) {
+		store.LoadAll("bblot", func(k, v []byte) error {
+			if string(k) == expectedKey {
+				found = true
+				t.Logf("Found bblot record: %s", string(k))
+			}
+			return nil
+		})
+		if found {
+			break
 		}
-		return nil
-	})
+		time.Sleep(50 * time.Millisecond)
+	}
 
 	if !found {
 		t.Errorf("Expected bblot record for key %s not found", expectedKey)
