@@ -3,3 +3,4 @@ node_modules/
 logs/
 ui/dist/
 logs/
+logs/gateway.edgex.log
