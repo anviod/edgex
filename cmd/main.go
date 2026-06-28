@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/anviod/edgex/internal/config"
 	"github.com/anviod/edgex/internal/core"
@@ -115,6 +116,7 @@ func main() {
 	zap.L().Info("Data directory ready", zap.String("path", dataDir))
 
 	var shadowCore *core.ShadowCore
+	var shadowIngress *core.ShadowIngress
 	var virtualShadow *core.VirtualShadowEngine
 	var vsm *core.VirtualShadowManager
 	if store != nil {
@@ -157,15 +159,22 @@ func main() {
 		core.NewShadowBridge(pipeline).Attach(sc)
 		dsm.SetShadowCore(sc)
 		virtualShadow = core.NewVirtualShadowEngine(sc)
+		shadowIngress = core.NewShadowIngress(sc, 256, 8*time.Millisecond)
+		shadowIngress.Start()
 	}
 
 	if store != nil {
 		shadowCore = core.NewShadowCore()
 		shadowCore.Start()
-		cm.SetShadowCore(shadowCore)
 		wireShadowStack(shadowCore)
-		defer shadowCore.Stop()
-		zap.L().Info("ShadowCore and VirtualShadowEngine initialized")
+		cm.SetShadowIngress(shadowIngress)
+		defer func() {
+			if shadowIngress != nil {
+				shadowIngress.Stop()
+			}
+			shadowCore.Stop()
+		}()
+		zap.L().Info("ShadowCore, ShadowIngress and VirtualShadowEngine initialized")
 	}
 
 	// 5. Init Northbound Manager
@@ -235,8 +244,8 @@ func main() {
 		if shadowCore == nil {
 			shadowCore = core.NewShadowCore()
 			shadowCore.Start()
-			cm.SetShadowCore(shadowCore)
 			wireShadowStack(shadowCore)
+			cm.SetShadowIngress(shadowIngress)
 			srv.SetShadowCore(shadowCore)
 			srv.SetVirtualShadowEngine(virtualShadow)
 			if vsm == nil && cfgManager != nil {

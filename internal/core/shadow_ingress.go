@@ -10,11 +10,14 @@ import (
 	"github.com/google/uuid"
 )
 
+const defaultIngressRingCapacity = 4096
+
 type ShadowIngress struct {
 	mu sync.RWMutex
 
 	shadowCore *ShadowCore
 
+	ring            *ShadowWriteRingBuffer
 	messageBuffer   []*model.ShadowIngressMessage
 	pendingReliable []*model.ShadowIngressMessage
 	bufferMu        sync.Mutex
@@ -31,12 +34,20 @@ type ShadowIngressMetrics struct {
 	TotalMessages   uint64
 	TotalPoints     uint64
 	FailedMessages  uint64
+	BatchFlushes    uint64
 	LastProcessTime time.Time
 }
 
 func NewShadowIngress(sc *ShadowCore, bufferSize int, flushInterval time.Duration) *ShadowIngress {
+	if bufferSize <= 0 {
+		bufferSize = 256
+	}
+	if flushInterval <= 0 {
+		flushInterval = 8 * time.Millisecond
+	}
 	si := &ShadowIngress{
 		shadowCore:    sc,
+		ring:          NewShadowWriteRingBuffer(defaultIngressRingCapacity),
 		messageBuffer: make([]*model.ShadowIngressMessage, 0, bufferSize),
 		bufferSize:    bufferSize,
 		flushInterval: flushInterval,
@@ -78,22 +89,50 @@ func (si *ShadowIngress) flushLoop() {
 
 func (si *ShadowIngress) flushBuffer() {
 	si.bufferMu.Lock()
-	if len(si.messageBuffer) == 0 {
-		si.bufferMu.Unlock()
-		return
-	}
-
-	messages := si.messageBuffer
+	ringBatch := si.ring.Flush()
+	sliceBatch := si.messageBuffer
 	si.messageBuffer = make([]*model.ShadowIngressMessage, 0, si.bufferSize)
 	si.bufferMu.Unlock()
 
-	for _, msg := range messages {
-		if _, err := si.shadowCore.WriteShadowDevice(*msg); err != nil {
-			log.Printf("[ShadowIngress] Failed to write shadow device: %v", err)
-			si.mu.Lock()
-			si.metrics.FailedMessages++
-			si.mu.Unlock()
+	if len(ringBatch) == 0 && len(sliceBatch) == 0 {
+		return
+	}
+
+	msgs := make([]model.ShadowIngressMessage, 0, len(ringBatch)+len(sliceBatch))
+	for _, m := range ringBatch {
+		if m != nil {
+			msgs = append(msgs, *m)
 		}
+	}
+	for _, m := range sliceBatch {
+		if m != nil {
+			msgs = append(msgs, *m)
+		}
+	}
+
+	if err := si.shadowCore.ApplyShadowWrites(msgs); err != nil {
+		log.Printf("[ShadowIngress] Failed batch write: %v", err)
+		si.mu.Lock()
+		si.metrics.FailedMessages += uint64(len(msgs))
+		si.mu.Unlock()
+		return
+	}
+
+	si.mu.Lock()
+	si.metrics.BatchFlushes++
+	si.mu.Unlock()
+}
+
+func (si *ShadowIngress) enqueue(msg *model.ShadowIngressMessage) {
+	si.bufferMu.Lock()
+	if !si.ring.Push(msg) {
+		si.messageBuffer = append(si.messageBuffer, msg)
+	}
+	shouldFlush := si.ring.Len()+len(si.messageBuffer) >= si.bufferSize
+	si.bufferMu.Unlock()
+
+	if shouldFlush {
+		go si.flushBuffer()
 	}
 }
 
@@ -120,20 +159,13 @@ func (si *ShadowIngress) Ingest(val model.Value) error {
 		return nil
 	}
 
-	si.bufferMu.Lock()
-	si.messageBuffer = append(si.messageBuffer, msg)
-	shouldFlush := len(si.messageBuffer) >= si.bufferSize
-	si.bufferMu.Unlock()
+	si.enqueue(msg)
 
 	si.mu.Lock()
 	si.metrics.TotalMessages++
 	si.metrics.TotalPoints++
 	si.metrics.LastProcessTime = time.Now()
 	si.mu.Unlock()
-
-	if shouldFlush {
-		go si.flushBuffer()
-	}
 
 	return nil
 }
@@ -163,21 +195,13 @@ func (si *ShadowIngress) IngestBatch(values []model.Value) error {
 	}
 
 	msg := si.valuesToMessage(values)
-
-	si.bufferMu.Lock()
-	si.messageBuffer = append(si.messageBuffer, msg)
-	shouldFlush := len(si.messageBuffer) >= si.bufferSize
-	si.bufferMu.Unlock()
+	si.enqueue(msg)
 
 	si.mu.Lock()
 	si.metrics.TotalMessages++
 	si.metrics.TotalPoints += uint64(len(values))
 	si.metrics.LastProcessTime = time.Now()
 	si.mu.Unlock()
-
-	if shouldFlush {
-		go si.flushBuffer()
-	}
 
 	return nil
 }
@@ -245,20 +269,15 @@ func (si *ShadowIngress) IngestDirect(msg model.ShadowIngressMessage) error {
 		si.mu.Unlock()
 		return nil
 	}
-	si.bufferMu.Lock()
-	si.messageBuffer = append(si.messageBuffer, &msg)
-	shouldFlush := len(si.messageBuffer) >= si.bufferSize
-	si.bufferMu.Unlock()
+
+	copy := msg
+	si.enqueue(&copy)
 
 	si.mu.Lock()
 	si.metrics.TotalMessages++
 	si.metrics.TotalPoints += uint64(len(msg.Points))
 	si.metrics.LastProcessTime = time.Now()
 	si.mu.Unlock()
-
-	if shouldFlush {
-		go si.flushBuffer()
-	}
 
 	return nil
 }
@@ -272,5 +291,5 @@ func (si *ShadowIngress) GetMetrics() ShadowIngressMetrics {
 func (si *ShadowIngress) GetBufferSize() int {
 	si.bufferMu.Lock()
 	defer si.bufferMu.Unlock()
-	return len(si.messageBuffer)
+	return si.ring.Len() + len(si.messageBuffer)
 }

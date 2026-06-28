@@ -130,6 +130,7 @@ type ScanEngine struct {
 	executionLayer  *ExecutionLayer
 	resourceCtrl    *ResourceController
 	shadowCore      *ShadowCore
+	shadowIngress   *ShadowIngress
 	pointDegrade    *PointDegradationManager
 	collectFinalize CollectFinalizeFunc
 	metrics         *ScanEngineMetrics
@@ -403,7 +404,7 @@ func (se *ScanEngine) executeTaskAsync(task *ScanTask) {
 	}
 	se.metrics.RecordExecute(result != nil && result.Success, lagMicros)
 
-	if result.Success && se.shadowCore != nil && len(result.Values) > 0 {
+	if result.Success && len(result.Values) > 0 {
 		channelID := ""
 		if task.Params != nil {
 			if id, ok := task.Params["channelID"].(string); ok {
@@ -439,7 +440,11 @@ func (se *ScanEngine) executeTaskAsync(task *ScanTask) {
 				Source: "scan_engine",
 			},
 		}
-		se.shadowCore.WriteShadowDevice(msg)
+		if se.shadowIngress != nil {
+			se.shadowIngress.IngestDirect(msg)
+		} else if se.shadowCore != nil {
+			se.shadowCore.WriteShadowDevice(msg)
+		}
 	}
 
 	se.updateTaskState(task, result)
@@ -739,6 +744,15 @@ func (se *ScanEngine) SetShadowCore(sc *ShadowCore) {
 	se.mu.Lock()
 	defer se.mu.Unlock()
 	se.shadowCore = sc
+}
+
+func (se *ScanEngine) SetShadowIngress(si *ShadowIngress) {
+	se.mu.Lock()
+	defer se.mu.Unlock()
+	se.shadowIngress = si
+	if si != nil {
+		se.shadowCore = si.shadowCore
+	}
 }
 
 func (se *ScanEngine) SetCollectFinalize(fn CollectFinalizeFunc) {

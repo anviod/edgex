@@ -102,6 +102,14 @@ func (cm *ChannelManager) SetShadowCore(sc *ShadowCore) {
 	cm.scanEngineAdapter.scanEngine.SetShadowCore(sc)
 }
 
+func (cm *ChannelManager) SetShadowIngress(si *ShadowIngress) {
+	if si == nil {
+		return
+	}
+	cm.shadowCore = si.shadowCore
+	cm.scanEngineAdapter.scanEngine.SetShadowIngress(si)
+}
+
 func (cm *ChannelManager) deviceIOProfile(deviceID string) DeviceIOProfile {
 	defaultProfile := DeviceIOProfile{Gap: 64, BatchSize: 120}
 	cm.mu.RLock()
