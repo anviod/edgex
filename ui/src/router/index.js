@@ -58,7 +58,8 @@ const routes = [
         meta: { title: '设备列表' } 
     },
     { 
-        path: '/channels/:channelId/devices/:deviceId/points', 
+        // (.*) allows OPC UA endpoint-style device IDs containing / and :
+        path: '/channels/:channelId/devices/:deviceId(.*)/points', 
         component: PointList,
         meta: { title: '点位数据' }
     },

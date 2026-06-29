@@ -943,6 +943,23 @@ func (s *Server) getChannelDevices(c *fiber.Ctx) error {
 	return c.JSON(devices)
 }
 
+func deviceAddErrorStatus(err error) int {
+	if err == nil {
+		return fiber.StatusInternalServerError
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "already exists") || strings.Contains(msg, "not found") {
+		if strings.Contains(msg, "channel not found") {
+			return fiber.StatusNotFound
+		}
+		return fiber.StatusConflict
+	}
+	if strings.Contains(msg, "required") || strings.Contains(msg, "invalid") {
+		return fiber.StatusBadRequest
+	}
+	return fiber.StatusInternalServerError
+}
+
 func (s *Server) addDevice(c *fiber.Ctx) error {
 	channelId := c.Params("channelId")
 
@@ -965,7 +982,7 @@ func (s *Server) addDevice(c *fiber.Ctx) error {
 				return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 			}
 			if err := s.cm.AddDevice(channelId, &devices[i]); err != nil {
-				return c.Status(500).JSON(fiber.Map{"error": fmt.Sprintf("Failed to add device %s: %v", devices[i].Name, err)})
+				return c.Status(deviceAddErrorStatus(err)).JSON(fiber.Map{"error": fmt.Sprintf("Failed to add device %s: %v", devices[i].Name, err)})
 			}
 			if s.dsm != nil {
 				s.dsm.UpdateDeviceConfig(devices[i].ID, devices[i].Storage)
@@ -987,7 +1004,7 @@ func (s *Server) addDevice(c *fiber.Ctx) error {
 			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 		}
 		if err := s.cm.AddDevice(channelId, &dev); err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+			return c.Status(deviceAddErrorStatus(err)).JSON(fiber.Map{"error": err.Error()})
 		}
 		if s.dsm != nil {
 			s.dsm.UpdateDeviceConfig(dev.ID, dev.Storage)

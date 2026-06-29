@@ -447,9 +447,8 @@ func (d *OpcUaDriver) Scan(ctx context.Context, params map[string]any) (any, err
 		return nil, fmt.Errorf("failed to get server info: %v", err)
 	}
 
-	// Return device info
+	// Return device info (endpoint is the connection target; device ID is assigned on add)
 	device := map[string]any{
-		"device_id":   endpoint,
 		"endpoint":    endpoint,
 		"name":        "OPC UA Server",
 		"description": "OPC UA Server at " + endpoint,

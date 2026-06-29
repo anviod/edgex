@@ -139,8 +139,8 @@
 
                     <template #readwrite="{ record }">
                         <div class="status-display flex items-center">
-                            <IconCheckCircle v-if="record.readwrite === 'RW'" class="mr-1 text-emerald-500" />
-                            <IconEdit v-else class="mr-1 text-blue-500" />
+                            <IconEdit v-if="record.readwrite === 'RW' || record.readwrite === 'W'" class="mr-1 text-blue-500" />
+                            <IconCheckCircle v-else class="mr-1 text-emerald-500" />
                             <span class="font-mono text-xs">{{ record.readwrite }}</span>
                         </div>
                     </template>
@@ -220,7 +220,7 @@
             <div v-if="deviceInfo" class="terminal-info">
                 <span class="terminal-dot"></span>
                 <span class="monospace-text">
-                    连接状态:{{ deviceInfo.state === 0 ? '已连接' : deviceInfo.state === 1 ? '不稳定' : '已断开' }} | 协议: {{ formatProtocolTag(channelProtocol) }} | 连续通信:{{ deviceInfo.runtime?.success_count || 0 }} 次 | 最近失败:{{ deviceInfo.runtime?.last_fail_time && new Date(deviceInfo.runtime.last_fail_time).getFullYear() > 1 ? formatDate(deviceInfo.runtime.last_fail_time) : '无' }} | 质量评分: {{ deviceInfo.quality_score !== undefined ? deviceInfo.quality_score : 'N/A' }}
+                    连接状态:{{ deviceInfo.state === 0 ? '已连接' : deviceInfo.state === 1 ? '不稳定' : '已断开' }} | 协议: {{ formatProtocolTag(channelProtocol) }} | 连续通信:{{ deviceInfo.runtime?.success_count || 0 }} 次 | 最近失败:{{ deviceInfo.runtime?.last_fail_time && new Date(deviceInfo.runtime.last_fail_time).getFullYear() > 1 ? formatDate(deviceInfo.runtime.last_fail_time) : '无' }}
                 </span>
             </div>
         </a-spin>
@@ -1342,6 +1342,12 @@ import {
     applyFormula,
     registersToBytes
 } from '@/utils/pointDecodeHelper'
+import {
+    decodePathSegment,
+    channelDeviceApiPath,
+    devicePointsRoutePath,
+    encodePathSegment,
+} from '@/utils/deviceRoute'
 
 const { locale } = useI18n()
 const currentLang = computed(() => (locale.value || 'zh').toString())
@@ -1369,8 +1375,8 @@ const goCreateVirtualShadow = () => {
   })
 }
 
-const channelId = computed(() => route.params.channelId)
-const deviceId = computed(() => route.params.deviceId)
+const channelId = computed(() => decodePathSegment(route.params.channelId))
+const deviceId = computed(() => decodePathSegment(route.params.deviceId))
 
 // Watch for route changes to refresh data
 watch([channelId, deviceId], async () => {
@@ -2685,7 +2691,7 @@ const submitRegisterBlock = async () => {
         const start = Number(registerBlockDialog.start) || 0
         const end = Number(registerBlockDialog.end) || 0
         const res = await request.post(
-            `/api/channels/${channelId.value}/devices/${deviceId.value}/points/generate-registers`,
+            channelDeviceApiPath(channelId.value, deviceId.value, 'points', 'generate-registers'),
             {
                 start: Math.min(start, end),
                 end: Math.max(start, end),
@@ -2858,8 +2864,8 @@ const submitPoint = async () => {
         }
 
         const url = pointDialog.isEdit 
-            ? `/api/channels/${channelId.value}/devices/${deviceId.value}/points/${pointDialog.form.id}`
-            : `/api/channels/${channelId.value}/devices/${deviceId.value}/points`
+            ? channelDeviceApiPath(channelId.value, deviceId.value, 'points', pointDialog.form.id)
+            : channelDeviceApiPath(channelId.value, deviceId.value, 'points')
         if (formatPresetSelected.value) {
             pointDialog.form.format = presetIdToFormat(formatPresetSelected.value)
         }
@@ -2902,13 +2908,13 @@ const executeDelete = async () => {
     try {
         if (deleteDialog.isBatch) {
             // Batch delete
-            await request.delete(`/api/channels/${channelId.value}/devices/${deviceId.value}/points`, { data: selection.selectedIds })
+            await request.delete(channelDeviceApiPath(channelId.value, deviceId.value, 'points'), { data: selection.selectedIds })
             showMessage(`成功删除 ${selection.selectedIds.length} 个点位`, 'success')
             selection.selectedIds = []
         } else {
             // Single delete
             if (!deleteDialog.point) return
-            await request.delete(`/api/channels/${channelId.value}/devices/${deviceId.value}/points/${deleteDialog.point.id}`)
+            await request.delete(channelDeviceApiPath(channelId.value, deviceId.value, 'points', deleteDialog.point.id))
             showMessage('点位删除成功', 'success')
         }
 
@@ -2984,7 +2990,7 @@ const onCloneDeviceChange = async (did) => {
     try {
         const cid = cloneDialog.selectedChannel
         if (!cid || !did) return
-        const pts = await request.get(`/api/channels/${cid}/devices/${did}/points`, { timeout: 8000, silent: true })
+        const pts = await request.get(channelDeviceApiPath(cid, did, 'points'), { timeout: 8000, silent: true })
         cloneDialog.points = (pts || []).map(p => ({
             id: p.id,
             name: p.name,
@@ -3035,7 +3041,7 @@ const executeClone = async () => {
             write_formula: ''
         }))
 
-        await request.post(`/api/channels/${channelId.value}/devices/${deviceId.value}/points`, payload, { timeout: 10000, silent: true })
+        await request.post(channelDeviceApiPath(channelId.value, deviceId.value, 'points'), payload, { timeout: 10000, silent: true })
         showMessage(`克隆完成：成功 ${payload.length} 个`, 'success')
         cloneDialog.visible = false
         await fetchPoints()
@@ -3052,7 +3058,7 @@ const fetchPoints = async () => {
         if (!deviceInfo.value) {
             try {
                 console.log('Fetching device info...')
-                const dev = await request.get(`/api/channels/${channelId.value}/devices/${deviceId.value}`)
+                const dev = await request.get(channelDeviceApiPath(channelId.value, deviceId.value))
                 if (dev) {
                     deviceInfo.value = dev
                     globalState.navTitle = deviceInfo.value.name
@@ -3112,7 +3118,7 @@ const fetchPoints = async () => {
         // 成功则用返回结果覆盖；失败/超时忽略，等待 WebSocket 或下次刷新
         console.log('Triggering background point fetch...')
         const timeout = channelProtocol.value === 'opc-ua' ? 10000 : 2500
-        request.get(`/api/channels/${channelId.value}/devices/${deviceId.value}/points`, { timeout: timeout, silent: true })
+        request.get(channelDeviceApiPath(channelId.value, deviceId.value, 'points'), { timeout: timeout, silent: true })
             .then(pts => {
                 if (Array.isArray(pts) && pts.length > 0) {
                     console.log('Background point fetch successful, updating points. Points:', pts.length)
@@ -3130,7 +3136,7 @@ const fetchPoints = async () => {
                 // 如果 deviceInfo 也没拿到点位，尝试一次不带超时的拉取作为兜底
                 if (points.value.length === 0) {
                     console.log('Fallback: Attempting full point fetch without short timeout...')
-                    request.get(`/api/channels/${channelId.value}/devices/${deviceId.value}/points`)
+                    request.get(channelDeviceApiPath(channelId.value, deviceId.value, 'points'))
                         .then(pts => {
                             if (Array.isArray(pts)) {
                                 points.value = pts.map(p => mapDevicePoint(p))

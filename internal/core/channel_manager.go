@@ -740,10 +740,11 @@ func (cm *ChannelManager) GetChannelDevices(channelID string) []model.Device {
 		for i, dev := range ch.Devices {
 			devices[i] = dev
 			cm.applyDeviceRuntimeState(ch, d, &devices[i])
+			var metrics *model.DeviceMetrics
 			if mc := model.GetGlobalMetricsCollector(); mc != nil {
-				metrics := mc.GetDeviceMetrics(dev.ID)
-				devices[i].QualityScore = metrics.HealthScore
+				metrics = mc.GetDeviceMetrics(dev.ID)
 			}
+			devices[i].QualityScore = resolveDeviceQualityScore(&devices[i], metrics)
 		}
 		return devices
 	}
@@ -762,10 +763,11 @@ func (cm *ChannelManager) GetDevice(channelID, deviceID string) *model.Device {
 				d := ch.Devices[i]
 				driver := cm.drivers[channelID]
 				cm.applyDeviceRuntimeState(ch, driver, &d)
+				var metrics *model.DeviceMetrics
 				if mc := model.GetGlobalMetricsCollector(); mc != nil {
-					metrics := mc.GetDeviceMetrics(d.ID)
-					d.QualityScore = metrics.HealthScore
+					metrics = mc.GetDeviceMetrics(d.ID)
 				}
+				d.QualityScore = resolveDeviceQualityScore(&d, metrics)
 				return &d
 			}
 		}
@@ -1424,12 +1426,8 @@ func (cm *ChannelManager) ScanChannel(channelID string, params map[string]any) (
 	if okCh && ch.Protocol == "bacnet-ip" {
 		var existingIDs []int
 		for _, dev := range ch.Devices {
-			if v, ok := dev.Config["device_id"]; ok {
-				if id, ok := v.(int); ok {
-					existingIDs = append(existingIDs, id)
-				} else if id, ok := v.(float64); ok {
-					existingIDs = append(existingIDs, int(id))
-				}
+			if id, ok := getDeviceID(dev.Config); ok {
+				existingIDs = append(existingIDs, id)
 			}
 		}
 		params["existing_device_ids"] = existingIDs
@@ -1523,13 +1521,17 @@ func (cm *ChannelManager) AddDevice(channelID string, dev *model.Device) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	if err := model.EnsureDeviceID(dev); err != nil {
-		return err
-	}
-
 	ch, ok := cm.channels[channelID]
 	if !ok {
 		return fmt.Errorf("channel not found")
+	}
+
+	if ch.Protocol == "opc-ua" {
+		model.NormalizeOpcUaDeviceID(dev)
+	}
+
+	if err := model.EnsureDeviceID(dev); err != nil {
+		return err
 	}
 
 	// 检查设备是否存在
@@ -2140,16 +2142,34 @@ func (cm *ChannelManager) saveChannels() error {
 	return nil
 }
 
-// getDeviceID Helper to extract device_id from config
+// getDeviceID Helper to extract BACnet device instance ID from config.
 func getDeviceID(config map[string]any) (int, bool) {
-	if v, ok := config["device_id"]; ok {
-		if val, ok := v.(int); ok {
-			return val, true
-		} else if val, ok := v.(float64); ok {
-			return int(val), true
+	if config == nil {
+		return 0, false
+	}
+	for _, key := range []string{"device_id", "bacnetDeviceInstance", "instance_id", "InstanceID"} {
+		if v, ok := config[key]; ok {
+			if id, ok := coerceConfigInt(v); ok {
+				return id, true
+			}
 		}
 	}
 	return 0, false
+}
+
+func coerceConfigInt(v any) (int, bool) {
+	switch val := v.(type) {
+	case int:
+		return val, true
+	case int64:
+		return int(val), true
+	case float64:
+		return int(val), true
+	case float32:
+		return int(val), true
+	default:
+		return 0, false
+	}
 }
 
 // buildDriverDeviceConfig 构建传给驱动的设备配置（OPC UA 自动继承通道 Endpoint 等参数）。
@@ -2191,11 +2211,14 @@ func sanitizeDeviceConfig(config map[string]any) {
 	}
 	// 处理 device_id (防止 float64 科学计数法保存)
 	if val, ok := config["device_id"]; ok {
-		switch v := val.(type) {
-		case float64:
-			config["device_id"] = int(v)
-		case float32:
-			config["device_id"] = int(v)
+		if id, ok := coerceConfigInt(val); ok {
+			config["device_id"] = id
+		}
+	}
+	// 处理 bacnetDeviceInstance
+	if val, ok := config["bacnetDeviceInstance"]; ok {
+		if id, ok := coerceConfigInt(val); ok {
+			config["bacnetDeviceInstance"] = id
 		}
 	}
 	// 处理 network_number

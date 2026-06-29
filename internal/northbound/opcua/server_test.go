@@ -398,9 +398,86 @@ func TestServerStartStop(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 	server.Stop()
+	server.Stop() // idempotent
 	time.Sleep(1 * time.Second)
 
 	t.Log("Server start/stop test passed")
+}
+
+// TestServerUpdateConfigRebuild simulates address-space rebuild when topology changes.
+func TestServerUpdateConfigRebuild(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	defer logger.Sync()
+	zap.ReplaceGlobals(logger)
+
+	sb := NewMockSouthboundManager()
+
+	config := model.OPCUAConfig{
+		Name:        "Test OPC UA Server",
+		Port:        4847,
+		Endpoint:    "/",
+		AuthMethods: []string{"Anonymous"},
+	}
+
+	srv := NewServer(config, sb)
+	if err := srv.Start(); err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+	defer srv.Stop()
+
+	time.Sleep(1 * time.Second)
+
+	if err := srv.UpdateConfig(config); err != nil {
+		t.Fatalf("UpdateConfig failed: %v", err)
+	}
+	srv.Stop() // should not panic after UpdateConfig already stopped internally
+
+	t.Log("UpdateConfig rebuild test passed")
+}
+
+// TestServerConcurrentUpdateConfig ensures concurrent rebuilds do not double-close.
+func TestServerConcurrentUpdateConfig(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	defer logger.Sync()
+	zap.ReplaceGlobals(logger)
+
+	sb := NewMockSouthboundManager()
+
+	config := model.OPCUAConfig{
+		Name:        "Test OPC UA Server",
+		Port:        4848,
+		Endpoint:    "/",
+		AuthMethods: []string{"Anonymous"},
+	}
+
+	srv := NewServer(config, sb)
+	if err := srv.Start(); err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+	defer srv.Stop()
+
+	time.Sleep(1 * time.Second)
+
+	const workers = 8
+	var wg sync.WaitGroup
+	errCh := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := srv.UpdateConfig(config); err != nil {
+				errCh <- err
+			}
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		t.Fatalf("concurrent UpdateConfig failed: %v", err)
+	}
+
+	t.Log("Concurrent UpdateConfig test passed")
 }
 
 // TestServerReadWrite tests reading and writing from OPC UA server

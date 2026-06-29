@@ -87,18 +87,6 @@
             </span>
           </template>
 
-          <template #quality="{ record }">
-            <span class="table-cell-semantic">
-              <a-tag
-                v-if="channelProtocol && (channelProtocol.includes('bacnet') || channelProtocol === 'bacnet-ip')"
-                :color="getQualityColor(record.quality_score)"
-                size="small"
-              >
-                {{ record.quality_score !== undefined ? record.quality_score : '-' }} ({{ getQualityLabel(record.quality_score) }})
-              </a-tag>
-            </span>
-          </template>
-
           <template #actions="{ record }">
             <div class="table-ops">
               <a-tooltip content="查看点位">
@@ -591,7 +579,7 @@
           :loading="isScanning" 
           :row-selection="{ type: 'checkbox', showCheckedAll: true, onlyCurrent: false }"
           v-model:selectedKeys="selectedScanDevices"
-          row-key="device_id"
+          row-key="scan_row_key"
           size="small"
           :bordered="{ cell: true }"
           :pagination="false"
@@ -600,6 +588,8 @@
             <a-tag v-if="record.diff_status === 'new'" color="green">New</a-tag>
             <a-tag v-else-if="record.diff_status === 'existing'" color="orange">Existing</a-tag>
             <a-tag v-else-if="record.diff_status === 'removed'" color="red">Removed</a-tag>
+            <a-tag v-else-if="record.status === 'online'" color="green">Online</a-tag>
+            <a-tag v-else color="gray">{{ record.status || '-' }}</a-tag>
           </template>
           <template #empty>
             <div v-if="isScanning" class="text-center py-8">
@@ -625,6 +615,8 @@ import {
   IconClockCircle, IconInfoCircle, IconCheckCircle, IconCloseCircle
 } from '@arco-design/web-vue/es/icon'
 import request from '@/utils/request'
+import { devicePointsRoutePath, channelDeviceApiPath } from '@/utils/deviceRoute'
+import { generateShortId } from '@/utils/shortId'
 import { formatProtocolTag } from '@/utils/protocolLabel'
 import { base64ToUint8Array, uint8ArrayToHex, detectFileType, downloadBytes } from '@/utils/decode'
 import HistoryModal from '@/components/HistoryModal.vue'
@@ -725,24 +717,6 @@ const getDeviceStateText = (state) => {
     case 3: return '隔离'
     default: return '未知'
   }
-}
-
-const getQualityColor = (score) => {
-  if (score === undefined || score === null) return 'gray'
-  if (score === 100) return 'blue'
-  if (score >= 90) return 'green'
-  if (score >= 80) return 'cyan'
-  if (score >= 60) return 'orange'
-  return 'red'
-}
-
-const getQualityLabel = (score) => {
-  if (score === undefined || score === null) return 'Unknown'
-  if (score === 100) return 'Perfect'
-  if (score >= 90) return 'Excellent'
-  if (score >= 80) return 'Good'
-  if (score >= 60) return 'Average'
-  return 'Bad'
 }
 
 const formatFriendlyTime = (ts) => {
@@ -1014,6 +988,7 @@ const openDialog = (item = null) => {
       form.value.dlt645AutoPointsEnabled = true
     }
     if (channelProtocol.value === 'opc-ua') {
+      form.value.id = generateShortId()
       form.value.config = inheritOpcUaConfigFromChannel({
         security_policy: 'None',
         security_mode: 'None',
@@ -1113,7 +1088,9 @@ const saveDevice = async () => {
   }
 
   try {
-    const url = `/api/channels/${channelId}/devices` + (isEdit.value ? `/${form.value.id}` : '')
+    const url = isEdit.value
+      ? channelDeviceApiPath(channelId, form.value.id)
+      : `/api/channels/${channelId}/devices`
     const method = isEdit.value ? 'put' : 'post'
     
     await request({
@@ -1125,7 +1102,7 @@ const saveDevice = async () => {
     if (isEdit.value && form.value.regeneratePoints && form.value.autoPointsEnabled) {
       const start = Number(form.value.autoPointsStart) || 0
       const end = Number(form.value.autoPointsEnd) || 0
-      await request.post(`/api/channels/${channelId}/devices/${form.value.id}/points/generate-registers`, {
+      await request.post(channelDeviceApiPath(channelId, form.value.id, 'points', 'generate-registers'), {
         start: Math.min(start, end),
         end: Math.max(start, end),
         datatype: form.value.autoPointsDatatype,
@@ -1157,7 +1134,7 @@ const confirmBatchDelete = () => {
 const executeDelete = async () => {
   try {
     if (itemToDelete.value) {
-      await request.delete(`/api/channels/${channelId}/devices/${itemToDelete.value.id}`)
+      await request.delete(channelDeviceApiPath(channelId, itemToDelete.value.id))
     } else {
       await request({
         url: `/api/channels/${channelId}/devices`,
@@ -1183,7 +1160,7 @@ const openHistoryDialog = (device) => {
 }
 
 const goToPoints = (device) => {
-  router.push(`/channels/${channelId}/devices/${device.id}/points`)
+  router.push(devicePointsRoutePath(channelId, device.id))
 }
 
 const scanDialog = ref(false)
@@ -1198,16 +1175,26 @@ const scanInterface = ref(null)
 const scanStatus = ref('')
 const scanTimeout = ref(null)
 
+const scanRowKeyForItem = (item) => String(item?.endpoint || item?.device_id || '')
+
+const enrichScanResults = (items) => {
+  return (items || []).map((item) => ({
+    ...item,
+    scan_row_key: scanRowKeyForItem(item),
+  }))
+}
+
 const normalizeScanResults = (res) => {
-  if (Array.isArray(res)) return res
-  if (res && Array.isArray(res.devices)) return res.devices
-  if (res && Array.isArray(res.data)) return res.data
-  return []
+  let items = []
+  if (Array.isArray(res)) items = res
+  else if (res && Array.isArray(res.devices)) items = res.devices
+  else if (res && Array.isArray(res.data)) items = res.data
+  return enrichScanResults(items)
 }
 
 const getSelectedScanDevices = () => {
   const keySet = new Set((selectedScanDevices.value || []).map((k) => String(k)))
-  return scanResults.value.filter((item) => keySet.has(String(item.device_id)))
+  return scanResults.value.filter((item) => keySet.has(item.scan_row_key))
 }
 
 const buildScannedDevicePayload = (scanItem) => {
@@ -1229,8 +1216,8 @@ const buildScannedDevicePayload = (scanItem) => {
     }
   } else if (channelProtocol.value === 'opc-ua') {
     const ep = scanItem.endpoint || channelOpcUaEndpoint.value || ''
-    id = scanItem.device_id || ep || ''
-    name = scanItem.name || scanItem.model_name || id
+    id = generateShortId()
+    name = scanItem.name || scanItem.model_name || 'OPC UA Server'
     config = inheritOpcUaConfigFromChannel({
       endpoint: ep,
       name: scanItem.name,
@@ -1386,9 +1373,14 @@ const scanDevices = async () => {
 }
 
 const addSelectedDevices = async () => {
-  const devicesToAdd = getSelectedScanDevices()
+  let devicesToAdd = getSelectedScanDevices().filter((item) => item.diff_status !== 'existing')
   if (devicesToAdd.length === 0) {
-    Message.warning('请先选择要添加的设备')
+    const selected = getSelectedScanDevices()
+    if (selected.length > 0) {
+      Message.warning('所选设备已在通道中，无需重复添加')
+    } else {
+      Message.warning('请先选择要添加的设备')
+    }
     return
   }
 
@@ -1409,7 +1401,8 @@ const addSelectedDevices = async () => {
     scanDialog.value = false
     fetchDevices()
   } catch (e) {
-    Message.error('添加设备失败: ' + e.message)
+    const msg = e?.response?.data?.error || e.message
+    Message.error('添加设备失败: ' + msg)
   } finally {
     isAddingDevices.value = false
   }
@@ -1418,7 +1411,7 @@ const addSelectedDevices = async () => {
 const toggleDeviceStatus = async (record) => {
   record.statusLoading = true
   try {
-    await request.put(`/api/channels/${channelId}/devices/${record.id}`, {
+    await request.put(channelDeviceApiPath(channelId, record.id), {
       ...record,
       enable: record.enable
     })
@@ -1438,11 +1431,7 @@ const tableColumns = computed(() => {
     { title: '通信状态', slotName: 'state', width: 108 },
     { title: '采集间隔', slotName: 'interval', width: 108 },
   ]
-  
-  if (channelProtocol.value && (channelProtocol.value.includes('bacnet') || channelProtocol.value === 'bacnet-ip')) {
-    columns.push({ title: '质量评分', slotName: 'quality', width: 120 })
-  }
-  
+
   columns.push({ title: '操作', slotName: 'actions', width: 240, fixed: 'right' })
   
   return columns
@@ -1457,8 +1446,7 @@ const rowSelection = reactive({
 const scanColumns = computed(() => {
   if (channelProtocol.value === 'opc-ua') {
     return [
-      { title: 'Device ID', dataIndex: 'device_id', width: 150 },
-      { title: 'Endpoint', dataIndex: 'endpoint', width: 300 },
+      { title: 'Endpoint', dataIndex: 'endpoint', width: 360 },
       { title: '名称', dataIndex: 'name', width: 200 },
       { title: '厂商', dataIndex: 'vendor_name', width: 200 },
       { title: '型号', dataIndex: 'model_name', width: 150 },

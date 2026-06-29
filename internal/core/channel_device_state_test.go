@@ -172,6 +172,53 @@ func TestIsChannelLinkError(t *testing.T) {
 	}
 }
 
+func TestResolveDeviceQualityScore_FromStateWhenNoMetrics(t *testing.T) {
+	cases := []struct {
+		state int
+		want  int
+	}{
+		{int(NodeStateOnline), 100},
+		{int(NodeStateUnstable), 60},
+		{int(NodeStateQuarantine), 20},
+		{int(NodeStateOffline), 0},
+	}
+	for _, tc := range cases {
+		dev := &model.Device{State: tc.state}
+		got := resolveDeviceQualityScore(dev, &model.DeviceMetrics{})
+		if got != tc.want {
+			t.Fatalf("state %d: got quality %d, want %d", tc.state, got, tc.want)
+		}
+	}
+}
+
+func TestResolveDeviceQualityScore_PrefersCollectedMetrics(t *testing.T) {
+	dev := &model.Device{State: int(NodeStateOnline)}
+	metrics := &model.DeviceMetrics{
+		LastCollectTime: time.Now(),
+		HealthScore:     42,
+	}
+	if got := resolveDeviceQualityScore(dev, metrics); got != 42 {
+		t.Fatalf("expected collected health score 42, got %d", got)
+	}
+}
+
+func TestGetChannelDevices_QualityScoreFromOnlineState(t *testing.T) {
+	cm := newTestChannelManager()
+	cm.stateManager.GetNode("dev-1").Runtime.State = NodeStateOnline
+	cm.stateManager.GetNode("dev-2").Runtime.State = NodeStateUnstable
+
+	devices := cm.GetChannelDevices("ch-1")
+	if len(devices) != 2 {
+		t.Fatalf("expected 2 devices, got %d", len(devices))
+	}
+	if devices[0].QualityScore != 100 {
+		t.Fatalf("online device quality score = %d, want 100", devices[0].QualityScore)
+	}
+	if devices[1].QualityScore != 60 {
+		t.Fatalf("unstable device quality score = %d, want 60", devices[1].QualityScore)
+	}
+}
+
 func TestGetChannelDevices_OverridesStateWhenChannelOffline(t *testing.T) {
 	cm := newTestChannelManager()
 	cm.drivers["ch-1"] = &stubChannelDriver{health: drv.HealthStatusBad}

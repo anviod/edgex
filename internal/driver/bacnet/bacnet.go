@@ -1220,6 +1220,15 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 
 	wgEnrich.Wait()
 
+	existingIDs := parseExistingDeviceIDs(params)
+	for i := range results {
+		if _, ok := existingIDs[results[i].DeviceID]; ok {
+			results[i].DiffStatus = "existing"
+		} else {
+			results[i].DiffStatus = "new"
+		}
+	}
+
 	// Log the results for debugging
 	if data, err := json.Marshal(results); err == nil {
 		zap.L().Info("Scan results", zap.String("json", string(data)))
@@ -1240,6 +1249,38 @@ type ScanResult struct {
 	MaxAPDU      uint32 `json:"max_apdu"`
 	Segmentation uint32 `json:"segmentation"`
 	Status       string `json:"status"`
+	DiffStatus   string `json:"diff_status,omitempty"` // new, existing
+}
+
+func parseExistingDeviceIDs(params map[string]any) map[int]struct{} {
+	out := make(map[int]struct{})
+	if params == nil {
+		return out
+	}
+	v, ok := params["existing_device_ids"]
+	if !ok {
+		return out
+	}
+	switch ids := v.(type) {
+	case []int:
+		for _, id := range ids {
+			out[id] = struct{}{}
+		}
+	case []float64:
+		for _, id := range ids {
+			out[int(id)] = struct{}{}
+		}
+	case []any:
+		for _, item := range ids {
+			switch id := item.(type) {
+			case int:
+				out[id] = struct{}{}
+			case float64:
+				out[int(id)] = struct{}{}
+			}
+		}
+	}
+	return out
 }
 
 type ObjectResult struct {

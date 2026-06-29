@@ -659,19 +659,19 @@ func TestOpcUa_AddDeviceFromScanResults(t *testing.T) {
 	}
 
 	for _, scanItem := range scanResults {
-		deviceID, _ := scanItem["device_id"].(string)
+		endpoint, _ := scanItem["endpoint"].(string)
 		deviceName, _ := scanItem["name"].(string)
 		if deviceName == "" {
-			deviceName = deviceID
+			deviceName = "OPC UA Server"
 		}
 
 		dev := &model.Device{
-			ID:       deviceID,
+			ID:       endpoint, // simulate legacy frontend bug: endpoint used as ID
 			Name:     deviceName,
 			Interval: model.Duration(10 * time.Second),
 			Enable:   true,
 			Config: map[string]any{
-				"endpoint":    scanItem["endpoint"],
+				"endpoint":    endpoint,
 				"name":        scanItem["name"],
 				"vendor_name": scanItem["vendor_name"],
 				"model_name":  scanItem["model_name"],
@@ -681,20 +681,23 @@ func TestOpcUa_AddDeviceFromScanResults(t *testing.T) {
 		}
 
 		err := cm.AddDevice(channelID, dev)
-		require.NoError(t, err, "Failed to add device %s", deviceID)
+		require.NoError(t, err, "Failed to add device for endpoint %s", endpoint)
 	}
 
 	devices := cm.GetChannelDevices(channelID)
 	require.Len(t, devices, 2)
 
-	assert.Equal(t, "opcua-default", devices[0].ID)
-	assert.Equal(t, "Local OPC UA Server", devices[0].Name)
+	for _, dev := range devices {
+		assert.False(t, model.IsEndpointLikeDeviceID(dev.ID), "device ID must not be endpoint URL")
+		assert.NotEmpty(t, dev.Config["endpoint"])
+	}
+
 	assert.Equal(t, "opc.tcp://localhost:4840", devices[0].Config["endpoint"])
+	assert.Equal(t, "Local OPC UA Server", devices[0].Name)
 	assert.Equal(t, "TestVendor", devices[0].Config["vendor_name"])
 
-	assert.Equal(t, "opcua-simulation", devices[1].ID)
-	assert.Equal(t, "Simulation OPC UA Server", devices[1].Name)
 	assert.Equal(t, "opc.tcp://localhost:5050/test", devices[1].Config["endpoint"])
+	assert.Equal(t, "Simulation OPC UA Server", devices[1].Name)
 	assert.Equal(t, "SimVendor", devices[1].Config["vendor_name"])
 }
 
@@ -782,8 +785,7 @@ func TestOpcUa_AddPointsToDevice(t *testing.T) {
 }
 
 // ============================================================
-// Test 7: Add device with empty ID (should still be stored with empty ID)
-// Note: ID fallback to Name is handled at the API layer (server.go), not in ChannelManager
+// Test 7: Add device with empty ID (OPC UA auto-generates short ID)
 // ============================================================
 func TestOpcUa_AddDevice_EmptyID(t *testing.T) {
 	cm, _, cleanup := createTestChannelManager(t)
@@ -815,7 +817,8 @@ func TestOpcUa_AddDevice_EmptyID(t *testing.T) {
 
 	devices := cm.GetChannelDevices(channelID)
 	require.Len(t, devices, 1)
-	assert.Equal(t, "fallback-name-device", devices[0].ID, "Empty ID should fall back to device name for DB persistence")
+	assert.False(t, model.IsEndpointLikeDeviceID(devices[0].ID), "OPC UA empty ID should become a short generated ID")
+	assert.Len(t, devices[0].ID, 16)
 	assert.Equal(t, "fallback-name-device", devices[0].Name, "Name should be preserved")
 }
 

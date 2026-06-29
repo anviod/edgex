@@ -3,19 +3,25 @@
     :visible="props.visible" 
     @update:visible="handleClose" 
     :width="1200" 
+    title="点位扫描发现"
     title-align="start" 
     :footer="false" 
     unmount-on-close 
-    modal-class="industrial-modal"
+    modal-class="industrial-white-modal"
+    :align-center="true"
   >
-    <template #title>
-      <div class="flex items-baseline gap-2">
-        <span class="text-lg font-bold">点位扫描发现</span>
-        <span class="text-xs font-mono text-slate-400">PROTOCOL: {{ props.channelProtocol.toUpperCase() }}</span>
+    <div class="scanner-content">
+      <div class="scanner-header-banner">
+        <div class="endpoint-info">
+          <span class="label">DEVICE</span>
+          <span class="value font-mono">{{ deviceInstanceLabel }}</span>
+        </div>
+        <div class="protocol-badge">
+          <span class="protocol-tag-simple">{{ formatProtocolTag(props.channelProtocol) }}</span>
+        </div>
       </div>
-    </template>
 
-    <div class="scan-container">
+      <div class="scan-container">
       <div class="scanner-toolbar">
         <div class="toolbar-left">
           <a-input-search 
@@ -109,6 +115,7 @@
           </span>
         </template>
       </a-table>
+      </div>
     </div>
   </a-modal>
 </template>
@@ -120,6 +127,7 @@ import {
 } from '@arco-design/web-vue/es/icon'
 import request from '@/utils/request'
 import { showMessage } from '../composables/useGlobalState'
+import { formatProtocolTag } from '../utils/protocolLabel'
 
 const props = defineProps({
   visible: {
@@ -149,6 +157,13 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:visible', 'refresh-points'])
+
+const deviceInstanceLabel = computed(() => {
+  const config = props.deviceInfo?.config
+  if (!config) return '-'
+  const id = config.device_id ?? config.bacnetDeviceInstance ?? config.InstanceID ?? config.instance_id
+  return id != null ? String(id) : '-'
+})
 
 const state = reactive({
   visible: false,
@@ -393,5 +408,156 @@ const flattenOpcNodes = (nodes, level = 0) => {
 </script>
 
 <style scoped>
-/* v3.0 — styles in src/styles/ */
+.scanner-content {
+  padding: 0;
+}
+
+.scanner-header-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #fafbfc;
+  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 16px;
+}
+
+.endpoint-info {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.scanner-header-banner .label {
+  font-size: 11px;
+  color: #6c757d;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.scanner-header-banner .value {
+  font-size: 12px;
+  color: #495057;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.protocol-tag-simple {
+  background: #e9ecef;
+  color: #495057;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.scanner-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--edgex-surface-raised);
+  border: 1px solid #e9ecef;
+  margin-bottom: 12px;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: #e9ecef;
+}
+
+.industrial-input {
+  width: 220px;
+}
+
+.industrial-input :deep(.arco-input-wrapper) {
+  border-radius: 0;
+  border-color: #dee2e6;
+  background: var(--edgex-surface-raised);
+}
+
+.industrial-input :deep(.arco-input-wrapper:hover) {
+  border-color: #adb5bd;
+}
+
+.industrial-input :deep(.arco-input-wrapper:focus-within) {
+  border-color: #495057;
+  box-shadow: none;
+}
+
+.status-filters {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #6c757d;
+  transition: all 0.2s ease;
+  background: transparent;
+}
+
+.status-filter-item:hover {
+  color: #495057;
+  background: #f8f9fa;
+}
+
+.status-filter-item.active {
+  color: #212529;
+  background: #f8f9fa;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-new {
+  background: #2ecc71;
+}
+
+.dot-existing {
+  background: #95a5a6;
+}
+
+.dot-all {
+  background: #bdc3c7;
+}
+
+.status-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.scan-btn {
+  background: #212529 !important;
+  border: none;
+  border-radius: 0;
+  padding: 4px 16px;
+  font-size: 12px;
+}
+
+.scan-btn:hover {
+  background: #343a40 !important;
+}
 </style>

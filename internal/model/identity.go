@@ -1,9 +1,13 @@
 package model
 
 import (
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"strings"
 )
+
+const shortIDAlphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
 
 // EnsureChannelID 确保通道具有非空 ID（优先使用 id，其次 name）。
 func EnsureChannelID(ch *Channel) error {
@@ -19,6 +23,52 @@ func EnsureChannelID(ch *Channel) error {
 	}
 	ch.ID = id
 	return nil
+}
+
+// GenerateShortID 生成随机小写字母数字 ID（与前端 channel/device ID 风格一致）。
+func GenerateShortID(length int) string {
+	if length <= 0 {
+		length = 16
+	}
+	out := make([]byte, length)
+	max := big.NewInt(int64(len(shortIDAlphabet)))
+	for i := range out {
+		n, err := rand.Int(rand.Reader, max)
+		if err != nil {
+			out[i] = shortIDAlphabet[i%len(shortIDAlphabet)]
+			continue
+		}
+		out[i] = shortIDAlphabet[n.Int64()]
+	}
+	return string(out)
+}
+
+// IsEndpointLikeDeviceID reports whether id looks like a connection URL rather than a stable device key.
+func IsEndpointLikeDeviceID(id string) bool {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return false
+	}
+	lower := strings.ToLower(id)
+	return strings.HasPrefix(lower, "opc.tcp://") ||
+		strings.HasPrefix(lower, "opc.http://") ||
+		strings.Contains(id, "://")
+}
+
+// NormalizeOpcUaDeviceID replaces empty or endpoint-like device IDs with a generated short ID.
+// Endpoint URLs belong in device config, not as routing identifiers.
+func NormalizeOpcUaDeviceID(dev *Device) {
+	if dev == nil {
+		return
+	}
+	id := strings.TrimSpace(dev.ID)
+	endpoint := ""
+	if dev.Config != nil {
+		endpoint = configString(dev.Config["endpoint"])
+	}
+	if id == "" || IsEndpointLikeDeviceID(id) || (endpoint != "" && id == endpoint) {
+		dev.ID = GenerateShortID(16)
+	}
 }
 
 // EnsureDeviceID 确保设备具有非空 ID（优先使用 id，其次 name）。

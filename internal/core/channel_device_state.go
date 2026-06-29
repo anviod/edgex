@@ -93,6 +93,29 @@ func (cm *ChannelManager) markChannelDevicesOffline(channelID string) {
 	}
 }
 
+// resolveDeviceQualityScore returns the device quality score for API responses.
+// The global metrics collector only has HealthScore after UpdateDeviceMetrics runs;
+// when no collect metrics exist yet, derive score from the effective device state
+// (aligned with BACnet driver quality scoring).
+func resolveDeviceQualityScore(dev *model.Device, metrics *model.DeviceMetrics) int {
+	if metrics != nil && !metrics.LastCollectTime.IsZero() {
+		return metrics.HealthScore
+	}
+	if dev == nil {
+		return 0
+	}
+	switch dev.State {
+	case int(NodeStateOnline):
+		return 100
+	case int(NodeStateUnstable):
+		return 60
+	case int(NodeStateQuarantine):
+		return 20
+	default:
+		return 0
+	}
+}
+
 func (cm *ChannelManager) applyDeviceRuntimeState(ch *model.Channel, d drv.Driver, dev *model.Device) {
 	rawState := int(NodeStateOnline)
 	if node := cm.stateManager.GetNode(dev.ID); node != nil {
