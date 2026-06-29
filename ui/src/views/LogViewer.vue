@@ -1,5 +1,5 @@
 ﻿<template>
-    <div class="log-viewer-container page-shell page-shell--compact">
+    <div class="log-viewer-container page-shell">
         <!-- Toolbar -->
         <div class="log-toolbar toolbar--standalone">
             <div class="toolbar-left">

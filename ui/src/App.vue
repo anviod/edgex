@@ -104,11 +104,7 @@
     </header>
 
     <main class="main-content" :class="{ 'has-sidebar': !isLoginPage, 'is-collapsed': drawerRail }">
-      <div
-        v-if="!isLoginPage"
-        class="page-container"
-        :class="{ 'page-container--wide': isWidePage }"
-      >
+      <div v-if="!isLoginPage" class="page-container">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <component v-if="Component" :is="Component" :key="$route.fullPath" />
@@ -165,8 +161,6 @@ const buildTime = ref('')
 const commitID = ref('')
 
 const isLoginPage = computed(() => route.path === '/login' || route.path === '/install')
-
-const isWidePage = computed(() => route.path === '/' || route.path === '/logs')
 
 const breadcrumb = computed(() => {
   const parts = []

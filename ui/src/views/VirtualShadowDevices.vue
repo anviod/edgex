@@ -1,5 +1,5 @@
 <template>
-  <div class="page-shell page-shell--compact virtual-shadow-page">
+  <div class="page-shell virtual-shadow-page">
     <div class="page-header">
       <div>
         <h2 class="title-text">虚拟影子设备</h2>

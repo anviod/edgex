@@ -1,5 +1,5 @@
 ﻿<template>
-    <div class="page-shell page-shell--compact edge-compute-container">
+    <div class="page-shell edge-compute-container">
         <div class="page-header edge-compute-page-header">
             <h2 class="page-title">边缘计算</h2>
             <p class="page-subtitle">规则监控、管理与运行日志</p>
