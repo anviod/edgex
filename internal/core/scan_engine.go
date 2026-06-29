@@ -403,47 +403,7 @@ func (se *ScanEngine) executeTaskAsync(task *ScanTask) {
 	}
 	se.metrics.RecordExecute(result != nil && result.Success, lagMicros)
 
-	if result.Success && se.shadowCore != nil && len(result.Values) > 0 {
-		channelID := ""
-		if task.Params != nil {
-			if id, ok := task.Params["channelID"].(string); ok {
-				channelID = id
-			}
-		}
-		now := time.Now()
-		points := make([]model.ShadowIngressPoint, 0, len(result.Values))
-		for pointID, value := range result.Values {
-			if value.Value == nil {
-				continue
-			}
-			collectedAt := value.TS
-			if collectedAt.IsZero() {
-				collectedAt = now
-			}
-			degraded := false
-			if se.pointDegrade != nil {
-				degraded = se.pointDegrade.IsDegraded(task.DeviceKey, pointID)
-			}
-			points = append(points, model.ShadowIngressPoint{
-				PointID:        pointID,
-				Value:          value.Value,
-				Quality:        value.Quality,
-				SamplePeriodMs: int(task.Interval.Milliseconds()),
-				CollectedAt:    collectedAt,
-				Degraded:       degraded,
-			})
-		}
-		msg := model.ShadowIngressMessage{
-			DeviceID:  task.DeviceKey,
-			ChannelID: channelID,
-			Timestamp: now,
-			Points:    points,
-			Meta: model.ShadowIngressMeta{
-				Source: "scan_engine",
-			},
-		}
-		se.shadowCore.WriteShadowDevice(msg)
-	}
+	se.applyCollectToShadow(task, result)
 
 	se.updateTaskState(task, result)
 
@@ -472,6 +432,166 @@ func (se *ScanEngine) executeTaskAsync(task *ScanTask) {
 		heap.Push(se.priorityQueue, task)
 	}
 	se.mu.Unlock()
+}
+
+func taskCollectPointIDs(task *ScanTask) []string {
+	if len(task.Points) > 0 {
+		ids := make([]string, len(task.Points))
+		for i, p := range task.Points {
+			ids[i] = p.ID
+		}
+		return ids
+	}
+	return task.PointIDs
+}
+
+func taskShadowChannelID(task *ScanTask) string {
+	if task.Params != nil {
+		if id, ok := task.Params["channelID"].(string); ok {
+			return id
+		}
+	}
+	return ""
+}
+
+func resolveCollectQuality(v model.Value) string {
+	if v.Quality != "" {
+		return v.Quality
+	}
+	if v.Value == nil {
+		return "Bad"
+	}
+	return "Good"
+}
+
+func preservedShadowValue(existing *model.ShadowDevice, pointID string, newVal any, quality string) any {
+	if newVal != nil {
+		return newVal
+	}
+	if quality == "Good" {
+		return nil
+	}
+	if existing != nil {
+		if sp, ok := existing.Points[pointID]; ok && sp.Value != nil {
+			return sp.Value
+		}
+	}
+	return nil
+}
+
+// applyCollectToShadow writes scan results to shadow, including Bad quality on
+// failed reads so stale Good values are not left behind when collection fails.
+func (se *ScanEngine) applyCollectToShadow(task *ScanTask, result *ExecuteResult) {
+	if se.shadowCore == nil {
+		return
+	}
+
+	pointIDs := taskCollectPointIDs(task)
+	if len(pointIDs) == 0 {
+		return
+	}
+
+	now := time.Now()
+	shadowID := fmt.Sprintf("shadow-%s", task.DeviceKey)
+	existing, _ := se.shadowCore.GetShadowDevice(shadowID)
+
+	resultValues := map[string]model.Value{}
+	if result != nil && len(result.Values) > 0 {
+		resultValues = result.Values
+	}
+
+	samplePeriodMs := int(task.Interval.Milliseconds())
+	points := make([]model.ShadowIngressPoint, 0, len(pointIDs))
+
+	for _, pointID := range pointIDs {
+		value, inResult := resultValues[pointID]
+		if !inResult {
+			// Missing entries on both failed and successful collects must not
+			// leave prior Good values untouched (e.g. SNMP parse skips, Modbus cooldown).
+			value = model.Value{Quality: "Bad"}
+		}
+
+		quality := resolveCollectQuality(value)
+		collectedAt := value.TS
+		if collectedAt.IsZero() {
+			collectedAt = now
+		}
+		val := preservedShadowValue(existing, pointID, value.Value, quality)
+
+		degraded := false
+		if se.pointDegrade != nil {
+			degraded = se.pointDegrade.IsDegraded(task.DeviceKey, pointID)
+		}
+		points = append(points, model.ShadowIngressPoint{
+			PointID:        pointID,
+			Value:          val,
+			Quality:        quality,
+			SamplePeriodMs: samplePeriodMs,
+			CollectedAt:    collectedAt,
+			Degraded:       degraded,
+		})
+	}
+
+	if len(points) == 0 {
+		return
+	}
+
+	se.shadowCore.WriteShadowDevice(model.ShadowIngressMessage{
+		DeviceID:  task.DeviceKey,
+		ChannelID: taskShadowChannelID(task),
+		Timestamp: now,
+		Points:    points,
+		Meta: model.ShadowIngressMeta{
+			Source: "scan_engine",
+		},
+	})
+}
+
+// markDeviceShadowBad marks all known shadow points Bad when a device goes offline
+// (e.g. channel connect failure) so stale Good values are not left behind.
+func (se *ScanEngine) markDeviceShadowBad(deviceKey, channelID string) {
+	if se.shadowCore == nil || deviceKey == "" {
+		return
+	}
+
+	pointIDs := make(map[string]struct{})
+	for _, task := range se.GetTasksByDeviceKey(deviceKey) {
+		for _, pid := range taskCollectPointIDs(task) {
+			pointIDs[pid] = struct{}{}
+		}
+	}
+
+	shadowID := fmt.Sprintf("shadow-%s", deviceKey)
+	existing, _ := se.shadowCore.GetShadowDevice(shadowID)
+	if len(pointIDs) == 0 && existing != nil {
+		for pid := range existing.Points {
+			pointIDs[pid] = struct{}{}
+		}
+	}
+	if len(pointIDs) == 0 {
+		return
+	}
+
+	now := time.Now()
+	ingress := make([]model.ShadowIngressPoint, 0, len(pointIDs))
+	for pid := range pointIDs {
+		ingress = append(ingress, model.ShadowIngressPoint{
+			PointID:     pid,
+			Value:       preservedShadowValue(existing, pid, nil, "Bad"),
+			Quality:     "Bad",
+			CollectedAt: now,
+		})
+	}
+
+	se.shadowCore.WriteShadowDevice(model.ShadowIngressMessage{
+		DeviceID:  deviceKey,
+		ChannelID: channelID,
+		Timestamp: now,
+		Points:    ingress,
+		Meta: model.ShadowIngressMeta{
+			Source: "channel_offline",
+		},
+	})
 }
 
 func (se *ScanEngine) updateTaskState(task *ScanTask, result *ExecuteResult) {

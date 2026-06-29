@@ -109,6 +109,9 @@ func (t *ICE104Transport) Disconnect() error {
 	}
 	t.connected.Store(false)
 	t.lastDisconnectTime = time.Now()
+	t.cacheMu.Lock()
+	t.cache = make(map[string]cachedPoint)
+	t.cacheMu.Unlock()
 	return nil
 }
 

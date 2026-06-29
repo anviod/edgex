@@ -88,8 +88,12 @@ func (cm *ChannelManager) markChannelDevicesOffline(channelID string) {
 	}
 	cm.mu.RUnlock()
 
+	se := cm.scanEngineAdapter.scanEngine
 	for _, id := range deviceIDs {
 		cm.stateManager.MarkOffline(id)
+		if se != nil {
+			se.markDeviceShadowBad(id, channelID)
+		}
 	}
 }
 

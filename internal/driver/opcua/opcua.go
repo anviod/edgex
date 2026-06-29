@@ -676,8 +676,13 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 
 		result := make(map[string]model.Value)
 		missing := false
+		linkDown := !client.Connected
 		for _, p := range points {
 			if v, ok := sub.Cache[p.ID]; ok {
+				if linkDown {
+					v.Quality = "Bad"
+				}
+				// Preserve cached TS so stale subscription values are not masked as fresh.
 				result[p.ID] = v
 				zap.L().Debug("[OPC UA] Read (Cache)", zap.String("point", p.ID), zap.Any("value", v.Value), zap.String("quality", v.Quality))
 			} else {
@@ -692,7 +697,6 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 		}
 
 		if !missing {
-			stampCollectionTime(result)
 			d.recordReadOutcome(startTime, true, "")
 			return result, nil
 		}

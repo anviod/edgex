@@ -237,6 +237,12 @@ func (vse *VirtualShadowEngine) recomputeVirtualDevice(deviceID string) {
 
 	for pointID, formula := range device.FormulaPoints {
 		trimmed := strings.TrimSpace(formula)
+		sourcesGood := vse.formulaSourcesGood(trimmed, device.Dependencies)
+		quality := "good"
+		if !sourcesGood {
+			quality = "bad"
+		}
+
 		var result interface{}
 		var err error
 
@@ -245,16 +251,27 @@ func (vse *VirtualShadowEngine) recomputeVirtualDevice(deviceID string) {
 			key := depToEnvKey(trimmed)
 			val, ok := env[key]
 			if !ok {
-				log.Printf("[VirtualShadowEngine] Source not ready for %s.%s (ref=%s)", deviceID, pointID, trimmed)
-				continue
+				if prev, has := device.Points[pointID]; has {
+					result = prev.Value
+				}
+			} else {
+				result = val
 			}
-			result = val
 		} else {
-			rewritten := rewriteFormulaDeps(formula, device.Dependencies)
-			result, err = vse.evaluateFormula(rewritten, env)
-			if err != nil {
-				log.Printf("[VirtualShadowEngine] Formula evaluation failed for %s.%s: %v", deviceID, pointID, err)
-				continue
+			if !sourcesGood {
+				if prev, has := device.Points[pointID]; has {
+					result = prev.Value
+				}
+			} else {
+				rewritten := rewriteFormulaDeps(formula, device.Dependencies)
+				result, err = vse.evaluateFormula(rewritten, env)
+				if err != nil {
+					log.Printf("[VirtualShadowEngine] Formula evaluation failed for %s.%s: %v", deviceID, pointID, err)
+					if prev, has := device.Points[pointID]; has {
+						result = prev.Value
+					}
+					quality = "bad"
+				}
 			}
 		}
 
@@ -265,7 +282,7 @@ func (vse *VirtualShadowEngine) recomputeVirtualDevice(deviceID string) {
 			CollectedAt: now,
 			UpdatedAt:   now,
 			Version:     device.Version,
-			Quality:     "good",
+			Quality:     quality,
 		}
 		device.Points[pointID] = pt
 		updatedPoints[pointID] = pt

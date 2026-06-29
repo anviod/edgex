@@ -105,6 +105,161 @@ func TestScanEngine_Priority(t *testing.T) {
 	}
 }
 
+func TestScanEngine_ApplyCollectToShadow_FailureMarksBad(t *testing.T) {
+	sc := NewShadowCore()
+	se := NewScanEngine(ScanEngineConfig{
+		TickInterval: 10 * time.Millisecond,
+		WorkerCount:  1,
+		MaxQueueSize: 10,
+	})
+	se.SetShadowCore(sc)
+
+	oldTime := time.Date(2026, 6, 29, 17, 23, 0, 0, time.UTC)
+	if _, err := sc.WriteShadowDevice(model.ShadowIngressMessage{
+		DeviceID:  "modbus-slave-1",
+		ChannelID: "ch-1",
+		Timestamp: oldTime,
+		Points: []model.ShadowIngressPoint{
+			{PointID: "hr_0", Value: 10.0, Quality: "Good", CollectedAt: oldTime},
+			{PointID: "hr_1", Value: 20.0, Quality: "Good", CollectedAt: oldTime},
+		},
+	}); err != nil {
+		t.Fatalf("WriteShadowDevice: %v", err)
+	}
+
+	task := &ScanTask{
+		DeviceKey: "modbus-slave-1",
+		Interval:  10 * time.Second,
+		PointIDs:  []string{"hr_0", "hr_1", "hr_2"},
+		Params:    map[string]any{"channelID": "ch-1"},
+	}
+
+	before := time.Now()
+	se.applyCollectToShadow(task, &ExecuteResult{Success: false, Error: ErrTimeout})
+
+	shadow, err := sc.GetShadowDevice("shadow-modbus-slave-1")
+	if err != nil {
+		t.Fatalf("GetShadowDevice: %v", err)
+	}
+
+	for _, id := range []string{"hr_0", "hr_1", "hr_2"} {
+		pt, ok := shadow.Points[id]
+		if !ok {
+			t.Fatalf("missing point %s in shadow", id)
+		}
+		if pt.Quality != "Bad" {
+			t.Fatalf("point %s quality = %q, want Bad", id, pt.Quality)
+		}
+		if pt.CollectedAt.Before(before) {
+			t.Fatalf("point %s collected_at not updated on failure: %v", id, pt.CollectedAt)
+		}
+	}
+
+	if shadow.Points["hr_0"].Value != 10.0 {
+		t.Fatalf("hr_0 value should be preserved, got %v", shadow.Points["hr_0"].Value)
+	}
+	if shadow.Points["hr_2"].Value != nil {
+		t.Fatalf("hr_2 had no prior value, want nil, got %v", shadow.Points["hr_2"].Value)
+	}
+}
+
+func TestScanEngine_ApplyCollectToShadow_PartialBadPreservesValue(t *testing.T) {
+	sc := NewShadowCore()
+	se := NewScanEngine(ScanEngineConfig{
+		TickInterval: 10 * time.Millisecond,
+		WorkerCount:  1,
+		MaxQueueSize: 10,
+	})
+	se.SetShadowCore(sc)
+
+	oldTime := time.Date(2026, 6, 29, 17, 23, 0, 0, time.UTC)
+	if _, err := sc.WriteShadowDevice(model.ShadowIngressMessage{
+		DeviceID:  "dev-1",
+		Timestamp: oldTime,
+		Points: []model.ShadowIngressPoint{
+			{PointID: "p1", Value: 99.0, Quality: "Good", CollectedAt: oldTime},
+		},
+	}); err != nil {
+		t.Fatalf("WriteShadowDevice: %v", err)
+	}
+
+	now := time.Now()
+	task := &ScanTask{
+		DeviceKey: "dev-1",
+		Interval:  1 * time.Second,
+		PointIDs:  []string{"p1"},
+	}
+
+	se.applyCollectToShadow(task, &ExecuteResult{
+		Success: true,
+		Values: map[string]model.Value{
+			"p1": {PointID: "p1", Value: nil, Quality: "Bad", TS: now},
+		},
+	})
+
+	shadow, err := sc.GetShadowDevice("shadow-dev-1")
+	if err != nil {
+		t.Fatalf("GetShadowDevice: %v", err)
+	}
+	pt := shadow.Points["p1"]
+	if pt.Quality != "Bad" {
+		t.Fatalf("quality = %q, want Bad", pt.Quality)
+	}
+	if pt.Value != 99.0 {
+		t.Fatalf("value = %v, want preserved 99.0", pt.Value)
+	}
+}
+
+func TestScanEngine_ApplyCollectToShadow_SuccessMissingPointsMarksBad(t *testing.T) {
+	sc := NewShadowCore()
+	se := NewScanEngine(ScanEngineConfig{
+		TickInterval: 10 * time.Millisecond,
+		WorkerCount:  1,
+		MaxQueueSize: 10,
+	})
+	se.SetShadowCore(sc)
+
+	oldTime := time.Date(2026, 6, 29, 17, 23, 0, 0, time.UTC)
+	if _, err := sc.WriteShadowDevice(model.ShadowIngressMessage{
+		DeviceID:  "snmp-dev",
+		Timestamp: oldTime,
+		Points: []model.ShadowIngressPoint{
+			{PointID: "p1", Value: 1.0, Quality: "Good", CollectedAt: oldTime},
+			{PointID: "p2", Value: 2.0, Quality: "Good", CollectedAt: oldTime},
+		},
+	}); err != nil {
+		t.Fatalf("WriteShadowDevice: %v", err)
+	}
+
+	task := &ScanTask{
+		DeviceKey: "snmp-dev",
+		Interval:  5 * time.Second,
+		PointIDs:  []string{"p1", "p2"},
+	}
+
+	before := time.Now()
+	se.applyCollectToShadow(task, &ExecuteResult{
+		Success: true,
+		Values: map[string]model.Value{
+			"p1": {PointID: "p1", Value: 1.1, Quality: "Good", TS: before},
+		},
+	})
+
+	shadow, err := sc.GetShadowDevice("shadow-snmp-dev")
+	if err != nil {
+		t.Fatalf("GetShadowDevice: %v", err)
+	}
+	if shadow.Points["p1"].Quality != "Good" {
+		t.Fatalf("p1 quality = %q, want Good", shadow.Points["p1"].Quality)
+	}
+	if shadow.Points["p2"].Quality != "Bad" {
+		t.Fatalf("p2 quality = %q, want Bad for missing success result", shadow.Points["p2"].Quality)
+	}
+	if shadow.Points["p2"].CollectedAt.Before(before) {
+		t.Fatalf("p2 collected_at not refreshed: %v", shadow.Points["p2"].CollectedAt)
+	}
+}
+
 func TestScanEngine_Degradation(t *testing.T) {
 	config := ScanEngineConfig{
 		TickInterval: 10 * time.Millisecond,
