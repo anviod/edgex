@@ -5,3 +5,9 @@ ui/dist/
 logs/
 logs/gateway.edgex.log
 *.db
+.codebuddy/
+.idea/
+.trae/
+*.exe
+dist/
+*.log
