@@ -92,9 +92,6 @@ type BACnetDriver struct {
 	// History of discovered objects for each device
 	// Map: DeviceID -> Map: ObjectKey(Type:Instance) -> ObjectResult
 	historicalObjects map[int]map[string]ObjectResult
-
-	// Optional callback to push polled values into ShadowCore (wired by ChannelManager).
-	valuesReadNotifier func(deviceID string, values map[string]model.Value)
 }
 
 type DeviceConfig struct {
@@ -113,9 +110,8 @@ type DeviceContext struct {
 	IsolationUntil      time.Time
 	IsolationCount      int
 	LastValues          map[string]model.Value
-	SubscribedPoints    map[string]model.Point
 	CacheMu             sync.RWMutex
-	StopPolling         chan struct{}
+	ReadMu              sync.Mutex
 	lastReset           time.Time
 }
 
@@ -130,37 +126,6 @@ func NewBACnetDriver() driver.Driver {
 		deviceContexts:    make(map[int]*DeviceContext),
 		idMap:             make(map[string]int),
 	}
-}
-
-// SetValuesReadNotifier implements driver.ValuesReadNotifier.
-func (d *BACnetDriver) SetValuesReadNotifier(fn func(deviceID string, values map[string]model.Value)) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.valuesReadNotifier = fn
-}
-
-func (d *BACnetDriver) stringDeviceID(instanceID int, fallback string) string {
-	for s, id := range d.idMap {
-		if id == instanceID {
-			return s
-		}
-	}
-	return fallback
-}
-
-func (d *BACnetDriver) notifyValuesRead(instanceID int, values map[string]model.Value) {
-	if len(values) == 0 {
-		return
-	}
-	d.mu.RLock()
-	notifier := d.valuesReadNotifier
-	fallback := fmt.Sprintf("%d", instanceID)
-	d.mu.RUnlock()
-	if notifier == nil {
-		return
-	}
-	deviceID := d.stringDeviceID(instanceID, fallback)
-	notifier(deviceID, values)
 }
 
 func (d *BACnetDriver) Init(config model.DriverConfig) error {
@@ -375,18 +340,14 @@ func (d *BACnetDriver) Disconnect() error {
 }
 
 func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (map[string]model.Value, error) {
-	// Refactored for isolation
 	if len(points) == 0 {
 		return map[string]model.Value{}, nil
 	}
 
-	// Use write lock directly to avoid lock upgrade issues
 	d.mu.Lock()
-	// Resolve Target ID from Point
 	targetID := -1
 	sID := points[0].DeviceID
 
-	// Verify all points belong to the same device to prevent crosstalk
 	for i := 1; i < len(points); i++ {
 		if points[i].DeviceID != sID {
 			d.mu.Unlock()
@@ -394,74 +355,81 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 		}
 	}
 
-	// Try map lookup first
 	if id, ok := d.idMap[sID]; ok {
 		targetID = id
 	}
-
 	if targetID == -1 {
-		// Fallback: Try whole string parsing (only if it matches exactly)
 		if val, err := strconv.Atoi(sID); err == nil {
 			targetID = val
 		}
-		// NOTE: Removed heuristic suffix parsing to prevent incorrect mapping (e.g. bacnet-18 -> 18 != 2228318)
 	}
 
 	devCtx, exists := d.deviceContexts[targetID]
-
 	if !exists || devCtx.Scheduler == nil {
 		d.mu.Unlock()
 		if targetID != -1 {
-			// Do NOT call checkRecovery here synchronously. It acquires the lock and blocks.
 			go d.checkRecovery(targetID)
 		}
 		return nil, fmt.Errorf("scheduler not initialized for device %s (targetID=%d). Ensure device ID contains the BACnet Instance ID.", sID, targetID)
 	}
 
-	// Register Points for Polling
-	devCtx.CacheMu.Lock()
-	if devCtx.SubscribedPoints == nil {
-		devCtx.SubscribedPoints = make(map[string]model.Point)
-	}
-	for _, p := range points {
-		devCtx.SubscribedPoints[p.ID] = p
-	}
-	devCtx.CacheMu.Unlock()
+	scheduler := devCtx.Scheduler
+	devCtx.ReadMu.Lock()
 	d.mu.Unlock()
+	defer devCtx.ReadMu.Unlock()
 
-	// Ensure Polling is running
-	d.StartPolling(targetID)
+	raw, err := scheduler.Read(ctx, points)
+	now := time.Now()
+	results := make(map[string]model.Value, len(points))
+	failed := 0
 
-	results := make(map[string]model.Value)
-	devCtx.CacheMu.RLock()
 	for _, p := range points {
-		if v, ok := devCtx.LastValues[p.ID]; ok {
-			results[p.ID] = v
+		v, ok := raw[p.ID]
+		if !ok {
+			failed++
+			results[p.ID] = model.Value{
+				PointID:  p.ID,
+				DeviceID: sID,
+				Quality:  "Bad",
+				TS:       now,
+			}
+			continue
+		}
+		if v.Value != nil {
+			v.Value = normalizePresentValue(v.Value)
+		}
+		if v.Quality == "" {
+			if v.Value == nil {
+				v.Quality = "Bad"
+			} else {
+				v.Quality = "Good"
+			}
+		}
+		if v.TS.IsZero() {
+			v.TS = now
+		}
+		v.DeviceID = sID
+		results[p.ID] = v
+		if v.Value == nil || v.Quality == "Bad" {
+			failed++
 		}
 	}
-	needRead := pointsNeedingFreshRead(points, devCtx.LastValues)
-	devCtx.CacheMu.RUnlock()
 
-	if len(needRead) > 0 {
-		fresh, err := devCtx.Scheduler.Read(ctx, needRead)
-		if err == nil && len(fresh) > 0 {
-			for id, v := range fresh {
-				if v.Value != nil {
-					v.Value = normalizePresentValue(v.Value)
-				}
-				fresh[id] = v
-			}
-			applyFreshReadToCache(devCtx, sID, fresh)
-			for k, v := range fresh {
-				results[k] = v
-			}
-			d.notifyValuesRead(targetID, fresh)
-		} else if len(results) < len(points) {
-			go d.pollDevice(targetID)
+	if err == nil && failed == 0 {
+		d.mu.Lock()
+		if devCtx, ok := d.deviceContexts[targetID]; ok {
+			devCtx.State = DeviceStateOnline
+			devCtx.ConsecutiveFailures = 0
+			applyFreshReadToCache(devCtx, sID, results)
 		}
+		d.mu.Unlock()
+		return results, nil
 	}
 
-	return results, nil
+	if err != nil {
+		return results, err
+	}
+	return results, fmt.Errorf("incomplete read for device %s: %d/%d points failed", sID, failed, len(points))
 }
 
 func (d *BACnetDriver) checkRecovery(deviceID int) {
@@ -1806,9 +1774,8 @@ func (d *BACnetDriver) GetMetrics() model.ChannelMetrics {
 		if ctx.State == DeviceStateOnline {
 			onlineDevices++
 		}
-		totalPoints += len(ctx.SubscribedPoints)
-		// 简单计算成功点位（这里可以根据实际缓存状态计算）
 		if ctx.LastValues != nil {
+			totalPoints += len(ctx.LastValues)
 			successfulPoints += len(ctx.LastValues)
 		}
 	}

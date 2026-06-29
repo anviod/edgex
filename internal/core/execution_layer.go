@@ -122,7 +122,7 @@ func (el *ExecutionLayer) executeTimeout(task *ScanTask) time.Duration {
 // physical link (TCP socket or serial bus) and must not run I/O concurrently.
 func isSharedLinkProtocol(protocol string) bool {
 	switch protocol {
-	case "modbus-tcp", "modbus-rtu", "modbus-rtu-over-tcp", "dlt645", "omron-fins", "mitsubishi-slmp":
+	case "modbus-tcp", "modbus-rtu", "modbus-rtu-over-tcp", "dlt645", "omron-fins", "mitsubishi-slmp", "knxnet-ip", "snmp":
 		return true
 	default:
 		return false
@@ -318,9 +318,11 @@ func (el *ExecutionLayer) readPoints(d driver.Driver, task *ScanTask, ctx contex
 	}
 
 	if task.Params != nil {
-		if mu, ok := task.Params["channelMu"].(*sync.Mutex); ok && mu != nil {
-			mu.Lock()
-			defer mu.Unlock()
+		if isSharedLinkProtocol(task.Protocol) {
+			if mu, ok := task.Params["channelMu"].(*sync.Mutex); ok && mu != nil {
+				mu.Lock()
+				defer mu.Unlock()
+			}
 		}
 		cfg := map[string]any{}
 		if base, ok := task.Params["driverConfig"].(map[string]any); ok && base != nil {

@@ -167,6 +167,9 @@ const historyModeOptions = [
   { label: '时间范围', value: 'range' }
 ]
 
+// History headers use keys like "data.SetPoint.Value"; point IDs may contain dots.
+const historyPointKey = (header) => header.title || header.key.replace(/^data\./, '')
+
 const storageHint = computed(() => {
   const storage = props.device?.storage
   if (!storage?.enable) return '历史存储未启用'
@@ -195,7 +198,7 @@ const tableColumns = computed(() => {
 
   historyHeaders.value.forEach(header => {
     if (!selectedColumns.value.includes(header.key)) return
-    const pointKey = header.key.split('.')[1]
+    const pointKey = historyPointKey(header)
     columns.push({
       title: header.title,
       dataIndex: pointKey,
@@ -403,8 +406,7 @@ const downloadHistoryCSV = () => {
   const rows = historyData.value.map(row => {
     const line = [formatHistoryTime(row.ts)]
     visibleHeaders.forEach(header => {
-      const prop = header.key.split('.')[1]
-      line.push(row.data?.[prop] ?? '')
+      line.push(row.data?.[historyPointKey(header)] ?? '')
     })
     return line.map(escapeCsv).join(',')
   })

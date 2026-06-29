@@ -488,3 +488,47 @@ func TestStatusCodeFromName(t *testing.T) {
 		})
 	}
 }
+
+func TestOpcUaMetricsAccounting(t *testing.T) {
+	d := NewOpcUaDriver().(*OpcUaDriver)
+	d.config = model.DriverConfig{ChannelID: "test-ch"}
+
+	err := d.Connect(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), d.reconnectCount)
+
+	start := time.Now()
+	d.recordReadOutcome(start, true, "")
+	d.recordReadOutcome(start, true, "")
+	d.recordReadOutcome(start, false, "network")
+
+	assert.Equal(t, int64(3), d.totalRequests)
+	assert.Equal(t, int64(2), d.successCount)
+	assert.Equal(t, int64(1), d.failureCount)
+
+	metrics := d.GetMetrics()
+	assert.InDelta(t, 2.0/3.0, metrics.SuccessRate, 0.001)
+	assert.InDelta(t, 1.0/3.0, metrics.PacketLoss, 0.001)
+
+	d.recordRtt(25 * time.Millisecond)
+	d.recordRtt(75 * time.Millisecond)
+	assert.InDelta(t, 50.0, d.avgRttMs(), 0.001)
+
+	d.recordReconnect()
+	assert.Equal(t, int64(1), d.reconnectCount)
+}
+
+func TestOpcUaQualityScoreUsesSuccessRate(t *testing.T) {
+	d := NewOpcUaDriver().(*OpcUaDriver)
+	d.activeClient = &ClientWrapper{Connected: true}
+
+	d.totalRequests = 100
+	d.successCount = 96
+	scoreHigh := d.calculateQualityScore()
+
+	d.successCount = 70
+	scoreLow := d.calculateQualityScore()
+
+	assert.Greater(t, scoreHigh, scoreLow)
+	assert.Greater(t, scoreHigh, 80)
+}

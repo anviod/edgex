@@ -9,17 +9,6 @@ import (
 	"github.com/anviod/edgex/internal/model"
 )
 
-func pointsNeedingFreshRead(points []model.Point, cache map[string]model.Value) []model.Point {
-	need := make([]model.Point, 0, len(points))
-	for _, p := range points {
-		v, ok := cache[p.ID]
-		if !ok || v.Value == nil {
-			need = append(need, p)
-		}
-	}
-	return need
-}
-
 func applyFreshReadToCache(devCtx *DeviceContext, deviceID string, fresh map[string]model.Value) {
 	if devCtx == nil || len(fresh) == 0 {
 		return

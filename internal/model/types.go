@@ -254,7 +254,6 @@ type Device struct {
 	Points       []Point        `json:"points,omitempty" yaml:"points,omitempty"`             // 该设备的点位列表
 	State        int            `json:"state" yaml:"-"`                                     // 运行时状态：0=Online, 1=Unstable, 2=Offline, 3=Quarantine
 	QualityScore int            `json:"quality_score" yaml:"-"`                             // 质量评分 (0-100)
-	StopChan     chan struct{}  `json:"-" yaml:"-"`
 	// Runtime state fields
 	NodeRuntime *NodeRuntime `json:"runtime,omitempty" yaml:"-"`
 }
@@ -277,7 +276,6 @@ type Channel struct {
 	Enable   bool           `json:"enable" yaml:"enable"`
 	Config   map[string]any `json:"config" yaml:"config"`   // 协议特定配置 (IP, Port, etc.)
 	Devices  []Device       `json:"devices" yaml:"devices"` // 该通道下的设备列表
-	StopChan chan struct{}  `json:"-" yaml:"-"`
 	// Runtime fields
 	NodeRuntime *NodeRuntime `json:"runtime,omitempty" yaml:"-"`
 }

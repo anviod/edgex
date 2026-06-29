@@ -207,11 +207,9 @@ func LoadConfigFromDB(db *bbolt.DB) (*Config, error) {
 	cfg.Users = users
 
 	for i := range cfg.Channels {
-		cfg.Channels[i].StopChan = make(chan struct{})
 		cfg.Channels[i].NodeRuntime = &model.NodeRuntime{State: 0}
 
 		for j := range cfg.Channels[i].Devices {
-			cfg.Channels[i].Devices[j].StopChan = make(chan struct{})
 			cfg.Channels[i].Devices[j].NodeRuntime = &model.NodeRuntime{State: 0}
 		}
 	}

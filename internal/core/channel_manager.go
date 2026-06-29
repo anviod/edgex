@@ -613,8 +613,6 @@ func (cm *ChannelManager) StartChannel(channelID string) error {
 	// 启动ScanEngine（仅第一次启动）
 	cm.scanEngineAdapter.Start()
 
-	cm.wireDriverValuesNotifier(channelID, d)
-
 	//zap.L().Info("Channel started", zap.String("channel", ch.Name), zap.Int("device_count", len(ch.Devices)))
 	return nil
 }
@@ -630,14 +628,9 @@ func (cm *ChannelManager) StopChannel(channelID string) error {
 		return fmt.Errorf("channel or driver not found")
 	}
 
-	// 通知所有设备停止并从 ScanEngine 注销
+	// 从 ScanEngine 注销所有设备
 	for _, device := range ch.Devices {
 		cm.scanEngineAdapter.UnregisterDevice(device.ID)
-		select {
-		case device.StopChan <- struct{}{}:
-			zap.L().Info("Device stopping", zap.String("device", device.Name))
-		default:
-		}
 	}
 
 	// 断开驱动连接
@@ -1037,11 +1030,11 @@ func (cm *ChannelManager) validateDeviceInterval(dev *model.Device) (time.Durati
 // registerProtocolToScanEngine 注册协议类型到ScanEngine
 func (cm *ChannelManager) registerProtocolToScanEngine(protocol string) {
 	switch protocol {
-	case "modbus-tcp", "modbus-rtu", "modbus-rtu-over-tcp", "dlt645", "omron-fins", "mitsubishi-slmp":
+	case "modbus-tcp", "modbus-rtu", "modbus-rtu-over-tcp", "dlt645", "omron-fins", "mitsubishi-slmp", "knxnet-ip", "snmp":
 		cm.scanEngineAdapter.scanEngine.RegisterProtocol(protocol, ProtocolTypeSerial)
-	case "opc-ua", "http", "rest", "mqtt":
+	case "opc-ua", "http", "rest", "mqtt", "bacnet-ip":
 		cm.scanEngineAdapter.scanEngine.RegisterProtocol(protocol, ProtocolTypeParallel)
-	case "s7", "bacnet-ip", "ethernet-ip", "profinet-io":
+	case "s7", "ethernet-ip", "profinet-io", "iec60870-5-104":
 		cm.scanEngineAdapter.scanEngine.RegisterProtocol(protocol, ProtocolTypeLimited)
 	default:
 		cm.scanEngineAdapter.scanEngine.RegisterProtocol(protocol, ProtocolTypeSerial)
@@ -1261,63 +1254,6 @@ func pointAllowsWrite(readWrite string) bool {
 	return strings.Contains(strings.ToUpper(readWrite), "W")
 }
 
-// publishCollectedValues 将驱动采集结果同步到 ShadowCore（供 BACnet 后台轮询等路径使用）。
-func (cm *ChannelManager) publishCollectedValues(channelID, deviceID string, values map[string]model.Value) {
-	if cm.shadowCore == nil || len(values) == 0 {
-		return
-	}
-	now := time.Now()
-	points := make([]model.ShadowIngressPoint, 0, len(values))
-	for pointID, v := range values {
-		if v.Value == nil {
-			continue
-		}
-		collectedAt := v.TS
-		if collectedAt.IsZero() {
-			collectedAt = now
-		}
-		quality := v.Quality
-		if quality == "" {
-			quality = "Good"
-		}
-		points = append(points, model.ShadowIngressPoint{
-			PointID:     pointID,
-			Value:       v.Value,
-			Quality:     quality,
-			CollectedAt: collectedAt,
-		})
-	}
-	if len(points) == 0 {
-		return
-	}
-	msg := model.ShadowIngressMessage{
-		DeviceID:  deviceID,
-		ChannelID: channelID,
-		Timestamp: now,
-		Points:    points,
-		Meta:      model.ShadowIngressMeta{Source: "driver_poll"},
-	}
-	if _, err := cm.shadowCore.WriteShadowDevice(msg); err != nil {
-		zap.L().Warn("Failed to sync polled values to shadow",
-			zap.String("device_id", deviceID),
-			zap.Error(err),
-		)
-	}
-}
-
-func (cm *ChannelManager) wireDriverValuesNotifier(channelID string, d drv.Driver) {
-	if cm.shadowCore == nil {
-		return
-	}
-	notifier, ok := d.(drv.ValuesReadNotifier)
-	if !ok {
-		return
-	}
-	notifier.SetValuesReadNotifier(func(deviceID string, values map[string]model.Value) {
-		cm.publishCollectedValues(channelID, deviceID, values)
-	})
-}
-
 func (cm *ChannelManager) publishWrittenValue(channelID, deviceID, pointID string, value any) {
 	now := time.Now()
 	if cm.shadowCore != nil {
@@ -1446,10 +1382,7 @@ func (cm *ChannelManager) Shutdown() {
 
 	for _, ch := range cm.channels {
 		for _, dev := range ch.Devices {
-			select {
-			case dev.StopChan <- struct{}{}:
-			default:
-			}
+			cm.scanEngineAdapter.UnregisterDevice(dev.ID)
 		}
 	}
 
@@ -1627,9 +1560,6 @@ func (cm *ChannelManager) AddDevice(channelID string, dev *model.Device) error {
 	// 格式化配置（修正科学计数法等问题）
 	sanitizeDeviceConfig(dev.Config)
 
-	// 初始化运行时
-	dev.StopChan = make(chan struct{})
-
 	// 添加到列表
 	ch.Devices = append(ch.Devices, *dev)
 
@@ -1727,7 +1657,6 @@ func (cm *ChannelManager) BatchAddModbusSlaves(channelID string, slaveStart, sla
 
 		cm.autoGenerateModbusPointsFromConfig(&dev)
 		sanitizeDeviceConfig(dev.Config)
-		dev.StopChan = make(chan struct{})
 
 		ch.Devices = append(ch.Devices, dev)
 		existingID[devID] = struct{}{}
@@ -2073,16 +2002,9 @@ func (cm *ChannelManager) UpdateDevice(channelID string, dev *model.Device) erro
 
 	// 停止旧设备
 	oldDev := &ch.Devices[idx]
-	select {
-	case oldDev.StopChan <- struct{}{}:
-	default:
-	}
 
 	// 格式化配置
 	sanitizeDeviceConfig(dev.Config)
-
-	// 初始化新设备运行时
-	dev.StopChan = make(chan struct{})
 
 	// 替换
 	ch.Devices[idx] = *dev
@@ -2126,10 +2048,6 @@ func (cm *ChannelManager) RemoveDevice(channelID, deviceID string) error {
 	// 停止设备
 	oldDev := &ch.Devices[idx]
 	cm.scanEngineAdapter.UnregisterDevice(oldDev.ID)
-	select {
-	case oldDev.StopChan <- struct{}{}:
-	default:
-	}
 
 	// 从切片移除
 	ch.Devices = append(ch.Devices[:idx], ch.Devices[idx+1:]...)
@@ -2157,11 +2075,6 @@ func (cm *ChannelManager) RemoveDevices(channelID string, deviceIDs []string) er
 	for _, d := range ch.Devices {
 		if toRemove[d.ID] {
 			cm.scanEngineAdapter.UnregisterDevice(d.ID)
-			// 停止
-			select {
-			case d.StopChan <- struct{}{}:
-			default:
-			}
 		} else {
 			newDevices = append(newDevices, d)
 		}
