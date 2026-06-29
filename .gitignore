@@ -2,11 +2,6 @@ data/
 node_modules/
 logs/
 ui/dist/
-*.exe
-.codebuddy/
-.idea/
-.trae/
-bin/
-dist/
-*.log
-*.stackdump
+logs/
+logs/gateway.edgex.log
+*.db

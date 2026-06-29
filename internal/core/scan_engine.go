@@ -130,6 +130,7 @@ type ScanEngine struct {
 	executionLayer  *ExecutionLayer
 	resourceCtrl    *ResourceController
 	shadowCore      *ShadowCore
+	shadowIngress   *ShadowIngress
 	pointDegrade    *PointDegradationManager
 	collectFinalize CollectFinalizeFunc
 	metrics         *ScanEngineMetrics
@@ -479,10 +480,18 @@ func preservedShadowValue(existing *model.ShadowDevice, pointID string, newVal a
 	return nil
 }
 
+func (se *ScanEngine) writeShadowMessage(msg model.ShadowIngressMessage) {
+	if se.shadowIngress != nil {
+		se.shadowIngress.IngestDirect(msg)
+	} else if se.shadowCore != nil {
+		se.shadowCore.WriteShadowDevice(msg)
+	}
+}
+
 // applyCollectToShadow writes scan results to shadow, including Bad quality on
 // failed reads so stale Good values are not left behind when collection fails.
 func (se *ScanEngine) applyCollectToShadow(task *ScanTask, result *ExecuteResult) {
-	if se.shadowCore == nil {
+	if se.shadowCore == nil && se.shadowIngress == nil {
 		return
 	}
 
@@ -536,7 +545,7 @@ func (se *ScanEngine) applyCollectToShadow(task *ScanTask, result *ExecuteResult
 		return
 	}
 
-	se.shadowCore.WriteShadowDevice(model.ShadowIngressMessage{
+	se.writeShadowMessage(model.ShadowIngressMessage{
 		DeviceID:  task.DeviceKey,
 		ChannelID: taskShadowChannelID(task),
 		Timestamp: now,
@@ -550,7 +559,7 @@ func (se *ScanEngine) applyCollectToShadow(task *ScanTask, result *ExecuteResult
 // markDeviceShadowBad marks all known shadow points Bad when a device goes offline
 // (e.g. channel connect failure) so stale Good values are not left behind.
 func (se *ScanEngine) markDeviceShadowBad(deviceKey, channelID string) {
-	if se.shadowCore == nil || deviceKey == "" {
+	if (se.shadowCore == nil && se.shadowIngress == nil) || deviceKey == "" {
 		return
 	}
 
@@ -583,7 +592,7 @@ func (se *ScanEngine) markDeviceShadowBad(deviceKey, channelID string) {
 		})
 	}
 
-	se.shadowCore.WriteShadowDevice(model.ShadowIngressMessage{
+	se.writeShadowMessage(model.ShadowIngressMessage{
 		DeviceID:  deviceKey,
 		ChannelID: channelID,
 		Timestamp: now,
@@ -862,6 +871,15 @@ func (se *ScanEngine) SetShadowCore(sc *ShadowCore) {
 	se.mu.Lock()
 	defer se.mu.Unlock()
 	se.shadowCore = sc
+}
+
+func (se *ScanEngine) SetShadowIngress(si *ShadowIngress) {
+	se.mu.Lock()
+	defer se.mu.Unlock()
+	se.shadowIngress = si
+	if si != nil {
+		se.shadowCore = si.shadowCore
+	}
 }
 
 func (se *ScanEngine) SetCollectFinalize(fn CollectFinalizeFunc) {

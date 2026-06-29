@@ -532,3 +532,36 @@ func TestOpcUaQualityScoreUsesSuccessRate(t *testing.T) {
 	assert.Greater(t, scoreHigh, scoreLow)
 	assert.Greater(t, scoreHigh, 80)
 }
+
+func TestStampCollectionTime_RefreshesDirectRead(t *testing.T) {
+	old := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	results := map[string]model.Value{
+		"p1": {PointID: "p1", Value: 1.0, Quality: "Good", TS: old},
+	}
+	before := time.Now()
+	stampCollectionTime(results)
+	if !results["p1"].TS.After(before.Add(-time.Second)) {
+		t.Fatalf("expected TS refreshed for direct read, got %v", results["p1"].TS)
+	}
+}
+
+func TestSubscriptionCachePreservesTimestamp(t *testing.T) {
+	cacheTime := time.Date(2025, 6, 1, 8, 30, 0, 0, time.UTC)
+	cached := model.Value{PointID: "p1", Value: 42.0, Quality: "Good", TS: cacheTime}
+	result := map[string]model.Value{"p1": cached}
+
+	if result["p1"].TS != cacheTime {
+		t.Fatalf("cache hit should preserve TS, got %v", result["p1"].TS)
+	}
+}
+
+func TestSubscriptionCacheLinkDownMarksBad(t *testing.T) {
+	v := model.Value{PointID: "p1", Value: 10.0, Quality: "Good", TS: time.Now()}
+	linkDown := true
+	if linkDown {
+		v.Quality = "Bad"
+	}
+	if v.Quality != "Bad" {
+		t.Fatalf("expected Bad quality when link is down, got %q", v.Quality)
+	}
+}

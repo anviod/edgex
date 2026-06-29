@@ -295,27 +295,60 @@ func (vse *VirtualShadowEngine) recomputeVirtualDevice(deviceID string) {
 	}
 }
 
+func isShadowQualityGood(q string) bool {
+	return strings.EqualFold(q, "good")
+}
+
+func depsForFormula(formula string, dependencies []string) []string {
+	trimmed := strings.TrimSpace(formula)
+	if isMapModeRef(trimmed) {
+		return []string{trimmed}
+	}
+	var out []string
+	for _, dep := range dependencies {
+		if strings.Contains(formula, dep) {
+			out = append(out, dep)
+		}
+	}
+	return out
+}
+
+func (vse *VirtualShadowEngine) resolveSourcePoint(dep string) (*model.ShadowPoint, bool) {
+	deviceID, pointID := parseDepRef(dep)
+	if deviceID == "" || pointID == "" {
+		return nil, false
+	}
+	shadowDeviceID := fmt.Sprintf("shadow-%s", deviceID)
+	shadowDevice, err := vse.shadowCore.GetShadowDevice(shadowDeviceID)
+	if err != nil {
+		return nil, false
+	}
+	point, exists := shadowDevice.Points[pointID]
+	if !exists {
+		return nil, false
+	}
+	return &point, true
+}
+
+func (vse *VirtualShadowEngine) formulaSourcesGood(formula string, dependencies []string) bool {
+	for _, dep := range depsForFormula(formula, dependencies) {
+		pt, ok := vse.resolveSourcePoint(dep)
+		if !ok || !isShadowQualityGood(pt.Quality) {
+			return false
+		}
+	}
+	return true
+}
+
 func (vse *VirtualShadowEngine) buildEvaluationEnv(dependencies []string) map[string]interface{} {
 	env := make(map[string]interface{})
 
 	for _, dep := range dependencies {
-		deviceID, pointID := parseDepRef(dep)
-		if deviceID == "" || pointID == "" {
+		pt, ok := vse.resolveSourcePoint(dep)
+		if !ok {
 			continue
 		}
-
-		shadowDeviceID := fmt.Sprintf("shadow-%s", deviceID)
-		shadowDevice, err := vse.shadowCore.GetShadowDevice(shadowDeviceID)
-		if err != nil {
-			continue
-		}
-
-		point, exists := shadowDevice.Points[pointID]
-		if !exists {
-			continue
-		}
-
-		env[depToEnvKey(dep)] = point.Value
+		env[depToEnvKey(dep)] = pt.Value
 	}
 
 	return env

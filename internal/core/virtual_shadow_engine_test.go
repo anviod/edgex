@@ -1,6 +1,7 @@
 package core
 
 import (
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -505,5 +506,83 @@ func TestVirtualShadowEngine_PipelineFanOut(t *testing.T) {
 	}
 	if len(vd.Points) == 0 {
 		t.Error("expected virtual shadow in ShadowCore")
+	}
+}
+
+func TestVirtualShadowEngine_BadSourceMarksVirtualBad(t *testing.T) {
+	sc := NewShadowCore()
+	vse := NewVirtualShadowEngine(sc)
+
+	sc.WriteShadowDevice(model.ShadowIngressMessage{
+		DeviceID:  "dev1",
+		ChannelID: "ch1",
+		Timestamp: time.Now(),
+		Points: []model.ShadowIngressPoint{
+			{PointID: "temp", Value: 25.0, Quality: "Good"},
+		},
+	})
+	sc.WriteShadowDevice(model.ShadowIngressMessage{
+		DeviceID:  "dev2",
+		ChannelID: "ch1",
+		Timestamp: time.Now(),
+		Points: []model.ShadowIngressPoint{
+			{PointID: "temp", Value: 30.0, Quality: "Bad"},
+		},
+	})
+
+	if err := vse.CreateVirtualDevice("virtual-sum", "ch1", map[string]string{
+		"sum": "ch1.dev1.temp + ch1.dev2.temp",
+	}); err != nil {
+		t.Fatalf("CreateVirtualDevice: %v", err)
+	}
+
+	vse.RecomputeDevice("virtual-sum")
+
+	device, err := vse.GetVirtualDevice("virtual-sum")
+	if err != nil {
+		t.Fatalf("GetVirtualDevice: %v", err)
+	}
+	pt, ok := device.Points["sum"]
+	if !ok {
+		t.Fatal("expected sum point")
+	}
+	if !strings.EqualFold(pt.Quality, "bad") {
+		t.Fatalf("expected bad quality when source is bad, got %q", pt.Quality)
+	}
+}
+
+func TestVirtualShadowEngine_MapModeBadSource(t *testing.T) {
+	sc := NewShadowCore()
+	vse := NewVirtualShadowEngine(sc)
+
+	ref := "ch1.dev1.temp"
+	sc.WriteShadowDevice(model.ShadowIngressMessage{
+		DeviceID:  "dev1",
+		ChannelID: "ch1",
+		Timestamp: time.Now(),
+		Points: []model.ShadowIngressPoint{
+			{PointID: "temp", Value: 42.0, Quality: "Bad"},
+		},
+	})
+
+	if err := vse.CreateVirtualDevice("v1", "ch1", map[string]string{"mapped": ref}); err != nil {
+		t.Fatalf("CreateVirtualDevice: %v", err)
+	}
+
+	vse.RecomputeDevice("v1")
+
+	device, err := vse.GetVirtualDevice("v1")
+	if err != nil {
+		t.Fatalf("GetVirtualDevice: %v", err)
+	}
+	pt, ok := device.Points["mapped"]
+	if !ok {
+		t.Fatal("expected mapped point")
+	}
+	if !strings.EqualFold(pt.Quality, "bad") {
+		t.Fatalf("expected bad quality, got %q", pt.Quality)
+	}
+	if pt.Value != float64(42) {
+		t.Fatalf("expected preserved value 42, got %v", pt.Value)
 	}
 }

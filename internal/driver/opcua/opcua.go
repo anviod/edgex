@@ -896,6 +896,7 @@ func (d *OpcUaDriver) subscriptionLoop(sub *DeviceSubscription) {
 
 					sub.Cache[pointID] = val
 				}
+				sub.lastUpdate = time.Now()
 				sub.mu.Unlock()
 
 				d.mu.RLock()

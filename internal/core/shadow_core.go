@@ -5,6 +5,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/anviod/edgex/internal/model"
@@ -94,67 +95,165 @@ func cloneShadowDevice(device *model.ShadowDevice) *model.ShadowDevice {
 
 // ShadowCore 维护每物理设备唯一的内存态影子设备（全量点位 + 通信画像），不落盘。
 type ShadowCore struct {
+	// versionCounter 置于 struct 首部，保证 ARMv7 32-bit 上 atomic.Uint64 8 字节对齐。
+	versionCounter atomic.Uint64
+
 	mu sync.RWMutex
 
-	realShadows    map[string]*model.ShadowDevice
+	realShadows    map[string]*shadowDeviceEntry
 	virtualShadows map[string]*model.VirtualDevice
 
 	subscribers []ShadowSubscriber
 	subMu       sync.RWMutex
 
-	versionCounter uint64
-
-	optimizer *ShadowDeviceOptimizer
+	optimizer   *ShadowDeviceOptimizer
+	notifyPool  *shadowNotifyPool
+	notifyWorkers int
 }
 
 func NewShadowCore() *ShadowCore {
-	return &ShadowCore{
-		realShadows:    make(map[string]*model.ShadowDevice),
+	return NewShadowCoreWithNotifyWorkers(defaultNotifyWorkers)
+}
+
+func NewShadowCoreWithNotifyWorkers(workers int) *ShadowCore {
+	sc := &ShadowCore{
+		realShadows:    make(map[string]*shadowDeviceEntry),
 		virtualShadows: make(map[string]*model.VirtualDevice),
 		subscribers:    make([]ShadowSubscriber, 0),
 		optimizer:      NewShadowDeviceOptimizer(),
+		notifyWorkers:  workers,
 	}
+	sc.notifyPool = newShadowNotifyPool(workers, sc.dispatchNotify)
+	return sc
 }
 
 func (sc *ShadowCore) Start() {
+	sc.notifyPool.Start()
 	log.Println("[ShadowCore] Started (memory-only)")
 }
 
 func (sc *ShadowCore) Stop() {
+	sc.notifyPool.Stop()
 	log.Println("[ShadowCore] Stopped")
 }
 
+func (sc *ShadowCore) dispatchNotify(deviceID string, points map[string]model.ShadowPoint) {
+	sc.subMu.RLock()
+	subs := sc.subscribers
+	sc.subMu.RUnlock()
+
+	for _, sub := range subs {
+		sub(deviceID, points)
+	}
+}
+
+func (sc *ShadowCore) enqueueNotify(deviceID string, points map[string]model.ShadowPoint) {
+	sc.notifyPool.Enqueue(deviceID, points)
+}
+
 func (sc *ShadowCore) WriteShadowDevice(msg model.ShadowIngressMessage) (*model.ShadowWriteResponse, error) {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
+	return sc.applyShadowWrite(msg)
+}
 
-	shadowDeviceID := fmt.Sprintf("shadow-%s", msg.DeviceID)
-
-	device, exists := sc.realShadows[shadowDeviceID]
-	if !exists {
-		device = &model.ShadowDevice{
-			ShadowDeviceID:   shadowDeviceID,
-			PhysicalDeviceID: msg.DeviceID,
-			ChannelID:        msg.ChannelID,
-			Version:          0,
-			Points:           make(map[string]model.ShadowPoint),
-		}
-		sc.realShadows[shadowDeviceID] = device
+// ApplyShadowWrites applies multiple ingress messages under a single lock,
+// emitting one delta notify per device touched.
+func (sc *ShadowCore) ApplyShadowWrites(msgs []model.ShadowIngressMessage) error {
+	if len(msgs) == 0 {
+		return nil
+	}
+	if len(msgs) == 1 {
+		_, err := sc.applyShadowWrite(msgs[0])
+		return err
 	}
 
-	sc.versionCounter++
-	device.Version = sc.versionCounter
-	device.UpdatedAt = time.Now()
-	now := device.UpdatedAt
+	sc.mu.Lock()
 
-	changed := make(map[string]model.ShadowPoint, len(msg.Points))
+	type deviceNotify struct {
+		shadowDeviceID string
+		changed        map[string]model.ShadowPoint
+	}
+	pending := make(map[string]*deviceNotify)
+
+	for _, msg := range msgs {
+		shadowDeviceID, version, updatedAt, changed, _, err := sc.applyShadowWriteLocked(msg)
+		if err != nil {
+			for _, n := range pending {
+				returnShadowPointsMap(n.changed)
+			}
+			return err
+		}
+		if len(changed) == 0 {
+			returnShadowPointsMap(changed)
+			continue
+		}
+		n, ok := pending[shadowDeviceID]
+		if !ok {
+			n = &deviceNotify{shadowDeviceID: shadowDeviceID, changed: borrowShadowPointsMap(len(changed))}
+			pending[shadowDeviceID] = n
+		}
+		for pid, pt := range changed {
+			pt.Version = version
+			pt.UpdatedAt = updatedAt
+			n.changed[pid] = pt
+		}
+		returnShadowPointsMap(changed)
+	}
+	sc.mu.Unlock()
+
+	for _, n := range pending {
+		notifyPoints := cloneShadowPointsForNotify(n.changed)
+		returnShadowPointsMap(n.changed)
+		sc.enqueueNotify(n.shadowDeviceID, notifyPoints)
+	}
+	return nil
+}
+
+func (sc *ShadowCore) applyShadowWrite(msg model.ShadowIngressMessage) (*model.ShadowWriteResponse, error) {
+	sc.mu.Lock()
+	shadowDeviceID, version, updatedAt, changed, _, err := sc.applyShadowWriteLocked(msg)
+	sc.mu.Unlock()
+	if err != nil {
+		returnShadowPointsMap(changed)
+		return nil, err
+	}
+	notifyPoints := cloneShadowPointsForNotify(changed)
+	returnShadowPointsMap(changed)
+	sc.enqueueNotify(shadowDeviceID, notifyPoints)
+	return &model.ShadowWriteResponse{
+		Success:   true,
+		Version:   version,
+		Timestamp: updatedAt,
+	}, nil
+}
+
+func (sc *ShadowCore) applyShadowWriteLocked(msg model.ShadowIngressMessage) (
+	shadowDeviceID string,
+	version uint64,
+	updatedAt time.Time,
+	changed map[string]model.ShadowPoint,
+	profile *model.DeviceCommunicationProfile,
+	err error,
+) {
+	shadowDeviceID = "shadow-" + msg.DeviceID
+
+	entry, exists := sc.realShadows[shadowDeviceID]
+	if !exists {
+		entry = newShadowDeviceEntry()
+		sc.realShadows[shadowDeviceID] = entry
+	}
+	prev := entry.load()
+
+	version = sc.versionCounter.Add(1)
+	updatedAt = time.Now()
+
+	changed = borrowShadowPointsMap(len(msg.Points))
 	for _, point := range msg.Points {
 		collectedAt := point.CollectedAt
 		if collectedAt.IsZero() {
 			collectedAt = msg.Timestamp
 		}
 		if collectedAt.IsZero() {
-			collectedAt = now
+			collectedAt = updatedAt
 		}
 		shadowPoint := model.ShadowPoint{
 			Value:          point.Value,
@@ -164,37 +263,64 @@ func (sc *ShadowCore) WriteShadowDevice(msg model.ShadowIngressMessage) (*model.
 			SamplePeriodMs: point.SamplePeriodMs,
 			Timestamp:      collectedAt,
 			CollectedAt:    collectedAt,
-			UpdatedAt:      now,
-			Version:        device.Version,
+			UpdatedAt:      updatedAt,
+			Version:        version,
 		}
-		device.Points[point.PointID] = shadowPoint
 		changed[point.PointID] = shadowPoint
 	}
 
-	sc.optimizer.UpdateShadowDeviceProfile(device)
+	channelID := msg.ChannelID
+	if prev != nil && channelID == "" {
+		channelID = prev.ChannelID
+	}
 
-	go sc.notifySubscribers(shadowDeviceID, cloneShadowPoints(changed))
+	var commProfile *model.DeviceCommunicationProfile
+	if prev != nil {
+		commProfile = prev.CommunicationProfile
+	}
+	if sc.optimizer.UpdateShadowDeviceProfileIfNeeded(msg.DeviceID, channelID, &commProfile) {
+		// profile updated or first publish
+	}
 
-	return &model.ShadowWriteResponse{
-		Success:   true,
-		Version:   device.Version,
-		Timestamp: device.UpdatedAt,
-	}, nil
+	snap := buildSnapshotFromEntry(
+		prev, shadowDeviceID, msg.DeviceID, channelID,
+		version, updatedAt, changed, commProfile,
+	)
+	entry.publish(snap)
+	return shadowDeviceID, version, updatedAt, changed, commProfile, nil
 }
 
 // UpdateDeviceRTT 更新设备的RTT数据
 func (sc *ShadowCore) UpdateDeviceRTT(deviceID string, rtt int64) {
 	sc.optimizer.UpdateDeviceRTT(deviceID, rtt)
-	shadowDeviceID := fmt.Sprintf("shadow-%s", deviceID)
-	sc.mu.RLock()
-	device, exists := sc.realShadows[shadowDeviceID]
-	sc.mu.RUnlock()
-
-	if exists {
-		sc.mu.Lock()
-		sc.optimizer.UpdateShadowDeviceProfile(device)
+	shadowDeviceID := "shadow-" + deviceID
+	sc.mu.Lock()
+	entry, exists := sc.realShadows[shadowDeviceID]
+	if !exists {
 		sc.mu.Unlock()
+		return
 	}
+	prev := entry.load()
+	if prev == nil {
+		sc.mu.Unlock()
+		return
+	}
+	profile := prev.CommunicationProfile
+	if !sc.optimizer.UpdateShadowDeviceProfileIfNeeded(deviceID, prev.ChannelID, &profile) {
+		sc.mu.Unlock()
+		return
+	}
+	snap := &cowShadowSnapshot{
+		ShadowDeviceID:       prev.ShadowDeviceID,
+		PhysicalDeviceID:     prev.PhysicalDeviceID,
+		ChannelID:            prev.ChannelID,
+		Version:              prev.Version,
+		UpdatedAt:            prev.UpdatedAt,
+		Points:               prev.Points,
+		CommunicationProfile: profile,
+	}
+	entry.publish(snap)
+	sc.mu.Unlock()
 }
 
 // GetDeviceOptimization 返回设备 RTT/MTU/Gap 通信画像（微秒 RTT）。
@@ -207,46 +333,63 @@ func (sc *ShadowCore) GetDeviceOptimization(deviceID string) map[string]interfac
 
 func (sc *ShadowCore) WriteShadowPoint(req model.ShadowWriteRequest) (*model.ShadowWriteResponse, error) {
 	sc.mu.Lock()
-	defer sc.mu.Unlock()
 
-	device, exists := sc.realShadows[req.ShadowDeviceID]
+	entry, exists := sc.realShadows[req.ShadowDeviceID]
 	if !exists {
+		sc.mu.Unlock()
+		return nil, fmt.Errorf("shadow device not found: %s", req.ShadowDeviceID)
+	}
+	prev := entry.load()
+	if prev == nil {
+		sc.mu.Unlock()
 		return nil, fmt.Errorf("shadow device not found: %s", req.ShadowDeviceID)
 	}
 
-	sc.versionCounter++
-	device.Version = sc.versionCounter
-	device.UpdatedAt = time.Now()
+	version := sc.versionCounter.Add(1)
+	updatedAt := time.Now()
 
 	shadowPoint := model.ShadowPoint{
 		Value:       req.Value,
 		Timestamp:   req.Timestamp,
 		CollectedAt: req.Timestamp,
-		UpdatedAt:   device.UpdatedAt,
-		Version:     device.Version,
+		UpdatedAt:   updatedAt,
+		Version:     version,
 		Quality:     "good",
 	}
-	device.Points[req.PointID] = shadowPoint
 
-	go sc.notifySubscribers(req.ShadowDeviceID, cloneShadowPoints(device.Points))
+	changed := borrowShadowPointsMap(1)
+	changed[req.PointID] = shadowPoint
+
+	snap := buildSnapshotFromEntry(
+		prev, prev.ShadowDeviceID, prev.PhysicalDeviceID, prev.ChannelID,
+		version, updatedAt, changed, prev.CommunicationProfile,
+	)
+	entry.publish(snap)
+
+	notifyPoints := cloneShadowPointsForNotify(changed)
+	returnShadowPointsMap(changed)
+	sc.mu.Unlock()
+	sc.enqueueNotify(req.ShadowDeviceID, notifyPoints)
 
 	return &model.ShadowWriteResponse{
 		Success:   true,
-		Version:   device.Version,
-		Timestamp: device.UpdatedAt,
+		Version:   version,
+		Timestamp: updatedAt,
 	}, nil
 }
 
 func (sc *ShadowCore) GetShadowDevice(deviceID string) (*model.ShadowDevice, error) {
 	sc.mu.RLock()
-	defer sc.mu.RUnlock()
-
-	device, exists := sc.realShadows[deviceID]
+	entry, exists := sc.realShadows[deviceID]
+	sc.mu.RUnlock()
 	if !exists {
 		return nil, fmt.Errorf("shadow device not found: %s", deviceID)
 	}
-
-	return cloneShadowDevice(device), nil
+	snap := entry.load()
+	if snap == nil {
+		return nil, fmt.Errorf("shadow device not found: %s", deviceID)
+	}
+	return viewFromSnapshot(snap), nil
 }
 
 func (sc *ShadowCore) GetAllShadowDevices() []*model.ShadowDevice {
@@ -254,22 +397,27 @@ func (sc *ShadowCore) GetAllShadowDevices() []*model.ShadowDevice {
 	defer sc.mu.RUnlock()
 
 	result := make([]*model.ShadowDevice, 0, len(sc.realShadows))
-	for _, device := range sc.realShadows {
-		result = append(result, cloneShadowDevice(device))
+	for _, entry := range sc.realShadows {
+		if snap := entry.load(); snap != nil {
+			result = append(result, viewFromSnapshot(snap))
+		}
 	}
 	return result
 }
 
 func (sc *ShadowCore) GetShadowPoint(deviceID, pointID string) (*model.ShadowPoint, error) {
 	sc.mu.RLock()
-	defer sc.mu.RUnlock()
-
-	device, exists := sc.realShadows[deviceID]
+	entry, exists := sc.realShadows[deviceID]
+	sc.mu.RUnlock()
 	if !exists {
 		return nil, fmt.Errorf("shadow device not found: %s", deviceID)
 	}
+	snap := entry.load()
+	if snap == nil {
+		return nil, fmt.Errorf("shadow device not found: %s", deviceID)
+	}
 
-	point, exists := device.Points[pointID]
+	point, exists := snap.Points[pointID]
 	if !exists {
 		return nil, fmt.Errorf("point not found: %s", pointID)
 	}
@@ -280,42 +428,57 @@ func (sc *ShadowCore) GetShadowPoint(deviceID, pointID string) (*model.ShadowPoi
 
 func (sc *ShadowCore) CompareAndSwap(deviceID string, expectedVersion uint64, updates map[string]any) (*model.ShadowWriteResponse, error) {
 	sc.mu.Lock()
-	defer sc.mu.Unlock()
 
-	device, exists := sc.realShadows[deviceID]
+	entry, exists := sc.realShadows[deviceID]
 	if !exists {
+		sc.mu.Unlock()
+		return nil, fmt.Errorf("shadow device not found: %s", deviceID)
+	}
+	prev := entry.load()
+	if prev == nil {
+		sc.mu.Unlock()
 		return nil, fmt.Errorf("shadow device not found: %s", deviceID)
 	}
 
-	if device.Version != expectedVersion {
+	if prev.Version != expectedVersion {
+		sc.mu.Unlock()
 		return &model.ShadowWriteResponse{
 			Success: false,
-			Version: device.Version,
+			Version: prev.Version,
 			Error:   "version mismatch",
 		}, nil
 	}
 
-	sc.versionCounter++
-	device.Version = sc.versionCounter
-	device.UpdatedAt = time.Now()
+	version := sc.versionCounter.Add(1)
+	updatedAt := time.Now()
 
+	changed := borrowShadowPointsMap(len(updates))
 	for pointID, value := range updates {
-		if point, exists := device.Points[pointID]; exists {
+		if point, exists := prev.Points[pointID]; exists {
 			point.Value = value
-			point.Version = device.Version
-			point.UpdatedAt = device.UpdatedAt
-			point.Timestamp = device.UpdatedAt
-			point.CollectedAt = device.UpdatedAt
-			device.Points[pointID] = point
+			point.Version = version
+			point.UpdatedAt = updatedAt
+			point.Timestamp = updatedAt
+			point.CollectedAt = updatedAt
+			changed[pointID] = point
 		}
 	}
 
-	go sc.notifySubscribers(deviceID, cloneShadowPoints(device.Points))
+	snap := buildSnapshotFromEntry(
+		prev, prev.ShadowDeviceID, prev.PhysicalDeviceID, prev.ChannelID,
+		version, updatedAt, changed, prev.CommunicationProfile,
+	)
+	entry.publish(snap)
+
+	notifyPoints := cloneShadowPointsForNotify(changed)
+	returnShadowPointsMap(changed)
+	sc.mu.Unlock()
+	sc.enqueueNotify(deviceID, notifyPoints)
 
 	return &model.ShadowWriteResponse{
 		Success:   true,
-		Version:   device.Version,
-		Timestamp: device.UpdatedAt,
+		Version:   version,
+		Timestamp: updatedAt,
 	}, nil
 }
 
@@ -325,23 +488,15 @@ func (sc *ShadowCore) Subscribe(sub ShadowSubscriber) {
 	sc.subscribers = append(sc.subscribers, sub)
 }
 
-func (sc *ShadowCore) notifySubscribers(deviceID string, points map[string]model.ShadowPoint) {
-	sc.subMu.RLock()
-	subscribers := make([]ShadowSubscriber, len(sc.subscribers))
-	copy(subscribers, sc.subscribers)
-	sc.subMu.RUnlock()
-
-	for _, sub := range subscribers {
-		go sub(deviceID, points)
-	}
-}
-
 func (sc *ShadowCore) CheckConsistency(deviceID string, t time.Time) (*model.ConsistencyCheckResult, error) {
 	sc.mu.RLock()
-	defer sc.mu.RUnlock()
-
-	device, exists := sc.realShadows[deviceID]
+	entry, exists := sc.realShadows[deviceID]
+	sc.mu.RUnlock()
 	if !exists {
+		return nil, fmt.Errorf("shadow device not found: %s", deviceID)
+	}
+	snap := entry.load()
+	if snap == nil {
 		return nil, fmt.Errorf("shadow device not found: %s", deviceID)
 	}
 
@@ -350,7 +505,7 @@ func (sc *ShadowCore) CheckConsistency(deviceID string, t time.Time) (*model.Con
 		DiffPoints: make([]model.ShadowDiffPoint, 0),
 	}
 
-	for pointID, point := range device.Points {
+	for pointID, point := range snap.Points {
 		if point.Timestamp.Before(t) {
 			continue
 		}
@@ -381,7 +536,8 @@ func (sc *ShadowCore) GetMetrics() map[string]interface{} {
 	return map[string]interface{}{
 		"real_shadow_count":    len(sc.realShadows),
 		"virtual_shadow_count": len(sc.virtualShadows),
-		"version_counter":      sc.versionCounter,
+		"version_counter":      sc.versionCounter.Load(),
+		"notify_workers":       sc.notifyWorkers,
 	}
 }
 
@@ -418,13 +574,13 @@ func (sc *ShadowCore) WriteVirtualShadowDevice(channelID, virtualDeviceID string
 		vd.ChannelID = channelID
 	}
 
-	sc.versionCounter++
+	version := sc.versionCounter.Add(1)
 	now := time.Now()
-	vd.Version = sc.versionCounter
+	vd.Version = version
 	vd.UpdatedAt = now
 
 	for pid, pt := range points {
-		pt.Version = sc.versionCounter
+		pt.Version = version
 		if pt.UpdatedAt.IsZero() {
 			pt.UpdatedAt = now
 		}
@@ -439,7 +595,7 @@ func (sc *ShadowCore) WriteVirtualShadowDevice(channelID, virtualDeviceID string
 	}
 	sc.mu.Unlock()
 
-	go sc.notifySubscribers(VirtualShadowID(virtualDeviceID), cloneShadowPoints(points))
+	sc.enqueueNotify(VirtualShadowID(virtualDeviceID), cloneShadowPointsForNotify(points))
 }
 
 // ResolvePublishTarget 解析订阅通知中的 channel / device，供 ShadowBridge 与 WebSocket 使用。
@@ -455,11 +611,17 @@ func (sc *ShadowCore) ResolvePublishTarget(shadowDeviceID string) (channelID, de
 		return vd.ChannelID, virtualID, nil
 	}
 
-	device, err := sc.GetShadowDevice(shadowDeviceID)
-	if err != nil {
-		return "", "", err
+	sc.mu.RLock()
+	entry, ok := sc.realShadows[shadowDeviceID]
+	sc.mu.RUnlock()
+	if !ok {
+		return "", "", fmt.Errorf("shadow device not found: %s", shadowDeviceID)
 	}
-	return device.ChannelID, device.PhysicalDeviceID, nil
+	snap := entry.load()
+	if snap == nil {
+		return "", "", fmt.Errorf("shadow device not found: %s", shadowDeviceID)
+	}
+	return snap.ChannelID, snap.PhysicalDeviceID, nil
 }
 
 // GetVirtualShadowPoint 读取虚拟影子设备单个点位。
@@ -494,4 +656,8 @@ func (sc *ShadowCore) GetVirtualShadowDevice(virtualDeviceID string) (*model.Vir
 	copy := *vd
 	copy.Points = cloneShadowPoints(vd.Points)
 	return &copy, nil
+}
+
+func (sc *ShadowCore) NotifyWorkerCount() int {
+	return sc.notifyWorkers
 }

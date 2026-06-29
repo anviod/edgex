@@ -97,6 +97,45 @@ func TestMarkChannelDevicesOffline(t *testing.T) {
 	}
 }
 
+func TestMarkChannelDevicesOffline_MarksShadowBad(t *testing.T) {
+	sc := NewShadowCore()
+	cm := newTestChannelManager()
+	cm.SetShadowCore(sc)
+
+	oldTime := time.Date(2026, 6, 29, 10, 0, 0, 0, time.UTC)
+	if _, err := sc.WriteShadowDevice(model.ShadowIngressMessage{
+		DeviceID:  "dev-1",
+		ChannelID: "ch-1",
+		Timestamp: oldTime,
+		Points: []model.ShadowIngressPoint{
+			{PointID: "hr_0", Value: 10.0, Quality: "Good", CollectedAt: oldTime},
+		},
+	}); err != nil {
+		t.Fatalf("WriteShadowDevice: %v", err)
+	}
+
+	cm.scanEngineAdapter.scanEngine.AddTask("dev-1", "modbus-tcp", 1*time.Second, 5, []string{"hr_0", "hr_1"}, map[string]any{"channelID": "ch-1"})
+
+	cm.markChannelDevicesOffline("ch-1")
+
+	shadow, err := sc.GetShadowDevice("shadow-dev-1")
+	if err != nil {
+		t.Fatalf("GetShadowDevice: %v", err)
+	}
+	for _, id := range []string{"hr_0", "hr_1"} {
+		pt, ok := shadow.Points[id]
+		if !ok {
+			t.Fatalf("missing point %s in shadow", id)
+		}
+		if pt.Quality != "Bad" {
+			t.Fatalf("point %s quality = %q, want Bad", id, pt.Quality)
+		}
+	}
+	if shadow.Points["hr_0"].Value != 10.0 {
+		t.Fatalf("hr_0 value should be preserved, got %v", shadow.Points["hr_0"].Value)
+	}
+}
+
 func TestFinalizeScanCollect_ChannelLinkErrorMarksAllOffline(t *testing.T) {
 	cm := newTestChannelManager()
 	cm.drivers["ch-1"] = &stubChannelDriver{health: drv.HealthStatusBad}
