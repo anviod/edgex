@@ -1029,6 +1029,22 @@
             </template>
         </a-modal>
 
+        <!-- Debug Dialog -->
+        <a-modal
+            v-model:visible="debugDialog.visible"
+            title="点位调试"
+            width="640px"
+            @cancel="debugDialog.visible = false"
+        >
+            <div class="debug-dialog-meta">
+                <span>{{ debugDialog.pointName }}</span>
+            </div>
+            <pre class="debug-dialog-content">{{ debugDialog.content }}</pre>
+            <template #footer>
+                <a-button type="primary" @click="debugDialog.visible = false">关闭</a-button>
+            </template>
+        </a-modal>
+
         <!-- Write Dialog -->
         <a-modal 
             v-model:visible="writeDialog.visible" 
@@ -2590,6 +2606,12 @@ const deleteDialog = reactive({
     batchCount: 0
 })
 
+const debugDialog = reactive({
+    visible: false,
+    pointName: '',
+    content: ''
+})
+
 const registerBlockRegisterTypes = [
     { label: '保持寄存器 (0x03)', value: 'holding' },
     { label: '输入寄存器 (0x04)', value: 'input' },
@@ -3552,8 +3574,9 @@ const handlePointsAdded = (result) => {
 const openDebug = async (point) => {
     try {
         const resp = await request.get(`/api/points/${point.id}/debug`, { timeout: 3000, silent: true })
-        // 简单弹窗展示调试信息，前端可替换为更复杂的对话框
-        alert(JSON.stringify(resp, null, 2))
+        debugDialog.pointName = point.name || point.id
+        debugDialog.content = JSON.stringify(resp, null, 2)
+        debugDialog.visible = true
     } catch (e) {
         showMessage('获取点位调试信息失败: ' + (e.message || e), 'error')
     }

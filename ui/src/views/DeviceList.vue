@@ -159,6 +159,10 @@
           <a-form-item field="dlt645Address" label="设备地址" required>
             <a-input v-model="form.dlt645Address" placeholder="210220003011" />
           </a-form-item>
+          <a-form-item field="dlt645AutoPointsEnabled" label="导入标准点位">
+            <a-switch v-model="form.dlt645AutoPointsEnabled" />
+            <template #extra>创建设备时按 DL/T 645-2007 标准 DI 模板自动生成常用采集点位</template>
+          </a-form-item>
         </template>
 
         <template v-if="channelProtocol === 'knxnet-ip'">
@@ -793,6 +797,7 @@ const defaultForm = {
   enable: true,
   configStr: '{}',
   dlt645Address: '',
+  dlt645AutoPointsEnabled: true,
   modbusSlaveId: 1,
   startAddressMode: 0,
   bacnetDeviceInstance: 0,
@@ -969,6 +974,7 @@ const openDialog = (item = null) => {
       config: config,
       configStr: JSON.stringify(config, null, 2),
       dlt645Address: config.station_address || config.address || '',
+      dlt645AutoPointsEnabled: config.auto_points_enabled !== false,
       modbusSlaveId: config.slave_id || 1,
       startAddressMode: config.start_address || config.address_base || 0,
       bacnetDeviceInstance: config.bacnetDeviceInstance || config.device_id || config.InstanceID || config.instance_id || 0,
@@ -1004,6 +1010,9 @@ const openDialog = (item = null) => {
     if (channelProtocol.value && channelProtocol.value.includes('modbus')) {
       form.value.autoPointsEnabled = true
     }
+    if (channelProtocol.value === 'dlt645') {
+      form.value.dlt645AutoPointsEnabled = true
+    }
     if (channelProtocol.value === 'opc-ua') {
       form.value.config = inheritOpcUaConfigFromChannel({
         security_policy: 'None',
@@ -1031,7 +1040,8 @@ const saveDevice = async () => {
 
   if (channelProtocol.value === 'dlt645') {
     config.station_address = form.value.dlt645Address
-    config.address = form.value.dlt645Address 
+    config.address = form.value.dlt645Address
+    config.auto_points_enabled = !!form.value.dlt645AutoPointsEnabled
   } else if (channelProtocol.value && channelProtocol.value.includes('modbus')) {
     config.slave_id = form.value.modbusSlaveId
     config.start_address = form.value.startAddressMode

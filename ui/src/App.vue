@@ -120,6 +120,18 @@
 
     <change-password-dialog ref="changePwdRef" />
 
+    <a-modal
+      v-model:visible="restartModalVisible"
+      title="重启系统"
+      ok-text="确认重启"
+      cancel-text="取消"
+      status="warning"
+      @ok="confirmRestart"
+    >
+      <p>确定要重启系统吗？</p>
+      <p class="text-secondary">服务将暂时不可用，重启过程可能需要几分钟时间。</p>
+    </a-modal>
+
     <a-notification
       v-model:visible="snackbar.show"
       :type="snackbar.color === 'error' ? 'error' : snackbar.color === 'warning' ? 'warning' : snackbar.color === 'success' ? 'success' : 'info'"
@@ -154,6 +166,7 @@ const drawerRail = ref(false)
 const snackbar = globalState.snackbar
 const user = userStore()
 const changePwdRef = ref(null)
+const restartModalVisible = ref(false)
 const isDarkTheme = ref(false)
 
 const systemVersion = ref('dev')
@@ -255,13 +268,16 @@ const handleLogout = async () => {
 }
 
 const handleRestart = () => {
-  if (confirm('确定要重启系统吗？服务将暂时不可用。')) {
-    LoginApi.restartSystem().then(() => {
-      showMessage('系统正在重启...', 'warning')
-      setTimeout(() => window.location.reload(), 5000)
-    }).catch(e => {
-      showMessage('重启指令发送失败: ' + e.message, 'error')
-    })
-  }
+  restartModalVisible.value = true
+}
+
+const confirmRestart = () => {
+  restartModalVisible.value = false
+  LoginApi.restartSystem().then(() => {
+    showMessage('系统正在重启...', 'warning')
+    setTimeout(() => window.location.reload(), 5000)
+  }).catch(e => {
+    showMessage('重启指令发送失败: ' + e.message, 'error')
+  })
 }
 </script>
