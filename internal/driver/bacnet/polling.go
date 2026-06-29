@@ -109,10 +109,14 @@ func (d *BACnetDriver) pollDevice(deviceID int) {
 		}
 		now := time.Now()
 		for k, v := range results {
+			if v.Value != nil {
+				v.Value = normalizePresentValue(v.Value)
+			}
 			v.CachedAt = now
 			devCtx.LastValues[k] = v
 		}
 		devCtx.CacheMu.Unlock()
+		d.notifyValuesRead(deviceID, results)
 	}
 }
 

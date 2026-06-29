@@ -92,6 +92,9 @@ type BACnetDriver struct {
 	// History of discovered objects for each device
 	// Map: DeviceID -> Map: ObjectKey(Type:Instance) -> ObjectResult
 	historicalObjects map[int]map[string]ObjectResult
+
+	// Optional callback to push polled values into ShadowCore (wired by ChannelManager).
+	valuesReadNotifier func(deviceID string, values map[string]model.Value)
 }
 
 type DeviceConfig struct {
@@ -127,6 +130,37 @@ func NewBACnetDriver() driver.Driver {
 		deviceContexts:    make(map[int]*DeviceContext),
 		idMap:             make(map[string]int),
 	}
+}
+
+// SetValuesReadNotifier implements driver.ValuesReadNotifier.
+func (d *BACnetDriver) SetValuesReadNotifier(fn func(deviceID string, values map[string]model.Value)) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.valuesReadNotifier = fn
+}
+
+func (d *BACnetDriver) stringDeviceID(instanceID int, fallback string) string {
+	for s, id := range d.idMap {
+		if id == instanceID {
+			return s
+		}
+	}
+	return fallback
+}
+
+func (d *BACnetDriver) notifyValuesRead(instanceID int, values map[string]model.Value) {
+	if len(values) == 0 {
+		return
+	}
+	d.mu.RLock()
+	notifier := d.valuesReadNotifier
+	fallback := fmt.Sprintf("%d", instanceID)
+	d.mu.RUnlock()
+	if notifier == nil {
+		return
+	}
+	deviceID := d.stringDeviceID(instanceID, fallback)
+	notifier(deviceID, values)
 }
 
 func (d *BACnetDriver) Init(config model.DriverConfig) error {
@@ -389,12 +423,8 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 	if devCtx.SubscribedPoints == nil {
 		devCtx.SubscribedPoints = make(map[string]model.Point)
 	}
-	newPoints := false
 	for _, p := range points {
-		if _, ok := devCtx.SubscribedPoints[p.ID]; !ok {
-			devCtx.SubscribedPoints[p.ID] = p
-			newPoints = true
-		}
+		devCtx.SubscribedPoints[p.ID] = p
 	}
 	devCtx.CacheMu.Unlock()
 	d.mu.Unlock()
@@ -402,7 +432,6 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 	// Ensure Polling is running
 	d.StartPolling(targetID)
 
-	// Return Cache
 	results := make(map[string]model.Value)
 	devCtx.CacheMu.RLock()
 	for _, p := range points {
@@ -410,11 +439,26 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 			results[p.ID] = v
 		}
 	}
+	needRead := pointsNeedingFreshRead(points, devCtx.LastValues)
 	devCtx.CacheMu.RUnlock()
 
-	// If cache missed new points or empty, trigger immediate poll
-	if newPoints || len(results) < len(points) {
-		go d.pollDevice(targetID)
+	if len(needRead) > 0 {
+		fresh, err := devCtx.Scheduler.Read(ctx, needRead)
+		if err == nil && len(fresh) > 0 {
+			for id, v := range fresh {
+				if v.Value != nil {
+					v.Value = normalizePresentValue(v.Value)
+				}
+				fresh[id] = v
+			}
+			applyFreshReadToCache(devCtx, sID, fresh)
+			for k, v := range fresh {
+				results[k] = v
+			}
+			d.notifyValuesRead(targetID, fresh)
+		} else if len(results) < len(points) {
+			go d.pollDevice(targetID)
+		}
 	}
 
 	return results, nil
@@ -729,8 +773,10 @@ func (d *BACnetDriver) SetDeviceConfig(config map[string]any) error {
 			if d.idMap == nil {
 				d.idMap = make(map[string]int)
 			}
-			d.idMap[sID] = newID
-			zap.L().Debug("Mapped DeviceID string to InstanceID", zap.String("id", sID), zap.Int("instance", newID))
+			if existing, mapped := d.idMap[sID]; !mapped || existing != newID {
+				d.idMap[sID] = newID
+				zap.L().Debug("Mapped DeviceID string to InstanceID", zap.String("id", sID), zap.Int("instance", newID))
+			}
 		}
 	}
 
@@ -750,12 +796,6 @@ func (d *BACnetDriver) SetDeviceConfig(config map[string]any) error {
 		}
 	}
 
-	zap.L().Debug("SetDeviceConfig",
-		zap.Int("new_id", newID),
-		zap.String("ip", ip),
-		zap.Int("port", port),
-		zap.Bool("connected", d.connected))
-
 	if newID != 0 {
 		// Only discover if context missing or config changed or scheduler is nil
 		ctx, exists := d.deviceContexts[newID]
@@ -773,6 +813,14 @@ func (d *BACnetDriver) SetDeviceConfig(config map[string]any) error {
 			if ctx.Scheduler == nil {
 				needDiscovery = true
 			}
+		}
+
+		if needDiscovery {
+			zap.L().Debug("SetDeviceConfig",
+				zap.Int("new_id", newID),
+				zap.String("ip", ip),
+				zap.Int("port", port),
+				zap.Bool("connected", d.connected))
 		}
 
 		if needDiscovery {

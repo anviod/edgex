@@ -613,6 +613,8 @@ func (cm *ChannelManager) StartChannel(channelID string) error {
 	// 启动ScanEngine（仅第一次启动）
 	cm.scanEngineAdapter.Start()
 
+	cm.wireDriverValuesNotifier(channelID, d)
+
 	//zap.L().Info("Channel started", zap.String("channel", ch.Name), zap.Int("device_count", len(ch.Devices)))
 	return nil
 }
@@ -1259,7 +1261,63 @@ func pointAllowsWrite(readWrite string) bool {
 	return strings.Contains(strings.ToUpper(readWrite), "W")
 }
 
-// publishWrittenValue 将北向/REST 写入结果同步到 ShadowCore，经 ShadowBridge 扇出到 Pipeline 与北向。
+// publishCollectedValues 将驱动采集结果同步到 ShadowCore（供 BACnet 后台轮询等路径使用）。
+func (cm *ChannelManager) publishCollectedValues(channelID, deviceID string, values map[string]model.Value) {
+	if cm.shadowCore == nil || len(values) == 0 {
+		return
+	}
+	now := time.Now()
+	points := make([]model.ShadowIngressPoint, 0, len(values))
+	for pointID, v := range values {
+		if v.Value == nil {
+			continue
+		}
+		collectedAt := v.TS
+		if collectedAt.IsZero() {
+			collectedAt = now
+		}
+		quality := v.Quality
+		if quality == "" {
+			quality = "Good"
+		}
+		points = append(points, model.ShadowIngressPoint{
+			PointID:     pointID,
+			Value:       v.Value,
+			Quality:     quality,
+			CollectedAt: collectedAt,
+		})
+	}
+	if len(points) == 0 {
+		return
+	}
+	msg := model.ShadowIngressMessage{
+		DeviceID:  deviceID,
+		ChannelID: channelID,
+		Timestamp: now,
+		Points:    points,
+		Meta:      model.ShadowIngressMeta{Source: "driver_poll"},
+	}
+	if _, err := cm.shadowCore.WriteShadowDevice(msg); err != nil {
+		zap.L().Warn("Failed to sync polled values to shadow",
+			zap.String("device_id", deviceID),
+			zap.Error(err),
+		)
+	}
+}
+
+func (cm *ChannelManager) wireDriverValuesNotifier(channelID string, d drv.Driver) {
+	if cm.shadowCore == nil {
+		return
+	}
+	notifier, ok := d.(drv.ValuesReadNotifier)
+	if !ok {
+		return
+	}
+	notifier.SetValuesReadNotifier(func(deviceID string, values map[string]model.Value) {
+		cm.publishCollectedValues(channelID, deviceID, values)
+	})
+}
+
 func (cm *ChannelManager) publishWrittenValue(channelID, deviceID, pointID string, value any) {
 	now := time.Now()
 	if cm.shadowCore != nil {

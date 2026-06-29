@@ -27,6 +27,7 @@ import './styles/system-settings.css'
 import './styles/edge-compute.css'
 import './styles/log-viewer.css'
 import './styles/channel-metrics.css'
+import './styles/history-modal.css'
 
 const i18n = createI18n({
   legacy: false,

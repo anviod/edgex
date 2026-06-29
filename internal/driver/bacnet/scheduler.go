@@ -422,7 +422,7 @@ func (s *PointScheduler) readSinglePropertiesWithTimeout(chunk btypes.MultiplePr
 					result[p.ID] = model.Value{
 						PointID:  p.ID,
 						DeviceID: p.DeviceID,
-						Value:    val,
+						Value:    normalizePresentValue(val),
 						Quality:  "Good",
 						TS:       time.Now(),
 					}
@@ -437,7 +437,7 @@ func (s *PointScheduler) decodeResponse(resp btypes.MultiplePropertyData, pointM
 		for _, prop := range obj.Properties {
 			key := fmt.Sprintf("%d:%d:%d", obj.ID.Type, obj.ID.Instance, prop.Type)
 			if p, ok := pointMap[key]; ok {
-				val := prop.Data
+				val := normalizePresentValue(prop.Data)
 				if s.useDataformat {
 					if formatted, err := dataformat.FormatScalar(p, "ABCD", val); err == nil {
 						val = formatted

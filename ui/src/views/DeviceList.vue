@@ -380,10 +380,11 @@
           </template>
         </template>
         
-        <a-divider orientation="left">数据存储策略</a-divider>
+        <a-divider orientation="left">历史数据存储</a-divider>
         
-        <a-form-item field="storageEnable" label="启用存储">
+        <a-form-item field="storageEnable" label="启用历史存储">
           <a-switch v-model="form.storageEnable" />
+          <template #extra>保存设备全部点位的历史快照，供历史数据查询使用</template>
         </a-form-item>
         
         <template v-if="form.storageEnable">
@@ -391,19 +392,22 @@
             <a-col :span="8">
               <a-form-item field="storageStrategy" label="存储策略">
                 <a-select v-model="form.storageStrategy" :options="[
-                  { label: '实时 (每条)', value: 'realtime' },
-                  { label: '定时间隔', value: 'interval' }
+                  { label: '实时 (每次更新)', value: 'realtime' },
+                  { label: '定时间隔 (全量快照)', value: 'interval' }
                 ]" />
+                <template #extra>定时保存该设备全部点位快照</template>
               </a-form-item>
             </a-col>
             <a-col :span="8" v-if="form.storageStrategy === 'interval'">
-              <a-form-item field="storageInterval" label="存储间隔">
-                <a-input-number v-model="form.storageInterval" :min="1" suffix="分钟" />
+              <a-form-item field="storageInterval" label="存储间隔(分钟)">
+                <a-input-number v-model="form.storageInterval" :min="1" />
+                <template #extra>每 N 分钟一条快照</template>
               </a-form-item>
             </a-col>
             <a-col :span="8">
-              <a-form-item field="storageMaxRecords" label="最大记录数">
+              <a-form-item field="storageMaxRecords" label="最大记录数 (快照)">
                 <a-input-number v-model="form.storageMaxRecords" :min="1" placeholder="1000" />
+                <template #extra>快照条数上限，超出删除最早记录</template>
               </a-form-item>
             </a-col>
           </a-row>

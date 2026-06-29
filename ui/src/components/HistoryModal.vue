@@ -2,84 +2,95 @@
   <a-modal
     v-model:visible="historyDialog"
     title="历史数据"
-    width="1440px"
-    class="history-modal industrial-style"
+    width="90%"
+    :modal-style="{ maxWidth: '1440px' }"
+    modal-class="history-modal"
+    :align-center="true"
+    :mask-closable="false"
     @cancel="onClose"
   >
     <template #footer>
       <a-space>
         <a-button @click="onClose">关闭</a-button>
-        <a-button type="primary" :loading="historyLoading" @click="fetchHistory">查询</a-button>
         <a-button @click="downloadHistoryCSV" :disabled="historyData.length === 0">导出 CSV</a-button>
+        <a-button type="primary" :loading="historyLoading" @click="fetchHistory">查询</a-button>
       </a-space>
     </template>
 
-    <div class="history-head">
-      <div class="history-head-left">
-        <span class="history-title">历史数据</span>
-        <span class="history-device">设备：{{ device?.name || '-' }}</span>
-        <span v-if="storageHint" class="history-meta">{{ storageHint }}</span>
+    <div class="history-modal-body">
+      <div class="history-info-bar">
+        <div class="history-info-bar__main">
+          <span class="history-info-bar__label">设备</span>
+          <span class="history-info-bar__name">{{ device?.name || '-' }}</span>
+          <span
+            v-if="storageHint"
+            class="history-info-bar__meta"
+            :class="{ 'is-warning': storageHint === '历史存储未启用' }"
+          >
+            {{ storageHint }}
+          </span>
+        </div>
+        <a-dropdown trigger="click">
+          <a-button size="small" type="outline">
+            列筛选
+            <icon-filter />
+          </a-button>
+          <template #content>
+            <div class="column-filter-panel scrollbar-industrial">
+              <div class="column-filter-item disabled">
+                <a-checkbox :model-value="true" disabled>时间</a-checkbox>
+              </div>
+              <a-divider :margin="8" />
+              <div v-for="header in historyHeaders" :key="header.key" class="column-filter-item">
+                <a-checkbox
+                  :model-value="selectedColumns.includes(header.key)"
+                  @change="checked => toggleColumn(header.key, checked)"
+                >
+                  {{ header.title }}
+                </a-checkbox>
+              </div>
+            </div>
+          </template>
+        </a-dropdown>
       </div>
-      <a-dropdown trigger="click">
-        <a-button size="small">
-          列筛选
-          <icon-filter />
-        </a-button>
-        <template #content>
-          <div class="column-filter-panel">
-            <div class="column-filter-item disabled">
-              <a-checkbox :model-value="true" disabled>时间</a-checkbox>
-            </div>
-            <a-divider :margin="8" />
-            <div v-for="header in historyHeaders" :key="header.key" class="column-filter-item">
-              <a-checkbox
-                :model-value="selectedColumns.includes(header.key)"
-                @change="checked => toggleColumn(header.key, checked)"
-              >
-                {{ header.title }}
-              </a-checkbox>
-            </div>
-          </div>
-        </template>
-      </a-dropdown>
-    </div>
 
-    <a-space direction="vertical" :size="16" fill>
-      <a-row :gutter="16" align="middle">
-        <a-col :span="5">
-          <a-select
-            v-model="historyMode"
-            :options="historyModeOptions"
-            placeholder="查询模式"
-          />
-        </a-col>
-        <a-col :span="5" v-if="historyMode === 'limit'">
-          <a-input-number
-            v-model="historyLimit"
-            :min="1"
-            :max="1000"
-            placeholder="记录数量"
-            style="width: 100%"
-          />
-        </a-col>
-        <a-col :span="10" v-if="historyMode === 'range'">
-          <a-range-picker
-            v-model="historyDateRange"
-            show-time
-            format="YYYY-MM-DD HH:mm:ss"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            :placeholder="['开始时间', '结束时间']"
-            style="width: 100%"
-          />
-        </a-col>
-        <a-col :span="4" v-if="historyMode === 'range'">
-          <a-space wrap>
-            <a-button size="mini" @click="setRangePreset('1h')">1 小时</a-button>
-            <a-button size="mini" @click="setRangePreset('24h')">24 小时</a-button>
-            <a-button size="mini" @click="setRangePreset('7d')">7 天</a-button>
-          </a-space>
-        </a-col>
-      </a-row>
+      <div class="history-query-panel">
+        <div class="history-query-row">
+          <div class="history-query-field history-query-field--mode">
+            <span class="history-query-label">查询模式</span>
+            <a-select
+              v-model="historyMode"
+              :options="historyModeOptions"
+              placeholder="查询模式"
+            />
+          </div>
+          <div v-if="historyMode === 'limit'" class="history-query-field history-query-field--limit">
+            <span class="history-query-label">记录数量</span>
+            <a-input-number
+              v-model="historyLimit"
+              :min="1"
+              :max="1000"
+              placeholder="记录数量"
+            />
+          </div>
+          <div v-if="historyMode === 'range'" class="history-query-field history-query-field--range">
+            <span class="history-query-label">时间范围</span>
+            <a-range-picker
+              v-model="historyDateRange"
+              show-time
+              format="YYYY-MM-DD HH:mm:ss"
+              value-format="YYYY-MM-DD HH:mm:ss"
+              :placeholder="['开始时间', '结束时间']"
+            />
+          </div>
+          <div v-if="historyMode === 'range'" class="history-query-presets">
+            <span class="history-query-presets__label">快捷</span>
+            <a-button size="mini" type="outline" @click="setRangePreset('1h')">1 小时</a-button>
+            <a-button size="mini" type="outline" @click="setRangePreset('24h')">24 小时</a-button>
+            <a-button size="mini" type="outline" @click="setRangePreset('7d')">7 天</a-button>
+          </div>
+        </div>
+      </div>
 
       <div class="history-summary">
         <span>查询结果：<strong>{{ historyData.length }}</strong> 条</span>
@@ -89,30 +100,31 @@
         </span>
       </div>
 
-      <a-table
-        :columns="tableColumns"
-        :data="paginatedData"
-        :loading="historyLoading"
-        :pagination="paginationConfig"
-        size="small"
-        :bordered="{ cell: true }"
-        class="history-table"
-        row-key="rowKey"
-        :scroll="{ x: 'max-content', y: 480 }"
-        @page-change="handlePageChange"
-        @page-size-change="handlePageSizeChange"
-      >
-        <template #ts="{ record }">
-          <span
-            class="cell-content"
-            :data-text="formatHistoryTime(record.ts)"
-            @click="copyToClipboard(formatHistoryTime(record.ts))"
-          >
-            {{ formatHistoryTime(record.ts) }}
-          </span>
-        </template>
-      </a-table>
-    </a-space>
+      <div class="table-container saas-table history-table-wrap scrollbar-industrial">
+        <a-table
+          :columns="tableColumns"
+          :data="paginatedData"
+          :loading="historyLoading"
+          :pagination="paginationConfig"
+          size="small"
+          class="history-table"
+          row-key="rowKey"
+          :scroll="{ x: 'max-content', y: 420 }"
+          @page-change="handlePageChange"
+          @page-size-change="handlePageSizeChange"
+        >
+          <template #ts="{ record }">
+            <span
+              class="cell-content"
+              :title="'点击复制 ' + formatHistoryTime(record.ts)"
+              @click="copyToClipboard(formatHistoryTime(record.ts))"
+            >
+              {{ formatHistoryTime(record.ts) }}
+            </span>
+          </template>
+        </a-table>
+      </div>
+    </div>
   </a-modal>
 </template>
 
@@ -161,12 +173,12 @@ const storageHint = computed(() => {
   const interval = storage.interval || 1
   const maxRecords = storage.max_records || MAX_HISTORY_LIMIT
   const strategyMap = {
-    interval: '定间隔快照',
-    minute_aligned: '整分钟快照',
-    realtime: '实时快照'
+    interval: '定时间隔全量快照',
+    minute_aligned: '整分钟全量快照',
+    realtime: '实时全量快照'
   }
-  const strategy = strategyMap[storage.strategy] || storage.strategy || '整分钟快照'
-  return `${strategy} · 每 ${interval} 分钟 · 最多 ${maxRecords} 条`
+  const strategy = strategyMap[storage.strategy] || storage.strategy || '整分钟全量快照'
+  return `${strategy} · 每 ${interval} 分钟一条 · 最多 ${maxRecords} 条快照`
 })
 
 const tableColumns = computed(() => {
@@ -408,5 +420,5 @@ const downloadHistoryCSV = () => {
 </script>
 
 <style scoped>
-/* v3.0 — styles in src/styles/ */
+/* v3.0 — styles in src/styles/history-modal.css */
 </style>

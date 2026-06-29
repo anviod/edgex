@@ -413,6 +413,9 @@ func (se *ScanEngine) executeTaskAsync(task *ScanTask) {
 		now := time.Now()
 		points := make([]model.ShadowIngressPoint, 0, len(result.Values))
 		for pointID, value := range result.Values {
+			if value.Value == nil {
+				continue
+			}
 			collectedAt := value.TS
 			if collectedAt.IsZero() {
 				collectedAt = now
