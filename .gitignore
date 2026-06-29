@@ -4,3 +4,4 @@ logs/
 ui/dist/
 logs/
 logs/gateway.edgex.log
+*.db
