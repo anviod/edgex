@@ -221,3 +221,11 @@ func TestScenario_SuccessResetsAllCounters(t *testing.T) {
 	assert.Equal(t, 0, retry)
 	assert.Equal(t, time.Duration(0), coolDown)
 }
+
+func TestScenario_DeviceFaultIsolation(t *testing.T) {
+	cm := driver.NewConnectionManager("opcua")
+	defer cm.Close()
+	cm.RecordSuccess()
+	cm.RecordFailure()
+	assert.NotEqual(t, StateDead, cm.GetState(), "single failure must not enter dead state immediately")
+}

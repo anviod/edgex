@@ -264,7 +264,6 @@ func main() {
 			current := cfgManager.GetConfig()
 			for _, chConfig := range current.Channels {
 				ch := chConfig
-				ch.StopChan = make(chan struct{})
 
 				err := cm.AddChannel(&ch)
 				if err != nil {

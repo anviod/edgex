@@ -16,18 +16,34 @@ func isChannelLinkError(err error) bool {
 		return true
 	}
 	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "connection refused") ||
-		strings.Contains(msg, "connection failed") ||
-		strings.Contains(msg, "cooldown") ||
-		strings.Contains(msg, "connection unavailable") ||
-		strings.Contains(msg, "connect:")
+	linkPatterns := []string{
+		"connection refused",
+		"connection reset",
+		"broken pipe",
+		"connection closed",
+		"dial tcp",
+		"network unreachable",
+		"no route to host",
+		"connection unavailable",
+		"entering cooldown",
+		"tls handshake",
+		"cannot assign requested address",
+	}
+	for _, p := range linkPatterns {
+		if strings.Contains(msg, p) {
+			return true
+		}
+	}
+	return false
 }
 
 func isChannelLinkUp(d drv.Driver) bool {
 	if d == nil {
 		return false
 	}
-	return d.Health() == drv.HealthStatusGood
+	// Only explicit Bad means the transport link is dead. Unknown covers
+	// reconnecting/degraded states and must not take the whole channel offline.
+	return d.Health() != drv.HealthStatusBad
 }
 
 func resolveEffectiveDeviceState(ch *model.Channel, d drv.Driver, dev *model.Device, rawState int) int {
@@ -74,6 +90,29 @@ func (cm *ChannelManager) markChannelDevicesOffline(channelID string) {
 
 	for _, id := range deviceIDs {
 		cm.stateManager.MarkOffline(id)
+	}
+}
+
+// resolveDeviceQualityScore returns the device quality score for API responses.
+// The global metrics collector only has HealthScore after UpdateDeviceMetrics runs;
+// when no collect metrics exist yet, derive score from the effective device state
+// (aligned with BACnet driver quality scoring).
+func resolveDeviceQualityScore(dev *model.Device, metrics *model.DeviceMetrics) int {
+	if metrics != nil && !metrics.LastCollectTime.IsZero() {
+		return metrics.HealthScore
+	}
+	if dev == nil {
+		return 0
+	}
+	switch dev.State {
+	case int(NodeStateOnline):
+		return 100
+	case int(NodeStateUnstable):
+		return 60
+	case int(NodeStateQuarantine):
+		return 20
+	default:
+		return 0
 	}
 }
 

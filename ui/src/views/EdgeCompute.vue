@@ -1,5 +1,5 @@
 ﻿<template>
-    <div class="page-shell page-shell--compact edge-compute-container">
+    <div class="page-shell edge-compute-container">
         <div class="page-header edge-compute-page-header">
             <h2 class="page-title">边缘计算</h2>
             <p class="page-subtitle">规则监控、管理与运行日志</p>
@@ -17,10 +17,16 @@
 
             <div v-if="tab === 'rules'" class="edge-compute-flow">
                 <div class="edge-compute-toolbar">
-                    <a-button type="primary" @click="openDialog">
-                        <template #icon><IconPlus /></template>
-                        添加规则
-                    </a-button>
+                    <a-space size="small">
+                        <a-button type="primary" @click="openDialog">
+                            <template #icon><IconPlus /></template>
+                            添加规则
+                        </a-button>
+                        <a-button type="text" size="small" class="help-trigger-btn" @click="helpVisible = true">
+                            <template #icon><IconQuestionCircle /></template>
+                            帮助说明
+                        </a-button>
+                    </a-space>
                 </div>
                 <div v-show="selectedRuleKeys.length > 0" class="edge-compute-toolbar edge-compute-toolbar--batch">
                     <span class="selection-count">已选 {{ selectedRuleKeys.length }} 项</span>
@@ -446,125 +452,7 @@
             </template>
         </a-modal>
 
-        <!-- Help Dialog -->
-        <a-modal v-model:visible="helpDialog" title="边缘计算规则配置指南" width="800px" :scrollable="true">
-            <div class="help-content">
-                <div class="text-lg font-medium mb-4">1. 基础概念</div>
-                <a-alert type="info" class="mb-4">
-                    <ul>
-                        <li><strong>数据源 (Sources)</strong>: 规则的输入变量。请为每个源设置简短的 <code>别名 (Alias)</code> (如 t1, p1)，以便在表达式中引用。</li>
-                        <li><strong>触发条件 (Condition)</strong>: 返回 true/false 的布尔表达式。仅当条件满足时触发动作。</li>
-                        <li><strong>动作 (Actions)</strong>: 规则触发后执行的一系列操作。</li>
-                    </ul>
-                </a-alert>
-
-                <div class="text-lg font-medium mb-4">2. 常见场景最佳实践</div>
-                
-                <a-collapse class="mb-4">
-                    <a-collapse-item title="场景 A: 简单越限报警 (Threshold)">
-                        <p><strong>目标</strong>: 当温度 (t1) 超过 50 度时，记录日志并发送 MQTT 告警。</p>
-                        <ul class="pl-6 mt-2">
-                            <li><strong>类型</strong>: Threshold</li>
-                            <li><strong>数据源</strong>: 添加温度点位，别名设为 <code>t1</code></li>
-                            <li><strong>触发条件</strong>: <code>t1 > 50</code></li>
-                            <li><strong>动作</strong>: 
-                                <ol class="pl-6">
-                                    <li>Log: 级别 Warn, 内容 "温度过高: ${t1}"</li>
-                                    <li>MQTT: Topic "alarm/temp", 内容 "温度异常: ${t1}"</li>
-                                </ol>
-                            </li>
-                        </ul>
-                    </a-collapse-item>
-                    <a-collapse-item title="场景 B: 顺序联动控制 (Sequence Workflow)">
-                        <p><strong>目标</strong>: 启动设备 A，等待 30秒，确认 A 已启动后再启动设备 B。如果 A 启动失败，则回退关闭 A。</p>
-                        <ul class="pl-6 mt-2">
-                            <li><strong>类型</strong>: Threshold (或 State)</li>
-                            <li><strong>触发条件</strong>: <code>start_signal == 1</code> (启动信号)</li>
-                            <li><strong>动作</strong>: 选择 <strong>Sequence</strong> 类型，添加以下步骤：
-                                <ol class="pl-6 mt-1">
-                                    <li><strong>Device Control</strong>: 开启设备 A (Value: 1)</li>
-                                    <li><strong>Delay</strong>: 30s</li>
-                                    <li><strong>Check</strong>: 
-                                        <ul class="pl-6">
-                                            <li>选择设备 A 的状态点位</li>
-                                            <li>表达式: <code>v == 1</code> (确认运行中)</li>
-                                            <li>重试: 3次, 间隔: 2s</li>
-                                            <li><strong>On Fail (失败回退)</strong>: 添加 Device Control 动作 -> 关闭设备 A (Value: 0)</li>
-                                        </ul>
-                                    </li>
-                                    <li><strong>Device Control</strong>: 开启设备 B (Value: 1)</li>
-                                </ol>
-                            </li>
-                        </ul>
-                        <a-alert type="warning" class="mt-2">
-                            <strong>注意:</strong> Sequence 中的 Check 动作如果失败且未在 On Fail 中成功处理异常（通常用于记录日志或回退），整个 Sequence 将会终止，后续步骤（如开启设备 B）不会执行。这是实现安全联动逻辑的关键。
-                        </a-alert>
-                    </a-collapse-item>
-                    <a-collapse-item title="场景 C: 批量设备控制 (Batch Control)">
-                        <p><strong>目标</strong>: 一键关闭所有相关设备 (A, B, C)。</p>
-                        <ul class="pl-6 mt-2">
-                            <li><strong>动作</strong>: 选择 <strong>Device Control</strong> 类型</li>
-                            <li><strong>配置</strong>: 开启 <strong>Batch Control (批量控制)</strong> 开关</li>
-                            <li><strong>目标列表</strong>:
-                                <ul class="pl-6">
-                                    <li>目标 1: 设备 A, 开关点位, 值 0</li>
-                                    <li>目标 2: 设备 B, 开关点位, 值 0</li>
-                                    <li>目标 3: 设备 C, 开关点位, 值 0</li>
-                                </ul>
-                            </li>
-                        </ul>
-                        <p class="mt-2 text-sm text-gray-500">优势: 批量控制会并行发送写入请求，相比连续的单点控制动作，响应速度更快。</p>
-                    </a-collapse-item>
-                    <a-collapse-item title="场景 D: 位运算与状态字控制 (Bitwise)">
-                        <p><strong>目标</strong>: 仅修改状态字的第 4 位 (置 1)，保持其他位不变。</p>
-                        <ul class="pl-6 mt-2">
-                            <li><strong>动作</strong>: Device Control</li>
-                            <li><strong>Expr (公式)</strong>: <code>bitset(v, 4)</code> 或 <code>v | 8</code> (0-based index)</li>
-                            <li><strong>说明</strong>: 系统会自动读取当前值 -> 计算新值 -> 写入 (Read-Modify-Write 机制)。</li>
-                        </ul>
-                        <a-alert type="success" class="mt-2">
-                            <strong>RMW 机制:</strong> 网关会自动处理并发冲突，确保在修改某一位时，不会覆盖其他位在同一时刻发生的变化（仅针对支持原子操作或网关级锁定的场景）。
-                        </a-alert>
-                    </a-collapse-item>
-                </a-collapse>
-
-                <div class="text-lg font-medium mb-4">3. 表达式语法参考</div>
-                <a-table :columns="syntaxColumns" :data="syntaxData" size="small" :bordered="false" class="mb-4"></a-table>
-                
-                <div class="text-lg font-medium mb-4">4. 动作类型详解</div>
-                <a-collapse>
-                    <a-collapse-item title="Log (日志)">
-                        记录规则触发信息到系统日志。
-                        <ul class="pl-6 mt-2">
-                            <li><strong>Level</strong>: 日志级别 (Info/Warn/Error)。</li>
-                            <li><strong>Message</strong>: 支持 <code>${v}</code> 或 <code>${alias}</code> 模板变量。</li>
-                        </ul>
-                    </a-collapse-item>
-                    <a-collapse-item title="Device Control (设备控制)">
-                        向设备写入值。
-                        <ul class="pl-6 mt-2">
-                            <li><strong>单点模式</strong>: 直接控制一个点位。</li>
-                            <li><strong>批量模式</strong>: 同时控制多个点位。</li>
-                            <li><strong>Expression</strong>: 可选。用于计算写入值（支持位操作）。</li>
-                        </ul>
-                    </a-collapse-item>
-                    <a-collapse-item title="Sequence (顺序执行)">
-                        严格按顺序执行子动作。如果任一步骤失败（如 Check 失败且未处理），整个序列终止。
-                    </a-collapse-item>
-                    <a-collapse-item title="Check (校验)">
-                        读取点位并校验条件。
-                        <ul class="pl-6 mt-2">
-                            <li><strong>Expression</strong>: 校验公式 (如 <code>v == 1</code>)。</li>
-                            <li><strong>Retry</strong>: 失败重试次数。</li>
-                                    <li><strong>On Fail</strong>: 校验最终失败后执行的回退动作序列。</li>
-                                </ul>
-                            </a-collapse-item>
-                        </a-collapse>
-                    </div>
-                    <template #footer>
-                        <a-button type="primary" @click="helpDialog = false">关闭</a-button>
-                    </template>
-                </a-modal>
+        <EdgeComputeHelpDrawer v-model:visible="helpVisible" />
 
                 <!-- Expression Helper Dialog -->
                 <a-modal v-model:visible="helperDialog" title="表达式转换助手" width="600px">
@@ -720,6 +608,24 @@
                         <a-button type="primary" @click="docsDialog = false" class="w-24">关闭</a-button>
                     </template>
                 </a-modal>
+
+        <a-modal
+            v-model:visible="deleteDialog.visible"
+            title="确认删除"
+            ok-text="确认删除"
+            cancel-text="取消"
+            :ok-button-props="{ status: 'danger' }"
+            @ok="executeDeleteRule"
+            @cancel="deleteDialog.visible = false"
+        >
+            <template v-if="deleteDialog.isBatch">
+                确定要批量删除选中的 <span class="text-red-500 font-bold">{{ deleteDialog.batchCount }}</span> 条规则吗？
+            </template>
+            <template v-else>
+                确定要删除规则 <span class="text-red-500 font-bold">{{ deleteDialog.rule?.name || deleteDialog.rule?.id }}</span> 吗？
+            </template>
+            <div class="mt-2 text-gray-400 text-sm">此操作不可撤销。</div>
+        </a-modal>
     </div>
 </template>
 
@@ -729,9 +635,10 @@ import {
   InputNumber, Select, Switch, Alert, Collapse, CollapseItem, Tag, Row, Col
 } from '@arco-design/web-vue'
 import {
-  IconPlus, IconEdit, IconDelete, IconRefresh, IconDownload, IconCode, IconInfoCircle, IconBook, IconArrowDown
+  IconPlus, IconEdit, IconDelete, IconRefresh, IconDownload, IconCode, IconInfoCircle, IconBook, IconArrowDown, IconQuestionCircle
 } from '@arco-design/web-vue/es/icon'
 import ActionEditor from '@/components/ActionEditor.vue'
+import EdgeComputeHelpDrawer from '@/components/edge-compute/EdgeComputeHelpDrawer.vue'
 
 // 表格列定义
 const ruleColumns = [
@@ -766,19 +673,6 @@ const logColumns = [
 const windowDataColumns = [
   { title: '时间', dataIndex: 'ts', slotName: 'ts' },
   { title: '值', dataIndex: 'value' }
-]
-
-const syntaxColumns = [
-  { title: '语法', dataIndex: 'syntax' },
-  { title: '说明', dataIndex: 'description' }
-]
-
-const syntaxData = [
-  { syntax: '<code>v</code> / <code>value</code>', description: '当前点位的实时值' },
-  { syntax: '<code>t1</code>, <code>p1</code>', description: '数据源别名引用' },
-  { syntax: '<code>bitget(v, n)</code>', description: '获取第 n 位 (0/1)' },
-  { syntax: '<code>bitset(v, n)</code>', description: '将第 n 位置 1' },
-  { syntax: '<code>bitclr(v, n)</code>', description: '将第 n 位置 0' }
 ]
 
 const docsColumns = [
@@ -836,6 +730,7 @@ const logicalFunctions = [
 import { ref, reactive, computed, watch, watchEffect, onMounted, onUnmounted, provide } from 'vue'
 import { useRoute } from 'vue-router'
 import request from '@/utils/request'
+import { showMessage } from '@/composables/useGlobalState'
 import { base64ToUint8Array, uint8ArrayToHex, detectFileType, downloadBytes } from '@/utils/decode'
 import EdgeComputeMetrics from './EdgeComputeMetrics.vue'
 
@@ -910,7 +805,7 @@ const tab = ref('metrics')
 const rules = ref([])
 const ruleStates = ref([])
 const dialog = ref(false)
-const helpDialog = ref(false)
+const helpVisible = ref(false)
 const editingRule = ref(false)
 // Northbound Config for Actions
 const northboundConfig = ref({ mqtt: [], http: [] })
@@ -1138,9 +1033,9 @@ const detectInvalidSources = () => {
     })
     
     if (invalidCount > 0) {
-        alert(`检测到 ${invalidCount} 个失效配置，请点击"一键清除"按钮清理`)
+        showMessage(`检测到 ${invalidCount} 个失效配置，请点击"一键清除"按钮清理`, 'warning')
     } else {
-        alert('所有数据源配置均有效')
+        showMessage('所有数据源配置均有效', 'success')
     }
 }
 
@@ -1155,9 +1050,9 @@ const clearInvalidSources = () => {
     currentRule.sources = validSources
     
     if (removedCount > 0) {
-        alert(`已清除 ${removedCount} 个失效配置`)
+        showMessage(`已清除 ${removedCount} 个失效配置`, 'success')
     } else {
-        alert('没有发现失效配置')
+        showMessage('没有发现失效配置', 'info')
     }
 }
 
@@ -1320,9 +1215,9 @@ const detectInvalidActions = () => {
     })
     
     if (invalidCount > 0) {
-        alert(`检测到 ${invalidCount} 个失效动作配置，请点击"一键清除"按钮清理`)
+        showMessage(`检测到 ${invalidCount} 个失效动作配置，请点击"一键清除"按钮清理`, 'warning')
     } else {
-        alert('所有动作配置均有效')
+        showMessage('所有动作配置均有效', 'success')
     }
 }
 
@@ -1334,9 +1229,9 @@ const clearInvalidActions = () => {
     currentRule.actions = validActions
     
     if (removedCount > 0) {
-        alert(`已清除 ${removedCount} 个失效动作配置`)
+        showMessage(`已清除 ${removedCount} 个失效动作配置`, 'success')
     } else {
-        alert('没有发现失效动作配置')
+        showMessage('没有发现失效动作配置', 'info')
     }
 }
 
@@ -1384,10 +1279,6 @@ const openDialog = () => {
     dialog.value = true
 }
 
-const openHelpDialog = () => {
-    helpDialog.value = true
-}
-
 const editRule = async (rule) => {
     editingRule.value = true
     // Deep copy
@@ -1424,13 +1315,39 @@ const editRule = async (rule) => {
     dialog.value = true
 }
 
-const deleteRule = async (rule) => {
-    if (!confirm('确定删除该规则吗？')) return
+const deleteDialog = reactive({
+    visible: false,
+    isBatch: false,
+    rule: null,
+    batchCount: 0
+})
+
+const deleteRule = (rule) => {
+    deleteDialog.isBatch = false
+    deleteDialog.rule = rule
+    deleteDialog.visible = true
+}
+
+const handleBatchDelete = () => {
+    if (selectedRuleKeys.value.length === 0) return
+    deleteDialog.isBatch = true
+    deleteDialog.batchCount = selectedRuleKeys.value.length
+    deleteDialog.visible = true
+}
+
+const executeDeleteRule = async () => {
     try {
-        await request.delete(`/api/edge/rules/${rule.id}`)
+        if (deleteDialog.isBatch) {
+            await Promise.all(selectedRuleKeys.value.map(id => request.delete(`/api/edge/rules/${id}`)))
+            selectedRuleKeys.value = []
+            showMessage('批量删除成功', 'success')
+        } else if (deleteDialog.rule) {
+            await request.delete(`/api/edge/rules/${deleteDialog.rule.id}`)
+        }
+        deleteDialog.visible = false
         fetchRules()
     } catch (e) {
-        alert('删除失败')
+        showMessage('删除失败: ' + (e.message || e), 'error')
     }
 }
 
@@ -1440,22 +1357,7 @@ const saveRule = async () => {
         dialog.value = false
         fetchRules()
     } catch (e) {
-        alert('保存失败: ' + e.message)
-    }
-}
-
-// 批量操作函数
-const handleBatchDelete = async () => {
-    if (selectedRuleKeys.value.length === 0) return
-    if (!confirm(`确定删除选中的 ${selectedRuleKeys.value.length} 条规则吗？`)) return
-    
-    try {
-        await Promise.all(selectedRuleKeys.value.map(id => request.delete(`/api/edge/rules/${id}`)))
-        selectedRuleKeys.value = []
-        fetchRules()
-        showMessage('批量删除成功', 'success')
-    } catch (e) {
-        showMessage('批量删除失败: ' + e.message, 'error')
+        showMessage('保存失败: ' + e.message, 'error')
     }
 }
 
@@ -1470,11 +1372,6 @@ const handleBatchEnable = async (status) => {
     } catch (e) {
         showMessage(`批量${status ? '启用' : '禁用'}失败: ` + e.message, 'error')
     }
-}
-
-const showMessage = (message, type = 'info') => {
-    // 这里可以根据实际使用的消息组件进行调整
-    console.log(`[${type.toUpperCase()}] ${message}`)
 }
 
 const getLogicColor = (logic) => {

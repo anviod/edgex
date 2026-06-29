@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math/rand/v2"
 	"os"
@@ -578,6 +579,10 @@ func (s *Server) setupRoutes() {
 	data.Post("/clear-cache", s.clearCache)
 	data.Post("/clear-all-runtime", s.clearAllRuntime)
 	data.Post("/backup-config", s.backupConfigDB)
+	data.Get("/export-config-db", s.exportConfigDBArchive)
+	data.Get("/export-runtime-db", s.exportRuntimeDBArchive)
+	data.Post("/import-config-db", s.importConfigDBArchive)
+	data.Post("/pull-remote-config", s.pullRemoteConfig)
 	data.Post("/compact-runtime", s.compactRuntimeDB)
 	api.Get("/ws/logs", websocket.New(s.handleLogWebSocket))
 	api.Get("/logs/download", s.handleLogDownload)
@@ -938,6 +943,23 @@ func (s *Server) getChannelDevices(c *fiber.Ctx) error {
 	return c.JSON(devices)
 }
 
+func deviceAddErrorStatus(err error) int {
+	if err == nil {
+		return fiber.StatusInternalServerError
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "already exists") || strings.Contains(msg, "not found") {
+		if strings.Contains(msg, "channel not found") {
+			return fiber.StatusNotFound
+		}
+		return fiber.StatusConflict
+	}
+	if strings.Contains(msg, "required") || strings.Contains(msg, "invalid") {
+		return fiber.StatusBadRequest
+	}
+	return fiber.StatusInternalServerError
+}
+
 func (s *Server) addDevice(c *fiber.Ctx) error {
 	channelId := c.Params("channelId")
 
@@ -960,7 +982,7 @@ func (s *Server) addDevice(c *fiber.Ctx) error {
 				return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 			}
 			if err := s.cm.AddDevice(channelId, &devices[i]); err != nil {
-				return c.Status(500).JSON(fiber.Map{"error": fmt.Sprintf("Failed to add device %s: %v", devices[i].Name, err)})
+				return c.Status(deviceAddErrorStatus(err)).JSON(fiber.Map{"error": fmt.Sprintf("Failed to add device %s: %v", devices[i].Name, err)})
 			}
 			if s.dsm != nil {
 				s.dsm.UpdateDeviceConfig(devices[i].ID, devices[i].Storage)
@@ -982,7 +1004,7 @@ func (s *Server) addDevice(c *fiber.Ctx) error {
 			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 		}
 		if err := s.cm.AddDevice(channelId, &dev); err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+			return c.Status(deviceAddErrorStatus(err)).JSON(fiber.Map{"error": err.Error()})
 		}
 		if s.dsm != nil {
 			s.dsm.UpdateDeviceConfig(dev.ID, dev.Storage)
@@ -3156,6 +3178,147 @@ func (s *Server) backupConfigDB(c *fiber.Ctx) error {
 		"size_bytes":   backupInfo.FileSizeBytes,
 		"size_display": formatBytes(backupInfo.FileSizeBytes),
 		"message":      "配置库已备份，运行时数据不受影响",
+	})
+}
+
+// exportConfigDBArchive 导出配置数据库为 tar.gz
+// GET /api/data/export-config-db
+func (s *Server) exportConfigDBArchive(c *fiber.Ctx) error {
+	if s.storage == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
+	}
+
+	data, filename, err := s.storage.ExportConfigDBArchive()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to export config db: " + err.Error()})
+	}
+
+	c.Set("Content-Type", "application/gzip")
+	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	return c.Send(data)
+}
+
+// exportRuntimeDBArchive 导出运行时数据库为 tar.gz
+// GET /api/data/export-runtime-db
+func (s *Server) exportRuntimeDBArchive(c *fiber.Ctx) error {
+	if s.storage == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
+	}
+
+	data, filename, err := s.storage.ExportRuntimeDBArchive()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to export runtime db: " + err.Error()})
+	}
+
+	c.Set("Content-Type", "application/gzip")
+	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	return c.Send(data)
+}
+
+// importConfigDBArchive 从 tar.gz 导入配置数据库
+// POST /api/data/import-config-db
+func (s *Server) importConfigDBArchive(c *fiber.Ctx) error {
+	if s.storage == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
+	}
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "file is required: " + err.Error()})
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "failed to open uploaded file: " + err.Error()})
+	}
+	defer file.Close()
+
+	archiveData, err := io.ReadAll(file)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "failed to read uploaded file: " + err.Error()})
+	}
+
+	if len(archiveData) == 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "uploaded file is empty"})
+	}
+
+	forceOverwrite := c.FormValue("force_overwrite") == "true" || c.FormValue("force_overwrite") == "1"
+	if !forceOverwrite {
+		forceOverwrite = c.Query("force_overwrite") == "true" || c.Query("force_overwrite") == "1"
+	}
+
+	result, err := s.storage.ImportConfigDBArchive(archiveData, storage.ImportArchiveOptions{
+		ForceOverwrite: forceOverwrite,
+	})
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to import config db: " + err.Error()})
+	}
+
+	if s.cfgManager != nil {
+		if err := s.cfgManager.Reload(); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "config imported but failed to reload: " + err.Error()})
+		}
+	}
+
+	message := "配置库导入成功，已保留当前用户账号/密码与服务器端口"
+	if result.ForceOverwrite {
+		message = "配置库导入成功，已强制覆盖本地配置（含用户账号/密码与服务器端口）"
+	}
+
+	return c.JSON(fiber.Map{
+		"status":           "success",
+		"message":          message,
+		"force_overwrite":  result.ForceOverwrite,
+		"preserved_users":  result.PreservedUsers,
+		"preserved_port":   result.PreservedPort,
+		"device_count":     result.DeviceCount,
+		"channel_count":    result.ChannelCount,
+	})
+}
+
+// pullRemoteConfig 从远程网关强制拉取配置并覆盖本地
+// POST /api/data/pull-remote-config
+func (s *Server) pullRemoteConfig(c *fiber.Ctx) error {
+	if s.storage == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
+	}
+
+	var req struct {
+		Host      string `json:"host"`
+		Port      int    `json:"port"`
+		Token     string `json:"token"`
+		UseHTTPS  bool   `json:"use_https"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid request body: " + err.Error()})
+	}
+
+	if strings.TrimSpace(req.Host) == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "remote host is required"})
+	}
+	if req.Port <= 0 {
+		req.Port = 8080
+	}
+
+	result, err := s.storage.PullRemoteConfigAndImport(req.Host, req.Port, req.Token, req.UseHTTPS)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to pull remote config: " + err.Error()})
+	}
+
+	if s.cfgManager != nil {
+		if err := s.cfgManager.Reload(); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "config pulled but failed to reload: " + err.Error()})
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"status":          "success",
+		"message":         "已从远程网关强制拉取并覆盖本地配置",
+		"remote_source":   result.RemoteSource,
+		"force_overwrite": true,
+		"device_count":    result.DeviceCount,
+		"channel_count":   result.ChannelCount,
+		"preserved_port":  result.PreservedPort,
 	})
 }
 

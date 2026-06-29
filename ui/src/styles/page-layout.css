@@ -13,11 +13,6 @@
   gap: var(--section-gap);
 }
 
-.page-shell--compact {
-  padding: var(--space-4) var(--space-6);
-  gap: var(--space-6);
-}
-
 .page-shell--wide {
   max-width: none;
 }

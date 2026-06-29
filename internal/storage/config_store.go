@@ -321,6 +321,101 @@ func (cs *ConfigStore) ExportAllConfig() (*ConfigExport, error) {
 	return export, err
 }
 
+// ImportConfigReplace replaces configuration buckets from export data.
+// When preserve options are set, current users and/or server port are kept.
+func (cs *ConfigStore) ImportConfigReplace(export *ConfigExport, opts ImportPreserveOptions) error {
+	if export == nil {
+		return fmt.Errorf("import data is required")
+	}
+
+	if opts.PreserveUsers {
+		users, err := cs.LoadUsers()
+		if err != nil {
+			return fmt.Errorf("failed to load current users: %w", err)
+		}
+		export.Users = users
+	}
+
+	if opts.PreserveServerPort {
+		serverConfig, err := cs.LoadServerConfig()
+		if err != nil {
+			return fmt.Errorf("failed to load current server config: %w", err)
+		}
+		if serverConfig != nil {
+			export.Server.Port = serverConfig.Port
+		}
+	}
+
+	return cs.db.Update(func(tx *bbolt.Tx) error {
+		if err := saveToBucket(tx, BucketServer, "server", export.Server); err != nil {
+			return err
+		}
+		if err := saveToBucket(tx, BucketChannels, "channels", export.Channels); err != nil {
+			return err
+		}
+		if err := saveToBucket(tx, BucketNorthbound, "northbound", export.Northbound); err != nil {
+			return err
+		}
+		if err := saveToBucket(tx, BucketEdgeRules, "edge_rules", export.EdgeRules); err != nil {
+			return err
+		}
+		if err := saveToBucket(tx, BucketSystem, "system", export.System); err != nil {
+			return err
+		}
+		if err := saveToBucket(tx, BucketUsers, "users", export.Users); err != nil {
+			return err
+		}
+		if err := saveToBucket(tx, BucketVirtualShadows, "virtual_shadows", export.VirtualShadows); err != nil {
+			return err
+		}
+
+		b := tx.Bucket([]byte(BucketDevices))
+		if b == nil {
+			return fmt.Errorf("bucket %s not found", BucketDevices)
+		}
+
+		var existingKeys [][]byte
+		if err := b.ForEach(func(k, _ []byte) error {
+			existingKeys = append(existingKeys, append([]byte{}, k...))
+			return nil
+		}); err != nil {
+			return err
+		}
+		for _, key := range existingKeys {
+			if err := b.Delete(key); err != nil {
+				return err
+			}
+		}
+
+		if export.Devices != nil {
+			for id, device := range export.Devices {
+				key := strings.TrimSpace(id)
+				if key == "" {
+					if err := model.EnsureDeviceID(&device); err != nil {
+						return err
+					}
+					key = device.ID
+				} else {
+					device.ID = key
+				}
+				data, err := json.Marshal(device)
+				if err != nil {
+					return err
+				}
+				if err := b.Put([]byte(key), data); err != nil {
+					return err
+				}
+			}
+		}
+
+		versionBucket := tx.Bucket([]byte(BucketConfigVersion))
+		if versionBucket != nil {
+			return versionBucket.Put([]byte(ConfigVersionKey), []byte(ConfigVersionValue))
+		}
+		return nil
+	})
+}
+
 func (cs *ConfigStore) ImportConfig(export *ConfigExport) error {
 	return cs.db.Update(func(tx *bbolt.Tx) error {
 		if err := saveToBucket(tx, BucketServer, "server", export.Server); err != nil {

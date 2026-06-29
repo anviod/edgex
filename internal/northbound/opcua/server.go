@@ -33,6 +33,7 @@ type Server struct {
 	sb        model.SouthboundManager
 	srv       *server.Server
 	mu        sync.RWMutex
+	lifecycleMu sync.Mutex
 	nodeMap   map[string]*server.VariableNode
 	gatewayID string
 	stats     Stats
@@ -275,6 +276,12 @@ func (m *NodeIDMapper) Size() int {
 
 // Start starts the OPC UA Server
 func (s *Server) Start() error {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+	return s.startLocked()
+}
+
+func (s *Server) startLocked() error {
 	zap.L().Info("Starting OPC UA Server...",
 		zap.String("name", s.config.Name),
 		zap.Int("port", s.config.Port),
@@ -358,8 +365,10 @@ func (s *Server) Start() error {
 	}
 
 	// Start Listener
+	listener := s.srv
+	loopCtx := s.ctx
 	go func() {
-		if err := s.srv.ListenAndServe(); err != nil {
+		if err := listener.ListenAndServe(); err != nil {
 			zap.L().Error("OPC UA Server error",
 				zap.String("name", s.config.Name),
 				zap.Error(err),
@@ -368,7 +377,7 @@ func (s *Server) Start() error {
 		}
 	}()
 
-	go s.systemInfoLoop(s.ctx)
+	go s.systemInfoLoop(loopCtx)
 
 	zap.L().Info("OPC UA Server started",
 		zap.String("name", s.config.Name),
@@ -474,13 +483,26 @@ func (s *Server) ensureCert(certFile, keyFile, appURI string) error {
 	return nil
 }
 
-// ... rest of the file ...
-func (s *Server) Stop() {
+func (s *Server) stopLocked() {
 	if s.cancel != nil {
 		s.cancel()
+		s.cancel = nil
 	}
 	if s.srv != nil {
 		s.srv.Close()
+		s.srv = nil
+	}
+}
+
+// Stop stops the OPC UA Server. Safe to call multiple times.
+func (s *Server) Stop() {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+
+	wasRunning := s.srv != nil || s.cancel != nil
+	s.stopLocked()
+	if !wasRunning {
+		return
 	}
 	zap.L().Info("OPC UA Server stopped",
 		zap.String("name", s.config.Name),
@@ -489,9 +511,12 @@ func (s *Server) Stop() {
 }
 
 func (s *Server) UpdateConfig(cfg model.OPCUAConfig) error {
-	s.Stop()
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+
+	s.stopLocked()
 	s.config = cfg
-	return s.Start()
+	return s.startLocked()
 }
 
 func (s *Server) Update(v model.Value) {

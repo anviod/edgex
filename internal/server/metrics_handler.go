@@ -65,10 +65,10 @@ func (s *Server) getChannelMetrics(c *fiber.Ctx) error {
 		}
 	}
 
-	// 合并 collector 中已观测到的请求统计（仅在有真实流量时覆盖）
+	// 合并 collector 中已观测到的请求统计（补充驱动侧不完整的数据）
 	if mc := model.GetGlobalMetricsCollector(); mc != nil {
 		collected := mc.GetChannelMetrics(channelID)
-		if collected != nil && collected.TotalRequests > 0 {
+		if collected != nil && (collected.TotalRequests > 0 || collected.SuccessRate > 0) {
 			mergeCollectorChannelMetrics(metrics, collected)
 		}
 	}
@@ -138,6 +138,28 @@ func mergeCollectorChannelMetrics(dst, src *model.ChannelMetrics) {
 		if src.QualityScore > 0 {
 			dst.QualityScore = src.QualityScore
 		}
+		return
+	}
+
+	// Driver request counters may be incomplete; supplement from collector when available.
+	if dst.TotalRequests > 0 && dst.SuccessCount == 0 && src.SuccessCount > 0 {
+		dst.SuccessCount = src.SuccessCount
+		dst.FailureCount = src.FailureCount
+	}
+
+	if dst.SuccessRate <= 0 && src.SuccessRate > 0 {
+		dst.SuccessRate = src.SuccessRate
+		dst.PacketLoss = src.PacketLoss
+	}
+
+	if dst.AvgRtt == 0 && src.AvgRtt > 0 {
+		dst.AvgRtt = src.AvgRtt
+		dst.MinRtt = src.MinRtt
+		dst.MaxRtt = src.MaxRtt
+	}
+
+	if src.QualityScore > dst.QualityScore {
+		dst.QualityScore = src.QualityScore
 	}
 }
 

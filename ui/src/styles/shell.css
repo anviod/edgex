@@ -42,13 +42,13 @@ body {
   flex-direction: column;
   z-index: 100;
   transition: width 0.2s ease;
-  padding: 0 0 var(--space-4);
+  padding: 0 var(--page-padding-x) var(--space-4);
   box-sizing: border-box;
 }
 
 .industrial-sidebar.is-collapsed {
   width: var(--sidebar-collapsed);
-  padding-bottom: var(--space-2);
+  padding: 0 var(--space-2) var(--space-2);
 }
 
 .sidebar-header {
@@ -57,8 +57,8 @@ body {
   gap: var(--space-2);
   height: var(--header-height);
   flex-shrink: 0;
-  padding: 0 var(--space-3);
-  margin-bottom: var(--space-3);
+  padding: 0;
+  margin-bottom: 0;
   box-sizing: border-box;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
@@ -68,7 +68,6 @@ body {
 }
 
 .industrial-sidebar.is-collapsed .sidebar-header {
-  padding: 0 var(--space-2);
   justify-content: center;
 }
 
@@ -99,12 +98,12 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: 0 var(--space-3);
+  padding: var(--page-padding-y) 0 0;
   min-height: 0;
 }
 
 .industrial-sidebar.is-collapsed .sidebar-nav {
-  padding: 0 var(--space-2);
+  padding-top: var(--page-padding-y);
 }
 
 .nav-item {
@@ -180,12 +179,12 @@ body {
 /* ── sidebar footer ── */
 .sidebar-footer {
   flex-shrink: 0;
-  padding: var(--space-3) var(--space-3) 0;
+  padding: var(--space-4) 0 0;
   margin-top: auto;
 }
 
 .industrial-sidebar.is-collapsed .sidebar-footer {
-  padding: var(--space-2) var(--space-2) 0;
+  padding-top: var(--space-2);
 }
 
 .sidebar-status {
@@ -274,7 +273,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--space-5);
+  padding: 0 var(--page-padding-x);
   z-index: 99;
   transition: left 0.2s ease;
   box-sizing: border-box;
@@ -480,15 +479,11 @@ body {
 }
 
 .page-container {
-  max-width: var(--content-max-width);
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   min-height: calc(100vh - var(--header-height));
   box-sizing: border-box;
-}
-
-/* dashboard full-width override */
-.page-container--wide {
-  max-width: none;
 }
 
 /* ── scrollbar ── */

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/anviod/edgex/internal/driver"
 	"github.com/anviod/edgex/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -106,4 +107,42 @@ func TestScenario_ConnectionManagerBackoff(t *testing.T) {
 	for i := 1; i < len(backoffs); i++ {
 		assert.GreaterOrEqual(t, backoffs[i], backoffs[i-1])
 	}
+}
+
+func TestScenario_MaxFailuresEnterDead(t *testing.T) {
+	transport := NewProfinetTransport(channelConfig{
+		simulation: false,
+		timeout:    50 * time.Millisecond,
+		maxRetries: 3,
+	})
+	defer transport.connMgr.Close()
+
+	transport.connMgr.SetMaxRetries(3)
+	transport.connMgr.RecordSuccess()
+	for i := 0; i < 3; i++ {
+		transport.connMgr.RecordFailure()
+	}
+	assert.Equal(t, driver.StateDead, transport.connMgr.GetState())
+}
+
+func TestScenario_DeviceFaultIsolation(t *testing.T) {
+	d := NewProfinetIODriver()
+	require.NoError(t, d.Init(model.DriverConfig{
+		ChannelID: "ch-test",
+		Config:    map[string]any{"simulation": true},
+	}))
+	require.NoError(t, d.Connect(context.Background()))
+	defer d.Disconnect()
+	d.SetDeviceConfig(map[string]any{"ip": "192.168.1.20"})
+
+	goodPt := model.Point{ID: "good", Address: "3:1:0", DataType: "int16"}
+	require.NoError(t, d.WritePoint(context.Background(), goodPt, int16(42)))
+
+	results, err := d.ReadPoints(context.Background(), []model.Point{
+		goodPt,
+		{ID: "bad", Address: "INVALID", DataType: "int16"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Good", results["good"].Quality)
+	assert.Equal(t, "Bad", results["bad"].Quality)
 }

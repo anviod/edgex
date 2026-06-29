@@ -131,3 +131,46 @@ func TestScenario_ConcurrentSchedulerStats(t *testing.T) {
 	assert.Equal(t, int64(20), total)
 	assert.Equal(t, int64(20), success)
 }
+
+func TestScenario_MaxConnectRetriesExhausted(t *testing.T) {
+	transport := NewMCTransport(driverConfig{
+		ip:         "127.0.0.1",
+		port:       59998,
+		timeout:    20 * time.Millisecond,
+		maxRetries: 2,
+	})
+	transport.dialFn = func(network, address string, timeout time.Duration) (net.Conn, error) {
+		return nil, errors.New("connection refused")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	err := transport.Connect(ctx)
+	require.Error(t, err)
+	assert.False(t, transport.IsConnected())
+}
+
+func TestScenario_DeviceFaultIsolation(t *testing.T) {
+	mock := NewMockPLC()
+	mock.SetWord("D", 100, 7)
+	addr, err := mock.Start()
+	require.NoError(t, err)
+	defer mock.Close()
+
+	host, portStr, _ := net.SplitHostPort(addr)
+	port, _ := strconv.Atoi(portStr)
+
+	transport := NewMCTransport(driverConfig{ip: host, port: port, timeout: time.Second})
+	require.NoError(t, transport.Connect(context.Background()))
+	defer transport.Disconnect()
+
+	scheduler := NewMCScheduler(transport, NewMCDecoder(), 8)
+	results, err := scheduler.ReadPoints(context.Background(), []model.Point{
+		{ID: "good", Address: "D100", DataType: "INT16"},
+		{ID: "bad", Address: "INVALID", DataType: "INT16"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Good", results["good"].Quality)
+	assert.Equal(t, "Bad", results["bad"].Quality)
+	assert.True(t, transport.IsConnected())
+}

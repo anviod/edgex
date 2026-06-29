@@ -14,8 +14,75 @@ import (
 	"github.com/expr-lang/expr"
 )
 
-// channel.device.point — 各段允许字母数字 _ -
-var pointRefPattern = regexp.MustCompile(`[a-zA-Z][a-zA-Z0-9_-]*(?:\.[a-zA-Z][a-zA-Z0-9_-]*){2,}`)
+// pointRefPrefixPattern matches channel.device. prefix; point segment may contain OPC UA node id chars (= ; .).
+var pointRefPrefixPattern = regexp.MustCompile(`[a-zA-Z0-9][a-zA-Z0-9_-]*\.[a-zA-Z0-9][a-zA-Z0-9_-]*\.`)
+
+// parsePointRef splits channel.device.point where point may contain dots (e.g. OPC UA ns=2;s=Some.Node).
+func parsePointRef(ref string) (channelID, deviceID, pointID string, ok bool) {
+	ref = strings.TrimSpace(ref)
+	first := strings.IndexByte(ref, '.')
+	if first <= 0 {
+		return "", "", "", false
+	}
+	rest := ref[first+1:]
+	second := strings.IndexByte(rest, '.')
+	if second <= 0 {
+		return "", "", "", false
+	}
+	second = first + 1 + second
+	channelID = ref[:first]
+	deviceID = ref[first+1 : second]
+	pointID = ref[second+1:]
+	if channelID == "" || deviceID == "" || pointID == "" {
+		return "", "", "", false
+	}
+	return channelID, deviceID, pointID, true
+}
+
+func isPointRefBoundary(b byte) bool {
+	switch b {
+	case ' ', '+', '-', '*', '/', '(', ')':
+		return true
+	default:
+		return false
+	}
+}
+
+func extendPointRefEnd(formula string, startAfterPrefix int) int {
+	i := startAfterPrefix
+	for i < len(formula) {
+		switch formula[i] {
+		case ' ', '+', '-', '*', '/', '(', ')':
+			return i
+		default:
+			i++
+		}
+	}
+	return i
+}
+
+func extractPointRefAt(formula string, prefixLoc []int) (string, bool) {
+	start := prefixLoc[0]
+	if start > 0 && !isPointRefBoundary(formula[start-1]) {
+		return "", false
+	}
+	end := extendPointRefEnd(formula, prefixLoc[1])
+	ref := formula[start:end]
+	if _, _, _, ok := parsePointRef(ref); !ok {
+		return "", false
+	}
+	return ref, true
+}
+
+func isMapModeRef(ref string) bool {
+	ref = strings.TrimSpace(ref)
+	loc := pointRefPrefixPattern.FindStringIndex(ref)
+	if loc == nil || loc[0] != 0 {
+		return false
+	}
+	end := extendPointRefEnd(ref, loc[1])
+	return end == len(ref)
+}
 
 type VirtualShadowEngine struct {
 	mu sync.RWMutex
@@ -84,9 +151,8 @@ func (vse *VirtualShadowEngine) ReplaceVirtualDevice(deviceID, channelID string,
 
 func inferChannelFromDependencies(deps []string) string {
 	for _, dep := range deps {
-		parts := strings.Split(dep, ".")
-		if len(parts) >= 3 {
-			return parts[0]
+		if ch, _, _, ok := parsePointRef(dep); ok {
+			return ch
 		}
 	}
 	return ""
@@ -112,12 +178,16 @@ func (vse *VirtualShadowEngine) extractDependencies(formulaPoints map[string]str
 func (vse *VirtualShadowEngine) parseFormulaReferences(formula string) []string {
 	seen := make(map[string]struct{})
 	var refs []string
-	for _, m := range pointRefPattern.FindAllString(formula, -1) {
-		if _, ok := seen[m]; ok {
+	for _, loc := range pointRefPrefixPattern.FindAllStringIndex(formula, -1) {
+		ref, ok := extractPointRefAt(formula, loc)
+		if !ok {
 			continue
 		}
-		seen[m] = struct{}{}
-		refs = append(refs, m)
+		if _, dup := seen[ref]; dup {
+			continue
+		}
+		seen[ref] = struct{}{}
+		refs = append(refs, ref)
 	}
 	return refs
 }
@@ -171,7 +241,7 @@ func (vse *VirtualShadowEngine) recomputeVirtualDevice(deviceID string) {
 		var err error
 
 		// 映射模式：公式即 channel.device.point，直接透传，避免 expr 误解析 '-' '.'
-		if refs := pointRefPattern.FindAllString(trimmed, -1); len(refs) == 1 && refs[0] == trimmed {
+		if isMapModeRef(trimmed) {
 			key := depToEnvKey(trimmed)
 			val, ok := env[key]
 			if !ok {
@@ -235,14 +305,14 @@ func (vse *VirtualShadowEngine) buildEvaluationEnv(dependencies []string) map[st
 }
 
 func parseDepRef(dep string) (deviceID, pointID string) {
-	parts := strings.Split(dep, ".")
-	if len(parts) < 2 {
-		return "", ""
+	if _, deviceID, pointID, ok := parsePointRef(dep); ok {
+		return deviceID, pointID
 	}
+	parts := strings.Split(dep, ".")
 	if len(parts) == 2 {
 		return parts[0], parts[1]
 	}
-	return parts[len(parts)-2], parts[len(parts)-1]
+	return "", ""
 }
 
 func depToEnvKey(dep string) string {

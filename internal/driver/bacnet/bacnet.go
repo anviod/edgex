@@ -110,9 +110,8 @@ type DeviceContext struct {
 	IsolationUntil      time.Time
 	IsolationCount      int
 	LastValues          map[string]model.Value
-	SubscribedPoints    map[string]model.Point
 	CacheMu             sync.RWMutex
-	StopPolling         chan struct{}
+	ReadMu              sync.Mutex
 	lastReset           time.Time
 }
 
@@ -341,18 +340,14 @@ func (d *BACnetDriver) Disconnect() error {
 }
 
 func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (map[string]model.Value, error) {
-	// Refactored for isolation
 	if len(points) == 0 {
 		return map[string]model.Value{}, nil
 	}
 
-	// Use write lock directly to avoid lock upgrade issues
 	d.mu.Lock()
-	// Resolve Target ID from Point
 	targetID := -1
 	sID := points[0].DeviceID
 
-	// Verify all points belong to the same device to prevent crosstalk
 	for i := 1; i < len(points); i++ {
 		if points[i].DeviceID != sID {
 			d.mu.Unlock()
@@ -360,64 +355,81 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 		}
 	}
 
-	// Try map lookup first
 	if id, ok := d.idMap[sID]; ok {
 		targetID = id
 	}
-
 	if targetID == -1 {
-		// Fallback: Try whole string parsing (only if it matches exactly)
 		if val, err := strconv.Atoi(sID); err == nil {
 			targetID = val
 		}
-		// NOTE: Removed heuristic suffix parsing to prevent incorrect mapping (e.g. bacnet-18 -> 18 != 2228318)
 	}
 
 	devCtx, exists := d.deviceContexts[targetID]
-
 	if !exists || devCtx.Scheduler == nil {
 		d.mu.Unlock()
 		if targetID != -1 {
-			// Do NOT call checkRecovery here synchronously. It acquires the lock and blocks.
 			go d.checkRecovery(targetID)
 		}
 		return nil, fmt.Errorf("scheduler not initialized for device %s (targetID=%d). Ensure device ID contains the BACnet Instance ID.", sID, targetID)
 	}
 
-	// Register Points for Polling
-	devCtx.CacheMu.Lock()
-	if devCtx.SubscribedPoints == nil {
-		devCtx.SubscribedPoints = make(map[string]model.Point)
-	}
-	newPoints := false
-	for _, p := range points {
-		if _, ok := devCtx.SubscribedPoints[p.ID]; !ok {
-			devCtx.SubscribedPoints[p.ID] = p
-			newPoints = true
-		}
-	}
-	devCtx.CacheMu.Unlock()
+	scheduler := devCtx.Scheduler
+	devCtx.ReadMu.Lock()
 	d.mu.Unlock()
+	defer devCtx.ReadMu.Unlock()
 
-	// Ensure Polling is running
-	d.StartPolling(targetID)
+	raw, err := scheduler.Read(ctx, points)
+	now := time.Now()
+	results := make(map[string]model.Value, len(points))
+	failed := 0
 
-	// Return Cache
-	results := make(map[string]model.Value)
-	devCtx.CacheMu.RLock()
 	for _, p := range points {
-		if v, ok := devCtx.LastValues[p.ID]; ok {
-			results[p.ID] = v
+		v, ok := raw[p.ID]
+		if !ok {
+			failed++
+			results[p.ID] = model.Value{
+				PointID:  p.ID,
+				DeviceID: sID,
+				Quality:  "Bad",
+				TS:       now,
+			}
+			continue
+		}
+		if v.Value != nil {
+			v.Value = normalizePresentValue(v.Value)
+		}
+		if v.Quality == "" {
+			if v.Value == nil {
+				v.Quality = "Bad"
+			} else {
+				v.Quality = "Good"
+			}
+		}
+		if v.TS.IsZero() {
+			v.TS = now
+		}
+		v.DeviceID = sID
+		results[p.ID] = v
+		if v.Value == nil || v.Quality == "Bad" {
+			failed++
 		}
 	}
-	devCtx.CacheMu.RUnlock()
 
-	// If cache missed new points or empty, trigger immediate poll
-	if newPoints || len(results) < len(points) {
-		go d.pollDevice(targetID)
+	if err == nil && failed == 0 {
+		d.mu.Lock()
+		if devCtx, ok := d.deviceContexts[targetID]; ok {
+			devCtx.State = DeviceStateOnline
+			devCtx.ConsecutiveFailures = 0
+			applyFreshReadToCache(devCtx, sID, results)
+		}
+		d.mu.Unlock()
+		return results, nil
 	}
 
-	return results, nil
+	if err != nil {
+		return results, err
+	}
+	return results, fmt.Errorf("incomplete read for device %s: %d/%d points failed", sID, failed, len(points))
 }
 
 func (d *BACnetDriver) checkRecovery(deviceID int) {
@@ -729,8 +741,10 @@ func (d *BACnetDriver) SetDeviceConfig(config map[string]any) error {
 			if d.idMap == nil {
 				d.idMap = make(map[string]int)
 			}
-			d.idMap[sID] = newID
-			zap.L().Debug("Mapped DeviceID string to InstanceID", zap.String("id", sID), zap.Int("instance", newID))
+			if existing, mapped := d.idMap[sID]; !mapped || existing != newID {
+				d.idMap[sID] = newID
+				zap.L().Debug("Mapped DeviceID string to InstanceID", zap.String("id", sID), zap.Int("instance", newID))
+			}
 		}
 	}
 
@@ -750,12 +764,6 @@ func (d *BACnetDriver) SetDeviceConfig(config map[string]any) error {
 		}
 	}
 
-	zap.L().Debug("SetDeviceConfig",
-		zap.Int("new_id", newID),
-		zap.String("ip", ip),
-		zap.Int("port", port),
-		zap.Bool("connected", d.connected))
-
 	if newID != 0 {
 		// Only discover if context missing or config changed or scheduler is nil
 		ctx, exists := d.deviceContexts[newID]
@@ -773,6 +781,14 @@ func (d *BACnetDriver) SetDeviceConfig(config map[string]any) error {
 			if ctx.Scheduler == nil {
 				needDiscovery = true
 			}
+		}
+
+		if needDiscovery {
+			zap.L().Debug("SetDeviceConfig",
+				zap.Int("new_id", newID),
+				zap.String("ip", ip),
+				zap.Int("port", port),
+				zap.Bool("connected", d.connected))
 		}
 
 		if needDiscovery {
@@ -1220,6 +1236,15 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 
 	wgEnrich.Wait()
 
+	existingIDs := parseExistingDeviceIDs(params)
+	for i := range results {
+		if _, ok := existingIDs[results[i].DeviceID]; ok {
+			results[i].DiffStatus = "existing"
+		} else {
+			results[i].DiffStatus = "new"
+		}
+	}
+
 	// Log the results for debugging
 	if data, err := json.Marshal(results); err == nil {
 		zap.L().Info("Scan results", zap.String("json", string(data)))
@@ -1240,6 +1265,38 @@ type ScanResult struct {
 	MaxAPDU      uint32 `json:"max_apdu"`
 	Segmentation uint32 `json:"segmentation"`
 	Status       string `json:"status"`
+	DiffStatus   string `json:"diff_status,omitempty"` // new, existing
+}
+
+func parseExistingDeviceIDs(params map[string]any) map[int]struct{} {
+	out := make(map[int]struct{})
+	if params == nil {
+		return out
+	}
+	v, ok := params["existing_device_ids"]
+	if !ok {
+		return out
+	}
+	switch ids := v.(type) {
+	case []int:
+		for _, id := range ids {
+			out[id] = struct{}{}
+		}
+	case []float64:
+		for _, id := range ids {
+			out[int(id)] = struct{}{}
+		}
+	case []any:
+		for _, item := range ids {
+			switch id := item.(type) {
+			case int:
+				out[id] = struct{}{}
+			case float64:
+				out[int(id)] = struct{}{}
+			}
+		}
+	}
+	return out
 }
 
 type ObjectResult struct {
@@ -1717,9 +1774,8 @@ func (d *BACnetDriver) GetMetrics() model.ChannelMetrics {
 		if ctx.State == DeviceStateOnline {
 			onlineDevices++
 		}
-		totalPoints += len(ctx.SubscribedPoints)
-		// 简单计算成功点位（这里可以根据实际缓存状态计算）
 		if ctx.LastValues != nil {
+			totalPoints += len(ctx.LastValues)
 			successfulPoints += len(ctx.LastValues)
 		}
 	}

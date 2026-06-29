@@ -53,6 +53,13 @@ type OpcUaDriver struct {
 	successCount  int64
 	failureCount  int64
 
+	// RTT metrics (direct Read RPC only)
+	rttMu    sync.Mutex
+	rttSumMs int64
+	rttCount int64
+	minRttMs int64
+	maxRttMs int64
+
 	maxNodesPerRead int // OPC UA 批量读上限，自适应调整
 }
 
@@ -112,7 +119,9 @@ func (d *OpcUaDriver) resolveEndpointInConfig(config map[string]any) (string, er
 
 func (d *OpcUaDriver) Connect(ctx context.Context) error {
 	d.connectionStartTime = time.Now()
-	d.reconnectCount++
+	if mc := model.GetGlobalMetricsCollector(); mc != nil && d.config.ChannelID != "" {
+		mc.RecordConnectionStart(d.config.ChannelID)
+	}
 	return nil
 }
 
@@ -341,6 +350,8 @@ func (d *OpcUaDriver) GetMetrics() model.ChannelMetrics {
 		successRate = float64(successCount) / float64(totalRequests)
 	}
 
+	avgRtt, minRtt, maxRtt := d.rttSnapshot()
+
 	// 构建指标
 	metrics := model.ChannelMetrics{
 		QualityScore:       d.calculateQualityScore(),
@@ -351,9 +362,9 @@ func (d *OpcUaDriver) GetMetrics() model.ChannelMetrics {
 		CrcErrorRate:       0.0,
 		RetryRate:          0.0, // 可以后续添加重试统计
 		ExceptionCode:      0,
-		AvgRtt:             0, // 可以后续添加RTT统计
-		MaxRtt:             0,
-		MinRtt:             0,
+		AvgRtt:             avgRtt,
+		MaxRtt:             maxRtt,
+		MinRtt:             minRtt,
 		TotalRequests:      totalRequests,
 		SuccessCount:       successCount,
 		FailureCount:       failureCount,
@@ -375,8 +386,8 @@ func (d *OpcUaDriver) calculateQualityScore() int {
 		return 0 // 未连接
 	}
 
-	// 基础分数80分
-	score := 80
+	// 基础分数70分
+	score := 70
 
 	// 根据重连次数降低分数
 	if d.reconnectCount > 10 {
@@ -387,7 +398,20 @@ func (d *OpcUaDriver) calculateQualityScore() int {
 		score -= 5
 	}
 
-	// 确保分数在0-100范围内
+	// 根据成功率调整分数
+	total := d.totalRequests
+	success := d.successCount
+	if total > 0 {
+		rate := float64(success) / float64(total)
+		if rate > 0.95 {
+			score += 20
+		} else if rate > 0.90 {
+			score += 10
+		} else if rate < 0.80 {
+			score -= 10
+		}
+	}
+
 	if score < 0 {
 		score = 0
 	} else if score > 100 {
@@ -395,6 +419,56 @@ func (d *OpcUaDriver) calculateQualityScore() int {
 	}
 
 	return score
+}
+
+func (d *OpcUaDriver) avgRttMs() float64 {
+	avg, _, _ := d.rttSnapshot()
+	return avg
+}
+
+func (d *OpcUaDriver) rttSnapshot() (avg, min, max float64) {
+	d.rttMu.Lock()
+	defer d.rttMu.Unlock()
+	if d.rttCount > 0 {
+		avg = float64(d.rttSumMs) / float64(d.rttCount)
+	}
+	return avg, float64(d.minRttMs), float64(d.maxRttMs)
+}
+
+func (d *OpcUaDriver) recordRtt(duration time.Duration) {
+	ms := duration.Milliseconds()
+	if ms <= 0 && duration > 0 {
+		ms = 1
+	}
+	d.rttMu.Lock()
+	defer d.rttMu.Unlock()
+	d.rttSumMs += ms
+	d.rttCount++
+	if d.minRttMs == 0 || ms < d.minRttMs {
+		d.minRttMs = ms
+	}
+	if ms > d.maxRttMs {
+		d.maxRttMs = ms
+	}
+}
+
+func (d *OpcUaDriver) recordReadOutcome(start time.Time, success bool, errorType string) {
+	d.totalRequests++
+	if success {
+		d.successCount++
+	} else {
+		d.failureCount++
+	}
+	if mc := model.GetGlobalMetricsCollector(); mc != nil && d.config.ChannelID != "" {
+		mc.RecordRequest(d.config.ChannelID, success, time.Since(start), errorType)
+	}
+}
+
+func (d *OpcUaDriver) recordReconnect() {
+	d.reconnectCount++
+	if mc := model.GetGlobalMetricsCollector(); mc != nil && d.config.ChannelID != "" {
+		mc.RecordReconnect(d.config.ChannelID)
+	}
 }
 
 // Scan implements Scanner interface for OPC-UA device discovery
@@ -447,9 +521,8 @@ func (d *OpcUaDriver) Scan(ctx context.Context, params map[string]any) (any, err
 		return nil, fmt.Errorf("failed to get server info: %v", err)
 	}
 
-	// Return device info
+	// Return device info (endpoint is the connection target; device ID is assigned on add)
 	device := map[string]any{
-		"device_id":   endpoint,
 		"endpoint":    endpoint,
 		"name":        "OPC UA Server",
 		"description": "OPC UA Server at " + endpoint,
@@ -491,6 +564,7 @@ func (d *OpcUaDriver) reconnect(w *ClientWrapper) {
 			d.mu.Lock()
 			w.Connected = true
 			w.connMgr.RecordSuccess()
+			d.recordReconnect()
 			d.mu.Unlock()
 			zap.L().Info("[OPC UA] Reconnected", zap.String("endpoint", w.Endpoint))
 			return
@@ -556,18 +630,24 @@ func (d *OpcUaDriver) buildClientOptions(config map[string]any) ([]opcua.Option,
 }
 
 func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map[string]model.Value, error) {
+	startTime := time.Now()
+
+	if len(points) == 0 {
+		return nil, nil
+	}
+
 	d.mu.Lock()
 	client := d.activeClient
 	d.mu.Unlock()
 
 	if client == nil {
-		d.failureCount++
+		d.recordReadOutcome(startTime, false, "network")
 		return nil, fmt.Errorf("no active client")
 	}
 	if !client.Connected {
 		canRetry, waitTime := client.connMgr.CanRetry()
 		if !canRetry {
-			d.failureCount++
+			d.recordReadOutcome(startTime, false, "network")
 			return nil, fmt.Errorf("client not connected, cannot retry")
 		}
 		if waitTime > 0 {
@@ -575,37 +655,26 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 		}
 
 		if err := client.Client.Connect(ctx); err != nil {
-			d.failureCount++
 			client.connMgr.RecordFailure()
+			d.recordReadOutcome(startTime, false, "network")
 			return nil, fmt.Errorf("client not connected: %v", err)
 		}
 		d.mu.Lock()
 		client.Connected = true
 		client.connMgr.RecordSuccess()
+		d.recordReconnect()
 		d.mu.Unlock()
 	}
 
-	if len(points) == 0 {
-		return nil, nil
-	}
-
-	d.totalRequests++
-
 	deviceID := points[0].DeviceID
-	// Identify if we should use subscription or direct read.
-	// For now, default to subscription as requested.
 
-	// Get Subscription
 	sub := d.ensureSubscription(ctx, client, deviceID, points)
 
-	// If subscription failed, fallback to direct read?
-	// For now, let's try to return from cache.
 	if sub != nil {
 		sub.mu.RLock()
 		defer sub.mu.RUnlock()
 
 		result := make(map[string]model.Value)
-		// Check if we have values
 		missing := false
 		for _, p := range points {
 			if v, ok := sub.Cache[p.ID]; ok {
@@ -613,35 +682,43 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 				zap.L().Debug("[OPC UA] Read (Cache)", zap.String("point", p.ID), zap.Any("value", v.Value), zap.String("quality", v.Quality))
 			} else {
 				missing = true
-				// Return Bad quality if missing
 				result[p.ID] = model.Value{
 					PointID: p.ID,
 					Quality: "Bad",
 					Value:   0,
 					TS:      time.Now(),
 				}
-				//				zap.L().Warn("[OPC UA] Cache Miss or Nil", zap.String("point", p.ID))
 			}
 		}
 
 		if !missing {
 			stampCollectionTime(result)
+			d.recordReadOutcome(startTime, true, "")
 			return result, nil
 		}
-
-		// If missing, log it and fallback to direct read for ALL points to ensure consistency
-		//		zap.L().Warn("[OPC UA] Cache missing or incomplete", zap.Int("count", len(points)))
 	} else {
 		zap.L().Debug("[OPC UA] No subscription, using direct read")
 	}
 
-	// Fallback to direct read (also used for initial value population)
 	result, err := d.readDirect(ctx, client, points)
 	if err != nil {
-		return nil, err
+		d.recordReadOutcome(startTime, false, classifyOpcUaReadError(err))
+		return result, err
 	}
 	stampCollectionTime(result)
+	d.recordReadOutcome(startTime, true, "")
 	return result, nil
+}
+
+func classifyOpcUaReadError(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "timeout") || errors.Is(err, context.DeadlineExceeded) {
+		return "timeout"
+	}
+	return "network"
 }
 
 // stampCollectionTime sets TS to the local poll time so UI shows last collection, not last server-side change.
@@ -883,18 +960,17 @@ func (d *OpcUaDriver) readDirectBatch(ctx context.Context, client *ClientWrapper
 		}
 	}
 
+	readStart := time.Now()
 	resp, err := client.Client.Read(ctx, req)
+	readDuration := time.Since(readStart)
 	if err != nil {
-		d.failureCount++
 		return nil, err
 	}
 	if resp.Results == nil || len(resp.Results) != len(points) {
-		d.failureCount++
 		return nil, fmt.Errorf("invalid read response")
 	}
 
-	// Increment success count for direct read
-	d.successCount++
+	d.recordRtt(readDuration)
 
 	result := make(map[string]model.Value)
 	now := time.Now()

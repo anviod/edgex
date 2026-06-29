@@ -158,3 +158,29 @@ func TestScenario_ConcurrentSchedulerStats(t *testing.T) {
 	assert.Equal(t, int64(20), total)
 	assert.Equal(t, int64(20), success)
 }
+
+func TestScenario_DeviceFaultIsolation(t *testing.T) {
+	addr, _ := EncodeMeterAddress("210220003011")
+	di, _ := ParseDataID("02-01-01-00")
+	respFrame := buildFrame(addr, CtrlReadResp, encode033(append(di[:], 0x20, 0x02)))
+
+	transport := NewDLT645Transport(map[string]any{
+		"connectionType": "tcp",
+		"ip":             "127.0.0.1",
+		"timeout":        float64(1000),
+	})
+	transport.linkFactory = func(cfg transportConfig) (frameLink, error) {
+		return &responseQueueLink{frame: respFrame}, nil
+	}
+	require.NoError(t, transport.Connect(context.Background()))
+	defer transport.Disconnect()
+
+	scheduler := NewDLT645Scheduler(transport, NewDLT645Decoder())
+	results, err := scheduler.ReadPoints(context.Background(), []model.Point{
+		{ID: "good", Address: "210220003011#02-01-01-00", DataType: "UINT16"},
+		{ID: "bad", Address: "INVALID", DataType: "UINT16"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Good", results["good"].Quality)
+	assert.Equal(t, "Bad", results["bad"].Quality)
+}

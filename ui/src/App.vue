@@ -104,11 +104,7 @@
     </header>
 
     <main class="main-content" :class="{ 'has-sidebar': !isLoginPage, 'is-collapsed': drawerRail }">
-      <div
-        v-if="!isLoginPage"
-        class="page-container"
-        :class="{ 'page-container--wide': isWidePage }"
-      >
+      <div v-if="!isLoginPage" class="page-container">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <component v-if="Component" :is="Component" :key="$route.fullPath" />
@@ -123,6 +119,18 @@
     </main>
 
     <change-password-dialog ref="changePwdRef" />
+
+    <a-modal
+      v-model:visible="restartModalVisible"
+      title="重启系统"
+      ok-text="确认重启"
+      cancel-text="取消"
+      status="warning"
+      @ok="confirmRestart"
+    >
+      <p>确定要重启系统吗？</p>
+      <p class="text-secondary">服务将暂时不可用，重启过程可能需要几分钟时间。</p>
+    </a-modal>
 
     <a-notification
       v-model:visible="snackbar.show"
@@ -158,6 +166,7 @@ const drawerRail = ref(false)
 const snackbar = globalState.snackbar
 const user = userStore()
 const changePwdRef = ref(null)
+const restartModalVisible = ref(false)
 const isDarkTheme = ref(false)
 
 const systemVersion = ref('dev')
@@ -165,8 +174,6 @@ const buildTime = ref('')
 const commitID = ref('')
 
 const isLoginPage = computed(() => route.path === '/login' || route.path === '/install')
-
-const isWidePage = computed(() => route.path === '/' || route.path === '/logs')
 
 const breadcrumb = computed(() => {
   const parts = []
@@ -261,13 +268,16 @@ const handleLogout = async () => {
 }
 
 const handleRestart = () => {
-  if (confirm('确定要重启系统吗？服务将暂时不可用。')) {
-    LoginApi.restartSystem().then(() => {
-      showMessage('系统正在重启...', 'warning')
-      setTimeout(() => window.location.reload(), 5000)
-    }).catch(e => {
-      showMessage('重启指令发送失败: ' + e.message, 'error')
-    })
-  }
+  restartModalVisible.value = true
+}
+
+const confirmRestart = () => {
+  restartModalVisible.value = false
+  LoginApi.restartSystem().then(() => {
+    showMessage('系统正在重启...', 'warning')
+    setTimeout(() => window.location.reload(), 5000)
+  }).catch(e => {
+    showMessage('重启指令发送失败: ' + e.message, 'error')
+  })
 }
 </script>

@@ -345,11 +345,21 @@
         </div>
       </main>
     </div>
+
+    <a-modal
+      v-model:visible="infoDialog.visible"
+      :title="infoDialog.title"
+      ok-text="确定"
+      hide-cancel
+      @ok="infoDialog.visible = false"
+    >
+      <p>{{ infoDialog.message }}</p>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -654,6 +664,18 @@ function formatYaml(obj, indent = 0) {
   return yaml
 }
 
+const infoDialog = reactive({
+  visible: false,
+  title: '',
+  message: ''
+})
+
+function showInfo(title, message) {
+  infoDialog.title = title
+  infoDialog.message = message
+  infoDialog.visible = true
+}
+
 function loadNodeData(nodeId) {
   console.log('Loading data for node:', nodeId)
 }
@@ -663,11 +685,11 @@ function refreshTree() {
 }
 
 function syncAll() {
-  alert(`同步 ${selectedNode.value?.name} 的全部配置`)
+  showInfo('同步配置', `同步 ${selectedNode.value?.name} 的全部配置`)
 }
 
 function viewItem() {
-  alert('查看配置详情')
+  showInfo('配置详情', '查看配置详情')
 }
 
 function compareItem() {
@@ -676,7 +698,7 @@ function compareItem() {
 
 function syncItem() {
   if (selectedItem.value?.hasDiff) {
-    alert(`同步 ${selectedItem.value.name}`)
+    showInfo('同步配置', `同步 ${selectedItem.value.name}`)
   }
 }
 

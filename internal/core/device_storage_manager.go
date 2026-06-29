@@ -163,6 +163,9 @@ func (m *DeviceStorageManager) collectSnapshotFromShadow(deviceID string) map[st
 
 	data := make(map[string]any, len(device.Points))
 	for pointID, pt := range device.Points {
+		if pt.Value == nil {
+			continue
+		}
 		data[pointID] = pt.Value
 	}
 	return data

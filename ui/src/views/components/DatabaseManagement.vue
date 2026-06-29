@@ -53,13 +53,51 @@
       </template>
       <a-alert type="info" show-icon :closable="false" class="mb-block">
         配置库包含设备配置、通道、点位、用户、系统设置等关键数据。
-        <strong>配置库不可清理</strong>，建议定期备份。
+        <strong>配置库不可清理</strong>，建议定期备份或导出。
       </a-alert>
+
+      <a-collapse :bordered="false" class="help-collapse mb-block">
+        <a-collapse-item header="导入/导出说明" key="import-export-help">
+          <div class="help-content">
+            <p><strong>导出配置数据库</strong>：将 <code>config.db</code> 打包为 <code>.tar.gz</code> 下载，包含通道、设备、点位、北向、边缘规则、系统设置等。</p>
+            <p><strong>导出运行时数据</strong>：将 <code>runtime.db</code> 打包为 <code>.tar.gz</code> 下载，包含实时值快照、缓存、历史数据等（不含配置）。</p>
+            <p><strong>导入配置数据库</strong>：上传此前导出的配置库 <code>.tar.gz</code> 文件，将覆盖当前网关的采集与业务配置。</p>
+            <p><strong>强制拉取远程覆盖本地</strong>：从另一台 EdgeX 网关 HTTP 拉取其配置库并<strong>完全覆盖</strong>本机（含用户密码与端口）。</p>
+            <ul>
+              <li>普通导入时<strong>不会覆盖</strong>本机已有<strong>用户账号与密码</strong>，避免导入后无法登录。</li>
+              <li>普通导入时<strong>不会覆盖</strong>本机当前<strong>服务器端口</strong>，避免 Web 服务端口冲突导致无法访问。</li>
+              <li>勾选「强制覆盖」或执行远程拉取时，将覆盖用户账号/密码与服务器端口，请谨慎操作。</li>
+              <li>远程拉取需目标网关可访问，且提供有效登录 Token（若目标启用了鉴权）。</li>
+              <li>导入或拉取完成后建议<strong>重启网关服务</strong>，使驱动与采集任务加载新配置。</li>
+              <li>操作前建议先执行「备份配置库」或「导出配置数据库」，以便回滚。</li>
+            </ul>
+          </div>
+        </a-collapse-item>
+      </a-collapse>
+
       <div class="action-group">
-        <a-button type="primary" status="success" @click="handleBackupConfig" :loading="backupLoading">
+        <a-button type="primary" status="success" @click="handleExportConfigDB" :loading="exportConfigLoading">
           <template #icon><icon-download /></template>
-          备份配置库
+          导出配置数据库
         </a-button>
+        <a-button type="outline" status="success" @click="handleBackupConfig" :loading="backupLoading">
+          <template #icon><icon-save /></template>
+          备份到本地目录
+        </a-button>
+        <a-upload
+          :show-file-list="false"
+          accept=".tar.gz,.tgz"
+          :custom-request="handleImportConfigDB"
+          :disabled="importConfigLoading"
+        >
+          <a-button type="outline" status="warning" :loading="importConfigLoading">
+            <template #icon><icon-upload /></template>
+            导入配置数据库
+          </a-button>
+        </a-upload>
+        <a-checkbox v-model="importForceOverwrite" class="force-overwrite-check">
+          强制覆盖（含用户密码与端口）
+        </a-checkbox>
         <a-button type="outline" @click="handleRefresh" :loading="loading">
           <template #icon><icon-refresh /></template>
           刷新统计
@@ -72,6 +110,35 @@
           备份文件：{{ backupResult.backup_path }}<br />
           文件大小：{{ backupResult.size_display }}
         </a-alert>
+      </div>
+      <div v-if="importResult" class="import-result">
+        <a-alert type="success" show-icon :closable="true" @close="importResult = null">
+          <template #title>导入成功</template>
+          {{ importResult.message }}<br />
+          已导入 {{ importResult.channel_count }} 个通道、{{ importResult.device_count }} 个设备配置<br />
+          <span v-if="importResult.remote_source">远程来源：{{ importResult.remote_source }}<br /></span>
+          服务器端口：{{ importResult.preserved_port }}
+        </a-alert>
+      </div>
+
+      <a-divider orientation="left" class="section-divider">远程配置拉取</a-divider>
+      <a-alert type="warning" show-icon :closable="false" class="mb-block">
+        从远程 EdgeX 网关拉取配置库并<strong>强制覆盖</strong>本机全部配置（含用户账号/密码与服务器端口）。请确保目标地址正确，操作前请先备份。
+      </a-alert>
+      <div class="remote-pull-form">
+        <a-input v-model="remotePullForm.host" placeholder="远程网关 IP 或域名" allow-clear />
+        <a-input-number v-model="remotePullForm.port" :min="1" :max="65535" placeholder="端口" />
+        <a-input-password v-model="remotePullForm.token" placeholder="远程 Token（可选）" allow-clear />
+        <a-checkbox v-model="remotePullForm.useHttps">使用 HTTPS</a-checkbox>
+        <a-button
+          type="primary"
+          status="danger"
+          :loading="remotePullLoading"
+          @click="openRemotePullConfirm"
+        >
+          <template #icon><icon-download /></template>
+          强制拉取远程覆盖本地
+        </a-button>
       </div>
     </a-card>
 
@@ -110,6 +177,10 @@
       </div>
 
       <div class="action-group">
+        <a-button type="primary" status="warning" @click="handleExportRuntimeDB" :loading="exportRuntimeLoading">
+          <template #icon><icon-download /></template>
+          导出运行时数据
+        </a-button>
         <a-button type="primary" status="warning" @click="handleClearCache" :loading="loading">
           <template #icon><icon-delete /></template>
           清空运行缓存
@@ -233,21 +304,48 @@
         我已了解此操作的影响
       </a-checkbox>
     </a-modal>
+
+    <a-modal
+      v-model:visible="remotePullConfirmVisible"
+      title="确认强制拉取远程配置"
+      @ok="handlePullRemoteConfig"
+      @cancel="remotePullConfirmVisible = false"
+      ok-text="确认拉取"
+      cancel-text="取消"
+      :ok-button-props="{ status: 'danger' }"
+    >
+      <p>
+        将从 <strong>{{ remotePullForm.host }}:{{ remotePullForm.port || 8080 }}</strong>
+        拉取配置并<strong>完全覆盖</strong>本机，包括用户账号/密码与服务器端口。
+      </p>
+      <p>此操作不可自动撤销，请确认已备份本机配置。</p>
+      <a-checkbox v-model="remotePullConfirmChecked" class="mt-3">
+        我已了解此操作的影响
+      </a-checkbox>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import axios from 'axios'
 import { Message } from '@arco-design/web-vue'
-import { IconRefresh, IconDelete, IconDownload, IconShrink, IconSwap } from '@arco-design/web-vue/es/icon'
+import { IconRefresh, IconDelete, IconDownload, IconShrink, IconSwap, IconUpload, IconSave } from '@arco-design/web-vue/es/icon'
 import request from '../../utils/request'
+import { downloadBytes } from '../../utils/decode'
 
 const stats = ref({})
 const loading = ref(false)
 const backupLoading = ref(false)
+const exportConfigLoading = ref(false)
+const exportRuntimeLoading = ref(false)
+const importConfigLoading = ref(false)
+const remotePullLoading = ref(false)
+const importForceOverwrite = ref(false)
 const compactLoading = ref(false)
 const migrateLoading = ref(false)
 const backupResult = ref(null)
+const importResult = ref(null)
 const compactResult = ref(null)
 const migrateResult = ref(null)
 
@@ -257,6 +355,15 @@ const confirmMessage = ref('')
 const confirmBuckets = ref([])
 const confirmMode = ref('')
 const confirmChecked = ref(false)
+
+const remotePullConfirmVisible = ref(false)
+const remotePullConfirmChecked = ref(false)
+const remotePullForm = ref({
+  host: '',
+  port: 8080,
+  token: '',
+  useHttps: false,
+})
 
 const pagination = {
   pageSize: 10,
@@ -339,6 +446,39 @@ const showMessage = (content, type = 'info') => {
   Message[msgMap[type] || 'info']({ content })
 }
 
+const getAuthHeaders = () => {
+  const headers = {}
+  try {
+    const raw = localStorage.getItem('loginInfo')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      const token = parsed.token || (parsed.data && parsed.data.token) || ''
+      if (token) {
+        headers.token = token
+        headers.Authorization = `Bearer ${token}`
+      }
+    }
+  } catch (e) {
+    console.error('Failed to get token', e)
+  }
+  return headers
+}
+
+const parseFilename = (contentDisposition, fallback) => {
+  if (!contentDisposition) return fallback
+  const match = /filename="?([^";]+)"?/i.exec(contentDisposition)
+  return match?.[1] || fallback
+}
+
+const downloadArchive = async (url, fallbackFilename) => {
+  const res = await axios.get(url, {
+    responseType: 'blob',
+    headers: getAuthHeaders(),
+  })
+  const filename = parseFilename(res.headers['content-disposition'], fallbackFilename)
+  downloadBytes(res.data, filename)
+}
+
 const fetchStats = async () => {
   loading.value = true
   try {
@@ -368,6 +508,100 @@ const handleBackupConfig = async () => {
     showMessage(error?.response?.data?.error || '备份失败', 'error')
   } finally {
     backupLoading.value = false
+  }
+}
+
+const handleExportConfigDB = async () => {
+  exportConfigLoading.value = true
+  try {
+    await downloadArchive('/api/data/export-config-db', `edgex-config-${Date.now()}.tar.gz`)
+    showMessage('配置库导出成功', 'success')
+  } catch (error) {
+    console.error('Export config db failed:', error)
+    showMessage(error?.response?.data?.error || '导出失败', 'error')
+  } finally {
+    exportConfigLoading.value = false
+  }
+}
+
+const handleExportRuntimeDB = async () => {
+  exportRuntimeLoading.value = true
+  try {
+    await downloadArchive('/api/data/export-runtime-db', `edgex-runtime-${Date.now()}.tar.gz`)
+    showMessage('运行时数据导出成功', 'success')
+  } catch (error) {
+    console.error('Export runtime db failed:', error)
+    showMessage(error?.response?.data?.error || '导出失败', 'error')
+  } finally {
+    exportRuntimeLoading.value = false
+  }
+}
+
+const handleImportConfigDB = async (option) => {
+  const file = option?.fileItem?.file
+  if (!file) {
+    showMessage('请选择 .tar.gz 配置文件', 'warning')
+    return
+  }
+
+  importConfigLoading.value = true
+  importResult.value = null
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('force_overwrite', importForceOverwrite.value ? 'true' : 'false')
+    const res = await axios.post('/api/data/import-config-db', formData, {
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    importResult.value = res.data
+    showMessage('配置库导入成功', 'success')
+    await fetchStats()
+    option.onSuccess?.(res.data)
+  } catch (error) {
+    console.error('Import config db failed:', error)
+    const msg = error?.response?.data?.error || '导入失败'
+    showMessage(msg, 'error')
+    option.onError?.(error)
+  } finally {
+    importConfigLoading.value = false
+  }
+}
+
+const openRemotePullConfirm = () => {
+  if (!remotePullForm.value.host?.trim()) {
+    showMessage('请输入远程网关地址', 'warning')
+    return
+  }
+  remotePullConfirmChecked.value = false
+  remotePullConfirmVisible.value = true
+}
+
+const handlePullRemoteConfig = async () => {
+  if (!remotePullConfirmChecked.value) {
+    showMessage('请先勾选「我已了解此操作的影响」', 'warning')
+    return
+  }
+  remotePullConfirmVisible.value = false
+  remotePullLoading.value = true
+  importResult.value = null
+  try {
+    const res = await request.post('/api/data/pull-remote-config', {
+      host: remotePullForm.value.host.trim(),
+      port: remotePullForm.value.port || 8080,
+      token: remotePullForm.value.token || '',
+      use_https: remotePullForm.value.useHttps,
+    })
+    importResult.value = res
+    showMessage('远程配置拉取成功', 'success')
+    await fetchStats()
+  } catch (error) {
+    console.error('Pull remote config failed:', error)
+    showMessage(error?.response?.data?.error || '远程拉取失败', 'error')
+  } finally {
+    remotePullLoading.value = false
   }
 }
 
@@ -476,4 +710,33 @@ onMounted(() => {
 
 <style scoped>
 /* v3.0 — styles in src/styles/system-settings.css */
+.help-content p {
+  margin: 0 0 8px;
+}
+.help-content ul {
+  margin: 0;
+  padding-left: 20px;
+}
+.help-content li {
+  margin-bottom: 4px;
+}
+.backup-result,
+.import-result,
+.compact-result,
+.migrate-result {
+  margin-top: 12px;
+}
+.remote-pull-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.remote-pull-form .arco-input-wrapper,
+.remote-pull-form .arco-input-number {
+  width: 220px;
+}
+.force-overwrite-check {
+  margin-left: 4px;
+}
 </style>

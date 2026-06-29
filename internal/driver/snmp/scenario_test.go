@@ -2,6 +2,7 @@ package snmp
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -97,4 +98,39 @@ func TestScenario_ConcurrentSchedulerStats(t *testing.T) {
 	total, success, _ := scheduler.GetStats()
 	assert.Equal(t, int64(20), total)
 	assert.Equal(t, int64(20), success)
+}
+
+func TestScenario_ConnectProbeFailureLeavesDisconnected(t *testing.T) {
+	transport := NewSNMPTransport(map[string]any{
+		"ip":      "127.0.0.1",
+		"port":    59996,
+		"timeout": 100,
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	err := transport.Connect(ctx)
+	require.Error(t, err)
+	assert.False(t, transport.IsConnected())
+}
+
+func TestScenario_DeviceFaultIsolation(t *testing.T) {
+	transport := NewSNMPTransport(map[string]any{"ip": "127.0.0.1", "community": "public"})
+	transport.getHook = func(oids []string, community string) ([]gosnmp.SnmpPDU, error) {
+		if oids[0] == "1.3.6.1.2.1.1.1.0" {
+			return []gosnmp.SnmpPDU{{Name: oids[0], Type: gosnmp.Integer, Value: 1}}, nil
+		}
+		return nil, fmt.Errorf("no such oid")
+	}
+	transport.connected.Store(true)
+	transport.client = &gosnmp.GoSNMP{}
+
+	scheduler := NewSNMPScheduler(transport, NewSNMPDecoder(), map[string]any{"community": "public"})
+	results, err := scheduler.ReadPoints(context.Background(), []model.Point{
+		{ID: "good", Address: "public|1.3.6.1.2.1.1.1.0", DataType: "INT32"},
+		{ID: "bad", Address: "public|9.9.9.9.0", DataType: "INT32"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Good", results["good"].Quality)
+	assert.Equal(t, "Bad", results["bad"].Quality)
+	assert.True(t, transport.IsConnected())
 }

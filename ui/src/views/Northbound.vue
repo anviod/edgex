@@ -122,11 +122,24 @@
     <StatsDialog v-model:visible="sparkplugStatsVisible" type="sparkplug_b" :item-id="sparkplugStatsId" />
     <StatsDialog v-model:visible="edgeosMQTTStatsVisible" type="edgeos-mqtt" :item-id="edgeosMQTTStatsId" />
     <StatsDialog v-model:visible="edgeosNATSStatsVisible" type="edgeos-nats" :item-id="edgeosNATSStatsId" />
+
+    <a-modal
+      v-model:visible="deleteDialog.visible"
+      title="确认删除"
+      ok-text="确认删除"
+      cancel-text="取消"
+      :ok-button-props="{ status: 'danger' }"
+      @ok="executeDeleteProtocol"
+      @cancel="deleteDialog.visible = false"
+    >
+      <p>确定要删除该北向通道吗？</p>
+      <p class="text-secondary">此操作不可撤销。</p>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { IconPlus, IconUpload, IconSend, IconStorage } from '@arco-design/web-vue/es/icon'
 import { Message } from '@arco-design/web-vue'
 import { showMessage } from '@/composables/useGlobalState'
@@ -275,11 +288,22 @@ const onStats = (type, item) => {
   if (idRef) { idRef.value = item.id; visRef.value = true }
 }
 
-const deleteProtocol = async (type, id) => {
-  if (!confirm('确定要删除该通道吗？')) return
+const deleteDialog = reactive({ visible: false, type: '', id: '' })
+
+const deleteProtocol = (type, id) => {
+  deleteDialog.type = type
+  deleteDialog.id = id
+  deleteDialog.visible = true
+}
+
+const executeDeleteProtocol = async () => {
+  const { type, id } = deleteDialog
+  if (!type || !id) return
+
   try {
     await request.delete(`/api/northbound/${type}/${id}`)
     showMessage('删除成功', 'success')
+    deleteDialog.visible = false
     fetchConfig()
   } catch (e) {
     showMessage('删除失败: ' + e.message, 'error')

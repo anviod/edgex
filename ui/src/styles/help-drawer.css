@@ -346,6 +346,90 @@
   border-radius: var(--radius-sm);
 }
 
+/* ── Flow diagram (vertical, compact for 560px drawer) ── */
+.help-doc-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin: 12px 0 4px;
+  padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.help-doc-flow__node {
+  width: 100%;
+  max-width: 300px;
+  padding: 7px 12px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  line-height: 1.45;
+}
+
+.help-doc-flow__node--cond {
+  background: rgba(14, 165, 233, 0.08);
+  border-color: rgba(14, 165, 233, 0.28);
+}
+
+.help-doc-flow__node--action {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.help-doc-flow__node--muted {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.help-doc-flow__arrow {
+  padding: 3px 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  line-height: 1;
+  user-select: none;
+}
+
+.help-doc-example {
+  margin: 10px 0 14px;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  border-left: 3px solid var(--primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.help-doc-example strong {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.help-doc-example code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--bg);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+}
+
+.dark-theme .help-doc-flow__node--cond {
+  background: rgba(14, 165, 233, 0.12);
+}
+
+.dark-theme .help-doc-flow__node--action {
+  background: rgba(34, 197, 94, 0.12);
+}
+
 .dark-theme .channel-help-nav {
   background: var(--bg);
 }

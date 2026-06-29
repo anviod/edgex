@@ -236,7 +236,7 @@
       :title="dialog.isEdit ? '编辑通道' : '添加通道'"
       :width="760"
       modal-class="channel-config-modal"
-      @ok="saveChannel"
+      @before-ok="saveChannel"
     >
       <a-form :model="dialog.form" layout="vertical" class="channel-config-form flow-form form-controls-md">
         <a-form-item field="id" label="ID" required>
@@ -1155,6 +1155,19 @@
       v-model:visible="channelHelpVisible"
       :initial-protocol="helpProtocol"
     />
+
+    <a-modal
+      v-model:visible="deleteDialog.visible"
+      title="确认删除"
+      ok-text="确认删除"
+      cancel-text="取消"
+      :ok-button-props="{ status: 'danger' }"
+      @ok="executeDeleteChannel"
+      @cancel="deleteDialog.visible = false"
+    >
+      <p>确定要删除通道 <strong>{{ deleteDialog.channel?.name }}</strong> 吗？</p>
+      <p class="text-secondary">此操作不可撤销。</p>
+    </a-modal>
   </div>
 </template>
 
@@ -1177,6 +1190,7 @@ const viewMode = ref('card')
 const selectionMode = ref(false)
 const selectedChannels = ref([])
 const channels = ref([])
+let channelsFetchSeq = 0
 
 const dialog = reactive({
   show: false,
@@ -1312,7 +1326,7 @@ const saveChannel = async () => {
   try {
     if (!dialog.form.id || !dialog.form.name) {
       Message.error('请填写完整信息')
-      return
+      return false
     }
 
     if (dialog.form.protocol === 'opc-ua' && dialog.form.config?.url) {
@@ -1334,23 +1348,37 @@ const saveChannel = async () => {
       })
       Message.success('通道添加成功')
     }
-    
-    dialog.show = false
-    fetchChannels()
+
+    await fetchChannels()
+    return true
   } catch (e) {
     Message.error('操作失败: ' + e.message)
+    return false
   }
 }
 
-const deleteChannel = async (channel) => {
-  if (!confirm(`确定要删除通道 "${channel.name}" 吗？`)) return
-  
+const deleteDialog = reactive({
+  visible: false,
+  channel: null
+})
+
+const deleteChannel = (channel) => {
+  deleteDialog.channel = channel
+  deleteDialog.visible = true
+}
+
+const executeDeleteChannel = async () => {
+  const channel = deleteDialog.channel
+  if (!channel) return
+
   try {
     await request({
       url: `/api/channels/${channel.id}`,
       method: 'delete'
     })
     Message.success('通道删除成功')
+    deleteDialog.visible = false
+    deleteDialog.channel = null
     fetchChannels()
   } catch (e) {
     Message.error('删除失败: ' + e.message)
@@ -1413,9 +1441,12 @@ const getRuntimeText = (state) => {
 }
 
 const fetchChannels = async () => {
+  const seq = ++channelsFetchSeq
   loading.value = true
   try {
     const res = await request({ url: '/api/channels', method: 'get' })
+    if (seq !== channelsFetchSeq) return
+
     const rawData = Array.isArray(res) ? res : (res.data || [])
     
     // 第一步：快速展示通道列表（不等待指标）
@@ -1462,6 +1493,8 @@ const fetchChannels = async () => {
         }
       })
     ).then((metricsResults) => {
+      if (seq !== channelsFetchSeq) return
+
       metricsResults.forEach((result) => {
         const channelIndex = channels.value.findIndex(ch => ch.id === result.channelId)
         if (channelIndex >= 0) {
@@ -1484,6 +1517,7 @@ const fetchChannels = async () => {
       console.error('批量加载指标失败:', err)
     })
   } catch (e) {
+    if (seq !== channelsFetchSeq) return
     Message.error('加载通道列表失败: ' + e.message)
     loading.value = false
   }

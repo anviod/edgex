@@ -2,12 +2,8 @@
  * EdgeX v3.0 — 系统设置页（SystemSettings + 子组件）
  */
 
-.system-settings-page {
-  gap: var(--space-4);
-}
-
 .system-settings-page .page-header {
-  margin-bottom: var(--space-2);
+  margin-bottom: 0;
 }
 
 .system-settings-page > .main-tabs {
@@ -35,7 +31,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--section-gap);
-  padding-top: var(--space-1);
+  padding-top: 0;
   min-width: 0;
 }
 

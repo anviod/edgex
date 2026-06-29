@@ -141,6 +141,125 @@ func TestVirtualShadowEngine_MapModeHyphenatedDevice(t *testing.T) {
 	}
 }
 
+func TestVirtualShadowEngine_MapModeOpcUaNodeID(t *testing.T) {
+	sc := NewShadowCore()
+	vse := NewVirtualShadowEngine(sc)
+
+	channelID := "u3rellnz1jgz0ljg"
+	deviceID := "3n39qx886h1qaxst"
+	pointID := "ns=3;i=1001"
+	ref := channelID + "." + deviceID + "." + pointID
+	formulaPoints := map[string]string{
+		"node_1001": ref,
+	}
+
+	if err := vse.CreateVirtualDevice("v1", channelID, formulaPoints); err != nil {
+		t.Fatalf("CreateVirtualDevice failed: %v", err)
+	}
+
+	device, err := vse.GetVirtualDevice("v1")
+	if err != nil {
+		t.Fatalf("GetVirtualDevice failed: %v", err)
+	}
+	if len(device.Dependencies) != 1 || device.Dependencies[0] != ref {
+		t.Fatalf("expected dependency %q, got %v", ref, device.Dependencies)
+	}
+
+	sc.WriteShadowDevice(model.ShadowIngressMessage{
+		DeviceID:  deviceID,
+		ChannelID: channelID,
+		Timestamp: time.Now(),
+		Points: []model.ShadowIngressPoint{
+			{PointID: pointID, Value: 123.45, Quality: "good"},
+		},
+	})
+
+	vse.RecomputeDevice("v1")
+
+	device, _ = vse.GetVirtualDevice("v1")
+	pt, ok := device.Points["node_1001"]
+	if !ok {
+		t.Fatal("expected mapped point node_1001")
+	}
+	if pt.Value != 123.45 {
+		t.Errorf("expected value 123.45, got %v", pt.Value)
+	}
+
+	graph := vse.GetDependencyGraph()
+	if len(graph[ref]) == 0 {
+		t.Fatalf("expected dependency graph entry for %q", ref)
+	}
+}
+
+func TestVirtualShadowEngine_MapModeOpcUaStringNodeWithDots(t *testing.T) {
+	sc := NewShadowCore()
+	vse := NewVirtualShadowEngine(sc)
+
+	channelID := "ch-opc"
+	deviceID := "dev-opc"
+	pointID := "ns=2;s=Some.Node.Name"
+	ref := channelID + "." + deviceID + "." + pointID
+
+	if err := vse.CreateVirtualDevice("v2", channelID, map[string]string{"tag": ref}); err != nil {
+		t.Fatalf("CreateVirtualDevice failed: %v", err)
+	}
+
+	device, err := vse.GetVirtualDevice("v2")
+	if err != nil {
+		t.Fatalf("GetVirtualDevice failed: %v", err)
+	}
+	if len(device.Dependencies) != 1 || device.Dependencies[0] != ref {
+		t.Fatalf("expected dependency %q, got %v", ref, device.Dependencies)
+	}
+
+	sc.WriteShadowDevice(model.ShadowIngressMessage{
+		DeviceID:  deviceID,
+		ChannelID: channelID,
+		Timestamp: time.Now(),
+		Points: []model.ShadowIngressPoint{
+			{PointID: pointID, Value: true, Quality: "good"},
+		},
+	})
+	vse.RecomputeDevice("v2")
+
+	device, _ = vse.GetVirtualDevice("v2")
+	pt, ok := device.Points["tag"]
+	if !ok {
+		t.Fatal("expected mapped point tag")
+	}
+	if pt.Value != true {
+		t.Errorf("expected value true, got %v", pt.Value)
+	}
+}
+
+func TestParsePointRef(t *testing.T) {
+	tests := []struct {
+		ref         string
+		wantCh      string
+		wantDev     string
+		wantPt      string
+		wantOK      bool
+	}{
+		{"mzp8f02lusxvk0da.modbus-slave-1.hr_0", "mzp8f02lusxvk0da", "modbus-slave-1", "hr_0", true},
+		{"u3rellnz1jgz0ljg.3n39qx886h1qaxst.ns=3;i=1001", "u3rellnz1jgz0ljg", "3n39qx886h1qaxst", "ns=3;i=1001", true},
+		{"ch.dev.ns=2;s=Some.Node", "ch", "dev", "ns=2;s=Some.Node", true},
+		{"invalid", "", "", "", false},
+		{"only.two", "", "", "", false},
+	}
+	for _, tt := range tests {
+		ch, dev, pt, ok := parsePointRef(tt.ref)
+		if ok != tt.wantOK {
+			t.Fatalf("parsePointRef(%q) ok=%v, want %v", tt.ref, ok, tt.wantOK)
+		}
+		if !tt.wantOK {
+			continue
+		}
+		if ch != tt.wantCh || dev != tt.wantDev || pt != tt.wantPt {
+			t.Fatalf("parsePointRef(%q) = (%q,%q,%q), want (%q,%q,%q)", tt.ref, ch, dev, pt, tt.wantCh, tt.wantDev, tt.wantPt)
+		}
+	}
+}
+
 func TestVirtualShadowEngine_DeleteVirtualDevice(t *testing.T) {
 	tmpDir := testOutputDir(t)
 

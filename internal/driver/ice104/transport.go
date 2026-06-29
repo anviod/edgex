@@ -177,7 +177,8 @@ func (t *ICE104Transport) sendIFrame(ctx context.Context, asdu []byte) error {
 		return fmt.Errorf("not connected")
 	}
 
-	send := t.sendSeq.Add(1)
+	send := t.sendSeq.Load()
+	t.sendSeq.Add(1)
 	recv := t.recvSeq.Load()
 	ctrl := make([]byte, 4)
 	binary.LittleEndian.PutUint16(ctrl[0:2], uint16(send<<1))
@@ -250,18 +251,18 @@ func (t *ICE104Transport) handleAPDU(decoder *ICE104Decoder, apdu []byte) error 
 	}
 
 	ctrl0 := apdu[0]
-	if ctrl0&0x01 == 0 && ctrl0&0x03 == 0 {
+	switch ctrl0 & 0x03 {
+	case 0x03:
+		// U-frame
+		return nil
+	case 0x01:
 		// S-frame
 		recv := binary.LittleEndian.Uint16(apdu[2:4]) >> 1
 		t.recvSeq.Store(uint32(recv))
 		return nil
 	}
-	if ctrl0&0x03 == 0x03 {
-		// U-frame
-		return nil
-	}
 
-	// I-frame
+	// I-frame (ctrl0&0x01 == 0)
 	send := binary.LittleEndian.Uint16(apdu[0:2]) >> 1
 	recv := binary.LittleEndian.Uint16(apdu[2:4]) >> 1
 	t.recvSeq.Store(uint32(send))

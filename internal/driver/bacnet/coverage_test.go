@@ -203,10 +203,7 @@ func TestRecoveryLogic(t *testing.T) {
 		}}, nil
 	}
 
-	// Trigger Recovery (Private method, but we can call checkRecovery which calls probeDevice)
-	// checkRecovery is private. But we can trigger it via StartPolling or just reflection?
-	// Since we are in same package `bacnet`, we can call private methods!
-
+	// checkRecovery probes offline devices (same package, private method OK).
 	d.checkRecovery(devID)
 
 	// Wait for goroutine

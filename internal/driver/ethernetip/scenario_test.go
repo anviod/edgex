@@ -1,6 +1,7 @@
 package ethernetip
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -268,4 +269,18 @@ func TestScenario_TransportDisconnected(t *testing.T) {
 	assert.NoError(t, err)
 	assert.False(t, transport.IsConnected())
 	assert.Equal(t, StateDisconnected, transport.connMgr.GetState())
+}
+
+func TestScenario_DeviceFaultIsolation(t *testing.T) {
+	cfg := map[string]any{
+		"ip":   "127.0.0.1",
+		"port": 44818,
+	}
+	transport := NewENIPTransport(cfg)
+	defer transport.connMgr.Close()
+	transport.connected.Store(true)
+	transport.connMgr.SetState(StateConnected)
+
+	transport.RecordFailure(fmt.Errorf("i/o timeout"))
+	assert.True(t, transport.connected.Load(), "device-level timeout must not disconnect shared transport")
 }

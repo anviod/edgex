@@ -1,0 +1,21 @@
+# 忽略 Jekyll 生成的文件
+_site/
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
+
+# 忽略编辑器文件
+*.swp
+*.swo
+*~
+
+# 忽略系统文件
+.DS_Store
+Thumbs.db
+
+# 忽略临时文件
+*.tmp
+*.temp
+
+# 忽略构建文件
+Gemfile.lock

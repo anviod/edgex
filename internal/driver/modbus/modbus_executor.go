@@ -168,7 +168,7 @@ func (d *ModbusExecutor) ReadPoints(ctx context.Context, points []model.Point) (
 	}
 
 	if !d.transport.IsConnected() {
-		canRetry, waitTime := d.connController.CanRetry()
+		canRetry, waitTime := planTransportReconnect(d.connController)
 		if !canRetry {
 			zap.L().Warn("[ModbusExecutor] 连接不可用且不允许重试",
 				zap.String("channelID", d.config.ChannelID),
