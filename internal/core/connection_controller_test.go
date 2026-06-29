@@ -63,7 +63,7 @@ func TestConnectionController_IsConnectionFailure(t *testing.T) {
 		{errors.New("connection reset by peer"), true, "连接重置"},
 		{errors.New("network unreachable"), true, "网络不可达"},
 		{errors.New("dial tcp 192.168.1.1:502: connect: connection refused"), true, "拨号失败"},
-		{errors.New("i/o timeout"), true, "I/O超时"},
+		{errors.New("i/o timeout"), false, "I/O超时"},
 		{errors.New("illegal data address"), false, "非法地址"},
 		{errors.New("illegal function"), false, "非法功能码"},
 		{errors.New("slave device failure"), false, "从站故障"},

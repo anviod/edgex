@@ -234,7 +234,7 @@ func (cc *ConnectionController) IsConnectionFailure(err error) bool {
 
 	errMsg := err.Error()
 	connectionErrors := []string{"connection refused", "connection reset", "network unreachable",
-		"no route to host", "broken pipe", "i/o timeout", "dial tcp", "connection closed",
+		"no route to host", "broken pipe", "dial tcp", "connection closed",
 		"tls handshake", "cannot assign requested address"}
 
 	for _, ce := range connectionErrors {

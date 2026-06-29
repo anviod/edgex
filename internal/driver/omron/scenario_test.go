@@ -119,3 +119,46 @@ func TestScenario_ConcurrentReadPoints(t *testing.T) {
 	wg.Wait()
 	assert.Equal(t, int32(20), atomic.LoadInt32(&ops))
 }
+
+func TestScenario_ConnectRetryExhausted(t *testing.T) {
+	d := NewOmronFinsDriver()
+	require.NoError(t, d.Init(model.DriverConfig{
+		ChannelID: "test",
+		Config:    map[string]any{"ip": "127.0.0.1", "port": 59997, "timeout": 200},
+	}))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	err := d.Connect(ctx)
+	require.Error(t, err)
+}
+
+func TestScenario_DeviceFaultIsolation(t *testing.T) {
+	mock := finslib.NewMockPLC()
+	mock.SetWord(finslib.MemoryAreaDMWord, 400, 11)
+	addr, err := mock.Start()
+	require.NoError(t, err)
+	defer mock.Close()
+
+	host, portStr, _ := net.SplitHostPort(addr)
+	port, _ := strconv.Atoi(portStr)
+
+	d := NewOmronFinsDriver()
+	require.NoError(t, d.Init(model.DriverConfig{
+		ChannelID: "test",
+		Config:    map[string]any{"ip": host, "port": port, "timeout": 2000},
+	}))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, d.Connect(ctx))
+	defer d.Disconnect()
+
+	results, err := d.ReadPoints(ctx, []model.Point{
+		{ID: "good", Address: "D400", DataType: "UINT16"},
+		{ID: "bad", Address: "INVALID", DataType: "UINT16"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Good", results["good"].Quality)
+	assert.Equal(t, "Bad", results["bad"].Quality)
+}

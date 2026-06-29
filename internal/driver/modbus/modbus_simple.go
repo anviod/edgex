@@ -153,12 +153,10 @@ func (d *ModbusSimpleDriver) Connect(ctx context.Context) error {
 
 	err := d.transport.Connect(ctx)
 	if err != nil {
-		d.stateMachine.OnFailure()
 		d.connController.RecordConnectionFailure()
 		return err
 	}
 
-	d.stateMachine.OnSuccess()
 	d.connController.RecordConnectionSuccess()
 	return nil
 }
@@ -172,16 +170,15 @@ func (d *ModbusSimpleDriver) Health() driver.HealthStatus {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	if d.transport.IsConnected() && d.stateMachine.GetState() == StateOnline {
+	if d.transport.IsConnected() {
 		return driver.HealthStatusGood
 	}
 
-	connState := d.connController.GetState()
-	if connState == core.ConnStateDead {
+	if d.connController != nil && d.connController.GetState() == core.ConnStateDead {
 		return driver.HealthStatusBad
 	}
 
-	return driver.HealthStatusBad
+	return driver.HealthStatusUnknown
 }
 
 func (d *ModbusSimpleDriver) ReadPoints(ctx context.Context, points []model.Point) (map[string]model.Value, error) {
@@ -190,7 +187,7 @@ func (d *ModbusSimpleDriver) ReadPoints(ctx context.Context, points []model.Poin
 	}
 
 	if !d.transport.IsConnected() {
-		canRetry, waitTime := d.connController.CanRetry()
+		canRetry, waitTime := planTransportReconnect(d.connController)
 		if !canRetry {
 			zap.L().Warn("[ModbusSimple] 连接不可用且不允许重试",
 				zap.String("channelID", d.config.ChannelID),
@@ -225,7 +222,6 @@ func (d *ModbusSimpleDriver) ReadPoints(ctx context.Context, points []model.Poin
 				zap.String("channelID", d.config.ChannelID),
 				zap.Error(err),
 			)
-			d.stateMachine.OnFailure()
 			d.connController.RecordConnectionFailure()
 			return results, err
 		}
@@ -239,12 +235,10 @@ func (d *ModbusSimpleDriver) ReadPoints(ctx context.Context, points []model.Poin
 			return results, err
 		}
 
-		d.stateMachine.OnFailure()
 		d.connController.RecordReadFailure()
 		return results, err
 	}
 
-	d.stateMachine.OnSuccess()
 	d.connController.RecordReadSuccess()
 	return results, nil
 }
@@ -260,7 +254,6 @@ func (d *ModbusSimpleDriver) WritePoint(ctx context.Context, point model.Point, 
 	err := d.scheduler.Write(ctx, point, value)
 	if err != nil {
 		if d.connController.IsConnectionFailure(err) {
-			d.stateMachine.OnFailure()
 			d.connController.RecordConnectionFailure()
 		} else {
 			d.connController.RecordReadFailure()
@@ -268,7 +261,6 @@ func (d *ModbusSimpleDriver) WritePoint(ctx context.Context, point model.Point, 
 		return err
 	}
 
-	d.stateMachine.OnSuccess()
 	d.connController.RecordReadSuccess()
 	return nil
 }

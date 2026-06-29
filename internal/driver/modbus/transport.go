@@ -173,9 +173,35 @@ func (t *ModbusTransport) RecordSuccess() {
 	t.lastActivityTime.Store(time.Now())
 }
 
+func isDeviceLevelModbusError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	devicePatterns := []string{
+		"timeout", "i/o timeout", "request timed out",
+		"illegal", "exception", "busy",
+		"gateway path unavailable", "gateway target device failed",
+		"slave device failure", "server device failure", "server device busy",
+		"memory parity error", "bad unit id",
+		"bad response", "invalid data", "short frame",
+		"illegal data address", "illegal function",
+	}
+	for _, p := range devicePatterns {
+		if strings.Contains(msg, p) {
+			return true
+		}
+	}
+	return false
+}
+
 func (t *ModbusTransport) RecordFailure(err error) {
-	t.collectFailCount.Add(1)
 	t.lastActivityTime.Store(time.Now())
+	if isDeviceLevelModbusError(err) {
+		return
+	}
+
+	t.collectFailCount.Add(1)
 
 	if t.collectFailCount.Load() >= t.maxFailCount {
 		go t.reconnect()
@@ -548,7 +574,6 @@ func (t *ModbusTransport) withRetry(ctx context.Context, fn func() (any, error))
 		)
 
 		errMsg := err.Error()
-		isTimeout := contains(errMsg, "timeout")
 		errorType := "network"
 
 		if len(errMsg) > 0 {
@@ -561,28 +586,26 @@ func (t *ModbusTransport) withRetry(ctx context.Context, fn func() (any, error))
 			}
 		}
 
-		if isTimeout && i >= 1 {
-			zap.L().Warn("[Modbus] Skipping further retries on timeout after initial retry for performance", zap.Int("attempt", i+1))
+		if isDeviceLevelModbusError(err) {
+			zap.L().Debug("[Modbus] Device-level error, keeping TCP connection alive for other slaves on shared link",
+				zap.String("error", errMsg),
+			)
 			if t.metricsRecorder != nil && t.channelID != "" {
 				t.metricsRecorder.RecordRequest(t.channelID, false, duration, errorType)
 				t.metricsRecorder.RecordError(t.channelID, errorType, "", errMsg)
 			}
-			t.RecordFailure(err)
 			break
 		}
 
-		isProtocolError := false
-		if errorType == "exception" || errorType == "crc" {
-			isProtocolError = true
-		}
+		isProtocolError := errorType == "exception" || errorType == "crc"
 
-		if t.metricsRecorder != nil && t.channelID != "" && i == t.maxRetries && !isTimeout {
+		if t.metricsRecorder != nil && t.channelID != "" && i == t.maxRetries {
 			t.metricsRecorder.RecordRequest(t.channelID, false, duration, errorType)
 			t.metricsRecorder.RecordError(t.channelID, errorType, "", errMsg)
 		}
 
 		if !isProtocolError {
-			zap.L().Warn("[Modbus] Network/IO error detected, forcing disconnect to ensure clean session before reconnect",
+			zap.L().Warn("[Modbus] Network/link error detected, forcing disconnect to ensure clean session before reconnect",
 				zap.String("error", errMsg),
 			)
 			t.RecordFailure(err)

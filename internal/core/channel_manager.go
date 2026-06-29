@@ -212,6 +212,19 @@ func (cm *ChannelManager) finalizeScanCollect(deviceID string, result *ExecuteRe
 
 	if result != nil && isChannelLinkError(result.Error) {
 		if channelID != "" {
+			cm.mu.RLock()
+			driver := cm.drivers[channelID]
+			cm.mu.RUnlock()
+
+			if isChannelLinkUp(driver) {
+				node := cm.stateManager.GetNode(deviceID)
+				if node != nil {
+					ctx := &CollectContext{FailCmd: 1}
+					cm.stateManager.FinalizeCollect(node, ctx)
+				}
+				recordCollectCycle(false)
+				return
+			}
 			cm.markChannelDevicesOffline(channelID)
 		}
 		recordCollectCycle(false)
@@ -307,13 +320,16 @@ func (cm *ChannelManager) GetChannelStats() []ChannelStatus {
 			}
 		}
 
-		status := "Running"
-		if !ch.Enable {
-			status = "Disabled"
-		} else if offline > 0 && online == 0 {
-			status = "Error"
-		} else if offline > 0 {
-			status = "Warning"
+		status := "Disabled"
+		qualityScore := 0
+		if ch.Enable {
+			linkUp := isChannelLinkUp(cm.drivers[ch.ID])
+			if mc := model.GetGlobalMetricsCollector(); mc != nil {
+				if metrics := mc.GetChannelMetrics(ch.ID); metrics != nil {
+					qualityScore = metrics.QualityScore
+				}
+			}
+			status = evaluateChannelStatus(linkUp, online, offline, len(ch.Devices), qualityScore)
 		}
 
 		stats = append(stats, ChannelStatus{
@@ -325,6 +341,7 @@ func (cm *ChannelManager) GetChannelStats() []ChannelStatus {
 			DeviceCount:     len(ch.Devices),
 			OnlineCount:     online,
 			OfflineCount:    offline,
+			QualityScore:    qualityScore,
 			LastCollectTime: lastCollectTime,
 		})
 	}

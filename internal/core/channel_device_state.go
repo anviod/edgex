@@ -16,18 +16,34 @@ func isChannelLinkError(err error) bool {
 		return true
 	}
 	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "connection refused") ||
-		strings.Contains(msg, "connection failed") ||
-		strings.Contains(msg, "cooldown") ||
-		strings.Contains(msg, "connection unavailable") ||
-		strings.Contains(msg, "connect:")
+	linkPatterns := []string{
+		"connection refused",
+		"connection reset",
+		"broken pipe",
+		"connection closed",
+		"dial tcp",
+		"network unreachable",
+		"no route to host",
+		"connection unavailable",
+		"entering cooldown",
+		"tls handshake",
+		"cannot assign requested address",
+	}
+	for _, p := range linkPatterns {
+		if strings.Contains(msg, p) {
+			return true
+		}
+	}
+	return false
 }
 
 func isChannelLinkUp(d drv.Driver) bool {
 	if d == nil {
 		return false
 	}
-	return d.Health() == drv.HealthStatusGood
+	// Only explicit Bad means the transport link is dead. Unknown covers
+	// reconnecting/degraded states and must not take the whole channel offline.
+	return d.Health() != drv.HealthStatusBad
 }
 
 func resolveEffectiveDeviceState(ch *model.Channel, d drv.Driver, dev *model.Device, rawState int) int {

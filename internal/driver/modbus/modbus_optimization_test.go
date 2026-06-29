@@ -3,6 +3,7 @@ package modbus
 import (
 	"context"
 	"fmt"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -174,9 +175,18 @@ func TestModbusOptimization(t *testing.T) {
 	handler.holdings[2] = 0x42F6
 	handler.holdings[3] = 0xE979
 
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Failed to allocate test port: %v", err)
+	}
+	testPort := ln.Addr().(*net.TCPAddr).Port
+	_ = ln.Close()
+
+	serverURL := fmt.Sprintf("tcp://127.0.0.1:%d", testPort)
+
 	// 1. Start a mock Modbus TCP Server
 	server, err := modbus.NewServer(&modbus.ServerConfiguration{
-		URL:        "tcp://localhost:50502",
+		URL:        serverURL,
 		Timeout:    1 * time.Second,
 		MaxClients: 5,
 	}, handler)
@@ -197,7 +207,7 @@ func TestModbusOptimization(t *testing.T) {
 	driver := NewModbusDriver()
 	config := model.DriverConfig{
 		Config: map[string]any{
-			"url":                 "tcp://localhost:50502",
+			"url":                 serverURL,
 			"slave_id":            1,
 			"byteOrder":           "ABCD",
 			"batchSize":           10,

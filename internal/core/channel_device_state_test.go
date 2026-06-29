@@ -70,6 +70,17 @@ func TestResolveEffectiveDeviceState_ChannelOnline(t *testing.T) {
 	}
 }
 
+func TestResolveEffectiveDeviceState_UnknownLinkPreservesDeviceState(t *testing.T) {
+	ch := &model.Channel{Enable: true}
+	dev := &model.Device{Enable: true}
+	driver := &stubChannelDriver{health: drv.HealthStatusUnknown}
+
+	got := resolveEffectiveDeviceState(ch, driver, dev, int(NodeStateOnline))
+	if got != int(NodeStateOnline) {
+		t.Fatalf("expected online when link is unknown but not bad, got %d", got)
+	}
+}
+
 func TestMarkChannelDevicesOffline(t *testing.T) {
 	cm := newTestChannelManager()
 
@@ -88,6 +99,7 @@ func TestMarkChannelDevicesOffline(t *testing.T) {
 
 func TestFinalizeScanCollect_ChannelLinkErrorMarksAllOffline(t *testing.T) {
 	cm := newTestChannelManager()
+	cm.drivers["ch-1"] = &stubChannelDriver{health: drv.HealthStatusBad}
 
 	cm.stateManager.GetNode("dev-1").Runtime.State = NodeStateOnline
 	cm.stateManager.GetNode("dev-2").Runtime.State = NodeStateOnline
@@ -105,6 +117,61 @@ func TestFinalizeScanCollect_ChannelLinkErrorMarksAllOffline(t *testing.T) {
 	}
 }
 
+func TestFinalizeScanCollect_DeviceTimeoutDoesNotMarkAllOffline(t *testing.T) {
+	cm := newTestChannelManager()
+
+	cm.stateManager.GetNode("dev-1").Runtime.State = NodeStateOnline
+	cm.stateManager.GetNode("dev-2").Runtime.State = NodeStateOnline
+
+	cm.finalizeScanCollect("dev-1", &ExecuteResult{
+		Success: false,
+		Error:   errors.New("i/o timeout"),
+	})
+
+	if cm.stateManager.GetNode("dev-1").Runtime.State == NodeStateOnline {
+		t.Fatal("dev-1 should not remain online after timeout failure")
+	}
+	if cm.stateManager.GetNode("dev-2").Runtime.State != NodeStateOnline {
+		t.Fatalf("dev-2 should stay online, got %d", cm.stateManager.GetNode("dev-2").Runtime.State)
+	}
+}
+
+func TestFinalizeScanCollect_LinkErrorWithLinkUpOnlyFailsDevice(t *testing.T) {
+	cm := newTestChannelManager()
+
+	cm.stateManager.GetNode("dev-1").Runtime.State = NodeStateOnline
+	cm.stateManager.GetNode("dev-2").Runtime.State = NodeStateOnline
+
+	cm.finalizeScanCollect("dev-1", &ExecuteResult{
+		Success: false,
+		Error:   ErrConnectionUnavailable,
+	})
+
+	if cm.stateManager.GetNode("dev-1").Runtime.State == NodeStateOnline {
+		t.Fatal("dev-1 should not remain online after link error while link is up")
+	}
+	if cm.stateManager.GetNode("dev-2").Runtime.State != NodeStateOnline {
+		t.Fatalf("dev-2 should stay online when channel link is still up, got %d", cm.stateManager.GetNode("dev-2").Runtime.State)
+	}
+}
+
+func TestIsChannelLinkError(t *testing.T) {
+	cases := []struct {
+		err  error
+		want bool
+	}{
+		{errors.New("i/o timeout"), false},
+		{errors.New("read timeout on slave 3"), false},
+		{errors.New("dial tcp 127.0.0.1:502: connect: connection refused"), true},
+		{ErrConnectionUnavailable, true},
+	}
+	for _, tc := range cases {
+		if got := isChannelLinkError(tc.err); got != tc.want {
+			t.Fatalf("isChannelLinkError(%v) = %v, want %v", tc.err, got, tc.want)
+		}
+	}
+}
+
 func TestGetChannelDevices_OverridesStateWhenChannelOffline(t *testing.T) {
 	cm := newTestChannelManager()
 	cm.drivers["ch-1"] = &stubChannelDriver{health: drv.HealthStatusBad}
@@ -116,5 +183,38 @@ func TestGetChannelDevices_OverridesStateWhenChannelOffline(t *testing.T) {
 	}
 	if devices[0].State != int(NodeStateOffline) {
 		t.Fatalf("expected offline in API response, got %d", devices[0].State)
+	}
+}
+
+func TestGetChannelStats_UnknownLinkDoesNotMarkChannelOffline(t *testing.T) {
+	cm := newTestChannelManager()
+	cm.drivers["ch-1"] = &stubChannelDriver{health: drv.HealthStatusUnknown}
+	cm.stateManager.GetNode("dev-1").Runtime.State = NodeStateOnline
+	cm.stateManager.GetNode("dev-2").Runtime.State = NodeStateOnline
+
+	stats := cm.GetChannelStats()
+	if len(stats) != 1 {
+		t.Fatalf("expected 1 channel stat, got %d", len(stats))
+	}
+	if stats[0].Status == "Offline" {
+		t.Fatalf("channel should not be offline when link is unknown and devices are online, got %s", stats[0].Status)
+	}
+}
+
+func TestGetChannelStats_SingleDeviceOfflineKeepsChannelOnline(t *testing.T) {
+	cm := newTestChannelManager()
+	cm.stateManager.GetNode("dev-1").Runtime.State = NodeStateOffline
+	cm.stateManager.GetNode("dev-2").Runtime.State = NodeStateOnline
+
+	stats := cm.GetChannelStats()
+	if len(stats) != 1 {
+		t.Fatalf("expected 1 channel stat, got %d", len(stats))
+	}
+	if stats[0].Status == "Offline" {
+		t.Fatalf("single device offline must not mark channel offline, got %s", stats[0].Status)
+	}
+	if stats[0].OnlineCount != 1 || stats[0].OfflineCount != 1 {
+		t.Fatalf("expected 1 online and 1 offline device, got online=%d offline=%d",
+			stats[0].OnlineCount, stats[0].OfflineCount)
 	}
 }

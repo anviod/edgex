@@ -1,6 +1,8 @@
 package bacnet
 
 import (
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -180,4 +182,23 @@ func TestScenario_DailyResetAfterLongIdle(t *testing.T) {
 
 	d.checkDailyReset(devCtx)
 	assert.Equal(t, 0, devCtx.IsolationCount)
+}
+
+func TestScenario_ConcurrentAccess(t *testing.T) {
+	d := &BACnetDriver{}
+	var wg sync.WaitGroup
+	var ops int32
+
+	for i := 0; i < 30; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			d.mu.RLock()
+			_ = len(d.deviceContexts)
+			d.mu.RUnlock()
+			atomic.AddInt32(&ops, 1)
+		}()
+	}
+	wg.Wait()
+	assert.Equal(t, int32(30), atomic.LoadInt32(&ops))
 }

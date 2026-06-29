@@ -118,23 +118,60 @@ func (el *ExecutionLayer) executeTimeout(task *ScanTask) time.Duration {
 	return timeout
 }
 
+// isSharedLinkProtocol identifies protocols where multiple devices share one
+// physical link (TCP socket or serial bus) and must not run I/O concurrently.
+func isSharedLinkProtocol(protocol string) bool {
+	switch protocol {
+	case "modbus-tcp", "modbus-rtu", "modbus-rtu-over-tcp", "dlt645", "omron-fins", "mitsubishi-slmp":
+		return true
+	default:
+		return false
+	}
+}
+
+// serialQueueKey routes shared-link devices through one per-channel queue so a
+// slow/offline slave cannot block peers via channelMu contention + scan timeout.
+func (el *ExecutionLayer) serialQueueKey(task *ScanTask) string {
+	if task == nil {
+		return ""
+	}
+	if isSharedLinkProtocol(task.Protocol) && task.Params != nil {
+		if channelID, ok := task.Params["channelID"].(string); ok && channelID != "" {
+			return "shared:" + channelID
+		}
+	}
+	return task.DeviceKey
+}
+
+func (el *ExecutionLayer) serialOuterTimeout(task *ScanTask) time.Duration {
+	readTimeout := el.executeTimeout(task)
+	if isSharedLinkProtocol(task.Protocol) {
+		// Allow several peers to queue on the same TCP/serial link.
+		return readTimeout * 16
+	}
+	return readTimeout
+}
+
 func (el *ExecutionLayer) executeSerial(task *ScanTask) *ExecuteResult {
 	d := el.GetDriver(task.DeviceKey)
 	if d == nil {
 		return &ExecuteResult{Success: false, Error: ErrDriverNotFound}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), el.executeTimeout(task))
-	defer cancel()
+	readTimeout := el.executeTimeout(task)
+	outerCtx, outerCancel := context.WithTimeout(context.Background(), el.serialOuterTimeout(task))
+	defer outerCancel()
 
 	resultChan := make(chan *ExecuteResult, 1)
+	points := el.loadPoints(task)
 
 	taskObj := &DriverTask{
-		Ctx:       ctx,
-		DeviceKey: task.DeviceKey,
-		Points:    el.loadPoints(task),
-		ReadFunc: func(readCtx context.Context, points []model.Point) (map[string]model.Value, error) {
-			return el.readPoints(d, task, readCtx, points)
+		DeviceKey: el.serialQueueKey(task),
+		Points:    points,
+		ReadFunc: func(context.Context, []model.Point) (map[string]model.Value, error) {
+			execCtx, execCancel := context.WithTimeout(context.Background(), readTimeout)
+			defer execCancel()
+			return el.readPoints(d, task, execCtx, points)
 		},
 		Callback: func(values map[string]model.Value, err error) {
 			select {
@@ -151,7 +188,7 @@ func (el *ExecutionLayer) executeSerial(task *ScanTask) *ExecuteResult {
 	select {
 	case result := <-resultChan:
 		return result
-	case <-ctx.Done():
+	case <-outerCtx.Done():
 		return &ExecuteResult{Success: false, Error: ErrTimeout}
 	case <-el.stopCh:
 		return &ExecuteResult{Success: false, Error: ErrTimeout}

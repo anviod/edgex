@@ -232,3 +232,12 @@ func TestScenario_MaxBackoffCap(t *testing.T) {
 			"backoff should be capped at maxDelay + jitter")
 	}
 }
+
+func TestScenario_DeviceFaultIsolation(t *testing.T) {
+	cm := driver.NewConnectionManager("s7")
+	defer cm.Close()
+	cm.SetMaxRetries(5)
+	cm.RecordSuccess()
+	cm.RecordFailure()
+	assert.NotEqual(t, StateDead, cm.GetState(), "single failure must not enter dead state immediately")
+}
