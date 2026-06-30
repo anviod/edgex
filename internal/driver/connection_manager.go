@@ -1,13 +1,45 @@
 package driver
 
 import (
+	"context"
+	"fmt"
 	"math"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
 )
+
+var (
+	globalReconnectMu       sync.Mutex
+	globalReconnectCount    int
+	globalReconnectLastTime time.Time
+	MaxGlobalReconnectRate  = 10
+)
+
+func tryAcquireGlobalReconnectSlot() bool {
+	globalReconnectMu.Lock()
+	defer globalReconnectMu.Unlock()
+
+	now := time.Now()
+	if now.Sub(globalReconnectLastTime) > time.Second {
+		globalReconnectCount = 0
+		globalReconnectLastTime = now
+	}
+
+	if globalReconnectCount >= MaxGlobalReconnectRate {
+		return false
+	}
+
+	globalReconnectCount++
+	return true
+}
+
+// ConnectFunc performs a single connection attempt (dial/open). Retry/backoff is
+// owned exclusively by ConnectionManager.EnsureConnected.
+type ConnectFunc func(ctx context.Context) error
 
 
 type ConnState int
@@ -59,6 +91,8 @@ type ConnectionManager struct {
 	dailyResetEnabled bool
 
 	driverName string
+
+	reconnectRunning atomic.Bool
 }
 
 func NewConnectionManager(driverName string) *ConnectionManager {
@@ -202,7 +236,21 @@ func (cm *ConnectionManager) CanRetry() (canRetry bool, waitTime time.Duration) 
 	defer cm.mu.Unlock()
 
 	switch cm.state {
-	case StateDisconnected, StateConnecting:
+	case StateDisconnected:
+		if !tryAcquireGlobalReconnectSlot() {
+			return true, 1 * time.Second
+		}
+		return true, 0
+	case StateConnecting:
+		if cm.retryCount > 0 {
+			if !tryAcquireGlobalReconnectSlot() {
+				return true, 1 * time.Second
+			}
+			return true, cm.calculateBackoff(cm.retryCount)
+		}
+		if !tryAcquireGlobalReconnectSlot() {
+			return true, 1 * time.Second
+		}
 		return true, 0
 	case StateConnected:
 		return false, 0
@@ -213,8 +261,10 @@ func (cm *ConnectionManager) CanRetry() (canRetry bool, waitTime time.Duration) 
 			remaining := cm.coolDownUntil.Sub(time.Now())
 			return true, remaining
 		}
-		backoff := cm.calculateBackoff(cm.retryCount)
-		return true, backoff
+		if !tryAcquireGlobalReconnectSlot() {
+			return true, 1 * time.Second
+		}
+		return true, cm.calculateBackoff(cm.retryCount)
 	case StateDead:
 		remaining := cm.coolDownUntil.Sub(time.Now())
 		if remaining <= 0 {
@@ -225,8 +275,10 @@ func (cm *ConnectionManager) CanRetry() (canRetry bool, waitTime time.Duration) 
 				remaining = cm.coolDownUntil.Sub(time.Now())
 				return true, remaining
 			}
-			backoff := cm.calculateBackoff(cm.retryCount)
-			return true, backoff
+			if !tryAcquireGlobalReconnectSlot() {
+				return true, 1 * time.Second
+			}
+			return true, cm.calculateBackoff(cm.retryCount)
 		}
 		return true, remaining
 	default:
@@ -296,4 +348,68 @@ func (cm *ConnectionManager) SetBackoffParams(base, max time.Duration, factor fl
 	cm.baseDelay = base
 	cm.maxDelay = max
 	cm.backoffFactor = factor
+}
+
+// EnsureConnected is the single entry point for synchronous reconnect with
+// backoff, cooldown, and global rate limiting.
+func (cm *ConnectionManager) EnsureConnected(ctx context.Context, connect ConnectFunc) error {
+	var lastErr error
+
+	for {
+		canRetry, waitTime := cm.CanRetry()
+		if !canRetry {
+			if lastErr != nil {
+				return lastErr
+			}
+			return fmt.Errorf("[%s] connection not allowed to retry", cm.driverName)
+		}
+
+		if waitTime > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(waitTime):
+			}
+		}
+
+		cm.SetState(StateConnecting)
+
+		err := connect(ctx)
+		if err == nil {
+			cm.RecordSuccess()
+			return nil
+		}
+
+		lastErr = err
+		shouldRetry, _ := cm.RecordFailure()
+		if !shouldRetry {
+			return fmt.Errorf("[%s] connection failed, entering coolDown: %w", cm.driverName, err)
+		}
+	}
+}
+
+// ScheduleReconnect starts an asynchronous reconnect guarded by single-flight.
+// Duplicate calls while a reconnect is in progress are ignored.
+func (cm *ConnectionManager) ScheduleReconnect(parentCtx context.Context, timeout time.Duration, connect ConnectFunc) {
+	if !cm.reconnectRunning.CompareAndSwap(false, true) {
+		return
+	}
+
+	go func() {
+		defer cm.reconnectRunning.Store(false)
+
+		ctx := parentCtx
+		var cancel context.CancelFunc
+		if timeout > 0 {
+			ctx, cancel = context.WithTimeout(parentCtx, timeout)
+			defer cancel()
+		}
+
+		if err := cm.EnsureConnected(ctx, connect); err != nil {
+			zap.L().Error("[ConnMgr] Reconnection failed",
+				zap.String("driver", cm.driverName),
+				zap.Error(err),
+			)
+		}
+	}()
 }

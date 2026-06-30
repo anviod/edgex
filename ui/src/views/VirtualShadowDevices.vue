@@ -8,6 +8,10 @@
         </p>
       </div>
       <a-space>
+        <a-button type="text" size="small" class="help-trigger-btn" @click="helpVisible = true">
+          <template #icon><icon-question-circle /></template>
+          帮助说明
+        </a-button>
         <a-button @click="refreshAllRuntimes" :loading="loading">
           <template #icon><icon-refresh /></template>
           刷新当前值
@@ -520,6 +524,8 @@
         </div>
       </template>
     </a-drawer>
+
+    <VirtualShadowHelpDrawer v-model:visible="helpVisible" />
   </div>
 </template>
 
@@ -534,8 +540,10 @@ import {
   IconDragDotVertical,
   IconSearch,
   IconLeft,
-  IconCheckCircle
+  IconCheckCircle,
+  IconQuestionCircle
 } from '@arco-design/web-vue/es/icon'
+import VirtualShadowHelpDrawer from '@/components/virtual-shadow/VirtualShadowHelpDrawer.vue'
 import request from '@/utils/request'
 import {
   createVirtualShadow,
@@ -568,6 +576,7 @@ const router = useRouter()
 const ID_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/
 
 const loading = ref(false)
+const helpVisible = ref(false)
 const devices = ref([])
 const channels = ref([])
 const sourceCache = reactive(new Map())

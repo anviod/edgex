@@ -10,10 +10,20 @@ Industrial Edge Gateway（边缘网关）是一款轻量级工业边缘计算网
 
 ## 项目概述
 
-网关面向工业现场部署，支持多协议南向采集、北向数据共享、规则引擎与可视化运维。核心数据路径遵循 Q3 架构：
+<div align="center">
+  <img src="./img/dataScanEngineCN.svg" width="100%" alt="Edgex V2.0 架构 · ScanEngine引擎">
+</div>
+
+> **Edgex V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine 写入影子设备实时快照，再联通虚拟设备、边缘计算与北向接口。
+
+网关面向工业现场部署，支持多协议南向采集、北向数据共享、规则引擎与可视化运维。核心数据路径遵循 **调度驱动架构**（ScanEngine 内核）：
 
 ```text
-config.db → ChannelManager → ScanEngine → ExecutionLayer → Driver.ReadPoints
+config.db → ChannelManager → ScanEngine（10ms Tick · PriorityQueue）
+                                    ↓ dispatch
+                              ExecutionLayer（Serial / Parallel / Limited）
+                                    ↓
+                              Driver.ReadPoints（纯执行 · ConnectionManager 重连）
                                     ↓
                               ShadowCore (SoT)
                                     ↓
@@ -24,14 +34,15 @@ config.db → ChannelManager → ScanEngine → ExecutionLayer → Driver.ReadPo
 
 | 组件 | 职责 |
 | :--- | :--- |
-| **ChannelManager** | 通道与驱动生命周期管理；通道断连时同通道设备标记 Offline |
-| **ScanEngine** | 按 Scan Class（fast/normal/slow）调度采集；驱动仅实现 ReadPoints/WritePoint |
-| **ShadowCore** | 影子设备真源（SoT），WAL 持久化，UI 与北向读 Shadow |
-| **ConnectionManager** | 统一连接状态机、指数退避、冷却期与采集健康检测 |
+| **ChannelManager** | 通道/设备 CRUD、驱动生命周期、`ScanEngineAdapter` 任务注册 |
+| **ScanEngine** | 内核调度器：时间/资源/执行/状态闭环；Scan Class（fast/normal/slow） |
+| **ExecutionLayer** | SerialQueueManager 硬隔离 + Parallel 三层背压 + Limited 低并发 |
+| **ShadowCore** | 影子设备真源（SoT），纯内存运行时快照，UI 与北向读 Shadow |
+| **ConnectionManager** | 唯一 dial Owner：EnsureConnected / ScheduleReconnect / single-flight |
 
 **北向协议**：MQTT、Sparkplug B、OPC UA Server、edgeOS(MQTT/NATS)。
 
-**近期进展**（2026-06）：ScanEngine 重构已落地；新增 SNMP、IEC 104、DL/T645、Mitsubishi SLMP、Profinet IO、KNXnet/IP 驱动注册；通道设备状态跟踪；文档站点全面更新。
+**近期进展**（2026-06）：ScanEngine **调度驱动内核**已落地（ExecutionLayer + ResourceController + 调度闭环）；CollectionScheduler/deviceLoop 已移除；Modbus/DLT645 重连已统一至 ConnectionManager。
 
 ---
 
@@ -123,7 +134,6 @@ docker run -d \
 | 协议 | 注册名 | 状态 | 读 | 写 | 扫描/发现 | 单元测试 | 文档 |
 | :--- | :--- | :--- | :---: | :---: | :---: | :--- | :--- |
 | Modbus TCP/RTU/RTU-over-TCP | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | 生产就绪 | 是 | 是 | — | 33 项 / 27% | [Modbus 优化](drivers/MODBUS_OPTIMIZATION.md) |
-| Modbus Simple | `modbus-*-simple` | 生产就绪 | 是 | 是 | — | 同上 | 同上 |
 | BACnet IP | `bacnet-ip` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 80+ 项 / 59% | [BACnet 设计说明](drivers/BACnet_设计说明.md) |
 | OPC UA Client | `opc-ua` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 25 项 / 40% | [OPC UA 设计](drivers/OPC_UA_Design.md) |
 | Siemens S7 | `s7` | 生产就绪 | 是 | 是 | — | 52 项 / 42% | [S7 协议](drivers/PLC_S7.md) |

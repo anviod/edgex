@@ -35,7 +35,6 @@ Registered in `cmd/main.go`:
 | Protocol | Registry Key | Status |
 | :--- | :--- | :--- |
 | Modbus TCP/RTU | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | Production |
-| Modbus Simple | `modbus-*-simple` | Production |
 | BACnet IP | `bacnet-ip` | Production |
 | OPC UA Client | `opc-ua` | Production |
 | Siemens S7 | `s7` | Production |

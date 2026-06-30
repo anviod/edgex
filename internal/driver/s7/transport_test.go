@@ -404,7 +404,10 @@ func TestConnectDisconnect(t *testing.T) {
 			return mockHandler
 		}
 
-		err := transport.Connect(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		err := transport.Connect(ctx)
 		assert.Error(t, err)
 		assert.False(t, transport.IsConnected())
 	})

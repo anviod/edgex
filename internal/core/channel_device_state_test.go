@@ -175,6 +175,44 @@ func TestFinalizeScanCollect_DeviceTimeoutDoesNotMarkAllOffline(t *testing.T) {
 	}
 }
 
+func TestFinalizeScanCollect_BadPointQualityKeepsDeviceOnline(t *testing.T) {
+	cm := newTestChannelManager()
+	cm.scanEngineAdapter.scanEngine.AddTask("dev-1", "opc-ua", 1*time.Second, 5, []string{"p1", "p2", "p3"}, nil)
+
+	node := cm.stateManager.GetNode("dev-1")
+	node.Runtime.State = NodeStateUnstable
+	node.Runtime.FailCount = 3
+
+	cm.finalizeScanCollect("dev-1", &ExecuteResult{
+		Success: true,
+		Values: map[string]model.Value{
+			"p1": {PointID: "p1", Quality: "Good", Value: 1.0},
+			"p2": {PointID: "p2", Quality: "Bad", Value: 0.0},
+			"p3": {PointID: "p3", Quality: "Bad", Value: 0.0},
+		},
+	})
+
+	if node.Runtime.State != NodeStateOnline {
+		t.Fatalf("expected online after transport success with partial Bad points, got %d", node.Runtime.State)
+	}
+	if node.Runtime.FailCount != 0 {
+		t.Fatalf("expected fail count reset, got %d", node.Runtime.FailCount)
+	}
+}
+
+func TestCollectContextFromExecuteResult_TransportSuccessIgnoresPointQuality(t *testing.T) {
+	ctx := collectContextFromExecuteResult(&ExecuteResult{
+		Success: true,
+		Values: map[string]model.Value{
+			"p1": {Quality: "Bad"},
+			"p2": {Quality: "Good"},
+		},
+	}, 2)
+	if ctx.SuccessCmd != 2 || ctx.FailCmd != 0 {
+		t.Fatalf("expected transport success for all returned values, got success=%d fail=%d", ctx.SuccessCmd, ctx.FailCmd)
+	}
+}
+
 func TestFinalizeScanCollect_LinkErrorWithLinkUpOnlyFailsDevice(t *testing.T) {
 	cm := newTestChannelManager()
 

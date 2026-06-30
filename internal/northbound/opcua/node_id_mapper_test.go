@@ -12,9 +12,9 @@ func TestNodeIDMapper_GenerateAndParse(t *testing.T) {
 	deviceID := "slave-1"
 	pointID := "hr_40000"
 
-	// Generate string node ID - should return ns=2;s={deviceID}.{pointID}
+	// Generate string node ID - should include channel for global uniqueness
 	compactID := mapper.GenerateCompactNodeID(channelID, deviceID, pointID)
-	expectedCompact := "ns=2;s=slave-1.hr_40000"
+	expectedCompact := "ns=2;s=44amyf4grh5oquzc.slave-1.hr_40000"
 	if compactID != expectedCompact {
 		t.Errorf("Expected compact ID %s, got %s", expectedCompact, compactID)
 	}
@@ -38,22 +38,23 @@ func TestNodeIDMapper_GenerateAndParse(t *testing.T) {
 func TestNodeIDMapper_MultiplePoints(t *testing.T) {
 	mapper := NewNodeIDMapper()
 
-	// Generate multiple points - each gets unique string ID
 	id1 := mapper.GenerateCompactNodeID("channel-1", "device-1", "point-1")
 	id2 := mapper.GenerateCompactNodeID("channel-1", "device-1", "point-2")
 	id3 := mapper.GenerateCompactNodeID("channel-2", "device-1", "point-1")
 
-	if id1 != "ns=2;s=device-1.point-1" {
-		t.Errorf("Expected ns=2;s=device-1.point-1, got %s", id1)
+	if id1 != "ns=2;s=channel-1.device-1.point-1" {
+		t.Errorf("Expected ns=2;s=channel-1.device-1.point-1, got %s", id1)
 	}
-	if id2 != "ns=2;s=device-1.point-2" {
-		t.Errorf("Expected ns=2;s=device-1.point-2, got %s", id2)
+	if id2 != "ns=2;s=channel-1.device-1.point-2" {
+		t.Errorf("Expected ns=2;s=channel-1.device-1.point-2, got %s", id2)
 	}
-	if id3 != "ns=2;s=device-1.point-1" {
-		t.Errorf("Expected ns=2;s=device-1.point-1, got %s (different channel, same device+point)", id3)
+	if id3 != "ns=2;s=channel-2.device-1.point-1" {
+		t.Errorf("Expected ns=2;s=channel-2.device-1.point-1, got %s (same device+point in different channel must differ)", id3)
+	}
+	if id3 == id1 {
+		t.Errorf("Cross-channel points with same device/point must not share NodeID")
 	}
 
-	// Same point should return same ID (idempotent)
 	id1Again := mapper.GenerateCompactNodeID("channel-1", "device-1", "point-1")
 	if id1Again != id1 {
 		t.Errorf("Expected same compact ID for same point, got %s vs %s", id1Again, id1)
@@ -65,8 +66,8 @@ func TestNodeIDMapper_IDReuse(t *testing.T) {
 
 	// First point gets string ID based on device.point
 	compact1 := mapper.GenerateCompactNodeID("ch-1", "dev-1", "pt-1")
-	if compact1 != "ns=2;s=dev-1.pt-1" {
-		t.Errorf("Expected ns=2;s=dev-1.pt-1, got %s", compact1)
+	if compact1 != "ns=2;s=ch-1.dev-1.pt-1" {
+		t.Errorf("Expected ns=2;s=ch-1.dev-1.pt-1, got %s", compact1)
 	}
 
 	// Same IDs should return the same compact ID (idempotent)

@@ -62,7 +62,7 @@
     <text x="400" y="40" text-anchor="middle" class="text-label" style="font-size: 22px;">影子核心 (内部模型中心)</text>
     
     <rect x="50" y="70" width="340" height="70" rx="6" class="core-box" />
-    <text x="220" y="100" text-anchor="middle" class="text-detail" font-weight="bold">真实影子存储 (Memory + WAL)</text>
+    <text x="220" y="100" text-anchor="middle" class="text-detail" font-weight="bold">真实影子存储 (纯内存)</text>
     <rect x="140" y="115" width="160" height="6" rx="3" fill="#e2e8f0" />
     <rect x="140" y="115" width="80" height="6" rx="3" fill="#38bdf8"><animate attributeName="width" values="40;160;40" dur="3s" repeatCount="indefinite"/></rect>
 

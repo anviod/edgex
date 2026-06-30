@@ -699,36 +699,39 @@ const addSelected = async () => {
   let successCount = 0
   let failCount = 0
 
+  const pointPayloads = []
   for (const obj of selectedObjs) {
+    const rw = getOpcUaReadWrite(obj.access_level)
+    const dt = normalizeOpcUaDataType(obj.data_type)
+
+    if (!dt) {
+      failCount++
+      console.warn(`Unsupported OPC UA datatype for quick import: ${obj.data_type}`, obj)
+      continue
+    }
+
+    pointPayloads.push({
+      id: obj.node_id,
+      name: obj.display_name || obj.node_id,
+      address: obj.node_id,
+      datatype: dt,
+      readwrite: rw,
+      unit: '',
+      scale: 1.0,
+      offset: 0.0
+    })
+  }
+
+  if (pointPayloads.length > 0) {
     try {
-      const rw = getOpcUaReadWrite(obj.access_level)
-      const dt = normalizeOpcUaDataType(obj.data_type)
-
-      if (!dt) {
-        failCount++
-        console.warn(`Unsupported OPC UA datatype for quick import: ${obj.data_type}`, obj)
-        continue
-      }
-
-      const pointPayload = {
-        id: obj.node_id,
-        name: obj.display_name || obj.node_id,
-        address: obj.node_id,
-        datatype: dt,
-        readwrite: rw,
-        unit: '',
-        scale: 1.0,
-        offset: 0.0
-      }
-
       await request.post(
         channelDeviceApiPath(props.channelId, props.deviceId, 'points'),
-        pointPayload
+        pointPayloads
       )
-      successCount++
+      successCount = pointPayloads.length
     } catch (e) {
       console.error(e)
-      failCount++
+      failCount += pointPayloads.length
     }
   }
 

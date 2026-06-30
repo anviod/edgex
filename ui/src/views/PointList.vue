@@ -79,7 +79,8 @@
             </div>
         </div>
 
-        <a-spin :loading="loading" style="width: 100%">
+        <div class="list-detail-body">
+        <a-spin :loading="loading" class="list-detail-spin">
             <div class="table-container">
                 <div class="table-toolbar">
                     <div class="left-title">{{ isModbusChannel ? 'MODBUS SLAVE VIEW' : 'POINT LIST' }}</div>
@@ -215,6 +216,7 @@
                     </template>
                 </a-table>
             </div>
+        </a-spin>
 
             <!-- Connection Status Footer -->
             <div v-if="deviceInfo" class="terminal-info">
@@ -223,7 +225,7 @@
                     连接状态:{{ deviceInfo.state === 0 ? '已连接' : deviceInfo.state === 1 ? '不稳定' : '已断开' }} | 协议: {{ formatProtocolTag(channelProtocol) }} | 连续通信:{{ deviceInfo.runtime?.success_count || 0 }} 次 | 最近失败:{{ deviceInfo.runtime?.last_fail_time && new Date(deviceInfo.runtime.last_fail_time).getFullYear() > 1 ? formatDate(deviceInfo.runtime.last_fail_time) : '无' }}
                 </span>
             </div>
-        </a-spin>
+        </div>
 
         <a-modal v-model:visible="cloneDialog.visible" title="克隆其它设备点位" width="100%" @ok="executeClone" @cancel="cloneDialog.visible = false">
             <a-space direction="vertical" :size="16" fill>

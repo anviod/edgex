@@ -411,26 +411,34 @@ main.go
   └── Server.Start() 启动 Web 服务
 ```
 
-### 2. 采集循环
+### 2. 采集循环（ScanEngine 调度驱动）
+
+<div align="center">
+  <img src="../img/dataScanEngineCN.svg" width="100%" alt="Edgex V2.0 架构 · ScanEngine引擎" />
+</div>
+
+> **Edgex V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine 写入影子设备实时快照，再联通虚拟设备、边缘计算与北向接口。
 
 ```
-Channel Manager
-  └── StartChannel()
-      └── for each device in channel.Devices:
-          ├── 创建独立的 goroutine（deviceLoop）
-          └── deviceLoop():
-              ├── 创建 ticker（按 device.Interval）
-              ├── 连接驱动
-              ├── 循环：
-              │   ├── 等待 ticker
-              │   ├── 如果需要采集（状态机检查）：
-              │   │   ├── SetSlaveID（如果是 Modbus）
-              │   │   ├── ReadPoints() 读取点位
-              │   │   ├── 构造 Value 对象
-              │   │   └── 发送到管道
-              │   └── 更新状态机
-              └── 直到收到 StopChan 信号
+ChannelManager.StartChannel()
+  ├── driver.Connect()
+  ├── registerProtocolToScanEngine()   // Serial / Parallel / Limited
+  └── for each enabled device:
+          registerDeviceToScanEngine() // ScanTask per Scan Class
+
+ScanEngine.Run()
+  └── loop Tick(10ms):
+          processReadyTasks()
+              ├── ExecutionLayer.Execute(task)
+              │     ├── Serial → SerialQueueManager.Enqueue
+              │     └── Parallel → BackpressureController.Allow
+              ├── Driver.ReadPoints(points)  [channelMu 串行链路]
+              ├── ShadowCore.WriteShadowDevice(batch)
+              ├── updateTaskState()          // 退避 / 优先级
+              └── finalizeScanCollect()      // 设备在线状态
 ```
+
+> **已废弃**：per-device `deviceLoop` / `CollectionScheduler` — 见 `docs/TODO/ScanEngine重构方案.md`。
 
 ### 3. 点位值结构
 
@@ -469,10 +477,11 @@ type Value struct {
 
 ## 性能考虑
 
-1. **独立采集循环**：每个设备有独立的 goroutine 和 ticker，支持不同的采集周期
-2. **连接复用**：每个通道使用一个驱动实例，多个设备通过 SetSlaveID() 复用连接
-3. **批量优化**：同一设备的点位会被优化成最少的批量读命令
-4. **状态机管理**：支持自动重试、失败转移等容错机制
+1. **统一调度**：ScanEngine 10ms Tick + PriorityQueue 管理全部 ScanTask，支持 Scan Class（fast/normal/slow）多周期
+2. **执行隔离**：Serial 协议经 SerialQueueManager 硬隔离；Parallel 协议经 BackpressureController 三层背压
+3. **连接复用**：每通道一个驱动实例；Modbus 多从站经 SetSlaveID + channelMu 串行复用连接
+4. **连接管理**：`ConnectionManager` 统一 dial / 退避 / single-flight 重连
+5. **状态闭环**：`finalizeScanCollect` → `FinalizeCollect`（链路级 vs 设备级错误隔离）
 
 ## 迁移指南
 

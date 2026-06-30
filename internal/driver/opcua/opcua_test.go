@@ -3,6 +3,7 @@ package opcua
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"testing"
 	"time"
 
@@ -555,13 +556,143 @@ func TestSubscriptionCachePreservesTimestamp(t *testing.T) {
 	}
 }
 
-func TestSubscriptionCacheLinkDownMarksBad(t *testing.T) {
-	v := model.Value{PointID: "p1", Value: 10.0, Quality: "Good", TS: time.Now()}
-	linkDown := true
-	if linkDown {
-		v.Quality = "Bad"
+func TestSubscriptionCacheReady(t *testing.T) {
+	tests := []struct {
+		name  string
+		value model.Value
+		want  bool
+	}{
+		{"Good with value", model.Value{Quality: "Good", Value: float32(1.2)}, true},
+		{"Good nil value", model.Value{Quality: "Good", Value: nil}, false},
+		{"Bad without value", model.Value{Quality: "Bad", Value: nil}, true},
+		{"Empty quality", model.Value{Quality: "", Value: nil}, false},
+		{"Good empty bytestring", model.Value{Quality: "Good", Value: []byte{}}, true},
 	}
-	if v.Quality != "Bad" {
-		t.Fatalf("expected Bad quality when link is down, got %q", v.Quality)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, subscriptionCacheReady(tt.value))
+		})
+	}
+}
+
+func TestReadPointsFallsBackWhenCacheGoodWithoutValue(t *testing.T) {
+	d := NewOpcUaDriver().(*OpcUaDriver)
+	w := &ClientWrapper{Connected: true}
+	sub := &DeviceSubscription{
+		Cache: map[string]model.Value{
+			"existing": {PointID: "existing", Quality: "Good", Value: float32(10)},
+			"new":      {PointID: "new", Quality: "Good", Value: nil},
+		},
+		Points: map[string]model.Point{
+			"existing": {ID: "existing", DeviceID: "dev-1", Address: "ns=3;i=1001"},
+			"new":      {ID: "new", DeviceID: "dev-1", Address: "ns=3;i=1011"},
+		},
+	}
+	w.Subscriptions = map[string]*DeviceSubscription{"dev-1": sub}
+	d.activeClient = w
+
+	points := []model.Point{
+		{ID: "existing", DeviceID: "dev-1", Address: "ns=3;i=1001"},
+		{ID: "new", DeviceID: "dev-1", Address: "ns=3;i=1011", DataType: "float32"},
+	}
+
+	sub.mu.RLock()
+	missing := false
+	for _, p := range points {
+		if v, ok := sub.Cache[p.ID]; !ok || !subscriptionCacheReady(v) {
+			missing = true
+			break
+		}
+	}
+	sub.mu.RUnlock()
+
+	assert.True(t, missing, "Good cache entry with nil value must trigger direct read fallback")
+}
+
+func TestMergeSubscriptionPointsAddsNewIDs(t *testing.T) {
+	existing := map[string]model.Point{
+		"a": {ID: "a", Address: "ns=5;s=A"},
+		"b": {ID: "b", Address: "ns=5;s=B"},
+	}
+	incoming := []model.Point{
+		{ID: "b", Address: "ns=5;s=B"},
+		{ID: "c", Address: "ns=5;s=AccessLevelCurrentReadNotUser"},
+	}
+
+	merged, toAdd, changed := mergeSubscriptionPoints(existing, incoming)
+	if changed {
+		t.Fatal("expected no address change")
+	}
+	if len(toAdd) != 1 || toAdd[0].ID != "c" {
+		t.Fatalf("expected one new point c, got %+v", toAdd)
+	}
+	if len(merged) != 3 {
+		t.Fatalf("expected merged size 3, got %d", len(merged))
+	}
+}
+
+func TestIsOpcUaSessionError(t *testing.T) {
+	assert.True(t, isOpcUaSessionError(errors.New("client not connected")))
+	assert.True(t, isOpcUaSessionError(errors.New("use of closed network connection")))
+	assert.False(t, isOpcUaSessionError(errors.New("StatusBadNodeIdUnknown")))
+	assert.False(t, isOpcUaSessionError(errors.New("subscription transfer failed")))
+}
+
+func TestRecordFailureIgnoresNonSessionError(t *testing.T) {
+	w := &ClientWrapper{
+		connMgr:      driver.NewConnectionManager("opcua-test"),
+		maxFailCount: 2,
+	}
+	w.Connected = true
+	w.connMgr.RecordSuccess()
+
+	w.RecordFailure(errors.New("StatusBadNodeIdUnknown"))
+	w.RecordFailure(errors.New("StatusBadNodeIdUnknown"))
+
+	assert.Equal(t, int32(0), w.collectFailCount.Load())
+	assert.True(t, w.Connected)
+	assert.Equal(t, driver.StateConnected, w.connMgr.GetState())
+}
+
+func TestMergeSubscriptionPointsDetectsAddressChange(t *testing.T) {
+	existing := map[string]model.Point{
+		"a": {ID: "a", Address: "ns=5;s=Old"},
+	}
+	incoming := []model.Point{
+		{ID: "a", Address: "ns=5;s=New"},
+	}
+
+	_, toAdd, changed := mergeSubscriptionPoints(existing, incoming)
+	if !changed {
+		t.Fatal("expected address change")
+	}
+	if len(toAdd) != 0 {
+		t.Fatalf("expected no additions on address change, got %+v", toAdd)
+	}
+}
+
+func TestResetDeviceCollectionClearsSubscription(t *testing.T) {
+	d := NewOpcUaDriver().(*OpcUaDriver)
+	w := &ClientWrapper{
+		Subscriptions: make(map[string]*DeviceSubscription),
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	w.Subscriptions["dev-1"] = &DeviceSubscription{
+		Ctx:    ctx,
+		Cancel: cancel,
+		Points: map[string]model.Point{"p1": {ID: "p1"}},
+	}
+	d.activeClient = w
+
+	d.ResetDeviceCollection("dev-1")
+
+	if len(w.Subscriptions) != 0 {
+		t.Fatalf("expected subscriptions cleared, got %d", len(w.Subscriptions))
+	}
+	select {
+	case <-ctx.Done():
+	default:
+		t.Fatal("expected subscription context cancelled")
 	}
 }

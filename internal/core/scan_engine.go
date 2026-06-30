@@ -124,6 +124,8 @@ func (pq *PriorityQueue) Peek() *ScanTask {
 // CollectFinalizeFunc 采集完成后回写设备通信状态。
 type CollectFinalizeFunc func(deviceID string, result *ExecuteResult)
 
+const antiStarvationWarnInterval = 60 * time.Second
+
 type ScanEngine struct {
 	tasks           map[string]*ScanTask
 	priorityQueue   *PriorityQueue
@@ -141,6 +143,7 @@ type ScanEngine struct {
 	wg              sync.WaitGroup
 	mu              sync.RWMutex
 	taskIDCounter   int
+	overdueWarnAt   map[string]time.Time
 }
 
 func NewScanEngine(config ScanEngineConfig) *ScanEngine {
@@ -168,6 +171,7 @@ func NewScanEngine(config ScanEngineConfig) *ScanEngine {
 
 	se := &ScanEngine{
 		tasks:         make(map[string]*ScanTask),
+		overdueWarnAt: make(map[string]time.Time),
 		priorityQueue: &PriorityQueue{},
 		executionLayer: NewExecutionLayer(),
 		resourceCtrl: NewResourceController(ResourceLimits{
@@ -299,8 +303,6 @@ func (se *ScanEngine) dispatchLoop() {
 			se.processReadyTasks()
 			scheduleWake()
 		case <-fallback.C:
-			now := time.Now()
-			se.enforceAntiStarvation(now)
 			se.processReadyTasks()
 			scheduleWake()
 		}
@@ -363,11 +365,15 @@ func (se *ScanEngine) enforceAntiStarvation(now time.Time) {
 		}
 		if now.Sub(task.NextRun) > antiStarvationDuration {
 			se.metrics.RecordOverdue()
-			zap.L().Warn("[防饿死] 任务超过预期执行时间",
-				zap.String("taskID", task.ID),
-				zap.String("deviceKey", task.DeviceKey),
-				zap.Duration("overdue", now.Sub(task.NextRun)),
-			)
+			lastWarn, warned := se.overdueWarnAt[task.ID]
+			if !warned || now.Sub(lastWarn) >= antiStarvationWarnInterval {
+				se.overdueWarnAt[task.ID] = now
+				zap.L().Warn("[防饿死] 任务超过预期执行时间",
+					zap.String("taskID", task.ID),
+					zap.String("deviceKey", task.DeviceKey),
+					zap.Duration("overdue", now.Sub(task.NextRun)),
+				)
+			}
 			if task.GetStatus() == ScanTaskStatusIdle {
 				se.metrics.RecordStarvationRescue()
 				task.Priority = 10
@@ -613,6 +619,9 @@ func (se *ScanEngine) updateTaskState(task *ScanTask, result *ExecuteResult) {
 		task.LastSuccess = time.Now()
 		task.FailRate = 0
 		task.Status = ScanTaskStatusIdle
+		if task.BaseInterval > 0 && task.Interval != task.BaseInterval {
+			task.Interval = task.BaseInterval
+		}
 
 		if task.Priority < 10 {
 			task.Priority++
@@ -638,15 +647,17 @@ func (se *ScanEngine) updateTaskState(task *ScanTask, result *ExecuteResult) {
 			if newInterval < time.Millisecond {
 				newInterval = time.Millisecond
 			}
-			zap.L().Warn("[降级] 任务失败率过高，调整采集间隔",
-				zap.String("taskID", task.ID),
-				zap.String("deviceKey", task.DeviceKey),
-				zap.Int("failures", task.ConsecutiveFailures),
-				zap.Duration("oldInterval", task.Interval),
-				zap.Duration("newInterval", newInterval),
-			)
-			task.Interval = newInterval
-			task.Status = ScanTaskStatusDegraded
+			if newInterval != task.Interval {
+				zap.L().Warn("[降级] 任务失败率过高，调整采集间隔",
+					zap.String("taskID", task.ID),
+					zap.String("deviceKey", task.DeviceKey),
+					zap.Int("failures", task.ConsecutiveFailures),
+					zap.Duration("oldInterval", task.Interval),
+					zap.Duration("newInterval", newInterval),
+				)
+				task.Interval = newInterval
+				task.Status = ScanTaskStatusDegraded
+			}
 		}
 
 		if task.Priority > 1 {
@@ -731,6 +742,7 @@ func (se *ScanEngine) RemoveTask(taskID string) {
 	if task, exists := se.tasks[taskID]; exists {
 		task.SetStatus(ScanTaskStatusStopped)
 		delete(se.tasks, taskID)
+		delete(se.overdueWarnAt, taskID)
 		zap.L().Info("[ScanEngine] 移除任务",
 			zap.String("taskID", taskID),
 			zap.String("deviceKey", task.DeviceKey),
@@ -746,6 +758,7 @@ func (se *ScanEngine) RemoveTasksByDeviceKey(deviceKey string) {
 		if task.DeviceKey == deviceKey {
 			task.SetStatus(ScanTaskStatusStopped)
 			delete(se.tasks, taskID)
+			delete(se.overdueWarnAt, taskID)
 			zap.L().Info("[ScanEngine] 移除任务",
 				zap.String("taskID", taskID),
 				zap.String("deviceKey", deviceKey),
@@ -808,6 +821,34 @@ func (se *ScanEngine) UpdateTaskInterval(deviceKey string, interval time.Duratio
 			zap.String("taskID", task.ID),
 			zap.Duration("interval", interval),
 		)
+	}
+}
+
+func (se *ScanEngine) UpdateTaskDriverConfig(deviceKey string, updates map[string]any) {
+	if len(updates) == 0 {
+		return
+	}
+	se.mu.Lock()
+	defer se.mu.Unlock()
+
+	for _, task := range se.tasks {
+		if task.DeviceKey != deviceKey || task.Params == nil {
+			continue
+		}
+		base, ok := task.Params["driverConfig"].(map[string]any)
+		if !ok || base == nil {
+			base = map[string]any{}
+		} else {
+			clone := make(map[string]any, len(base)+len(updates))
+			for k, v := range base {
+				clone[k] = v
+			}
+			base = clone
+		}
+		for k, v := range updates {
+			base[k] = v
+		}
+		task.Params["driverConfig"] = base
 	}
 }
 

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/anviod/edgex/internal/driver"
+	drv "github.com/anviod/edgex/internal/driver"
 	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
 	"github.com/anviod/edgex/internal/driver/bacnet/btypes/null"
 	"github.com/anviod/edgex/internal/driver/bacnet/btypes/units"
@@ -22,7 +22,7 @@ import (
 )
 
 func init() {
-	driver.RegisterDriver("bacnet-ip", func() driver.Driver {
+	drv.RegisterDriver("bacnet-ip", func() drv.Driver {
 		return NewBACnetDriver()
 	})
 }
@@ -92,6 +92,8 @@ type BACnetDriver struct {
 	// History of discovered objects for each device
 	// Map: DeviceID -> Map: ObjectKey(Type:Instance) -> ObjectResult
 	historicalObjects map[int]map[string]ObjectResult
+
+	addressNotifier drv.BACnetAddressNotifier
 }
 
 type DeviceConfig struct {
@@ -104,6 +106,7 @@ type DeviceContext struct {
 	Device              btypes.Device
 	Scheduler           *PointScheduler
 	Config              DeviceConfig
+	DeviceKey           string
 	LastDiscovery       time.Time
 	State               int
 	ConsecutiveFailures int
@@ -115,7 +118,9 @@ type DeviceContext struct {
 	lastReset           time.Time
 }
 
-func NewBACnetDriver() driver.Driver {
+const readFailureRecoveryThreshold = 3
+
+func NewBACnetDriver() drv.Driver {
 	return &BACnetDriver{
 		interfacePort:     47808,     // Default BACnet port
 		interfaceIP:       "0.0.0.0", // Default IP
@@ -232,96 +237,45 @@ func (d *BACnetDriver) Connect(ctx context.Context) error {
 	return nil
 }
 
+func (d *BACnetDriver) SetBACnetAddressNotifier(notifier drv.BACnetAddressNotifier) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.addressNotifier = notifier
+}
+
 func (d *BACnetDriver) discoverDevice(deviceID int, ip string, port int) error {
-	//	zap.L().Info("Discovering BACnet device", zap.Int("device_id", deviceID), zap.String("ip", ip), zap.Int("port", port))
-
-	// WhoIs
-	whois := &WhoIsOpts{
-		Low:  deviceID,
-		High: deviceID,
-	}
-
-	if ip != "" {
-		if port == 0 {
-			port = 47808
-		}
-		// Parse IP
-		parsedIP := net.ParseIP(ip)
-		if parsedIP != nil {
-			addr := datalink.IPPortToAddress(parsedIP, port)
-			whois.Destination = addr
-			//zap.L().Info("Using Unicast WhoIs", zap.String("ip", ip), zap.Int("port", port))
-		}
-	}
-
-	// We might need a loop or retry here
-	devices, err := d.client.WhoIs(whois)
-	if err != nil {
-		zap.L().Error("WhoIs failed for device", zap.Int("device_id", deviceID), zap.Error(err))
-		return fmt.Errorf("WhoIs failed: %v", err)
-	}
-
-	if len(devices) == 0 {
-		zap.L().Debug("No devices found, retrying with Broadcast", zap.Int("device_id", deviceID))
-		// Switch to Broadcast if Unicast failed
-		whois.Destination = nil
-		time.Sleep(1 * time.Second)
-		devices, err = d.client.WhoIs(whois)
-		if err != nil || len(devices) == 0 {
-			zap.L().Warn("Device not found on network after retry", zap.Int("device_id", deviceID))
-
-			// Fallback: If discovery fails but we have explicit IP/Port, use it.
-			if ip != "" && port != 0 {
-				zap.L().Warn("Using configured address as fallback", zap.String("ip", ip), zap.Int("port", port))
-				parsedIP := net.ParseIP(ip)
-				if parsedIP != nil {
-					addr := datalink.IPPortToAddress(parsedIP, port)
-					fakeDevice := btypes.Device{
-						Addr: *addr,
-						ID: btypes.ObjectID{
-							Type:     btypes.DeviceType,
-							Instance: btypes.ObjectInstance(deviceID),
-						},
-						DeviceID:     deviceID,
-						MaxApdu:      1476,
-						Segmentation: btypes.Enumerated(3),
-					}
-					devices = []btypes.Device{fakeDevice}
-				} else {
-					return fmt.Errorf("device %d not found on network and invalid IP", deviceID)
+	found, ok := d.whoIsDiscoverDevice(d.client, deviceID, ip, port)
+	if !ok {
+		if ip != "" {
+			fallbackPort := defaultBACnetPort
+			if port != 0 {
+				fallbackPort = port
+			}
+			parsedIP := net.ParseIP(ip)
+			if parsedIP != nil {
+				zap.L().Warn("Using configured address as fallback", zap.Int("device_id", deviceID), zap.String("ip", ip), zap.Int("port", fallbackPort))
+				addr := datalink.IPPortToAddress(parsedIP, fallbackPort)
+				found = btypes.Device{
+					Addr: *addr,
+					ID: btypes.ObjectID{
+						Type:     btypes.DeviceType,
+						Instance: btypes.ObjectInstance(deviceID),
+					},
+					DeviceID:     deviceID,
+					Ip:           ip,
+					Port:         fallbackPort,
+					MaxApdu:      1476,
+					Segmentation: btypes.Enumerated(3),
 				}
-			} else {
-				return fmt.Errorf("device %d not found on network", deviceID)
+				ok = true
 			}
 		}
-	}
-
-	d.deviceContexts[deviceID] = &DeviceContext{
-		Device: devices[0],
-		Config: DeviceConfig{
-			DeviceID: deviceID,
-			IP:       ip,
-			Port:     port,
-		},
-		LastDiscovery: time.Now(),
-	}
-	targetDevCtx := d.deviceContexts[deviceID]
-	//zap.L().Info("Found BACnet device", zap.Int("device_id", deviceID), zap.String("addr", fmt.Sprintf("%v", targetDevCtx.Device.Addr)))
-
-	// Fix: If configured port is different from discovered port, we should prefer discovered port
-	// unless we are sure. But here we were overwriting discovered port with configured port.
-	// We should let the discovered port be used, and if it fails, the scheduler fallback will try 47808.
-	if port != 0 && len(targetDevCtx.Device.Addr.Mac) == 6 {
-		discPort := int(targetDevCtx.Device.Addr.Mac[4])<<8 | int(targetDevCtx.Device.Addr.Mac[5])
-		if discPort != port {
-			//				zap.L().Warn("Discovered device port differs from configured, using discovered port", zap.Int("disc_port", discPort), zap.Int("conf_port", port))
-			// Do NOT overwrite. Let it use discPort.
-			// targetDevCtx.Device.Addr.Mac[4] = uint8(port >> 8)
-			// targetDevCtx.Device.Addr.Mac[5] = uint8(port & 0xFF)
+		if !ok {
+			return fmt.Errorf("device %d not found on network", deviceID)
 		}
 	}
 
-	targetDevCtx.Scheduler = NewPointScheduler(d.client, targetDevCtx.Device, 20, 10*time.Millisecond, 10*time.Second, d.useDataformatDecoder)
+	d.applyDiscoveredDeviceLocked(deviceID, ip, port, found)
 	return nil
 }
 
@@ -415,7 +369,7 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 		}
 	}
 
-	if err == nil && failed == 0 {
+	if err == nil && failed == 0 && len(raw) > 0 {
 		d.mu.Lock()
 		if devCtx, ok := d.deviceContexts[targetID]; ok {
 			devCtx.State = DeviceStateOnline
@@ -424,6 +378,22 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 		}
 		d.mu.Unlock()
 		return results, nil
+	}
+
+	if err == nil && failed == 0 && len(points) > 0 {
+		err = fmt.Errorf("no points collected for device %s", sID)
+	}
+
+	d.mu.Lock()
+	if devCtx, ok := d.deviceContexts[targetID]; ok {
+		devCtx.ConsecutiveFailures++
+		failures := devCtx.ConsecutiveFailures
+		d.mu.Unlock()
+		if failures >= readFailureRecoveryThreshold {
+			go d.checkRecovery(targetID)
+		}
+	} else {
+		d.mu.Unlock()
 	}
 
 	if err != nil {
@@ -518,57 +488,19 @@ func (d *BACnetDriver) checkRecovery(deviceID int) {
 	}()
 }
 
-// probeDevice performs network discovery without holding global lock
-// Returns true if probe succeeded, false if failed
+// probeDevice performs network discovery without holding global lock.
+// Returns true if probe succeeded, false if failed.
 func (d *BACnetDriver) probeDevice(client Client, deviceID int, ip string, port int) bool {
 	zap.L().Debug("Probing BACnet device", zap.Int("device_id", deviceID), zap.String("ip", ip), zap.Int("port", port))
 
-	whois := &WhoIsOpts{
-		Low:  deviceID,
-		High: deviceID,
-	}
-
-	if ip != "" {
-		if port == 0 {
-			port = 47808
-		}
-		parsedIP := net.ParseIP(ip)
-		if parsedIP != nil {
-			addr := datalink.IPPortToAddress(parsedIP, port)
-			whois.Destination = addr
-		}
-	}
-
-	devices, err := client.WhoIs(whois)
-	if err != nil || len(devices) == 0 {
-		zap.L().Debug("BACnet probe failed", zap.Int("device_id", deviceID), zap.Error(err))
-		return false
-	}
-
-	foundDev := devices[0]
-
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	// Re-check existence
-	devCtx, ok := d.deviceContexts[deviceID]
+	found, ok := d.whoIsDiscoverDevice(client, deviceID, ip, port)
 	if !ok {
-		zap.L().Debug("BACnet probe: context gone for device", zap.Int("device_id", deviceID))
+		zap.L().Debug("BACnet probe failed", zap.Int("device_id", deviceID))
 		return false
 	}
 
-	devCtx.Device = foundDev
-	devCtx.LastDiscovery = time.Now()
-	devCtx.Scheduler = NewPointScheduler(d.client, devCtx.Device, 20, 10*time.Millisecond, 10*time.Second, d.useDataformatDecoder)
-
-	if devCtx.State == DeviceStateIsolated {
-		zap.L().Info("BACnet device probe successful, clearing isolation", zap.Int("device_id", deviceID))
-		devCtx.State = DeviceStateOnline
-		devCtx.ConsecutiveFailures = 0
-		devCtx.IsolationCount = 0
-		devCtx.IsolationUntil = time.Time{}
-	}
-
+	d.applyDiscoveredDevice(deviceID, ip, port, found)
+	zap.L().Info("BACnet device probe successful", zap.Int("device_id", deviceID), zap.Int("port", devicePortFromAddr(found)))
 	return true
 }
 
@@ -699,11 +631,11 @@ func (d *BACnetDriver) WritePoint(ctx context.Context, point model.Point, value 
 	return devCtx.Scheduler.Write(ctx, []PointWriteRequest{writeReq})
 }
 
-func (d *BACnetDriver) Health() driver.HealthStatus {
+func (d *BACnetDriver) Health() drv.HealthStatus {
 	if d.connected && d.client != nil && d.client.IsRunning() {
-		return driver.HealthStatusGood
+		return drv.HealthStatusGood
 	}
-	return driver.HealthStatusBad
+	return drv.HealthStatusBad
 }
 
 func (d *BACnetDriver) SetSlaveID(slaveID uint8) error {
@@ -744,6 +676,9 @@ func (d *BACnetDriver) SetDeviceConfig(config map[string]any) error {
 			if existing, mapped := d.idMap[sID]; !mapped || existing != newID {
 				d.idMap[sID] = newID
 				zap.L().Debug("Mapped DeviceID string to InstanceID", zap.String("id", sID), zap.Int("instance", newID))
+			}
+			if ctx, exists := d.deviceContexts[newID]; exists {
+				ctx.DeviceKey = sID
 			}
 		}
 	}

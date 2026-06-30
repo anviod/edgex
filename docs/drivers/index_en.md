@@ -22,7 +22,6 @@ hero_buttons:
 | Protocol | Registry Key | Status | Read | Write | Scan / Discover | ConnectionManager | Unit Tests |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
 | **Modbus TCP/RTU** | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | Production | Yes | Yes | — | Yes | 33 tests, 27% cov |
-| **Modbus Simple** | `modbus-*-simple` | Production | Yes | Yes | — | Yes | (shared) |
 | **BACnet IP** | `bacnet-ip` | Production | Yes | Yes | Scan + ScanObjects | Partial | 80+ tests, 59% cov |
 | **OPC UA Client** | `opc-ua` | Production | Yes | Yes | Scan + ScanObjects | Yes | 25 tests, 40% cov |
 | **Siemens S7** | `s7` | Production | Yes | Yes | — | Yes | 52 tests, 42% cov |

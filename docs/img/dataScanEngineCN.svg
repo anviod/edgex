@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="1050" viewBox="0 0 1400 1050" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg_grad" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#f8fafc" />
+      <stop offset="100%" stop-color="#f1f5f9" />
+    </radialGradient>
+    <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#0f172a" stroke-width="1" opacity="0.07"/>
+    </pattern>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2.5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <style>
+      .panel-bg { fill: #ffffff; stroke-width: 2; fill-opacity: 0.95; }
+      .text-label { fill: #1e293b; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-weight: 800; font-size: 18px; }
+      .text-label-sm { fill: #1e293b; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-weight: 700; font-size: 13px; }
+      .text-detail { fill: #475569; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 14px; font-weight: 500; }
+      .text-detail-sm { fill: #475569; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 12px; font-weight: 500; }
+      .text-api { fill: #0ea5e9; font-family: 'Courier New', monospace; font-size: 15px; font-weight: bold; }
+      .text-title { fill: #0f172a; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-weight: 800; font-size: 24px; }
+      .line-main { fill: none; stroke: #cbd5e1; stroke-width: 2.5; }
+      .core-box { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 1.5; }
+    </style>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#bg_grad)"/>
+  <rect width="100%" height="100%" fill="url(#grid)" />
+  <text x="700" y="36" text-anchor="middle" class="text-title">Edgex V2.0 架构 · ScanEngine引擎</text>
+  <g transform="translate(0, 52)">
+    <g transform="translate(215, 0)">
+      <rect width="200" height="100" rx="12" class="panel-bg" stroke="#f59e0b" filter="url(#glow)"/>
+      <text x="100" y="32" text-anchor="middle" class="text-label" style="font-size: 16px;">MQTT 适配器</text>
+      <text x="100" y="58" text-anchor="middle" class="text-detail-sm">认证 • 限流</text>
+      <text x="100" y="80" text-anchor="middle" class="text-detail-sm">动态主题挂载</text>
+    </g>
+    <g transform="translate(435, 0)">
+      <rect width="200" height="100" rx="12" class="panel-bg" stroke="#0ea5e9" filter="url(#glow)"/>
+      <text x="100" y="32" text-anchor="middle" class="text-label" style="font-size: 16px;">OPC UA 服务端</text>
+      <text x="100" y="58" text-anchor="middle" class="text-detail-sm">审计日志 • 鉴权</text>
+      <text x="100" y="80" text-anchor="middle" class="text-detail-sm">一致性校验</text>
+    </g>
+    <g transform="translate(655, 0)">
+      <rect width="200" height="100" rx="12" class="panel-bg" stroke="#8b5cf6" filter="url(#glow)"/>
+      <text x="100" y="32" text-anchor="middle" class="text-label" style="font-size: 16px;">REST/HTTP(S)</text>
+      <text x="100" y="58" text-anchor="middle" class="text-detail-sm">API 密钥 • TLS</text>
+      <text x="100" y="80" text-anchor="middle" class="text-detail-sm">审计日志</text>
+    </g>
+    <g transform="translate(875, 0)">
+      <rect width="200" height="100" rx="12" class="panel-bg" stroke="#ec4899" filter="url(#glow)"/>
+      <text x="100" y="32" text-anchor="middle" class="text-label" style="font-size: 16px;">WebSocket</text>
+      <text x="100" y="58" text-anchor="middle" class="text-detail-sm">实时推送</text>
+      <text x="100" y="80" text-anchor="middle" class="text-detail-sm">REST 读影子</text>
+    </g>
+  </g>
+  <text x="700" y="192" class="text-api" text-anchor="middle">Shadow Service API: 读 / 写 / 订阅</text>
+  <g transform="translate(250, 205)">
+    <rect width="900" height="245" rx="12" class="panel-bg" stroke="#64748b" filter="url(#glow)" />
+    <text x="450" y="36" text-anchor="middle" class="text-label" style="font-size: 22px;">ShadowCore 影子设备 · 实时快照</text>
+    <rect x="40" y="55" width="380" height="72" rx="6" class="core-box" />
+    <text x="230" y="85" text-anchor="middle" class="text-detail" font-weight="bold">Real Shadow Store (纯内存)</text>
+    <rect x="130" y="102" width="200" height="6" rx="3" fill="#e2e8f0" />
+    <rect x="130" y="102" width="90" height="6" rx="3" fill="#38bdf8"><animate attributeName="width" values="40;200;40" dur="3s" repeatCount="indefinite"/></rect>
+    <text x="230" y="119" text-anchor="middle" class="text-detail-sm" fill="#64748b">实时快照 · 毫秒级更新</text>
+    <rect x="440" y="55" width="420" height="72" rx="6" class="core-box" />
+    <text x="650" y="85" text-anchor="middle" class="text-detail" font-weight="bold">Virtual Shadow Engine (公式计算图)</text>
+    <circle cx="780" cy="92" r="7" fill="#8b5cf6" opacity="0.6"><animate attributeName="r" values="4;8;4" dur="1s" repeatCount="indefinite"/></circle>
+    <text x="650" y="115" text-anchor="middle" class="text-detail-sm" fill="#64748b">虚拟影子设备 · 派生点位</text>
+    <rect x="40" y="140" width="820" height="55" rx="6" class="core-box" />
+    <text x="450" y="165" text-anchor="middle" class="text-detail">边缘计算引擎 (差值 / 阈值 / 滑动窗口)</text>
+    <text x="450" y="185" text-anchor="middle" class="text-detail" fill="#059669" font-weight="bold">ShadowBridge → DataPipeline · 原子调度 CAS + QoS ACK</text>
+  </g>
+  <path id="sc_to_mqtt" d="M315 205 V152" class="line-main"/>
+  <circle r="4" fill="#f59e0b"><animateMotion dur="1.2s" repeatCount="indefinite"><mpath href="#sc_to_mqtt"/></animateMotion></circle>
+  <path id="sc_to_opcua" d="M535 205 V152" class="line-main"/>
+  <circle r="4" fill="#0ea5e9"><animateMotion dur="1.5s" repeatCount="indefinite"><mpath href="#sc_to_opcua"/></animateMotion></circle>
+  <path id="sc_to_rest" d="M755 205 V152" class="line-main"/>
+  <circle r="4" fill="#8b5cf6"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#sc_to_rest"/></animateMotion></circle>
+  <path id="sc_to_ws" d="M975 205 V152" class="line-main"/>
+  <circle r="4" fill="#ec4899"><animateMotion dur="1.7s" repeatCount="indefinite"><mpath href="#sc_to_ws"/></animateMotion></circle>
+  <text x="700" y="472" class="text-api" text-anchor="middle">WriteShadowDevice → 实时快照</text>
+  <path id="path_to_shadow" d="M700 485 V450" class="line-main" />
+  <circle r="4" fill="#16a34a"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#path_to_shadow"/></animateMotion></circle>
+  <g transform="translate(250, 485)">
+    <rect width="900" height="105" rx="12" class="panel-bg" stroke="#16a34a" filter="url(#glow)" />
+    <text x="450" y="35" text-anchor="middle" class="text-label" style="font-size: 20px; fill: #15803d;">ScanEngine 统一调度内核</text>
+    <text x="450" y="62" text-anchor="middle" class="text-detail">10ms Tick · PriorityQueue · ResourceController</text>
+    <text x="450" y="88" text-anchor="middle" class="text-detail" fill="#059669" font-weight="bold">ExecutionLayer (Serial / Parallel / Limited)</text>
+  </g>
+  <text x="700" y="618" class="text-api" text-anchor="middle">ScanEngine Dispatch → ExecutionLayer → Driver</text>
+  <path id="bus_horizontal" d="M80 648 L1320 648" class="line-main" />
+  <path id="path_scan_dispatch" d="M685 590 V648" class="line-main" />
+  <circle r="4" fill="#64748b"><animateMotion dur="1.5s" repeatCount="indefinite"><mpath href="#path_scan_dispatch"/></animateMotion></circle>
+  <path id="path_scan_feedback" d="M715 648 V590" class="line-main" stroke-dasharray="6,4" />
+  <circle r="4" fill="#16a34a"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#path_scan_feedback"/></animateMotion></circle>
+
+  <!-- Single row: 12 drivers evenly spaced x=80..1320 (90px wide, ~14.5px gap) -->
+  <g transform="translate(80, 770)">
+    <rect width="90" height="72" rx="8" class="panel-bg" stroke="#f59e0b" filter="url(#glow)"/>
+    <text x="45" y="32" text-anchor="middle" class="text-label-sm">Modbus</text>
+    <text x="45" y="52" text-anchor="middle" class="text-detail-sm">TCP/RTU</text>
+  </g>
+  <g transform="translate(184.5, 770)">
+    <rect width="90" height="72" rx="8" class="panel-bg" stroke="#16a34a" filter="url(#glow)"/>
+    <text x="45" y="32" text-anchor="middle" class="text-label-sm">BACnet</text>
+    <text x="45" y="52" text-anchor="middle" class="text-detail-sm">IP</text>
+  </g>
+  <g transform="translate(289.1, 770)">
+    <rect width="90" height="72" rx="8" class="panel-bg" stroke="#ec4899" filter="url(#glow)"/>
+    <text x="45" y="32" text-anchor="middle" class="text-label-sm">OPC UA</text>
+    <text x="45" y="52" text-anchor="middle" class="text-detail-sm">Client</text>
+  </g>
+  <g transform="translate(393.6, 770)">
+    <rect width="90" height="72" rx="8" class="panel-bg" stroke="#8b5cf6" filter="url(#glow)"/>
+    <text x="45" y="32" text-anchor="middle" class="text-label-sm">Siemens</text>
+    <text x="45" y="52" text-anchor="middle" class="text-detail-sm">S7</text>
+  </g>
+  <g transform="translate(498.2, 770)">
+    <rect width="90" height="72" rx="8" class="panel-bg" stroke="#0ea5e9" filter="url(#glow)"/>
+    <text x="45" y="32" text-anchor="middle" class="text-label-sm">EtherNet</text>
+    <text x="45" y="52" text-anchor="middle" class="text-detail-sm">/IP</text>
+  </g>
+  <g transform="translate(602.7, 770)">
+    <rect width="90" height="72" rx="8" class="panel-bg" stroke="#eab308" filter="url(#glow)"/>
+    <text x="45" y="32" text-anchor="middle" class="text-label-sm">Omron</text>
+    <text x="45" y="52" text-anchor="middle" class="text-detail-sm">FINS</text>
+  </g>
+  <g transform="translate(707.3, 770)">
+    <rect width="90" height="72" rx="8" class="panel-bg" stroke="#06b6d4" filter="url(#glow)"/>
+    <text x="45" y="38" text-anchor="middle" class="text-label-sm">SNMP</text>
+  </g>
+  <g transform="translate(811.8, 770)">
+    <rect width="90" height="72" rx="8" class="panel-bg" stroke="#ef4444" filter="url(#glow)"/>
+    <text x="45" y="32" text-anchor="middle" class="text-label-sm">IEC 104</text>
+    <text x="45" y="52" text-anchor="middle" class="text-detail-sm">60870-5</text>
+  </g>
+  <g transform="translate(916.4, 770)">
+    <rect width="90" height="72" rx="8" class="panel-bg" stroke="#84cc16" filter="url(#glow)"/>
+    <text x="45" y="32" text-anchor="middle" class="text-label-sm">DL/T645</text>
+    <text x="45" y="52" text-anchor="middle" class="text-detail-sm">2007</text>
+  </g>
+  <g transform="translate(1020.9, 770)">
+    <rect width="90" height="72" rx="8" class="panel-bg" stroke="#f97316" filter="url(#glow)"/>
+    <text x="45" y="32" text-anchor="middle" class="text-label-sm">Mitsubishi</text>
+    <text x="45" y="52" text-anchor="middle" class="text-detail-sm">SLMP</text>
+  </g>
+  <g transform="translate(1125.5, 770)">
+    <rect width="90" height="72" rx="8" class="panel-bg" stroke="#6366f1" filter="url(#glow)"/>
+    <text x="45" y="32" text-anchor="middle" class="text-label-sm">Profinet</text>
+    <text x="45" y="52" text-anchor="middle" class="text-detail-sm">IO</text>
+  </g>
+  <g transform="translate(1230, 770)">
+    <rect width="90" height="72" rx="8" class="panel-bg" stroke="#14b8a6" filter="url(#glow)"/>
+    <text x="45" y="32" text-anchor="middle" class="text-label-sm">KNXnet</text>
+    <text x="45" y="52" text-anchor="middle" class="text-detail-sm">/IP</text>
+  </g>
+
+  <!-- Vertical drops: each driver center straight up to bus y=648 -->
+  <path id="d1" d="M125 770 V648" class="line-main"/><circle r="3" fill="#f59e0b"><animateMotion dur="1s" repeatCount="indefinite"><mpath href="#d1"/></animateMotion></circle>
+  <path id="d2" d="M229.5 770 V648" class="line-main"/><circle r="3" fill="#16a34a"><animateMotion dur="1.3s" repeatCount="indefinite"><mpath href="#d2"/></animateMotion></circle>
+  <path id="d3" d="M334.1 770 V648" class="line-main"/><circle r="3" fill="#ec4899"><animateMotion dur="1.2s" repeatCount="indefinite"><mpath href="#d3"/></animateMotion></circle>
+  <path id="d4" d="M438.6 770 V648" class="line-main"/><circle r="3" fill="#8b5cf6"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#d4"/></animateMotion></circle>
+  <path id="d5" d="M543.2 770 V648" class="line-main"/><circle r="3" fill="#0ea5e9"><animateMotion dur="1.4s" repeatCount="indefinite"><mpath href="#d5"/></animateMotion></circle>
+  <path id="d6" d="M647.7 770 V648" class="line-main"/><circle r="3" fill="#eab308"><animateMotion dur="1.7s" repeatCount="indefinite"><mpath href="#d6"/></animateMotion></circle>
+  <path id="d7" d="M752.3 770 V648" class="line-main"/><circle r="3" fill="#06b6d4"><animateMotion dur="1.5s" repeatCount="indefinite"><mpath href="#d7"/></animateMotion></circle>
+  <path id="d8" d="M856.8 770 V648" class="line-main"/><circle r="3" fill="#ef4444"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#d8"/></animateMotion></circle>
+  <path id="d9" d="M961.4 770 V648" class="line-main"/><circle r="3" fill="#84cc16"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#d9"/></animateMotion></circle>
+  <path id="d10" d="M1065.9 770 V648" class="line-main"/><circle r="3" fill="#f97316"><animateMotion dur="1.9s" repeatCount="indefinite"><mpath href="#d10"/></animateMotion></circle>
+  <path id="d11" d="M1170.5 770 V648" class="line-main"/><circle r="3" fill="#6366f1"><animateMotion dur="2.1s" repeatCount="indefinite"><mpath href="#d11"/></animateMotion></circle>
+  <path id="d12" d="M1275 770 V648" class="line-main"/><circle r="3" fill="#14b8a6"><animateMotion dur="2.2s" repeatCount="indefinite"><mpath href="#d12"/></animateMotion></circle>
+
+  <text x="700" y="900" text-anchor="middle" class="text-detail" fill="#64748b" font-weight="bold">南向驱动层 · 12 种工业协议 (统一经 ScanEngine 调度)</text>
+  <path id="ctrl_flow" d="M1180 535 H1345 V900 H55 V535 H250" fill="none" stroke="#16a34a" stroke-width="2" stroke-dasharray="12,6" opacity="0.35"/>
+  <circle r="4" fill="#16a34a"><animateMotion dur="14s" repeatCount="indefinite"><mpath href="#ctrl_flow"/></animateMotion></circle>
+  <text x="700" y="960" text-anchor="middle" class="text-detail" style="fill: #16a34a; font-weight: bold; font-size: 15px;">状态回写闭环: ScanEngine ← finalizeScanCollect / 通道状态 · 参数热更新</text>
+  <text x="48" y="560" class="text-detail-sm" fill="#94a3b8" transform="rotate(-90 48 560)">数据流 ↑</text>
+</svg>

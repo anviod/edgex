@@ -244,28 +244,12 @@ func (cm *ChannelManager) finalizeScanCollect(deviceID string, result *ExecuteRe
 		return
 	}
 
-	ctx := &CollectContext{}
-	if result.Success && len(result.Values) > 0 {
-		for _, v := range result.Values {
-			if v.Quality == "Good" {
-				ctx.SuccessCmd++
-			} else {
-				ctx.FailCmd++
-			}
-		}
-	} else {
-		pointCount := 0
-		for _, task := range cm.scanEngineAdapter.scanEngine.GetTasksByDeviceKey(deviceID) {
-			pointCount += len(task.PointIDs)
-		}
-		if pointCount == 0 {
-			ctx.FailCmd = 1
-		} else {
-			ctx.FailCmd = pointCount
-		}
+	pointCount := 0
+	for _, task := range cm.scanEngineAdapter.scanEngine.GetTasksByDeviceKey(deviceID) {
+		pointCount += len(task.PointIDs)
 	}
 
-	cm.stateManager.FinalizeCollect(node, ctx)
+	cm.stateManager.FinalizeCollect(node, collectContextFromExecuteResult(result, pointCount))
 	recordCollectCycle(result != nil && result.Success)
 }
 
@@ -414,6 +398,7 @@ func (cm *ChannelManager) AddChannel(ch *model.Channel) error {
 	}
 	cm.drivers[ch.ID] = d
 	cm.driverMus[ch.ID] = &sync.Mutex{}
+	cm.wireBACnetAddressNotifier(ch.ID, d)
 	cm.stateManager.RegisterNode(ch.ID, ch.Name)
 
 	// Register all devices in state manager
@@ -484,6 +469,7 @@ func (cm *ChannelManager) UpdateChannel(ch *model.Channel) error {
 	if _, ok := cm.driverMus[ch.ID]; !ok {
 		cm.driverMus[ch.ID] = &sync.Mutex{}
 	}
+	cm.wireBACnetAddressNotifier(ch.ID, d)
 
 	// Register all devices in state manager
 	for _, dev := range ch.Devices {
@@ -894,8 +880,6 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 	}
 
 	// 按配置顺序返回点位数据
-	successCount := 0
-	failCount := 0
 	for _, point := range pointsCopy {
 		pd := model.PointData{
 			ID:           point.ID,
@@ -920,27 +904,15 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 				pd.Timestamp = result.TS
 				pd.CollectedAt = result.TS
 			}
-			if pd.Quality == "Good" {
-				successCount++
-			} else {
-				failCount++
-			}
-		} else {
-			// 未返回视为失败一次
-			failCount++
 		}
 
 		points = append(points, pd)
 	}
 
-	// 根据读点结果立即修正设备状态：一次成功即可恢复 Online
+	// 根据读点结果立即修正设备状态：传输成功即可恢复 Online（点位 Bad 不计入链路失败）
 	if node != nil {
-		collectCtx := &CollectContext{
-			TotalCmd:   successCount + failCount,
-			SuccessCmd: successCount,
-			FailCmd:    failCount,
-		}
-		cm.stateManager.FinalizeCollect(node, collectCtx)
+		execResult := &ExecuteResult{Success: err == nil, Values: results, Error: err}
+		cm.stateManager.FinalizeCollect(node, collectContextFromExecuteResult(execResult, len(pointsCopy)))
 	}
 
 	return points, nil
@@ -2263,4 +2235,74 @@ func (cm *ChannelManager) GenerateDeviceRegisterPoints(channelID, deviceID strin
 	}
 	out := ch.Devices[idx]
 	return &out, nil
+}
+
+func (cm *ChannelManager) wireBACnetAddressNotifier(channelID string, d drv.Driver) {
+	if setter, ok := d.(drv.BACnetAddressNotifySetter); ok {
+		setter.SetBACnetAddressNotifier(cm)
+	}
+}
+
+// OnBACnetAddressDiscovered persists a runtime address change (e.g. UDP port after device reboot).
+func (cm *ChannelManager) OnBACnetAddressDiscovered(deviceKey, ip string, port int) {
+	if deviceKey == "" || ip == "" || port <= 0 {
+		return
+	}
+
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	for channelID, ch := range cm.channels {
+		if ch.Protocol != "bacnet-ip" {
+			continue
+		}
+		for i := range ch.Devices {
+			if ch.Devices[i].ID != deviceKey {
+				continue
+			}
+			if ch.Devices[i].Config == nil {
+				ch.Devices[i].Config = map[string]any{}
+			}
+			oldPort, hasPort := coerceConfigInt(ch.Devices[i].Config["port"])
+			oldIP, _ := ch.Devices[i].Config["ip"].(string)
+			changed := false
+			if !hasPort || oldPort != port {
+				ch.Devices[i].Config["port"] = port
+				changed = true
+			}
+			if oldIP != ip {
+				ch.Devices[i].Config["ip"] = ip
+				changed = true
+			}
+			if !changed {
+				return
+			}
+
+			cm.channels[channelID] = ch
+			cm.scanEngineAdapter.UpdateDeviceDriverConfig(deviceKey, map[string]any{
+				"ip":   ip,
+				"port": port,
+			})
+
+			if cm.saveFunc != nil {
+				channels := make([]model.Channel, 0, len(cm.channels))
+				for _, c := range cm.channels {
+					channels = append(channels, *c)
+				}
+				if err := cm.saveFunc(channels); err != nil {
+					zap.L().Warn("Failed to persist BACnet address update",
+						zap.String("device", deviceKey),
+						zap.Error(err),
+					)
+				}
+			}
+
+			zap.L().Info("Persisted BACnet device address update",
+				zap.String("device", deviceKey),
+				zap.String("ip", ip),
+				zap.Int("port", port),
+			)
+			return
+		}
+	}
 }

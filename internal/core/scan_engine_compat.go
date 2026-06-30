@@ -48,6 +48,7 @@ func (a *ScanEngineAdapter) RegisterDevice(
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
+	a.resetDeviceCollection(deviceID)
 	a.scanEngine.RemoveTasksByDeviceKey(deviceID)
 	a.scanEngine.UnregisterDriver(deviceID)
 
@@ -125,6 +126,7 @@ func (a *ScanEngineAdapter) UnregisterDevice(deviceID string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
+	a.resetDeviceCollection(deviceID)
 	delete(a.driverManager, deviceID)
 	a.scanEngine.RemoveTasksByDeviceKey(deviceID)
 	a.scanEngine.UnregisterDriver(deviceID)
@@ -183,6 +185,10 @@ func (a *ScanEngineAdapter) UpdateDevicePriority(deviceID string, priority int) 
 	)
 }
 
+func (a *ScanEngineAdapter) UpdateDeviceDriverConfig(deviceID string, updates map[string]any) {
+	a.scanEngine.UpdateTaskDriverConfig(deviceID, updates)
+}
+
 func (a *ScanEngineAdapter) GetTaskStatus(deviceID string) ScanTaskStatus {
 	task := a.scanEngine.GetTaskByDeviceKey(deviceID)
 	if task == nil {
@@ -201,4 +207,12 @@ func (a *ScanEngineAdapter) GetPendingTaskCount() int {
 
 func (a *ScanEngineAdapter) GetTasks() []*ScanTask {
 	return a.scanEngine.GetTasks()
+}
+
+func (a *ScanEngineAdapter) resetDeviceCollection(deviceID string) {
+	if d, ok := a.driverManager[deviceID]; ok {
+		if r, ok := d.(driver.DeviceCollectionResetter); ok {
+			r.ResetDeviceCollection(deviceID)
+		}
+	}
 }

@@ -202,10 +202,23 @@ func (t *ModbusTransport) RecordFailure(err error) {
 	}
 
 	t.collectFailCount.Add(1)
+}
 
-	if t.collectFailCount.Load() >= t.maxFailCount {
-		go t.reconnect()
+func (t *ModbusTransport) IsReconnectExhausted() bool {
+	return t.connMgr.GetState() == StateDead
+}
+
+func (t *ModbusTransport) scheduleReconnect() {
+	timeout := t.timeout * time.Duration(t.maxRetries)
+	if timeout <= 0 {
+		timeout = 30 * time.Second
 	}
+
+	t.connMgr.ScheduleReconnect(context.Background(), timeout, func(ctx context.Context) error {
+		t.mu.Lock()
+		defer t.mu.Unlock()
+		return t.connectOnce(ctx)
+	})
 }
 
 func (t *ModbusTransport) NeedProbeCheck() bool {
@@ -230,30 +243,11 @@ func (t *ModbusTransport) ProbeConnection() {
 	_, err := t.client.ReadCoil(0)
 	if err != nil {
 		t.RecordFailure(err)
+		if t.collectFailCount.Load() >= t.maxFailCount {
+			t.scheduleReconnect()
+		}
 	} else {
 		t.RecordSuccess()
-	}
-}
-
-func (t *ModbusTransport) reconnect() {
-	t.mu.Lock()
-	if !t.connected.Load() {
-		t.mu.Unlock()
-		return
-	}
-
-	if t.client != nil {
-		t.client.Close()
-	}
-	t.connected.Store(false)
-	t.connMgr.SetState(StateRetrying)
-	t.mu.Unlock()
-
-	ctx, cancel := context.WithTimeout(context.Background(), t.timeout*time.Duration(t.maxRetries))
-	defer cancel()
-
-	if err := t.Connect(ctx); err != nil {
-		zap.L().Error("[Modbus] Reconnection failed", zap.Error(err))
 	}
 }
 
@@ -266,11 +260,20 @@ func (t *ModbusTransport) Connect(ctx context.Context) error {
 		return nil
 	}
 
-	// Ensure previous client is closed
 	if t.client != nil {
 		zap.L().Info("[Modbus] Closing existing TCP client before reconnect")
 		_ = t.client.Close()
 		t.client = nil
+	}
+
+	return t.connMgr.EnsureConnected(ctx, func(ctx context.Context) error {
+		return t.connectOnce(ctx)
+	})
+}
+
+func (t *ModbusTransport) connectOnce(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
 
 	// Build URL
@@ -339,109 +342,78 @@ func (t *ModbusTransport) Connect(ctx context.Context) error {
 
 	url = normalizeModbusURL(url)
 
-	//zap.L().Info("[Modbus] Establishing TCP connection",
-	//	zap.String("url", url),
-	//	zap.Duration("timeout", t.timeout),
-	//)
-
-	t.connMgr.SetState(StateConnecting)
-
-	var lastErr error
-	for {
-		canRetry, waitTime := t.connMgr.CanRetry()
-		if !canRetry {
-			return fmt.Errorf("Modbus connection not allowed to retry")
-		}
-
-		if waitTime > 0 {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(waitTime):
-			}
-		}
-
-		client, err := modbus.NewClient(&modbus.ClientConfiguration{
-			URL:     url,
-			Timeout: t.timeout,
-		})
-		if err != nil {
-			lastErr = err
-			zap.L().Warn("[Modbus] Create client failed", zap.Error(err))
-			_, _ = t.connMgr.RecordFailure()
-			continue
-		}
-
-		if err := client.Open(); err != nil {
-			lastErr = err
-			zap.L().Warn("[Modbus] Open TCP connection failed", zap.Error(err))
-			_ = client.Close()
-			shouldRetry, _ := t.connMgr.RecordFailure()
-			if !shouldRetry {
-				return fmt.Errorf("Modbus connection failed, entering coolDown: %w", lastErr)
-			}
-			continue
-		}
-
-		t.client = client
-		if slaveID, ok := t.cfg.Config["slave_id"]; ok {
-			var sid uint8
-			switch v := slaveID.(type) {
-			case int:
-				sid = uint8(v)
-			case float64:
-				sid = uint8(v)
-			case uint8:
-				sid = v
-			default:
-				sid = 1
-			}
-			t.client.SetUnitId(sid)
-		}
-
-		t.connected.Store(true)
-		t.connectTime = time.Now()
-		t.connMgr.RecordSuccess()
-
-		if t.client != nil {
-			t.remoteAddr = url
-			if strings.HasPrefix(t.remoteAddr, "tcp://") {
-				t.remoteAddr = strings.TrimPrefix(t.remoteAddr, "tcp://")
-			} else if strings.HasPrefix(t.remoteAddr, "rtuovertcp://") {
-				t.remoteAddr = strings.TrimPrefix(t.remoteAddr, "rtuovertcp://")
-			}
-
-			t.localAddr = getLocalAddr(t.client)
-			if t.localAddr == "" {
-				if strings.Contains(url, "://") && !strings.HasPrefix(url, "rtu://") {
-					hostPort := url
-					if strings.HasPrefix(url, "tcp://") {
-						hostPort = strings.TrimPrefix(url, "tcp://")
-					} else if strings.HasPrefix(url, "rtuovertcp://") {
-						hostPort = strings.TrimPrefix(url, "rtuovertcp://")
-					}
-
-					udpConn, err := net.DialTimeout("udp", hostPort, 1*time.Second)
-					if err == nil {
-						localAddr, _, _ := net.SplitHostPort(udpConn.LocalAddr().String())
-						t.localAddr = localAddr
-						udpConn.Close()
-					} else {
-						t.localAddr = "Local IP: (Auto)"
-					}
-				} else {
-					t.localAddr = "Serial Port"
-				}
-			}
-		}
-
-		if t.metricsRecorder != nil && t.channelID != "" {
-			t.metricsRecorder.RecordConnectionStart(t.channelID)
-		}
-
-		zap.L().Info("[Modbus] TCP connection established", zap.String("url", url))
-		return nil
+	client, err := modbus.NewClient(&modbus.ClientConfiguration{
+		URL:     url,
+		Timeout: t.timeout,
+	})
+	if err != nil {
+		zap.L().Warn("[Modbus] Create client failed", zap.Error(err))
+		return err
 	}
+
+	if err := client.Open(); err != nil {
+		zap.L().Warn("[Modbus] Open TCP connection failed", zap.Error(err))
+		_ = client.Close()
+		return err
+	}
+
+	t.client = client
+	if slaveID, ok := t.cfg.Config["slave_id"]; ok {
+		var sid uint8
+		switch v := slaveID.(type) {
+		case int:
+			sid = uint8(v)
+		case float64:
+			sid = uint8(v)
+		case uint8:
+			sid = v
+		default:
+			sid = 1
+		}
+		t.client.SetUnitId(sid)
+	}
+
+	t.connected.Store(true)
+	t.connectTime = time.Now()
+
+	if t.client != nil {
+		t.remoteAddr = url
+		if strings.HasPrefix(t.remoteAddr, "tcp://") {
+			t.remoteAddr = strings.TrimPrefix(t.remoteAddr, "tcp://")
+		} else if strings.HasPrefix(t.remoteAddr, "rtuovertcp://") {
+			t.remoteAddr = strings.TrimPrefix(t.remoteAddr, "rtuovertcp://")
+		}
+
+		t.localAddr = getLocalAddr(t.client)
+		if t.localAddr == "" {
+			if strings.Contains(url, "://") && !strings.HasPrefix(url, "rtu://") {
+				hostPort := url
+				if strings.HasPrefix(url, "tcp://") {
+					hostPort = strings.TrimPrefix(url, "tcp://")
+				} else if strings.HasPrefix(url, "rtuovertcp://") {
+					hostPort = strings.TrimPrefix(url, "rtuovertcp://")
+				}
+
+				udpConn, err := net.DialTimeout("udp", hostPort, 1*time.Second)
+				if err == nil {
+					localAddr, _, _ := net.SplitHostPort(udpConn.LocalAddr().String())
+					t.localAddr = localAddr
+					udpConn.Close()
+				} else {
+					t.localAddr = "Local IP: (Auto)"
+				}
+			} else {
+				t.localAddr = "Serial Port"
+			}
+		}
+	}
+
+	if t.metricsRecorder != nil && t.channelID != "" {
+		t.metricsRecorder.RecordConnectionStart(t.channelID)
+	}
+
+	zap.L().Info("[Modbus] TCP connection established", zap.String("url", url))
+	return nil
 }
 
 // DetectMTU performs a simple binary-search-like probe to determine a safely readable register count
@@ -533,26 +505,13 @@ func (t *ModbusTransport) withRetry(ctx context.Context, fn func() (any, error))
 	var lastErr error
 	startTime := time.Now()
 
+	if !t.connected.Load() {
+		if err := t.Connect(ctx); err != nil {
+			return nil, err
+		}
+	}
+
 	for i := 0; i <= t.maxRetries; i++ {
-		if i > 0 {
-			canRetry, waitTime := t.connMgr.CanRetry()
-			if !canRetry {
-				return nil, fmt.Errorf("cannot retry connection")
-			}
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(waitTime):
-			}
-		}
-
-		if !t.connected.Load() {
-			if err := t.Connect(ctx); err != nil {
-				lastErr = err
-				continue
-			}
-		}
-
 		res, err := fn()
 		duration := time.Since(startTime)
 
@@ -609,7 +568,14 @@ func (t *ModbusTransport) withRetry(ctx context.Context, fn func() (any, error))
 				zap.String("error", errMsg),
 			)
 			t.RecordFailure(err)
-			t.Disconnect()
+			_ = t.Disconnect()
+			if i < t.maxRetries {
+				if err := t.Connect(ctx); err != nil {
+					lastErr = err
+					break
+				}
+				continue
+			}
 		} else {
 			zap.L().Debug("[Modbus] Protocol error detected, keeping TCP connection alive for other devices on same bus",
 				zap.String("error", errMsg),

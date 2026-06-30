@@ -44,6 +44,13 @@ func (m *CoverageMockClient) ReadMultiProperty(dev btypes.Device, rp btypes.Mult
 	return m.SmartMockClient.ReadMultiProperty(dev, rp)
 }
 
+func (m *CoverageMockClient) ReadMultiPropertyWithTimeout(dev btypes.Device, rp btypes.MultiplePropertyData, timeout time.Duration) (btypes.MultiplePropertyData, error) {
+	if m.ReadMultiPropertyFunc != nil {
+		return m.ReadMultiPropertyFunc(dev, rp)
+	}
+	return m.SmartMockClient.ReadMultiPropertyWithTimeout(dev, rp, timeout)
+}
+
 func (m *CoverageMockClient) WriteProperty(dest btypes.Device, wp btypes.PropertyData) error {
 	if m.WritePropertyFunc != nil {
 		return m.WritePropertyFunc(dest, wp)

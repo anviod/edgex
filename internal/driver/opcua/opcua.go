@@ -678,7 +678,8 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 		missing := false
 		linkDown := !client.Connected
 		for _, p := range points {
-			if v, ok := sub.Cache[p.ID]; ok {
+			v, ok := sub.Cache[p.ID]
+			if ok && subscriptionCacheReady(v) {
 				if linkDown {
 					v.Quality = "Bad"
 				}
@@ -698,6 +699,7 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 
 		if !missing {
 			d.recordReadOutcome(startTime, true, "")
+			client.RecordSuccess()
 			return result, nil
 		}
 	} else {
@@ -711,7 +713,19 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 	}
 	stampCollectionTime(result)
 	d.recordReadOutcome(startTime, true, "")
+	client.RecordSuccess()
 	return result, nil
+}
+
+// subscriptionCacheReady reports whether a cached subscription value is safe to
+// return without a direct read fallback. Good status with a nil value can
+// appear on initial monitored-item notifications before the server payload
+// is populated (common when points are merged into an existing subscription).
+func subscriptionCacheReady(v model.Value) bool {
+	if v.Quality == "Bad" {
+		return true
+	}
+	return v.Quality == "Good" && v.Value != nil
 }
 
 func classifyOpcUaReadError(err error) string {
@@ -734,46 +748,122 @@ func stampCollectionTime(results map[string]model.Value) {
 	}
 }
 
+func sortedPointIDs(points []model.Point) []string {
+	ids := make([]string, len(points))
+	for i, p := range points {
+		ids[i] = p.ID
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+func mergeSubscriptionPoints(existing map[string]model.Point, incoming []model.Point) (map[string]model.Point, []model.Point, bool) {
+	merged := make(map[string]model.Point, len(existing)+len(incoming))
+	for id, p := range existing {
+		merged[id] = p
+	}
+
+	addressChanged := false
+	var toAdd []model.Point
+	for _, p := range incoming {
+		if prev, ok := merged[p.ID]; ok {
+			if prev.Address != p.Address {
+				addressChanged = true
+			}
+			merged[p.ID] = p
+			continue
+		}
+		merged[p.ID] = p
+		toAdd = append(toAdd, p)
+	}
+	return merged, toAdd, addressChanged
+}
+
+func (d *OpcUaDriver) ResetDeviceCollection(deviceID string) {
+	if deviceID == "" {
+		return
+	}
+
+	d.mu.RLock()
+	client := d.activeClient
+	d.mu.RUnlock()
+	if client == nil {
+		return
+	}
+
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	d.cancelDeviceSubscription(client, deviceID)
+}
+
+func (d *OpcUaDriver) cancelDeviceSubscription(w *ClientWrapper, deviceID string) {
+	sub, ok := w.Subscriptions[deviceID]
+	if !ok || sub == nil {
+		return
+	}
+	sub.Cancel()
+	delete(w.Subscriptions, deviceID)
+}
+
 func (d *OpcUaDriver) ensureSubscription(ctx context.Context, w *ClientWrapper, deviceID string, points []model.Point) *DeviceSubscription {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	// Check if subscription exists
 	sub, exists := w.Subscriptions[deviceID]
-
-	// Check if points changed
-	currentIDs := make([]string, len(points))
-	for i, p := range points {
-		currentIDs[i] = p.ID
+	if exists && sub != nil && sub.Ctx.Err() != nil {
+		delete(w.Subscriptions, deviceID)
+		exists = false
+		sub = nil
 	}
-	sort.Strings(currentIDs)
 
 	if exists {
-		// Compare IDs
-		if len(sub.PointIDs) == len(currentIDs) {
-			match := true
-			for i := range currentIDs {
-				if sub.PointIDs[i] != currentIDs[i] {
-					match = false
-					break
-				}
-			}
-			if match {
-				return sub
-			}
+		merged, toAdd, addressChanged := mergeSubscriptionPoints(sub.Points, points)
+		if addressChanged {
+			d.cancelDeviceSubscription(w, deviceID)
+			return d.createDeviceSubscription(ctx, w, deviceID, pointsFromMap(merged))
 		}
-		// Changed: cancel old
-		sub.Cancel()
+		if len(toAdd) > 0 {
+			d.addMonitoredItems(ctx, sub, toAdd)
+			for _, p := range toAdd {
+				sub.Points[p.ID] = p
+			}
+			sub.PointIDs = sortedPointIDsFromMap(sub.Points)
+		}
+		return sub
 	}
 
-	// Create new subscription
+	return d.createDeviceSubscription(ctx, w, deviceID, points)
+}
+
+func pointsFromMap(points map[string]model.Point) []model.Point {
+	out := make([]model.Point, 0, len(points))
+	for _, p := range points {
+		out = append(out, p)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+func sortedPointIDsFromMap(points map[string]model.Point) []string {
+	ids := make([]string, 0, len(points))
+	for id := range points {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+func (d *OpcUaDriver) createDeviceSubscription(ctx context.Context, w *ClientWrapper, deviceID string, points []model.Point) *DeviceSubscription {
+	if len(points) == 0 {
+		return nil
+	}
+
 	notifyCh := make(chan *opcua.PublishNotificationData)
 	subCtx, cancel := context.WithCancel(context.Background())
 
 	opcuaSub, err := w.Client.Subscribe(ctx, &opcua.SubscriptionParameters{
 		Interval: 1000 * time.Millisecond, // 1s interval
 	}, notifyCh)
-
 	if err != nil {
 		zap.L().Error("[OPC UA] Failed to create subscription", zap.String("device_id", deviceID), zap.Error(err))
 		cancel()
@@ -783,58 +873,66 @@ func (d *OpcUaDriver) ensureSubscription(ctx context.Context, w *ClientWrapper, 
 	newSub := &DeviceSubscription{
 		Sub:        opcuaSub,
 		Cache:      make(map[string]model.Value),
-		PointIDs:   currentIDs,
-		Points:     make(map[string]model.Point),
+		PointIDs:   sortedPointIDs(points),
+		Points:     make(map[string]model.Point, len(points)),
 		HandleMap:  make(map[uint32]string),
 		NextHandle: 1,
 		NotifyCh:   notifyCh,
 		Ctx:        subCtx,
 		Cancel:     cancel,
 	}
-
 	for _, p := range points {
 		newSub.Points[p.ID] = p
 	}
 
-	// Create monitored items
-	requests := make([]*ua.MonitoredItemCreateRequest, len(points))
-	for i, p := range points {
+	d.addMonitoredItems(ctx, newSub, points)
+	go d.subscriptionLoop(newSub)
+	w.Subscriptions[deviceID] = newSub
+	return newSub
+}
+
+func (d *OpcUaDriver) addMonitoredItems(ctx context.Context, sub *DeviceSubscription, points []model.Point) {
+	if sub == nil || sub.Sub == nil || len(points) == 0 {
+		return
+	}
+
+	requests := make([]*ua.MonitoredItemCreateRequest, 0, len(points))
+	monitoredPoints := make([]model.Point, 0, len(points))
+	for _, p := range points {
 		id, err := ua.ParseNodeID(p.Address)
 		if err != nil {
 			zap.L().Error("[OPC UA] Invalid node id", zap.String("address", p.Address), zap.Error(err))
 			continue
 		}
 
-		handle := newSub.NextHandle
-		newSub.NextHandle++
-		newSub.HandleMap[handle] = p.ID
-
-		requests[i] = opcua.NewMonitoredItemCreateRequestWithDefaults(
+		handle := sub.NextHandle
+		sub.NextHandle++
+		sub.HandleMap[handle] = p.ID
+		monitoredPoints = append(monitoredPoints, p)
+		requests = append(requests, opcua.NewMonitoredItemCreateRequestWithDefaults(
 			id,
 			ua.AttributeIDValue,
 			handle,
-		)
+		))
 	}
 
-	if len(requests) > 0 {
-		resp, err := opcuaSub.Monitor(ctx, ua.TimestampsToReturnBoth, requests...)
-		if err != nil {
-			zap.L().Error("[OPC UA] Monitor failed", zap.Error(err))
-		} else {
-			// Check results
-			for i, res := range resp.Results {
-				if res.StatusCode != ua.StatusOK {
-					zap.L().Error("[OPC UA] Monitor item failed", zap.String("address", points[i].Address), zap.Any("status", res.StatusCode))
-				}
-			}
+	if len(requests) == 0 {
+		return
+	}
+
+	resp, err := sub.Sub.Monitor(ctx, ua.TimestampsToReturnBoth, requests...)
+	if err != nil {
+		zap.L().Error("[OPC UA] Monitor failed", zap.Error(err))
+		return
+	}
+
+	for i, res := range resp.Results {
+		if res.StatusCode != ua.StatusOK {
+			zap.L().Error("[OPC UA] Monitor item failed",
+				zap.String("address", monitoredPoints[i].Address),
+				zap.Any("status", res.StatusCode))
 		}
 	}
-
-	// Start processing loop
-	go d.subscriptionLoop(newSub)
-
-	w.Subscriptions[deviceID] = newSub
-	return newSub
 }
 
 func (d *OpcUaDriver) subscriptionLoop(sub *DeviceSubscription) {
@@ -860,7 +958,6 @@ func (d *OpcUaDriver) subscriptionLoop(sub *DeviceSubscription) {
 			switch x := res.Value.(type) {
 			case *ua.DataChangeNotification:
 				sub.mu.Lock()
-				allGood := true
 				for _, item := range x.MonitoredItems {
 					pointID, ok := sub.HandleMap[item.ClientHandle]
 					if !ok {
@@ -874,7 +971,6 @@ func (d *OpcUaDriver) subscriptionLoop(sub *DeviceSubscription) {
 
 					if item.Value != nil {
 						if item.Value.Status == ua.StatusOK {
-							val.Quality = "Good"
 							raw := item.Value.Value.Value()
 							if d.useDataformatDecoder {
 								if p, ok := sub.Points[pointID]; ok {
@@ -883,13 +979,18 @@ func (d *OpcUaDriver) subscriptionLoop(sub *DeviceSubscription) {
 									}
 								}
 							}
+							if raw == nil {
+								zap.L().Debug("[OPC UA] Subscription update skipped nil value",
+									zap.String("point_id", pointID))
+								continue
+							}
+							val.Quality = "Good"
 							val.Value = raw
 							if !item.Value.SourceTimestamp.IsZero() {
 								val.TS = item.Value.SourceTimestamp
 							}
 						} else {
 							val.Quality = "Bad"
-							allGood = false
 							zap.L().Warn("[OPC UA] Subscription update bad status", zap.String("point_id", pointID), zap.Any("status", item.Value.Status))
 						}
 					}
@@ -903,9 +1004,7 @@ func (d *OpcUaDriver) subscriptionLoop(sub *DeviceSubscription) {
 				client := d.activeClient
 				d.mu.RUnlock()
 				if client != nil {
-					if allGood {
-						client.RecordSuccess()
-					}
+					client.RecordSuccess()
 				}
 			}
 		}
@@ -2334,6 +2433,42 @@ func isOPCUAConnError(err error) bool {
 	return strings.Contains(msg, "use of closed network connection") || strings.Contains(msg, "EOF")
 }
 
+func isOpcUaSessionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if isOPCUAConnError(err) {
+		return true
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	sessionPatterns := []string{
+		"badconnectionclosed",
+		"badnotconnected",
+		"badsessionclosed",
+		"badsessionidinvalid",
+		"badsecurechannelclosed",
+		"badsecurechannelidinvalid",
+		"badservernotconnected",
+		"badnocommunication",
+		"client not connected",
+		"no active client",
+		"secure channel",
+		"session closed",
+		"connection closed",
+		"connection refused",
+		"connection reset",
+	}
+	for _, p := range sessionPatterns {
+		if strings.Contains(msg, p) {
+			return true
+		}
+	}
+	return false
+}
+
 // batchReadDataTypes reads data types in batches with concurrency
 func (d *OpcUaDriver) batchReadDataTypes(ctx context.Context, c *opcua.Client, nodeIDs []*ua.ReadValueID, results []map[string]any, indices []int) {
 	// Split into smaller chunks if necessary (e.g., 50 items)
@@ -2513,6 +2648,10 @@ func (w *ClientWrapper) RecordSuccess() {
 }
 
 func (w *ClientWrapper) RecordFailure(err error) {
+	if err != nil && !isOpcUaSessionError(err) {
+		return
+	}
+
 	w.collectFailCount.Add(1)
 	w.lastActivityTime.Store(time.Now())
 	w.connMgr.RecordFailure()

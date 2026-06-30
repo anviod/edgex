@@ -437,3 +437,145 @@
 .dark-theme .channel-help-nav__item.is-active {
   background: rgba(14, 165, 233, 0.15);
 }
+
+/* ── Virtual shadow help drawer (wider than edge-compute 560px) ── */
+.virtual-shadow-help-drawer.arco-drawer {
+  max-width: calc(100vw - var(--space-8));
+}
+
+.virtual-shadow-help-drawer .help-doc-flow__node {
+  max-width: 520px;
+}
+
+.help-doc-arch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 8px;
+  margin: 12px 0 4px;
+  padding: 16px 20px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.help-doc-arch__node {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.help-doc-arch__node--real {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.help-doc-arch__node--engine {
+  background: rgba(14, 165, 233, 0.08);
+  border-color: rgba(14, 165, 233, 0.28);
+}
+
+.help-doc-arch__node--virtual {
+  background: rgba(168, 85, 247, 0.08);
+  border-color: rgba(168, 85, 247, 0.28);
+}
+
+.help-doc-arch__node--out {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.help-doc-arch__arrow {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  user-select: none;
+}
+
+.help-doc-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.help-doc-legend__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.help-doc-legend__badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  line-height: 1.5;
+}
+
+.help-doc-legend__badge--map {
+  color: rgb(22, 163, 74);
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+}
+
+.help-doc-legend__badge--formula {
+  color: rgb(37, 99, 235);
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+}
+
+.help-doc-legend__badge--ref {
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.help-doc-legend__badge--version {
+  color: rgb(147, 51, 234);
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.28);
+}
+
+.help-doc-legend__text {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.help-doc-legend__text code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+}
+
+.dark-theme .help-doc-arch__node--real {
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.dark-theme .help-doc-arch__node--engine {
+  background: rgba(14, 165, 233, 0.12);
+}
+
+.dark-theme .help-doc-arch__node--virtual {
+  background: rgba(168, 85, 247, 0.12);
+}
+
+.dark-theme .help-doc-arch__node--out {
+  background: rgba(245, 158, 11, 0.12);
+}

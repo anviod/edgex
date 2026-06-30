@@ -1,9 +1,9 @@
 ---
 layout: section-index
 title: 架构设计
-description: EdgeX 架构设计 — ScanEngine 智能采集、ShadowCore 影子设备与系统架构
+description: EdgeX 架构设计 — ScanEngine 调度驱动内核、ShadowCore 影子设备与系统架构
 hero_eyebrow: Architecture
-hero_lead: EdgeX 系统架构与设计文档 — ScanEngine 智能采集优化、ShadowCore 影子设备、RTT/MTU/Gap 管理器与核心结构体定义。
+hero_lead: EdgeX 系统架构与设计文档 — ScanEngine 调度驱动采集（ExecutionLayer / ConnectionManager）、ShadowCore 影子设备与 RTT/MTU/Gap 管理器。
 hero_buttons:
   - text: 核心设计
     url: "4. 核心设计.html"
@@ -19,12 +19,22 @@ hero_buttons:
 ## 目录
 
 ### 基础架构
+- [**边缘网关架构设计总览**](../edge/边缘网关架构设计总览.html) — 全生命周期架构与 ScanEngine 调度驱动内核
+- [ScanEngine 重构方案](../TODO/ScanEngine重构方案.html) — 四阶段实施规范
 - [架构 V2](ARCHITECTURE_V2.html)
 - [状态机 API](STATE_MACHINE_API.html)
 - [后端重构完成报告](BACKEND_RESTRUCTURING_COMPLETE.html)
 - [数据源与输出动作设计](数据源与输出动作设计.html)
 
-### 智能采集优化系列 (ScanEngine)
+### 智能采集优化系列（ScanEngine 调度驱动内核）
+
+<div align="center">
+  <img src="../img/dataScanEngineCN.svg" width="100%" alt="Edgex V2.0 架构 · ScanEngine引擎" />
+</div>
+
+> **Edgex V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine 写入影子设备实时快照，再联通虚拟设备、边缘计算与北向接口。
+
+> 规范：`docs/TODO/ScanEngine重构方案.md` · 总览：`docs/edge/边缘网关架构设计总览.md`
 
 #### 项目分析与设计
 - [1. 项目现状分析](1. 项目现状分析.html)

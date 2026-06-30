@@ -554,6 +554,17 @@ func (sc *ShadowCore) DeleteShadowDevice(deviceID string) error {
 	return nil
 }
 
+// ClearAllShadowDevices 清空全部内存态影子设备（含虚拟影子与优化画像）。
+func (sc *ShadowCore) ClearAllShadowDevices() {
+	sc.mu.Lock()
+	for deviceID := range sc.realShadows {
+		sc.optimizer.ClearDeviceData(deviceID)
+	}
+	sc.realShadows = make(map[string]*shadowDeviceEntry)
+	sc.virtualShadows = make(map[string]*model.VirtualDevice)
+	sc.mu.Unlock()
+}
+
 // WriteVirtualShadowDevice 将虚拟影子计算结果写入 ShadowCore 并通知订阅者（Pipeline / UI）。
 func (sc *ShadowCore) WriteVirtualShadowDevice(channelID, virtualDeviceID string, points map[string]model.ShadowPoint) {
 	if len(points) == 0 {

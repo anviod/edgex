@@ -324,31 +324,6 @@
                 </a-select>
               </a-form-item>
             </a-col>
-            <a-col :span="12">
-              <a-form-item field="config.enableSmartProbe" label="启用智能地址探测">
-                <a-switch v-model="dialog.form.config.enableSmartProbe" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12" v-if="dialog.form.config.enableSmartProbe">
-              <a-form-item field="config.probeMaxDepth" label="探测深度">
-                <a-input-number v-model="dialog.form.config.probeMaxDepth" :min="1" :max="10" placeholder="6" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12" v-if="dialog.form.config.enableSmartProbe">
-              <a-form-item field="config.probeTimeout" label="探测超时 (ms)">
-                <a-input-number v-model="dialog.form.config.probeTimeout" :min="100" :max="10000" placeholder="3000" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12" v-if="dialog.form.config.enableSmartProbe">
-              <a-form-item field="config.probeMaxConsecutive" label="最大连续失败">
-                <a-input-number v-model="dialog.form.config.probeMaxConsecutive" :min="1" :max="100" placeholder="20" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12" v-if="dialog.form.config.enableSmartProbe">
-              <a-form-item field="config.probeEnableMTU" label="启用MTU探测">
-                <a-switch v-model="dialog.form.config.probeEnableMTU" />
-              </a-form-item>
-            </a-col>
           </a-row>
           </div>
         </div>

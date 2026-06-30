@@ -46,6 +46,32 @@ func isChannelLinkUp(d drv.Driver) bool {
 	return d.Health() != drv.HealthStatusBad
 }
 
+// collectContextFromExecuteResult builds device communication state from a driver
+// read outcome. Transport success (err == nil) counts as communication success even
+// when individual points report Bad quality; point quality is tracked separately.
+func collectContextFromExecuteResult(result *ExecuteResult, pointCount int) *CollectContext {
+	ctx := &CollectContext{}
+	if result != nil && result.Success {
+		if len(result.Values) > 0 {
+			ctx.SuccessCmd = len(result.Values)
+			return ctx
+		}
+		if pointCount > 0 {
+			ctx.FailCmd = pointCount
+		} else {
+			ctx.FailCmd = 1
+		}
+		return ctx
+	}
+
+	if pointCount > 0 {
+		ctx.FailCmd = pointCount
+	} else {
+		ctx.FailCmd = 1
+	}
+	return ctx
+}
+
 func resolveEffectiveDeviceState(ch *model.Channel, d drv.Driver, dev *model.Device, rawState int) int {
 	if ch != nil && !ch.Enable {
 		return int(NodeStateOffline)

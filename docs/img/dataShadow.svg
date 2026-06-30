@@ -77,7 +77,7 @@
       <rect width="280" height="35" class="core-title-bg" rx="8 8 0 0" />
       <text x="140" y="23" text-anchor="middle" class="text-main">Real Shadow Store</text>
       <text x="20" y="70" class="text-sub">In-Memory Key-Value Store</text>
-      <text x="20" y="95" class="text-sub">WAL 本地日志持久化</text>
+      <text x="20" y="95" class="text-sub">纯内存运行时快照</text>
       <rect x="20" y="115" width="240" height="22" rx="11" fill="#6d28d9" />
       <text x="140" y="131" text-anchor="middle" class="text-tag" style="fill: #ffffff;">Source of Truth (唯一源)</text>
     </g>

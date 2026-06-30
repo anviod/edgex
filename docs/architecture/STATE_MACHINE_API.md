@@ -318,29 +318,25 @@ if state != nil {
 
 ## 工作流程图
 
+> **2026-06 更新**：采集触发已由 **ScanEngine** 替代 per-device `deviceLoop`；状态裁决仍经 `FinalizeCollect` / `finalizeScanCollect`。
+
 ```
-采集循环
+ScanEngine Tick(10ms)
    │
-   ├─ 定时触发 (deviceLoop)
+   ├─ processReadyTasks() — 到期 ScanTask 入 ExecutionLayer
    │
-   ├─ 查询设备状态 (GetNode)
+   ├─ ExecutionLayer.Execute → Driver.ReadPoints
    │
-   ├─ 决定是否采集 (ShouldCollect)
-   │  ├─ Yes → 执行采集
-   │  └─ No → 跳过采集
+   ├─ 查询设备状态 (GetNode) — 可选跳过 Degraded 任务
    │
-   ├─ 执行采集 (collect)
-   │  ├─ 创建 CollectContext
-   │  ├─ 读取数据点
-   │  ├─ 统计成功/失败
-   │  └─ 推送数据到管道
+   ├─ ShadowCore.WriteShadowDevice(batch)
    │
-   └─ 状态机裁决 (finalizeCollect)
-      ├─ 评估采集结果
+   └─ finalizeScanCollect → FinalizeCollect
+      ├─ 评估采集结果（链路级 vs 设备级错误隔离）
       └─ 调用 onCollectSuccess() 或 onCollectFail()
-         ├─ 更新状态
+         ├─ 更新状态 Online / Offline / Degraded
          ├─ 调整失败/成功计数
-         └─ 设置下一次重试时间
+         └─ ScanEngine updateTaskState（退避 / 优先级）
 ```
 
 ---

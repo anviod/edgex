@@ -20,7 +20,7 @@
         </div>
         <div class="overview-item runtime-db">
           <div class="overview-header">
-            <span class="db-type">运行时库 (edgex.db)</span>
+            <span class="db-type">运行时库 (runtime.db)</span>
             <a-tag color="green" size="small">可清理 · 可压缩</a-tag>
           </div>
           <div class="overview-fields-row">
@@ -197,19 +197,12 @@
 
       <a-divider orientation="left" class="section-divider">高级操作</a-divider>
       <div class="action-group">
-        <a-button type="outline" status="warning" @click="handleClearAllRuntime" :loading="loading">
-          <template #icon><icon-delete /></template>
-          清空所有运行时数据（重建）
-        </a-button>
         <a-button type="outline" @click="handleCompactRuntime" :loading="compactLoading">
           <template #icon><icon-shrink /></template>
           压缩运行时库
         </a-button>
       </div>
       <div class="action-desc">
-        <a-alert type="warning" show-icon :closable="false">
-          <strong>清空所有运行时数据</strong>：将清理 values、DataCache、WindowData、NorthboundCache、RuleState 及所有 device_history_*。实时值由内存影子设备持有，清空后下一轮采集自动恢复。配置库不受影响。
-        </a-alert>
         <a-alert type="info" show-icon :closable="false">
           <strong>压缩运行时库</strong>：回收已删除数据占用的磁盘空间，配置库不受影响。建议在维护窗口执行。
         </a-alert>
@@ -258,7 +251,7 @@
       </template>
       <a-alert type="info" show-icon :closable="false" class="mb-block">
         将旧版 <code>data/edgex.db</code> 中的配置 bucket 迁移到 <code>data/config.db</code>，
-        运行时 bucket 保留在 <code>data/edgex.db</code>。启动时已自动执行，此工具用于手动迁移。
+        运行时 bucket 迁移到 <code>data/runtime.db</code>。启动时已自动执行，此工具用于手动迁移。
       </a-alert>
       <div class="action-group">
         <a-button type="outline" @click="handleMigrateLegacy" :loading="migrateLoading">
@@ -420,6 +413,7 @@ const getCategoryColor = (category) => {
     cache: 'blue',
     runtime: 'orange',
     history: 'purple',
+    legacy: 'gray',
     unknown: 'gray',
   }
   return colors[category] || 'gray'
@@ -431,6 +425,7 @@ const getCategoryLabel = (category) => {
     cache: '缓存',
     runtime: '运行时',
     history: '历史',
+    legacy: '遗留',
     unknown: '未知',
   }
   return labels[category] || category
@@ -607,9 +602,9 @@ const handlePullRemoteConfig = async () => {
 
 const handleClearCache = () => {
   confirmTitle.value = '确认清空运行缓存'
-  confirmMessage.value = '将清理以下缓存数据：DataCache、WindowData、NorthboundCache、RuleState。采集配置不会受影响。'
-  confirmBuckets.value = ['DataCache', 'WindowData', 'NorthboundCache', 'RuleState']
-  confirmMode.value = 'cache'
+  confirmMessage.value = '将清理 runtime.db 中的全部运行时数据（含 values、各类缓存、历史 bucket、遗留 WAL 等），并清空内存中的影子设备与边缘规则运行时状态。采集配置不受影响；实时值将在下一轮采集后恢复。'
+  confirmBuckets.value = ['runtime.db 全部 bucket']
+  confirmMode.value = 'all_runtime'
   confirmChecked.value = false
   confirmVisible.value = true
 }
@@ -629,15 +624,6 @@ const handleClearHistory = () => {
   confirmMessage.value = `将清理 ${historyBuckets.length} 个历史数据 bucket。不影响采集配置。`
   confirmBuckets.value = historyBuckets
   confirmMode.value = 'history'
-  confirmChecked.value = false
-  confirmVisible.value = true
-}
-
-const handleClearAllRuntime = () => {
-  confirmTitle.value = '确认清空所有运行时数据（重建）'
-  confirmMessage.value = '将清理所有运行时数据：values、DataCache、WindowData、NorthboundCache、RuleState 及所有 device_history_*。配置库不受影响。'
-  confirmBuckets.value = ['values', 'DataCache', 'WindowData', 'NorthboundCache', 'RuleState', 'device_history_*']
-  confirmMode.value = 'all_runtime'
   confirmChecked.value = false
   confirmVisible.value = true
 }

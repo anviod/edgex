@@ -129,6 +129,9 @@ const (
 	BucketDataCache       = "DataCache"
 	BucketWindow          = "WindowData"
 	BucketNorthboundCache = "NorthboundCache"
+
+	// legacyShadowWALBucket is a removed ShadowCore WAL bucket; dropped on startup.
+	legacyShadowWALBucket = "shadow_wal"
 )
 
 type OfflineMessage struct {
@@ -223,11 +226,18 @@ func NewStorage(dataDir string) (*Storage, error) {
 		return nil, fmt.Errorf("failed to init runtime buckets: %w", err)
 	}
 
-	return &Storage{
+	storage := &Storage{
 		configDB:  configDB,
 		runtimeDB: runtimeDB,
 		dataDir:   dataDir,
-	}, nil
+	}
+	if err := storage.dropLegacyShadowWALBucket(); err != nil {
+		runtimeDB.Close()
+		configDB.Close()
+		return nil, fmt.Errorf("failed to drop legacy shadow WAL bucket: %w", err)
+	}
+
+	return storage, nil
 }
 
 func (s *Storage) Close() error {
@@ -447,10 +457,24 @@ func classifyBucket(name string) (category string, clearable bool) {
 	if strings.HasPrefix(name, "device_history_") {
 		return "history", true
 	}
+	if name == legacyShadowWALBucket {
+		return "legacy", true
+	}
 	if name == "WAL" {
 		return "cache", true
 	}
 	return "unknown", false
+}
+
+// dropLegacyShadowWALBucket removes the obsolete ShadowCore WAL bucket.
+// Shadow devices are memory-only; leftover data is reclaimed after CompactRuntimeDB.
+func (s *Storage) dropLegacyShadowWALBucket() error {
+	return s.runtimeDB.Update(func(tx *bbolt.Tx) error {
+		if tx.Bucket([]byte(legacyShadowWALBucket)) == nil {
+			return nil
+		}
+		return tx.DeleteBucket([]byte(legacyShadowWALBucket))
+	})
 }
 
 func IsConfigBucket(name string) bool {
@@ -546,35 +570,46 @@ func (s *Storage) ClearBucket(bucketName string) error {
 	})
 }
 
-// ClearAllRuntimeBuckets 清空所有运行时 bucket（values、DataCache、WindowData、NorthboundCache、RuleState）
-// 以及所有 device_history_* bucket，用于 runtime DB 重建场景。
-// 配置 bucket 不受影响。
+// ClearAllRuntimeBuckets 清空 runtime.db 中的全部 bucket（含 values、缓存、历史、遗留 WAL 等）。
+// 配置 bucket 不应出现在 runtime.db；若检测到则报错。
 func (s *Storage) ClearAllRuntimeBuckets() ([]string, error) {
 	var cleared []string
 
-	// 清空预定义运行时 bucket
-	for _, bucketName := range runtimeBucketNames {
-		if err := s.ClearBucket(bucketName); err != nil {
-			return cleared, fmt.Errorf("failed to clear %s: %w", bucketName, err)
-		}
-		cleared = append(cleared, bucketName)
-	}
-
-	// 清空所有 device_history_* bucket
 	err := s.runtimeDB.Update(func(tx *bbolt.Tx) error {
-		return tx.ForEach(func(name []byte, b *bbolt.Bucket) error {
-			bucketName := string(name)
-			if strings.HasPrefix(bucketName, "device_history_") || bucketName == "shadow_wal" {
-				c := b.Cursor()
-				for k, _ := c.First(); k != nil; k, _ = c.Next() {
-					if err := c.Delete(); err != nil {
-						return err
-					}
+		var bucketNames []string
+		if err := tx.ForEach(func(name []byte, _ *bbolt.Bucket) error {
+			bucketNames = append(bucketNames, string(name))
+			return nil
+		}); err != nil {
+			return err
+		}
+
+		for _, bucketName := range bucketNames {
+			if IsConfigBucket(bucketName) {
+				return fmt.Errorf("config bucket %s found in runtime db", bucketName)
+			}
+
+			if bucketName == legacyShadowWALBucket {
+				if err := tx.DeleteBucket([]byte(bucketName)); err != nil {
+					return err
 				}
 				cleared = append(cleared, bucketName)
+				continue
 			}
-			return nil
-		})
+
+			b := tx.Bucket([]byte(bucketName))
+			if b == nil {
+				continue
+			}
+			c := b.Cursor()
+			for k, _ := c.First(); k != nil; k, _ = c.Next() {
+				if err := c.Delete(); err != nil {
+					return err
+				}
+			}
+			cleared = append(cleared, bucketName)
+		}
+		return nil
 	})
 
 	return cleared, err

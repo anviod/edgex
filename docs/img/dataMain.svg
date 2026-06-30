@@ -62,7 +62,7 @@
     <text x="250" y="30" text-anchor="middle" class="text-label">SHADOW CORE (Internal Model)</text>
     
     <rect x="20" y="50" width="220" height="50" rx="4" class="core-box" />
-    <text x="30" y="70" class="text-detail" font-weight="bold">Real Shadow Store (Memory + WAL)</text>
+    <text x="30" y="70" class="text-detail" font-weight="bold">Real Shadow Store (In-Memory)</text>
     <rect x="30" y="80" width="100" height="4" rx="2" fill="#e2e8f0" />
     <rect x="30" y="80" width="60" height="4" rx="2" fill="#38bdf8"><animate attributeName="width" values="40;100;40" dur="3s" repeatCount="indefinite"/></rect>
 

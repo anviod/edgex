@@ -33,6 +33,13 @@ type Driver interface {
 	GetConnectionMetrics() (connectionSeconds int64, reconnectCount int64, localAddr string, remoteAddr string, lastDisconnectTime time.Time)
 }
 
+// DeviceCollectionResetter is optional. Drivers that cache per-device collection
+// state (e.g. OPC UA subscriptions) should implement it so ScanEngine can drop
+// stale state when points are added, removed, or the device is re-registered.
+type DeviceCollectionResetter interface {
+	ResetDeviceCollection(deviceID string)
+}
+
 // Scanner is an optional interface for drivers that support discovery
 type Scanner interface {
 	Scan(ctx context.Context, params map[string]any) (any, error)
@@ -41,6 +48,16 @@ type Scanner interface {
 // ObjectScanner is an optional interface for drivers that support object/point discovery on a device
 type ObjectScanner interface {
 	ScanObjects(ctx context.Context, config map[string]any) (any, error)
+}
+
+// BACnetAddressNotifier receives runtime BACnet address updates (e.g. UDP port change after reboot).
+type BACnetAddressNotifier interface {
+	OnBACnetAddressDiscovered(deviceKey, ip string, port int)
+}
+
+// BACnetAddressNotifySetter allows wiring a notifier into the BACnet driver.
+type BACnetAddressNotifySetter interface {
+	SetBACnetAddressNotifier(BACnetAddressNotifier)
 }
 
 // Factory function type for creating drivers

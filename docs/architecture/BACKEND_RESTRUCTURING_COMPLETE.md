@@ -40,13 +40,13 @@ layout: default
 | 功能 | 描述 |
 |------|------|
 | ✅ AddChannel() | 添加采集通道 |
-| ✅ StartChannel() | 启动通道采集 |
+| ✅ StartChannel() | 启动通道：Connect + `ScanEngineAdapter` 注册任务 |
 | ✅ StopChannel() | 停止通道采集 |
 | ✅ GetChannels() | 获取所有通道 |
-| ✅ GetChannelDevices() | 获取通道下的设备 |
-| ✅ GetDevice() | 获取指定设备 |
-| ✅ GetDevicePoints() | 获取设备的点位 |
+| ✅ GetDevicePoints() | 优先读 ShadowCore 快照 |
 | ✅ Shutdown() | 关闭所有通道 |
+
+> **2026-06 调度架构**：南向采集调度由 **ScanEngine**（内核调度器）统一负责；`ChannelManager` 不再持有 per-device `deviceLoop`。采集路径：`ScanEngine → ExecutionLayer → Driver.ReadPoints → ShadowCore`。
 
 ### 4. 应用入口更新
 
@@ -113,16 +113,11 @@ cm.StartChannel()
     byte_order_4: ABCD
     connectionType: serial
     dataBits: 8
-    enableSmartProbe: false
     instruction_interval: 10
     ip: 192.168.3.112
     key: ""
     max_retries: 3
     parity: E
-    probeEnableMTU: true
-    probeMaxConsecutive: 20
-    probeMaxDepth: 6
-    probeTimeout: 3000
     retry_interval: 100
     start_address: 1
     stopBits: 1

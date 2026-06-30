@@ -25,8 +25,7 @@ hero_buttons:
 
 | 协议 | 注册名 | 状态 | 读 | 写 | 扫描/发现 | 连接管理 | 单元测试 |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| **Modbus TCP/RTU** | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | 生产就绪 | 是 | 是 | — | 是 | 33 项，27% 覆盖 |
-| **Modbus Simple** | `modbus-*-simple` | 生产就绪 | 是 | 是 | — | 是 | 同上 |
+| Modbus TCP/RTU | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | 生产就绪 | 是 | 是 | — | 是 | 33 项，27% 覆盖 |
 | **BACnet IP** | `bacnet-ip` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 故障隔离 | 80+ 项，59% 覆盖 |
 | **OPC UA Client** | `opc-ua` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 是 | 25 项，40% 覆盖 |
 | **Siemens S7** | `s7` | 生产就绪 | 是 | 是 | — | 是 | 52 项，42% 覆盖 |

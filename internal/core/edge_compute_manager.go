@@ -1742,6 +1742,22 @@ func (em *EdgeComputeManager) persist() error {
 	return em.saveFunc(normalized)
 }
 
+// ClearRuntimeState 清空边缘规则运行时状态（内存态，与 runtime.db 清理配合使用）。
+func (em *EdgeComputeManager) ClearRuntimeState() {
+	em.stateMu.Lock()
+	em.ruleStates = make(map[string]*model.RuleRuntimeState)
+	em.windows = make(map[string][]model.Value)
+	em.stateMu.Unlock()
+
+	em.cacheMu.Lock()
+	em.valueCache = make(map[string]model.Value)
+	em.cacheMu.Unlock()
+
+	em.bblotMu.Lock()
+	em.minuteCache = make(map[string]*model.RuleMinuteSnapshot)
+	em.bblotMu.Unlock()
+}
+
 func (em *EdgeComputeManager) restoreState() {
 	if em.store == nil {
 		return

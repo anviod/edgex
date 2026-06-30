@@ -320,6 +320,39 @@ func TestShadowCore_DeleteShadowDevice(t *testing.T) {
 	}
 }
 
+func TestShadowCore_ClearAllShadowDevices(t *testing.T) {
+	sc := NewShadowCore()
+
+	msg := model.ShadowIngressMessage{
+		MessageID: "test-msg-1",
+		DeviceID:  "device-1",
+		ChannelID: "channel-1",
+		Timestamp: time.Now(),
+		Points: []model.ShadowIngressPoint{
+			{PointID: "point-1", Value: 42.0, Quality: "good"},
+		},
+	}
+	if _, err := sc.WriteShadowDevice(msg); err != nil {
+		t.Fatalf("WriteShadowDevice failed: %v", err)
+	}
+	sc.WriteVirtualShadowDevice("channel-1", "vdev-1", map[string]model.ShadowPoint{
+		"vp1": {Value: 1.0, Quality: "good"},
+	})
+
+	sc.ClearAllShadowDevices()
+
+	if _, err := sc.GetShadowDevice("shadow-device-1"); err == nil {
+		t.Error("expected real shadow to be cleared")
+	}
+	if _, err := sc.GetVirtualShadowDevice("vdev-1"); err == nil {
+		t.Error("expected virtual shadow to be cleared")
+	}
+	metrics := sc.GetMetrics()
+	if metrics["real_shadow_count"].(int) != 0 || metrics["virtual_shadow_count"].(int) != 0 {
+		t.Errorf("expected zero shadow counts, got %v", metrics)
+	}
+}
+
 func TestShadowCore_GetMetrics(t *testing.T) {
 	tmpDir := testOutputDir(t)
 

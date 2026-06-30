@@ -4,7 +4,7 @@
 
 - **版本**: v5.0（四阶段实施版）
 - **创建日期**: 2026-06-24
-- **最后更新**: 2026-06-24
+- **最后更新**: 2026-06-30
 - **架构定位**: 调度驱动的工业通信操作系统内核
 - **核心原则**: 调度闭环 + 执行约束 + 资源控制
 - **实施策略**: 四阶段灰度迁移（并行运行→串行灰度→并发灰度→完全切换）
@@ -12,6 +12,12 @@
 ---
 
 ## 一、架构定位：从组件驱动到调度驱动
+
+<div align="center">
+  <img src="../img/dataScanEngineCN.svg" width="100%" alt="Edgex V2.0 架构 · ScanEngine引擎" />
+</div>
+
+> **Edgex V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine 写入影子设备实时快照，再联通虚拟设备、边缘计算与北向接口。
 
 ### 1.1 当前状态 vs 目标状态
 
@@ -55,7 +61,7 @@
                    ▼
 ┌─────────────────────────────────────────────────┐
 │              ShadowCore（唯一数据源）             │
-│  Memory + WAL + Versioning + Write-Through     │
+│  Memory + Versioning + Write-Through     │
 └──────────────────────┬────────────────────────┘
                        │ feedback（成功/失败）
                        ▼
@@ -874,6 +880,133 @@ type Driver interface {
 }
 ```
 
+### 5.3 统一重连逻辑
+
+> **文档状态**：本节为 2026-06-30 补充；此前文档仅在阶段 2 流程图/表格中间接提及 `ConnectionController` 与「指数退避、无重连风暴」，**未给出独立的统一重连方案**。
+
+#### 5.3.1 问题背景（重构前）
+
+| 问题 | 表现 | 风险 |
+|------|------|------|
+| 双管理器并存 | `driver.ConnectionManager` 与 `core.ConnectionController` 各自维护状态机 | 退避/限流策略不一致，难以观测 |
+| 多入口重连 | Transport 内 `Connect`/`withRetry`/`scheduleReconnect`、Driver 内 `go reconnect()` | 重连风暴、并发 dial |
+| Connecting 无退避 | `CanRetry()` 在 Connecting 态直接返回 `waitTime=0` | 失败循环内 tight loop |
+| 无 single-flight | 异步 `go reconnect()` 可被多次触发 | 同一通道并行重连 |
+| channelMu 与重连竞态 | 共享 TCP/串口链路上 I/O 与重连未统一串行 | 半开连接、粘包 |
+
+#### 5.3.2 设计原则：单一 Owner + 分层职责
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ ExecutionLayer.readPoints()                                  │
+│   └─ channelMu.Lock()（共享链路协议：modbus/dlt645/...）      │
+│         └─ Driver.ReadPoints() → Transport.withRetry()       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Transport（ModbusTransport / DLT645Transport / ...）         │
+│   Connect()        → connMgr.EnsureConnected(connectOnce)    │
+│   scheduleReconnect() → connMgr.ScheduleReconnect(...)       │
+│   withRetry()      → 网络错误时 Disconnect + Connect()         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ driver.ConnectionManager（唯一重连 Owner）                    │
+│   EnsureConnected  — 同步重连循环（退避 + 全局限流 + 冷却）    │
+│   ScheduleReconnect — 异步重连（reconnectRunning single-flight）│
+│   CanRetry / RecordFailure / RecordSuccess / AttemptHalfOpen   │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ core.ConnectionController（辅助，不发起 dial）                │
+│   IsConnectionFailure / IsReadFailure — 错误分类               │
+│   RecordReadSuccess / RecordReadFailure — 读写降级状态       │
+│   CanRetry — 供 ScanEngine/诊断使用，**不得**直接 Connect     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**强约束**：
+
+1. **唯一 dial Owner**：所有 `ConnectFunc`（实际 socket open）必须经 `ConnectionManager.EnsureConnected` 或 `ScheduleReconnect` 进入。
+2. **禁止 Driver 内 `go reconnect()` 自循环**：OPC UA、EtherNet/IP 等待迁移至 `ScheduleReconnect`。
+3. **Transport 禁止独立退避循环**：`withRetry` 只做有限次读写重试；链路级退避交给 `ConnectionManager`。
+4. **channelMu 与重连互斥**：共享链路协议在 `ExecutionLayer.readPoints` 持锁期间执行 I/O；`ScheduleReconnect` 的 `connectOnce` 同样在 Transport `mu` 内执行，避免与读写并发。
+5. **全局限流**：`MaxGlobalReconnectRate = 10/s`，`driver` 与 `core` 包内各自维护计数器（待后续合并为单例）。
+
+#### 5.3.3 状态机与退避参数
+
+```text
+Disconnected ──EnsureConnected──► Connecting ──成功──► Connected
+     ▲                                │
+     │                                │ 失败
+     │                                ▼
+     └──────── cooldown ◄── Dead ◄── Retrying
+                              ▲
+                              │ maxRetries 耗尽
+```
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `baseDelay` | 100ms | 指数退避基数 |
+| `maxDelay` | 30s | 单次退避上限 |
+| `backoffFactor` | 2.0 | 指数因子 |
+| `maxRetries` | 64（可 per-transport 覆盖） | 进入 Dead 前最大尝试 |
+| `coolDownBase` | 1min | Dead 后冷却基数，最多升至 1h |
+| `MaxGlobalReconnectRate` | 10/s | 全局重连令牌桶 |
+
+**Connecting 态退避（已修复）**：`retryCount > 0` 时 `CanRetry()` 返回 `calculateBackoff(retryCount)`，避免 connecting 失败后的 tight loop。
+
+**Single-flight（已修复）**：`ScheduleReconnect` 使用 `reconnectRunning atomic.Bool` + `CompareAndSwap`，重复调用直接忽略。
+
+#### 5.3.4 调用路径（Modbus 参考实现）
+
+```go
+// 同步路径：读写前未连接
+func (t *ModbusTransport) Connect(ctx context.Context) error {
+    t.mu.Lock()
+    defer t.mu.Unlock()
+    return t.connMgr.EnsureConnected(ctx, t.connectOnce)
+}
+
+// 异步路径：Probe 连续失败达 maxFailCount
+func (t *ModbusTransport) scheduleReconnect() {
+    t.connMgr.ScheduleReconnect(ctx, timeout, func(ctx context.Context) error {
+        t.mu.Lock()
+        defer t.mu.Unlock()
+        return t.connectOnce(ctx)
+    })
+}
+
+// 读写重试：网络错误 → Disconnect → Connect（仍走 EnsureConnected）
+func (t *ModbusTransport) withRetry(...) {
+    // 设备级 Modbus 异常不断链；链路级错误 Disconnect + Connect
+}
+```
+
+#### 5.3.5 待迁移清单
+
+| 组件 | 当前重连方式 | 目标 |
+|------|-------------|------|
+| ModbusTransport | `ConnectionManager` ✅ | 保持 |
+| DLT645Transport | `ConnectionManager` ✅ | 保持 |
+| KNX/S7/SNMP/... Transport | 部分 `ConnectionManager`，部分内联 loop | 统一 `EnsureConnected` |
+| OpcUaDriver | `go reconnect()` 自循环 ⚠️ | 改为 `ScheduleReconnect` + single-flight |
+| ENIPTransport | 自定义 `reconnect()` ⚠️ | 改为 `ScheduleReconnect` |
+| ConnectionController | 独立 `CanRetry`（Connecting 仍无退避）⚠️ | 仅诊断/降级；对齐 Connecting 退避或委托 ConnectionManager |
+
+#### 5.3.6 验证方法
+
+| 用例 | 包 / 测试 | 预期 |
+|------|-----------|------|
+| Connecting 失败后退避 | `internal/driver` `TestCanRetry_ConnectingAfterFailureWaits` | `waitTime > 0` |
+| Single-flight | `internal/driver` `TestScheduleReconnect_SingleFlight` | 并行调用仅 1 goroutine |
+| EnsureConnected 退避 | `internal/driver/modbus` `TestConnectionManager_EnsureConnectedRetriesWithBackoff` | 多次 dial 且间隔 ≥ baseDelay |
+| Probe 触发异步重连 | `internal/driver/modbus` `TestScenario_TransportMaxFailTriggersReconnect` | `ScheduleReconnect` 被触发 |
+| 共享链路 channelMu | `internal/core` `TestSerialQueueKey_UsesChannelForSharedLink` | 同 channel 共队列 |
+| 全局限流 | `internal/core` `TestConnectionController_GlobalReconnectRateLimit` | 超限 wait 1s |
+
 ---
 
 ## 六、资源控制器
@@ -1030,9 +1163,78 @@ ScanEngine重构测试报告
 
 ---
 
-## 九、架构结论
+## 九、实现状态对照（2026-06-30）
 
-### 9.1 架构升级对比
+> 对照当前代码库（`internal/core`、`internal/driver`）逐项标注。**✅ 已实现 · ⚠️ 部分实现 · ❌ 未实现**
+
+### 9.1 内核组件
+
+| 组件 | 代码位置 | 状态 | 说明 |
+|------|----------|------|------|
+| ScanEngine 10ms Tick | `internal/core/scan_engine.go` | ✅ | `ChannelManager` 内默认启用，替代旧调度 |
+| PriorityQueue + 任务状态机 | `scan_engine.go` | ✅ | 含 Degraded/Stopped |
+| 指数退避（调度层） | `updateTaskState()` | ✅ | 连续失败 ≥3 次间隔倍增，上限 64s |
+| 防饿死 | `enforceAntiStarvation()` | ✅ | 默认 300s 提升优先级 |
+| ExecutionLayer | `execution_layer.go` | ✅ | Serial / Parallel / Limited 三路 |
+| SerialQueueManager | `serial_queue_manager.go` | ✅ | 每 deviceKey / shared channel 一 worker |
+| BackpressureController | `backpressure_controller.go` | ✅ | 全局 512 + Token Bucket 1000/s |
+| ResourceController | `resource_controller.go` | ✅ | Goroutine/Connection 限额 |
+| ShadowCore 写入闭环 | `scan_engine.go` `applyCollectToShadow` | ✅ | 经 ShadowIngress / ShadowCore |
+| ScanEngineAdapter | `scan_engine_compat.go` | ✅ | 设备注册、channelMu 注入 |
+| channelMu 共享链路串行 | `execution_layer.go` `readPoints` | ✅ | modbus/dlt645 等持锁 I/O |
+| shared channel 队列键 | `serialQueueKey()` | ✅ | `shared:{channelID}` 避免慢从站阻塞 |
+| ConnectionManager 统一重连 | `driver/connection_manager.go` | ✅ | EnsureConnected + ScheduleReconnect + single-flight |
+| ConnectionController | `core/connection_controller.go` | ⚠️ | 错误分类/读写降级；**不**负责 dial；Connecting 态 CanRetry 仍无退避 |
+| DRY_RUN 并行验证模式 | — | ❌ | 文档阶段 1 要求，代码无 `DryRun` 配置 |
+| 新旧系统数据一致性校验器 | — | ❌ | 阶段 1 退出条件，无独立校验器 |
+| 协议路由分发器 | — | ❌ | 已全部走 ScanEngine，无灰度路由 |
+| 熔断机制 | — | ❌ | 文档阶段 3 要求，无 CircuitBreaker 实现 |
+| CollectionScheduler | — | ✅ 已移除 | 无残留引用；由 ScanEngine 替代 |
+| deviceLoop | — | ✅ 已移除 | 无 `deviceLoop` 函数 |
+
+### 9.2 四阶段迁移进度
+
+| 阶段 | 状态 | 已实现要点 | 未完成 / 风险 |
+|------|------|-----------|--------------|
+| 阶段1 并行运行 | ❌ | ScanEngine 可独立运行 | 无 DRY_RUN、无新旧双跑、无 72h 一致性校验 |
+| 阶段2 串行协议灰度 | ⚠️ | Modbus/DLT645 Executor + ScanEngine + channelMu | 无显式协议路由；Modbus 重连已统一到 ConnectionManager |
+| 阶段3 并发协议灰度 | ⚠️ | ParallelExecutor + Backpressure + WorkerPool | OPC UA 仍用 `go reconnect()`；熔断未实现 |
+| 阶段4 完全切换 | ⚠️ | 旧 CollectionScheduler 已下线，ScanEngine 为唯一调度 | 旧 Driver（modbus.go 等）仍存在；30 天 MTBF 未验证 |
+
+### 9.3 统一重连迁移进度
+
+| 驱动 / Transport | 重连 Owner | 状态 | 备注 |
+|------------------|-----------|------|------|
+| ModbusTransport | ConnectionManager | ✅ | `Connect`/`scheduleReconnect`/`withRetry→Connect` |
+| DLT645Transport | ConnectionManager | ✅ | 同 Modbus 模式 |
+| KNX / S7 / SNMP / Mitsubishi / Profinet / ICE104 | ConnectionManager | ⚠️ | 已接入 connMgr，部分仍内联 retry loop |
+| OpcUaDriver | 自定义 `reconnect()` | ❌ | `go d.reconnect()` 无 single-flight，待迁移 |
+| ENIPTransport | 自定义 `reconnect()` | ❌ | 待改为 `ScheduleReconnect` |
+| ModbusExecutor.connController | 仅分类 | ✅ | 不发起重连，符合 5.3 分层 |
+| 全局限流 | driver + core 各一套 | ⚠️ | 行为一致，计数器未合并 |
+
+### 9.4 阶段退出条件（运维级，非代码）
+
+以下 checkbox 为**生产灰度退出标准**，当前均未在自动化/运维侧确认：
+
+- 阶段1：`连续72小时数据一致性99.9%` 等 4 项 — ❌
+- 阶段2：Modbus 稳定采集、无重连风暴等 5 项 — ⚠️ 部分可本地验证，未做 72h 长跑
+- 阶段3：OPC UA 并发、熔断等 5 项 — ❌ / ⚠️
+- 阶段4：旧系统下线、30 天无重启等 5 项 — ⚠️ 代码层旧调度已移除，长跑未做
+
+### 9.5 测试覆盖（2026-06-30 执行）
+
+| 测试包 | 命令 | 结果 |
+|--------|------|------|
+| `internal/driver` | `go test -run 'Reconnect\|EnsureConnected\|Connecting'` | ✅ PASS |
+| `internal/driver/modbus` | `go test -run 'Reconnect\|ConnectionManager'` | ✅ PASS（含 scenario 重连） |
+| `internal/core` | `go test -run 'ConnectionController\|SerialQueue\|ScanEngine'` | ✅ PASS |
+
+---
+
+## 十、架构结论
+
+### 10.1 架构升级对比
 
 | 维度 | 组件驱动架构 | 调度驱动架构 |
 |------|-------------|-------------|
@@ -1043,7 +1245,7 @@ ScanEngine重构测试报告
 | 状态闭环 | 无 | 调度→执行→数据→状态调整 |
 | 资源控制 | 无 | 全局限额+监控 |
 
-### 9.2 核心价值
+### 10.2 核心价值
 
 1. **调度闭环**：ScanEngine掌控一切，消除隐性调度
 2. **执行约束**：Driver必须纯执行，消除状态混乱
@@ -1051,7 +1253,7 @@ ScanEngine重构测试报告
 4. **背压机制**：并发协议三层限制，防止资源爆炸
 5. **资源控制**：全局限额+监控，保障系统稳定
 
-### 9.3 架构口号
+### 10.3 架构口号
 
 > 用 **ScanEngine 做内核调度器**（掌控时间/资源/执行/状态），
 > 用 **ExecutionLayer 做执行层**（硬隔离+背压），

@@ -160,7 +160,7 @@ flowchart TB
 | 文件 | 数据 | 写入频率 | 建议 |
 |------|------|----------|------|
 | `data/config.db` | 配置、用户、系统设置、设备定义 | 低 | 强一致、每次保存 fsync、优先备份 |
-| `data/runtime.db` | 最新值、缓存、WAL、历史、规则状态 | 高 | 批量写、可清理、可 compact |
+| `data/runtime.db` | 最新值、缓存、历史、规则状态 | 高 | 批量写、可清理、可 compact |
 
 **关键约束：所有配置数据必须存储在 `config.db` 中，不得新增独立配置文件。**
 
@@ -258,9 +258,9 @@ storage:
       maxDuration: 10m
 ```
 
-### 5.5 影子设备：纯内存态，无 WAL
+### 5.5 影子设备：纯内存态
 
-影子设备是实时数据权威源，重启后由采集引擎重新填充，不需要 WAL 或 checkpoint。
+影子设备是实时数据权威源，重启后由采集引擎重新填充。
 
 模型约束：
 
@@ -271,8 +271,8 @@ storage:
 
 收益：
 
-- 消除高频 `shadow_wal` 写入，显著降低写放大。
-- 去掉 WAL 恢复、压缩、offset 管理等代码路径，降低复杂度。
+- 显著降低写放大与运行时库膨胀风险。
+- 简化 ShadowCore 代码路径，降低复杂度。
 
 ### 5.6 bbolt 文件治理
 
@@ -434,7 +434,7 @@ storage:
 | P0 | StoreForward 增加模式开关，默认 `offline_only` | `internal/core/store_forward.go` |
 | P0 | StoreForward prune 改为后台定时，避免每条写入全表扫描 | `internal/core/store_forward.go` |
 | P0 | 限制或禁用 `realtime` 历史默认策略 | `internal/core/device_storage_manager.go` |
-| P0 | 移除 ShadowCore WAL，影子设备改为纯内存态 | `internal/core/shadow_core.go` |
+| P0 | ShadowCore 纯内存态 | `internal/core/shadow_core.go` |
 | P0 | 设备快照从 ShadowCore 读取全量点位，每设备 1000 条 | `internal/core/device_storage_manager.go` |
 | P1 | 增加 runtime bucket `maxBytes` 与磁盘水位降级 | `internal/storage/boltdb.go` |
 | P1 | `GetBucketStats()` 改为缓存统计或低频采样 | `internal/storage/boltdb.go` |

@@ -99,7 +99,6 @@ sequenceDiagram
 | `DataCache` | 南向缓存 | 是 |
 | `WindowData` | 边缘规则窗口数据 | 是 |
 | `NorthboundCache` | 北向发送缓存 | 是 |
-| `shadow_wal` | 影子设备 WAL | 是 |
 | `device_history_{deviceID}` | 设备历史快照 | 是 |
 
 `HasConfigData()` 检测 `Channels`、`Devices`、`Northbound`、`EdgeRules` 任一 bucket 有数据即认为已完成安装。
@@ -184,6 +183,7 @@ UI 数据管理页面区分两类操作：
 | `AutoMigrateConfigFromDir` / `MigrateConfigToDB` | YAML→DB 迁移已删除 |
 | `POST /api/data/migrate-legacy` | 一次性迁移 API 已删除 |
 | `internal/migration` 包 | 已删除 |
+| 影子运行时落盘 | ShadowCore 已纯内存；`NewStorage` 启动时删除遗留 bucket；升级后若 `runtime.db` 偏大，执行 compact-runtime 回收空间 |
 
 ---
 
@@ -228,6 +228,8 @@ curl -X POST http://localhost:8080/api/data/backup-config
 ```
 
 **压缩运行时库**
+
+自旧版升级后，若 `runtime.db` 体积异常偏大，启动时会自动删除遗留的影子运行时 bucket，但 bbolt 文件大小不会立即缩小；执行 compact 可回收磁盘占用。
 
 ```bash
 # 通过 API 压缩（不影响配置库）

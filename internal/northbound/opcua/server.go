@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -60,18 +61,21 @@ func NewServer(cfg model.OPCUAConfig, sb model.SouthboundManager) *Server {
 // This reduces OPC UA node ID length significantly:
 //
 //	Original:  s=Gateway/Channels/44amyf4grh5oquzc/Devices/slave-1/Points/hr_40000 (70+ chars)
-//	Compacted: ns=2;s=Device001.Temperature (e.g., ns=2;s=Device001.Temperature)
+//	Compacted: ns=2;s=Channel001.Device001.Temperature
 type NodeIDMapper struct {
 	mu sync.RWMutex
 
 	// Namespace index for compact node IDs
 	namespace uint16
 
-	// Point mappings: channelID:deviceID:pointID -> nodeID string (ns=X;s=Device.PointName)
+	// Point mappings: channelID:deviceID:pointID -> nodeID string (ns=X;s=Channel.Device.Point)
 	pointMap map[string]string
 
 	// Reverse mappings: nodeID -> fullPath
 	nodeIDToPath map[string]string
+
+	// folderMap maps folder keys (ch:ID / dev:ch:ID) to numeric folder IDs
+	folderMap map[string]uint32
 
 	// Next available folder node ID (starts from 1001 for folders only)
 	nextFolderID uint32
@@ -86,30 +90,26 @@ func NewNodeIDMapper() *NodeIDMapper {
 		namespace:        2, // OPC UA namespace index for custom nodes
 		pointMap:         make(map[string]string),
 		nodeIDToPath:     make(map[string]string),
+		folderMap:        make(map[string]uint32),
 		nextFolderID:     1001, // Start from 1001 for folder IDs only
 		reverseShortPath: make(map[string]string),
 	}
 }
 
-// GenerateCompactNodeID generates a compact node ID in OPC UA standard format
-// Format: ns=2;s={deviceID}.{pointID}
-// Example: ns=2;s=Device001.Temperature
-// This uses string-type node IDs for better readability
+// GenerateCompactNodeID generates a compact node ID in OPC UA standard format.
+// Format: ns=2;s={channelID}.{deviceID}.{pointID}
+// Channel ID is included so NodeIDs stay globally unique across channels.
 func (m *NodeIDMapper) GenerateCompactNodeID(channelID, deviceID, pointID string) string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Create unique key for this point
 	key := fmt.Sprintf("%s:%s:%s", channelID, deviceID, pointID)
-
-	// If already exists, return existing node ID
 	if nodeID, ok := m.pointMap[key]; ok {
 		return nodeID
 	}
 
-	// Create string node ID: ns=2;s={deviceID}.{pointID}
 	fullPath := fmt.Sprintf("Gateway/Channels/%s/Devices/%s/Points/%s", channelID, deviceID, pointID)
-	shortID := fmt.Sprintf("ns=%d;s=%s.%s", m.namespace, deviceID, pointID)
+	shortID := fmt.Sprintf("ns=%d;s=%s.%s.%s", m.namespace, channelID, deviceID, pointID)
 
 	m.pointMap[key] = shortID
 	m.nodeIDToPath[shortID] = fullPath
@@ -155,18 +155,18 @@ func (m *NodeIDMapper) GetOriginalIDs(shortID string) (channelID, deviceID, poin
 		return parseFullPath(fullPath)
 	}
 
-	// Try to parse new string format: ns=X;s=Y.Z
-	// Format is: ns=X;s={deviceID}.{pointID}
+	// Parse string format: ns=X;s={channelID}.{deviceID}.{pointID}
+	// Legacy fallback: ns=X;s={deviceID}.{pointID}
 	if strings.HasPrefix(shortID, "ns=") && strings.Contains(shortID, ";s=") {
 		parts := strings.Split(shortID, ";s=")
 		if len(parts) == 2 {
-			// The value part contains deviceID.pointID
 			valuePart := parts[1]
+			if segs := strings.Split(valuePart, "."); len(segs) == 3 {
+				return segs[0], segs[1], segs[2], true
+			}
 			if idx := strings.LastIndex(valuePart, "."); idx > 0 {
 				deviceID = valuePart[:idx]
 				pointID = valuePart[idx+1:]
-				// We can't determine channelID from this format alone
-				// Look through full paths to find matching deviceID.pointID
 				for _, fullPath := range m.reverseShortPath {
 					if c, d, p, found := parseFullPath(fullPath); found {
 						if d == deviceID && p == pointID {
@@ -237,17 +237,13 @@ func (m *NodeIDMapper) GenerateCompactFolderID(channelID string, deviceID string
 		key = fmt.Sprintf("dev:%s:%s", channelID, deviceID)
 	}
 
-	// Check if already exists
-	for numericIDStr, path := range m.nodeIDToPath {
-		if path == key {
-			return fmt.Sprintf("ns=%d;i=%s", m.namespace, numericIDStr)
-		}
+	if folderID, ok := m.folderMap[key]; ok {
+		return fmt.Sprintf("ns=%d;i=%d", m.namespace, folderID)
 	}
 
-	// Assign new folder ID (numeric for folders)
 	folderID := m.nextFolderID
 	m.nextFolderID++
-	m.nodeIDToPath[fmt.Sprintf("%d", folderID)] = key
+	m.folderMap[key] = folderID
 
 	return fmt.Sprintf("ns=%d;i=%d", m.namespace, folderID)
 }
@@ -642,6 +638,7 @@ func (s *Server) buildAddressSpace() error {
 	channelsID := createFolder(gatewayID, "G/Channels", "Channels")
 
 	channels := s.sb.GetChannels()
+	sort.Slice(channels, func(i, j int) bool { return channels[i].ID < channels[j].ID })
 	//zap.L().Info("Building OPC UA Address Space", zap.Int("channel_count", len(channels)))
 
 	for _, ch := range channels {
@@ -697,12 +694,10 @@ func (s *Server) buildAddressSpace() error {
 				// Use full path as internal key for nodeMap (for Update/WriteViaOPCUA lookups)
 				pKey := fmt.Sprintf("%s/%s/%s", ch.ID, dev.ID, p.ID)
 
-				// Generate string node ID: ns=2;s={deviceID}.{pointID}
-				// Example: ns=2;s=Device001.Temperature
-				// Also registers the mapping in idMapper for reverse lookup
+				// Generate string node ID: ns=2;s={channelID}.{deviceID}.{pointID}
+				// Channel prefix keeps NodeIDs globally unique across channels.
 				_ = s.idMapper.GenerateCompactNodeID(ch.ID, dev.ID, p.ID)
-				// stringID format: deviceID.pointID (used in createVar which adds ns=X;s= prefix)
-				stringID := fmt.Sprintf("%s.%s", dev.ID, p.ID)
+				stringID := fmt.Sprintf("%s.%s.%s", ch.ID, dev.ID, p.ID)
 
 				accessLevel := byte(1)
 				if strings.Contains(strings.ToUpper(p.ReadWrite), "W") {

@@ -66,10 +66,8 @@ type PointScheduler struct {
 
 	pointStates map[string]*PointRuntime
 
-	// smart probing for address validation
-	addressMap *ValidAddressMap
-	slaveID    uint8
-	rttModel   *RTTModel
+	slaveID  uint8
+	rttModel *RTTModel
 	mu         sync.Mutex
 }
 
@@ -90,12 +88,6 @@ func NewPointScheduler(transport Transport, decoder Decoder, maxPacketSize uint1
 		pointStates:         make(map[string]*PointRuntime),
 		rttModel:            NewRTTModel(),
 	}
-}
-
-func (s *PointScheduler) SetAddressMap(addressMap *ValidAddressMap) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.addressMap = addressMap
 }
 
 func (s *PointScheduler) SetSlaveID(slaveID uint8) {
@@ -306,23 +298,11 @@ func (s *PointScheduler) markPointFailed(pointID string, err error) {
 
 		// 如果连续失败次数较多，则进入较长时间的冷却期
 		// 3次失败：冷却 60秒
-		// 10次失败：触发重新探测该区块
+		// 10次失败：冷却 5分钟
 		if rt.FailCount >= 10 {
-			// Trigger re-probe for the block containing this point
-			if s.addressMap != nil {
-				regType := rt.Point.RegisterType
-				_, offset, _ := s.decoder.ParseAddress(rt.Point.Address)
-				log.Printf("Point %s failed 10 times, triggering re-probe for block containing address %d", pointID, offset)
-				// Trigger re-probe in a goroutine to avoid blocking
-				go func(slaveID uint8, regType model.RegisterType, addr uint16) {
-					// Probe a small range around the failing address
-					s.addressMap.TriggerProbeIfNeeded(slaveID, regType.String(), addr-5, addr+5)
-				}(s.slaveID, regType, offset)
-			}
-			// Still mark as skipped for a short time to avoid immediate retry
 			rt.State = "SKIPPED"
 			rt.CooldownUntil = time.Now().Add(5 * time.Minute)
-			log.Printf("Point %s failed 10 times, triggering re-probe and skipping for 5 minutes", pointID)
+			log.Printf("Point %s failed 10 times, skipping for 5 minutes", pointID)
 		} else if rt.FailCount >= 3 {
 			rt.State = "SKIPPED"
 			rt.CooldownUntil = time.Now().Add(60 * time.Second)
@@ -386,7 +366,7 @@ func (s *PointScheduler) groupPoints(points []model.Point) ([]PointGroup, error)
 		typeGroups[info.RegType] = append(typeGroups[info.RegType], info)
 	}
 
-	// 3. Group by ValidBlock with smart address filtering
+	// 3. Group by contiguous address ranges
 	var groups []PointGroup
 
 	for regType, infos := range typeGroups {
@@ -408,200 +388,52 @@ func (s *PointScheduler) groupPoints(points []model.Point) ([]PointGroup, error)
 		})
 
 		s.mu.Lock()
-		slaveID := s.slaveID
-		addrMap := s.addressMap
+		effectiveMax := s.maxPacketSize
 		s.mu.Unlock()
 
-		// Get valid blocks for this slave and register type
-		var validBlocks []ValidBlock
-		if addrMap != nil && len(infos) > 0 {
-			minAddr := infos[0].Offset
-			maxAddr := infos[len(infos)-1].Offset
-			//log.Printf("Getting valid blocks for slave %d, regType %s, range %d-%d", slaveID, regType.String(), minAddr, maxAddr)
-			addrMap.RecordAddressRange(slaveID, regType.String(), minAddr, maxAddr)
-			validBlocks = addrMap.GetValidBlocks(slaveID, regType.String(), minAddr, maxAddr)
-			//log.Printf("Found %d valid blocks", len(validBlocks))
-			// for _, block := range validBlocks {
-			// 	//log.Printf("Valid block: start=%d, end=%d", block.Start, block.End)
-			// }
-		}
-
-		// Get optimal batch size
-		s.mu.Lock()
-		optimalBatchSize := int(s.maxPacketSize)
-		if addrMap != nil {
-			optimalBatchSize = addrMap.GetOptimalBatchSize(slaveID, regType.String())
-		}
-		s.mu.Unlock()
-
-		if optimalBatchSize > int(s.maxPacketSize) {
-			optimalBatchSize = int(s.maxPacketSize)
-		}
-		if optimalBatchSize < 8 {
-			optimalBatchSize = 8
-		}
-
-		// First, process points within valid blocks
-		if len(validBlocks) > 0 {
-			// Create a map to track processed points
-			processed := make(map[uint16]bool)
-
-			// For each valid block, create groups based on optimal batch size
-			for _, block := range validBlocks {
-				// Filter points that fall within this block
-				var blockPoints []AddressInfo
-				for _, info := range infos {
-					if info.Offset >= block.Start && info.Offset < block.End+1 {
-						blockPoints = append(blockPoints, info)
-						processed[info.Offset] = true
-					}
-				}
-
-				if len(blockPoints) == 0 {
-					continue
-				}
-
-				// Create groups within the block based on optimal batch size
-				currentAddr := block.Start
-				for currentAddr <= block.End {
-					batchEnd := currentAddr + uint16(optimalBatchSize) - 1
-					if batchEnd > block.End {
-						batchEnd = block.End
-					}
-
-					// Collect points in this batch
-					var batchPoints []model.Point
-					for _, info := range blockPoints {
-						if info.Offset >= currentAddr && info.Offset <= batchEnd {
-							batchPoints = append(batchPoints, info.Point)
-						}
-					}
-
-					if len(batchPoints) > 0 {
-						groups = append(groups, PointGroup{
-							RegType:     regType,
-							StartOffset: currentAddr,
-							Count:       batchEnd - currentAddr + 1,
-							Points:      batchPoints,
-						})
-					}
-
-					currentAddr = batchEnd + 1
-				}
+		i := 0
+		for i < len(infos) {
+			currentGroup := PointGroup{
+				RegType:     regType,
+				StartOffset: infos[i].Offset,
+				Points:      []model.Point{infos[i].Point},
+				Count:       infos[i].RegisterCount,
 			}
 
-			// Now process points not in valid blocks (可能是新的有效点位)
-			var unprocessedInfos []AddressInfo
-			for _, info := range infos {
-				if !processed[info.Offset] {
-					unprocessedInfos = append(unprocessedInfos, info)
+			currentEndOffset := currentGroup.StartOffset + currentGroup.Count
+
+			lastProcessedIndex := i
+
+			for j := i + 1; j < len(infos); j++ {
+				info := infos[j]
+
+				gap := int(info.Offset) - int(currentEndOffset)
+				if gap < 0 {
+					gap = 0
 				}
+
+				wouldExceedMax := (currentGroup.Count + uint16(gap) + info.RegisterCount) > effectiveMax
+
+				if gap > int(s.groupThreshold) {
+					break
+				}
+
+				if wouldExceedMax {
+					break
+				}
+
+				newCount := info.Offset - currentGroup.StartOffset + info.RegisterCount
+				currentGroup.Count = newCount
+				currentGroup.Points = append(currentGroup.Points, info.Point)
+				currentEndOffset = info.Offset + info.RegisterCount
+				lastProcessedIndex = j
 			}
 
-			// Process unprocessed points using fallback method
-			if len(unprocessedInfos) > 0 {
-				effectiveMax := uint16(optimalBatchSize)
-
-				i := 0
-				for i < len(unprocessedInfos) {
-					currentGroup := PointGroup{
-						RegType:     regType,
-						StartOffset: unprocessedInfos[i].Offset,
-						Points:      []model.Point{unprocessedInfos[i].Point},
-						Count:       unprocessedInfos[i].RegisterCount,
-					}
-
-					currentEndOffset := currentGroup.StartOffset + currentGroup.Count
-
-					// Track the last processed index
-					lastProcessedIndex := i
-
-					for j := i + 1; j < len(unprocessedInfos); j++ {
-						info := unprocessedInfos[j]
-
-						gap := int(info.Offset) - int(currentEndOffset)
-						if gap < 0 {
-							gap = 0
-						}
-
-						wouldExceedMax := (currentGroup.Count + uint16(gap) + info.RegisterCount) > effectiveMax
-
-						if gap > int(s.groupThreshold) {
-							break
-						}
-
-						if wouldExceedMax {
-							break
-						}
-
-						newCount := info.Offset - currentGroup.StartOffset + info.RegisterCount
-						currentGroup.Count = newCount
-						currentGroup.Points = append(currentGroup.Points, info.Point)
-						currentEndOffset = info.Offset + info.RegisterCount
-						lastProcessedIndex = j
-					}
-
-					if len(currentGroup.Points) > 0 {
-						groups = append(groups, currentGroup)
-					}
-
-					// Update i to the next unprocessed index
-					i = lastProcessedIndex + 1
-				}
+			if len(currentGroup.Points) > 0 {
+				groups = append(groups, currentGroup)
 			}
-		} else {
-			// No valid blocks, use fallback approach for all points
-			effectiveMax := uint16(optimalBatchSize)
 
-			i := 0
-			for i < len(infos) {
-				// If address map exists but address is not yet validated, still process it
-				// This allows initial communication to happen while probing is being done
-				currentGroup := PointGroup{
-					RegType:     regType,
-					StartOffset: infos[i].Offset,
-					Points:      []model.Point{infos[i].Point},
-					Count:       infos[i].RegisterCount,
-				}
-
-				currentEndOffset := currentGroup.StartOffset + currentGroup.Count
-
-				// Track the last processed index
-				lastProcessedIndex := i
-
-				for j := i + 1; j < len(infos); j++ {
-					info := infos[j]
-
-					// Continue processing even if address not yet validated
-					gap := int(info.Offset) - int(currentEndOffset)
-					if gap < 0 {
-						gap = 0
-					}
-
-					wouldExceedMax := (currentGroup.Count + uint16(gap) + info.RegisterCount) > effectiveMax
-
-					if gap > int(s.groupThreshold) {
-						break
-					}
-
-					if wouldExceedMax {
-						break
-					}
-
-					newCount := info.Offset - currentGroup.StartOffset + info.RegisterCount
-					currentGroup.Count = newCount
-					currentGroup.Points = append(currentGroup.Points, info.Point)
-					currentEndOffset = info.Offset + info.RegisterCount
-					lastProcessedIndex = j
-				}
-
-				if len(currentGroup.Points) > 0 {
-					groups = append(groups, currentGroup)
-				}
-
-				// Update i to the next unprocessed index
-				i = lastProcessedIndex + 1
-			}
+			i = lastProcessedIndex + 1
 		}
 	}
 

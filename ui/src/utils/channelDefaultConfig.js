@@ -7,11 +7,6 @@ const MODBUS_ADVANCED = {
   instruction_interval: 10,
   start_address: 1,
   byte_order_4: 'ABCD',
-  enableSmartProbe: false,
-  probeMaxDepth: 6,
-  probeTimeout: 3000,
-  probeMaxConsecutive: 20,
-  probeEnableMTU: false,
 }
 
 const MODBUS_RTU_SERIAL = {

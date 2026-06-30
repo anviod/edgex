@@ -3137,6 +3137,12 @@ func (s *Server) clearAllRuntime(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error(), "cleared": cleared})
 	}
 
+	if s.shadowCore != nil {
+		s.shadowCore.ClearAllShadowDevices()
+	}
+	if s.ecm != nil {
+		s.ecm.ClearRuntimeState()
+	}
 	if s.dsm != nil {
 		s.dsm.ClearAllHistory()
 	}
