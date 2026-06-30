@@ -1,11 +1,12 @@
 version: 2
+# goreleaser release --snapshot --clean
 project_name: edgex
 dist: ./dist
 
 before:
   hooks:
     - go mod tidy
-    - npm run build --prefix ./ui         # 构建 Vue 应用
+    - npm run build --prefix ./ui
 
 builds:
   - id: edgex

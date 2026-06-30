@@ -2,15 +2,66 @@
 
 [中文文档站点](https://anviod.github.io/edgex/) | [English](#english)
 
-Industrial Edge Gateway（边缘网关）是一款轻量级工业边缘计算网关，连接工业现场设备（南向 支持十多种标准工业协议）与云端/上层应用（北向），并提供本地边缘计算能力。
+Industrial Edge Gateway（工业边缘网关）是一款轻量级工业边缘计算网关软件，面向制造、能源、楼宇等现场部署。后端采用 Go，管理界面采用 Vue 3 + Vuetify。
 
-## 项目概述
+## 产品概览
+
+Industrial Edge Gateway 部署在工业现场，核心任务是打通 OT 设备与 IT 系统之间的数据通道，实现：
+
+- **海量设备连接与数据接入**：通过 12 种南向工业协议驱动，统一采集 PLC、DCS、表计、楼宇控制器及网络设备数据；ScanEngine 调度内核负责采集任务编排，写入 ShadowCore 影子设备实时快照。
+- **边缘智能处理与联动**：在靠近数据源的边缘端，基于 expr 规则引擎完成逻辑判断、位运算、读-改-写（RMW）及 Sequence/Delay/Check 工作流编排；**虚拟影子设备**（Virtual Shadow Engine）从多台真实设备选点映射或公式聚合，生成派生虚拟点位，实现本地联动控制与跨设备指标汇总，减轻上行带宽压力。
+- **多系统无缝集成**：通过 MQTT、Sparkplug B、OPC UA Server 及 EdgeOS（MQTT/NATS）等北向通道，将处理后的数据对接云平台、SCADA 与企业应用，并支持反向写控。
+
+
+## 产品优势
+
+### 丰富的工业协议支持
+
+内置 12 种南向驱动，覆盖 Modbus、BACnet、OPC UA、Siemens S7、EtherNet/IP、Omron FINS、SNMP、IEC 60870-5-104、DL/T645、Mitsubishi SLMP、Profinet IO、KNXnet/IP 等主流工业协议。支持设备发现、对象扫描与批量点位注册，满足 PLC、表计、楼宇与电力等场景的异构接入需求。完整驱动矩阵见 [南向驱动文档](docs/drivers/index.md)。
+
+### 低延迟数据采集与处理
+
+ScanEngine 以 10ms Tick 驱动优先级队列调度，ExecutionLayer 按 Serial / Parallel / Limited 模式隔离执行；ShadowCore 以纯内存快照作为数据真源（SoT），UI、边缘计算与北向接口统一从影子设备读取，缩短数据流转路径。WebSocket 实时推送点位变化，支持通道级 TCP 链路监控。
+
+### 轻量灵活部署
+
+单二进制交付，`CGO_ENABLED=0` 静态编译，无运行时依赖；最低 128MB 内存、1GB 存储即可运行，支持 x86_64、ARMv7、ARM64。可选 Docker 镜像部署，适合树莓派、工业网关、虚拟机及嵌入式设备。
+
+### 边缘规则与联动控制
+
+内置轻量级 expr 规则引擎，扩展工业位操作语法（`v.N` / `v.bit.N`、bitget/bitset 等），支持寄存器 RMW 写保护其他位状态。规则可编排 Sequence（序列）、Delay（延时）、Check（条件检查）等工作流，配套规则运行日志查询与 CSV 导出。
+
+### 虚拟影子设备
+
+Virtual Shadow Engine 从多台真实设备选点拼积木：直接映射来源点位，或通过公式计算生成新的虚拟点位；结果写入 ShadowCore，供边缘计算规则、北向接口与 UI 实时查询统一消费。数据路径为 **南向采集 → 真实影子设备 → Virtual Shadow Engine → 虚拟影子设备 → 边缘计算 / 北向 / UI**；真实点位更新后，引擎解析依赖图并增量重算，写入 `virtual-{id}` 影子。
+
+支持 **直接映射**（1:1 转发真实点位值，适合跨设备汇聚、点位整理与北向暴露）与 **公式计算**（引用 `channel_id.device_id.point_id` 格式来源，支持 `+ - * /` 与括号，用于跨设备求和/平均、倍率换算等派生指标）。积木编辑器支持批量映射、公式模板与依赖引用自动解析。典型场景：跨设备流量汇总、多路温度平均供越限规则、分散点位统一 MQTT/OPC UA 上报、工程单位换算。
+
+### 智能采集优化
+
+基于设备画像的自适应采集：RTT 管理器（EWMA 动态超时）、MTU 管理器（批量读包大小探测）、Gap 优化器（请求间隔调节）及 Modbus Illegal Address 24h 冷却。统一 ConnectionManager 提供指数退避重连、采集健康检测与低频补偿探测，提升总线通信效率与稳定性。
+
+### 北向平台集成
+
+支持 MQTT（自定义 Topic/Payload 模板）、Sparkplug B（NBIRTH/NDEATH/DDATA）、OPC UA Server（双向读写互通）及 EdgeOS 北向通道，便于对接 EMQX、Ignition、云平台及自建数据中心。
+
+## 功能一览
+
+| 功能 | 描述 | 功能清单 |
+| :--- | :--- | :--- |
+| **数据采集** | 南向通道与设备管理，多协议统一接入，ScanEngine 调度采集并写入影子设备 | 12 种协议驱动 · 通道/设备 CRUD · 设备/对象扫描 · ScanEngine 调度 · ShadowCore 快照 · 通道 TCP 监控 · ConnectionManager 重连 |
+| **数据上报** | 将影子设备数据转发至云平台或上层系统，支持反向控制 | MQTT · Sparkplug B · OPC UA Server · EdgeOS（MQTT/NATS） · Topic/Payload 映射 · 反向写控 |
+| **虚拟影子设备** | Virtual Shadow Engine 从多台真实设备选点，直接映射或公式计算生成派生虚拟点位 | 直接映射 · 公式计算 · 积木编辑器 · 依赖图增量重算 · 跨通道聚合 · 北向/UI 统一暴露 |
+| **边缘计算** | 基于 expr 规则的本地联动与位操作，减少无效上行 | expr 表达式 · 位运算增强 · RMW 写 · Sequence/Delay/Check 工作流 · 规则日志 |
+| **系统管理** | Web 可视化运维与配置管理 | Vue 3 管理 UI · JWT / LDAP/AD · 安装向导 · config.db 配置 · 日志查询/导出 · WebSocket 实时数据 |
+
+## 系统架构
 
 <div align="center">
   <img src="./docs/img/dataScanEngineCN.svg" width="100%" alt="Edgex V2.0 架构 · ScanEngine引擎">
 </div>
 
-> **Edgex V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine 写入影子设备实时快照，再联通虚拟设备、边缘计算与北向接口。
+> **Edgex V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine 写入真实影子设备快照，Virtual Shadow Engine 生成虚拟影子设备，再联通边缘计算与北向接口。
 
 网关面向工业现场部署，支持多协议南向采集、北向数据共享、规则引擎与可视化运维。核心数据路径遵循 **调度驱动架构**（ScanEngine 内核）：
 
@@ -21,7 +72,9 @@ config.db → ChannelManager → ScanEngine（10ms Tick · PriorityQueue）
                                     ↓
                               Driver.ReadPoints（纯执行 · ConnectionManager 重连）
                                     ↓
-                              ShadowCore (SoT)
+                              ShadowCore (SoT) — 真实影子设备
+                                    ↓
+                         Virtual Shadow Engine → 虚拟影子设备
                                     ↓
                          ShadowBridge → DataPipeline
                                     ↓
@@ -33,7 +86,8 @@ config.db → ChannelManager → ScanEngine（10ms Tick · PriorityQueue）
 | **ChannelManager** | 通道/设备 CRUD、驱动生命周期、`ScanEngineAdapter` 任务注册 |
 | **ScanEngine** | 内核调度器：时间/资源/执行/状态闭环；Scan Class（fast/normal/slow） |
 | **ExecutionLayer** | SerialQueueManager 硬隔离 + Parallel 三层背压 + Limited 低并发 |
-| **ShadowCore** | 影子设备真源（SoT），纯内存运行时快照，UI 与北向读 Shadow |
+| **ShadowCore** | 影子设备真源（SoT），纯内存运行时快照，承载真实与虚拟影子设备，UI 与北向统一读 Shadow |
+| **Virtual Shadow Engine** | 跨设备点位映射与公式计算，依赖图增量重算，写入 `virtual-{id}` 虚拟影子设备 |
 | **ConnectionManager** | 唯一 dial Owner：EnsureConnected / ScheduleReconnect / single-flight |
 
 **北向协议**：MQTT、Sparkplug B、OPC UA Server、edgeOS(MQTT/NATS)。
@@ -53,32 +107,64 @@ config.db → ChannelManager → ScanEngine（10ms Tick · PriorityQueue）
 | CPU | 单核 | 双核+ |
 | Go（源码编译） | 1.25+ | — |
 | Node.js（前端编译） | 16+ | — |
+| [GoReleaser](https://goreleaser.com/) v2 | 最新版 | 一键多平台打包 |
 
 支持 Linux / Windows，架构：x86_64、ARMv7、ARM64。
 
-### 2. 编译后端
+### 2. 编译方式
+
+#### 一键多平台打包（推荐）
+
+项目使用 [GoReleaser](https://goreleaser.com/)（`.goreleaser.yml`）统一构建前端与后端，并生成分平台安装包。GoReleaser 内置 nfpm，用于生成 `.deb` 包，无需单独安装 nfpm。
+
+```bash
+# 安装 GoReleaser（任选其一）
+go install github.com/goreleaser/goreleaser/v2@latest
+# 或 brew install goreleaser
+
+# 在仓库根目录执行：清理 dist/ 并构建（snapshot 模式，不发布 GitHub Release）
+goreleaser release --snapshot --clean
+```
+
+**构建流水线**（`before.hooks`）：
+
+1. `go mod tidy` — 整理 Go 依赖  
+2. `npm run build --prefix ./ui` — 构建 Vue 前端至 `ui/dist/`
+
+**交叉编译目标**（`CGO_ENABLED=0`，入口 `./cmd/main.go`，二进制名 `edgex`）：
+
+| 平台 | 架构 |
+| :--- | :--- |
+| Linux | amd64、arm64、arm/v7 |
+| Windows | amd64（不含 arm/arm64） |
+
+**产物目录** `./dist/`：
+
+| 类型 | 说明 |
+| :--- | :--- |
+| **tar.gz** | `edgex-{version}-{os}-{arch}.tar.gz`，含二进制、`conf/`、`scripts/`、`edgex.service`、`edgex.sh`、`ui/dist/` 等 |
+| **deb** | `edgex-v{version}-{arch}.deb`，安装至 `/usr/local/bin/edgex`，含 systemd 单元与前端静态资源 |
+| **SHA256SUMS** | 各产物校验和 |
+
+版本信息通过 ldflags 注入：`Version`、`BuildTime`、`CommitID`（snapshot 模式下版本号为 snapshot 标识）。
+
+> **snapshot vs 正式发布**：`--snapshot` 仅本地/CI 构建，不上传 Release。推送 `v*` 标签并执行 `goreleaser release`（无 `--snapshot`）时，按配置创建 **draft** GitHub Release（`release.draft: true`）。
+
+#### 手动编译（开发 / 单平台）
 
 ```bash
 git clone https://github.com/anviod/edgex.git
 cd edgex
 go mod tidy
 
-# 推荐：静态编译，无 CGO 依赖
+# 后端：静态编译，无 CGO 依赖
 CGO_ENABLED=0 go build -o edgex ./cmd/main.go
+
+# 前端（生产环境推荐，产物由后端托管 ui/dist）
+cd ui && npm install && npm run build && cd ..
 ```
 
-### 3. 编译前端（可选，生产环境推荐）
-
-前端源码位于 `ui/`，构建产物由后端托管 `ui/dist`：
-
-```bash
-cd ui
-npm install
-npm run build
-cd ..
-```
-
-### 4. 目录与配置
+### 3. 目录与配置
 
 | 路径 | 说明 |
 | :--- | :--- |
@@ -88,7 +174,7 @@ cd ..
 
 首次启动若 `data/config.db` 不存在，网关以安装模式启动，通过 Web UI 完成初始化。
 
-### 5. 启动服务
+### 4. 启动服务
 
 ```bash
 # 默认配置目录 ./conf，HTTP 端口见 server 配置（常见 8080/8082）
@@ -100,7 +186,7 @@ cd ..
 
 访问 `http://localhost:<port>` 进入管理界面。默认账号见安装向导或 `conf/users.yaml`。
 
-### 6. Docker 部署（可选）
+### 5. Docker 部署（可选）
 
 ```bash
 docker pull anviod/edgex:latest
@@ -114,7 +200,7 @@ docker run -d \
   anviod/edgex:latest
 ```
 
-### 7. 生产部署参考
+### 6. 生产部署参考
 
 - **systemd 服务、防火墙端口、配置初始化**：见 [用户手册 — 部署流程](docs/guide/USER_MANUAL.md#部署流程)
 - **EdgeOS 集成与北向通道**：见 [EdgeOS 快速入门](docs/deployment/edgeos-quickstart.md)
@@ -223,13 +309,10 @@ cd ui && npm install && npm run build && cd ..   # 前端（可选）
 
 ---
 
-## 主要特性摘要
+## 相关文档
 
-- **智能采集优化**：RTT/MTU 自适应、Gap 合并批量读、设备画像、Illegal Address 24h 冷却（Modbus）
-- **连接管理**：统一 ConnectionManager 状态机，指数退避，采集健康检测，低频补偿探测
-- **边缘计算**：expr 规则引擎，位运算增强，RMW 写，Sequence/Delay/Check 工作流
-- **可视化管理**：Vue 3 管理 UI，通道 TCP 链路监控，点位批量操作，JWT + LDAP/AD
-- **轻量部署**：单二进制，CGO_ENABLED=0 静态编译，128MB 内存可运行
+- **产品说明**：[docs/guide/产品说明.md](docs/guide/产品说明.md) · [在线阅读](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html)
+- **用户手册**：[docs/guide/USER_MANUAL.md](docs/guide/USER_MANUAL.md)
 
 ---
 
@@ -241,10 +324,13 @@ Mozilla Public License 2.0 (MPL-2.0)
 
 ## English
 
-Industrial Edge Gateway is a lightweight edge computing gateway for industrial IoT. It connects southbound field devices (Modbus, BACnet, OPC UA, S7, EtherNet/IP, FINS, SNMP, IEC 104, DL/T645, Mitsubishi MC, Profinet IO, KNXnet/IP) to northbound systems (MQTT, Sparkplug B, OPC UA Server) with local rule-based edge computing.
+Industrial Edge Gateway is a lightweight edge computing gateway for industrial IoT. It connects southbound field devices (12 protocols: Modbus, BACnet, OPC UA, S7, EtherNet/IP, FINS, SNMP, IEC 104, DL/T645, Mitsubishi MC, Profinet IO, KNXnet/IP) to northbound systems (MQTT, Sparkplug B, OPC UA Server, EdgeOS) with local rule-based edge computing (expr, RMW, workflows).
+
+**Product overview**: mass device connectivity · edge rule processing · multi-system integration.
 
 - **Documentation**: [https://anviod.github.io/edgex/](https://anviod.github.io/edgex/)
+- **Product Guide (中文)**: [产品说明](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html)
 - **User Manual**: [USER_MANUAL](docs/guide/USER_MANUAL.md)
 - **Build**: `CGO_ENABLED=0 go build -o edgex ./cmd/main.go`
 - **Tests**: `CGO_ENABLED=0 go test ./...`
-- **Driver matrix**: See [docs/drivers/index.md](docs/drivers/index.md) for the full southbound driver status table.
+- **Driver matrix**: See [docs/drivers/index.md](docs/drivers/index.md)

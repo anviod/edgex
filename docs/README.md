@@ -2,7 +2,7 @@
 
 ## 简介
 
-这是 EdgeX 项目的文档 GitHub Pages 站点，用于展示项目的所有文档。
+这是 EdgeX 项目的文档 GitHub Pages 站点（Jekyll + Cayman 主题），用于展示产品说明、用户手册、驱动文档与架构设计。站点首页内容见 [README_CN.md](README_CN.md)（与仓库根目录 README 结构对齐，路径为 docs 相对路径）。
 
 ## 站点结构
 
