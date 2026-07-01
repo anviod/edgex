@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="700" viewBox="0 0 1400 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="pwr_bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fefce8"/>
+      <stop offset="100%" stop-color="#fff7ed"/>
+    </linearGradient>
+    <marker id="arrow_yellow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0 L10 5 L0 10z" fill="#ca8a04"/>
+    </marker>
+    <marker id="arrow_blue_p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0 L10 5 L0 10z" fill="#2563eb"/>
+    </marker>
+    <style>
+      .title { fill:#713f12; font-family:'Segoe UI',sans-serif; font-weight:bold; font-size:18px; }
+      .lbl { fill:#475569; font-family:'Segoe UI',sans-serif; font-size:12px; font-weight:600; }
+      .code { fill:#64748b; font-family:'Courier New',monospace; font-size:10px; }
+      .val { fill:#a16207; font-family:'Segoe UI',sans-serif; font-weight:800; font-size:22px; }
+      .bidir { stroke-dasharray:6 4; animation: flow 2s linear infinite; }
+      @keyframes flow { to { stroke-dashoffset:-24; } }
+    </style>
+  </defs>
+
+  <rect width="1360" height="660" x="20" y="20" rx="16" fill="url(#pwr_bg)" stroke="#fde047" stroke-width="1.5"/>
+  <text x="700" y="55" text-anchor="middle" class="title">电力自动化：IEC 60870-5-104 变电站采集与遥控 (正交优化版)</text>
+
+  <g id="logic-wires">
+    <path id="wire_up_1" d="M 280 220 H 420" fill="none" stroke="#ca8a04" stroke-width="2.5" marker-end="url(#arrow_yellow)"/>
+    <path id="wire_up_2" d="M 780 220 H 940" fill="none" stroke="#ca8a04" stroke-width="2.5" marker-end="url(#arrow_yellow)"/>
+
+    <path id="wire_dn_1" d="M 940 400 H 780" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrow_blue_p)"/>
+    <path id="wire_dn_2" d="M 420 400 H 280" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrow_blue_p)"/>
+  </g>
+
+  <g transform="translate(50, 110)">
+    <text x="0" y="-12" class="lbl" fill="#92400e">[ 变电站 OTD ]</text>
+    <rect x="0" y="0" width="230" height="500" rx="14" fill="#fff" stroke="#eab308" stroke-width="2"/>
+
+    <g transform="translate(65, 15)">
+      <circle cx="30" cy="20" r="16" fill="none" stroke="#ca8a04" stroke-width="1.5"/>
+      <circle cx="30" cy="38" r="16" fill="none" stroke="#ca8a04" stroke-width="1.5"/>
+      <line x1="30" y1="4" x2="30" y2="0" stroke="#a16207" stroke-width="1.5"/>
+      <line x1="30" y1="54" x2="30" y2="58" stroke="#a16207" stroke-width="1.5"/>
+      <rect x="85" y="20" width="20" height="12" rx="2" fill="#fef3c7" stroke="#ca8a04" stroke-width="1"/>
+    </g>
+
+    <g transform="translate(15, 80)">
+      <rect width="200" height="60" rx="10" fill="#fef9c3" stroke="#eab308" stroke-width="1.5"/>
+      <text x="15" y="24" class="lbl">主站 RTU 终端</text>
+      <text x="15" y="44" class="code">IEC 60870-5-104</text>
+      <circle cx="175" cy="22" r="5" fill="#22c55e"><animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/></circle>
+    </g>
+
+    <g transform="translate(15, 260)">
+      <rect width="200" height="60" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="1.5"/>
+      <text x="15" y="24" class="lbl">开关 / 保护测控</text>
+      <text x="15" y="44" class="code">遥测 · 遥信 · 遥控执行</text>
+    </g>
+
+    <g transform="translate(15, 360)">
+      <rect width="95" height="45" rx="8" fill="#fef3c7" stroke="#ca8a04" stroke-width="1"/>
+      <text x="47" y="20" text-anchor="middle" fill="#92400e" font-size="10" font-weight="bold">YC 遥测</text>
+      <text x="47" y="34" text-anchor="middle" class="code">电压/电流</text>
+    </g>
+    <g transform="translate(120, 360)">
+      <rect width="95" height="45" rx="8" fill="#fef3c7" stroke="#ca8a04" stroke-width="1"/>
+      <text x="47" y="20" text-anchor="middle" fill="#92400e" font-size="10" font-weight="bold">YX 遥信</text>
+      <text x="47" y="34" text-anchor="middle" class="code">开关状态</text>
+    </g>
+    <g transform="translate(15, 425)">
+      <rect width="200" height="45" rx="8" fill="#fef9c3" stroke="#eab308" stroke-width="1"/>
+      <text x="100" y="20" text-anchor="middle" fill="#92400e" font-size="11" font-weight="bold">TCP 监听链路</text>
+      <text x="100" y="34" text-anchor="middle" class="code">Port 2404 · 变电站内网</text>
+    </g>
+    
+    <line x1="115" y1="140" x2="115" y2="260" class="topo-line" stroke="#e2e8f0" stroke-dasharray="4 2"/>
+  </g>
+
+  <g transform="translate(420, 110)">
+    <text x="180" y="-12" text-anchor="middle" class="lbl" fill="#92400e">[ ICE104 驱动引擎 · M1 ]</text>
+    <rect x="0" y="0" width="360" height="500" rx="14" fill="#ffffff" stroke="#fbbf24" stroke-width="2"/>
+
+    <g transform="translate(20, 75)">
+      <rect width="320" height="70" rx="10" fill="#fef9c3" stroke="#eab308" stroke-width="2"/>
+      <text x="20" y="28" fill="#92400e" font-size="13" font-weight="bold">总召唤 · 自发上报</text>
+      <text x="20" y="50" class="code">GI (General Interrogation) · spontaneous</text>
+      <rect x="250" y="16" width="50" height="20" rx="10" fill="#eab308"/>
+      <text x="275" y="29" text-anchor="middle" fill="#fff" font-size="10" font-weight="bold">上行</text>
+    </g>
+
+    <g transform="translate(20, 255)">
+      <rect width="320" height="70" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+      <text x="20" y="28" fill="#1d4ed8" font-size="13" font-weight="bold">单点遥控 (C_SC_NA)</text>
+      <text x="20" y="50" class="code">select → execute → confirm 机制</text>
+      <rect x="250" y="16" width="50" height="20" rx="10" fill="#2563eb"/>
+      <text x="275" y="29" text-anchor="middle" fill="#fff" font-size="10" font-weight="bold">下行</text>
+    </g>
+
+    <g transform="translate(20, 370)">
+      <rect width="320" height="75" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="1.5"/>
+      <text x="160" y="24" text-anchor="middle" fill="#c2410c" font-size="12" font-weight="bold">ShadowCore 104点表映射</text>
+      <text x="160" y="44" text-anchor="middle" class="code">信息体地址(IOA) ⇄ channel.device.point</text>
+      <text x="160" y="60" text-anchor="middle" class="code">ASDU 类型解包 · 毫秒级时标同步</text>
+    </g>
+
+    <g transform="translate(150, 175)">
+      <path d="M0 0 L60 0" stroke="#eab308" stroke-width="2.5" marker-end="url(#arrow_yellow)" class="bidir"/>
+      <path d="M60 40 L0 40" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrow_blue_p)" class="bidir"/>
+      <text x="30" y="-6" text-anchor="middle" fill="#92400e" font-size="10" font-weight="bold">引擎分发</text>
+      <text x="30" y="54" text-anchor="middle" fill="#1d4ed8" font-size="10" font-weight="bold">遥控转换</text>
+    </g>
+  </g>
+
+  <g transform="translate(940, 110)">
+    <text x="0" y="-12" class="lbl" fill="#92400e">[ 系统数据映射看板 ]</text>
+
+    <g transform="translate(0, 55)">
+      <rect width="310" height="110" rx="12" fill="#fff" stroke="#eab308" stroke-width="2"/>
+      <text x="20" y="28" class="lbl">母线测量电压 (kV)</text>
+      <text x="20" y="68" class="val">110.24 L1</text>
+      <rect x="220" y="15" width="70" height="20" rx="10" fill="#dcfce7"/>
+      <text x="255" y="29" text-anchor="middle" fill="#166534" font-size="10" font-weight="bold">网关实时</text>
+      <path d="M20 90 Q50 82 80 88 T140 85 T200 90 T290 85" fill="none" stroke="#eab308" stroke-width="1.5" opacity="0.6"/>
+    </g>
+
+    <g transform="translate(0, 235)">
+      <rect width="310" height="110" rx="12" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+      <text x="20" y="28" class="lbl">调度遥控命令下发控制中心</text>
+      <text x="20" y="68" fill="#1d4ed8" font-size="20" font-weight="800">CB-01 breaker OFF</text>
+      <text x="20" y="92" class="code">单点分闸遥控 · 已收到主站双重确认</text>
+      <rect x="220" y="15" width="70" height="20" rx="10" fill="#dbeafe"/>
+      <text x="255" y="29" text-anchor="middle" fill="#1d4ed8" font-size="10" font-weight="bold">已双检执行</text>
+    </g>
+
+    <g transform="translate(0, 370)">
+      <rect width="310" height="85" rx="12" fill="#fff" stroke="#ca8a04" stroke-width="1.5"/>
+      <text x="20" y="26" class="lbl">实时遥信状态 (SOE 记录)</text>
+      <g transform="translate(20, 42)">
+        <circle cx="10" cy="10" r="6" fill="#22c55e"/><text x="25" y="14" class="code">CB-01 开关分位 (正常)</text>
+        <circle cx="10" cy="28" r="6" fill="#ef4444"/><text x="25" y="32" class="code">CB-02 开关合位 (带电运行)</text>
+      </g>
+    </g>
+  </g>
+
+  <circle r="4.5" fill="#ca8a04"><animateMotion dur="2.0s" repeatCount="indefinite"><mpath href="#wire_up_1"/></animateMotion></circle>
+  <circle r="4.5" fill="#eab308"><animateMotion dur="1.8s" begin="0.3s" repeatCount="indefinite"><mpath href="#wire_up_2"/></animateMotion></circle>
+
+  <circle r="4.5" fill="#2563eb"><animateMotion dur="2.2s" repeatCount="indefinite"><mpath href="#wire_dn_1"/></animateMotion></circle>
+  <circle r="4.5" fill="#3b82f6"><animateMotion dur="1.9s" begin="0.4s" repeatCount="indefinite"><mpath href="#wire_dn_2"/></animateMotion></circle>
+</svg>

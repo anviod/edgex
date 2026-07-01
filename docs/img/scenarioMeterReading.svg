@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="700" viewBox="0 0 1400 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="clip_meter_a"><rect width="200" height="70"/></clipPath>
+    <clipPath id="clip_meter_b"><rect width="200" height="70"/></clipPath>
+    <clipPath id="clip_meter_c"><rect width="200" height="70"/></clipPath>
+    
+    <style>
+      .bg-main { fill: #ffffff; stroke: #1e293b; stroke-width: 2; }
+      .bg-container { fill: #f8fafc; stroke: #64748b; stroke-width: 1.5; stroke-dasharray: 4, 4; }
+      
+      /* Outline Style Components */
+      .node-elec { fill: #ffffff; stroke: #0f766e; stroke-width: 2; }
+      .node-water { fill: #ffffff; stroke: #0284c7; stroke-width: 2; }
+      .node-gas { fill: #ffffff; stroke: #4f46e5; stroke-width: 2; }
+      
+      .text-title { fill: #0f172a; font-family: 'Segoe UI', -apple-system, sans-serif; font-weight: 700; font-size: 18px; letter-spacing: 1px; }
+      .text-subtitle { fill: #334155; font-family: 'Segoe UI', sans-serif; font-weight: 600; font-size: 13px; }
+      .text-body { fill: #334155; font-family: sans-serif; font-size: 12px; }
+      .text-code { fill: #475569; font-family: Consolas, 'Courier New', monospace; font-size: 11px; }
+      
+      /* Flow Lines - Pure Linear, No Interferences */
+      .flow-line { fill: none; stroke-width: 2; marker-end: url(#arrowhead); }
+      .flow-line-active { stroke-dasharray: 6, 4; animation: dash 30s linear infinite; }
+      @keyframes dash { to { stroke-dashoffset: -1000; } }
+      
+      .scan-bar { stroke-dasharray: 6 4; animation: scan 3s linear infinite; }
+      @keyframes scan { to { stroke-dashoffset: -20; } }
+    </style>
+
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerUnits="strokeWidth" markerWidth="5" height="5" orient="auto">
+      <path d="M 0 1 L 9 5 L 0 9 Z" fill="#1e293b"/>
+    </marker>
+  </defs>
+
+  <rect width="1340" height="640" x="30" y="30" class="bg-main"/>
+  <text x="700" y="70" text-anchor="middle" class="text-title">设备联合抄表：电能表批量采集、能耗统计</text>
+
+  <g id="logic-connections">
+    <path id="wire_elec" d="M 260 197.5 H 580" class="flow-line flow-line-active" style="stroke: #0f766e;"/>
+    <path id="wire_water" d="M 260 322.5 H 580" class="flow-line flow-line-active" style="stroke: #0284c7;"/>
+    <path id="wire_gas" d="M 260 447.5 H 580" class="flow-line flow-line-active" style="stroke: #4f46e5;"/>
+    
+    <path id="wire_report" d="M 980 322.5 H 1050" class="flow-line flow-line-active" style="stroke: #0f172a;"/>
+  </g>
+
+  <g transform="translate(80, 120)">
+    <rect width="180" height="490" class="bg-container"/>
+    <text x="90" y="-15" text-anchor="middle" class="text-subtitle">[ 1. 终端表计层 ]</text>
+    
+    <g transform="translate(0, 20)">
+      <rect width="180" height="115" class="node-elec"/>
+      <circle cx="40" cy="45" r="20" fill="none" stroke="#0f766e" stroke-width="1.5"/>
+      <line x1="40" y1="45" x2="40" y2="32" stroke="#0f766e" stroke-width="2"/>
+      <line x1="40" y1="45" x2="52" y2="50" stroke="#0f766e" stroke-width="1.5"/>
+      <text x="75" y="50" class="text-subtitle">电表 × N</text>
+      <rect x="15" y="85" width="150" height="18" fill="#f1f5f9" stroke="#0f766e" stroke-width="1"/>
+      <text x="90" y="98" text-anchor="middle" class="text-code">DL/T 645-2007</text>
+    </g>
+
+    <g transform="translate(0, 145)">
+      <rect width="180" height="115" class="node-water"/>
+      <path d="M40 30 Q48 45 40 60 Q32 45 40 30" fill="none" stroke="#0284c7" stroke-width="1.5"/>
+      <text x="75" y="50" class="text-subtitle">水表 × N</text>
+      <rect x="15" y="85" width="150" height="18" fill="#f1f5f9" stroke="#0284c7" stroke-width="1"/>
+      <text x="90" y="98" text-anchor="middle" class="text-code">Modbus-RTU</text>
+    </g>
+
+    <g transform="translate(0, 270)">
+      <rect width="180" height="115" class="node-gas"/>
+      <rect x="25" y="33" width="30" height="24" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+      <line x1="25" y1="45" x2="55" y2="45" stroke="#4f46e5" stroke-width="1"/>
+      <text x="75" y="50" class="text-subtitle">气表 × N</text>
+      <rect x="15" y="85" width="150" height="18" fill="#f1f5f9" stroke="#4f46e5" stroke-width="1"/>
+      <text x="90" y="98" text-anchor="middle" class="text-code">Modbus-RTU</text>
+    </g>
+  </g>
+
+  <g transform="translate(580, 120)">
+    <rect width="400" height="490" class="bg-container"/>
+    <text x="200" y="-15" text-anchor="middle" class="text-subtitle">[ 2. ScanEngine 核心引擎 ]</text>
+
+    <g transform="translate(20, 20)">
+      <rect width="360" height="50" fill="#ffffff" stroke="#1e293b" stroke-width="1.5"/>
+      <circle cx="40" cy="25" r="14" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+      <polyline points="40,16 40,25 48,25" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+      <text x="70" y="30" class="text-subtitle">调度策略 (Cron):</text>
+      <text x="200" y="30" class="text-code" style="font-weight: bold; font-size: 13px;">0 0 * * * (每日定时轮询)</text>
+    </g>
+
+    <g transform="translate(100, 110)">
+      <rect width="200" height="70" class="node-elec"/>
+      <rect width="200" height="20" fill="#f0fdf4" stroke="#0f766e" stroke-width="1"/>
+      <text x="100" y="15" text-anchor="middle" class="text-subtitle" style="font-size: 11px;">1. 批量数据采集</text>
+      <text x="100" y="45" text-anchor="middle" class="text-code">物理层通信 &#183; CRC校验</text>
+    </g>
+
+    <path d="M 200 180 V 235" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+    <g transform="translate(100, 235)">
+      <rect width="200" height="70" class="node-water"/>
+      <rect width="200" height="20" fill="#e0f2fe" stroke="#0284c7" stroke-width="1"/>
+      <text x="100" y="15" text-anchor="middle" class="text-subtitle" style="font-size: 11px;">2. 异常识别与校验</text>
+      <text x="100" y="45" text-anchor="middle" class="text-code">阈值过滤 &#183; 自动重试</text>
+    </g>
+
+    <path d="M 200 305 V 360" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+    <g transform="translate(100, 360)">
+      <rect width="200" height="70" class="node-gas"/>
+      <rect width="200" height="20" fill="#e0e7ff" stroke="#4f46e5" stroke-width="1"/>
+      <text x="100" y="15" text-anchor="middle" class="text-subtitle" style="font-size: 11px;">3. 写入 ShadowCore</text>
+      <text x="100" y="45" text-anchor="middle" class="text-code">状态机同步 &#183; 历史归档</text>
+    </g>
+
+    <g transform="translate(20, 445)">
+      <rect x="0" y="0" width="360" height="6" fill="#e2e8f0"/>
+      <line x1="0" y1="3" x2="240" y2="3" stroke="#475569" stroke-width="6" class="scan-bar"/>
+      <text x="180" y="28" text-anchor="middle" class="text-code">核心参数: 10ms 高频 Tick | PriorityQueue 实时调度</text>
+    </g>
+  </g>
+
+  <g transform="translate(1050, 120)">
+    <rect width="260" height="490" class="bg-container"/>
+    <text x="130" y="-15" text-anchor="middle" class="text-subtitle">[ 3. 能耗数据业务层 ]</text>
+    
+    <g transform="translate(15, 45)">
+      <rect width="230" height="195" fill="#ffffff" stroke="#0f172a" stroke-width="1.5"/>
+      <text x="15" y="25" class="text-subtitle" style="font-size:12px;">累计总电量 (kWh)</text>
+      <text x="15" y="60" fill="#0f172a" font-family="Consolas, monospace" font-weight="bold" font-size="28px">12,480.00</text>
+      
+      <g transform="translate(15, 80)">
+        <rect x="0" y="40" width="22" height="40" fill="#cbd5e1" stroke="#475569"/>
+        <rect x="30" y="25" width="22" height="55" fill="#cbd5e1" stroke="#475569"/>
+        <rect x="60" y="35" width="22" height="45" fill="#cbd5e1" stroke="#475569"/>
+        <rect x="90" y="10" width="22" height="70" fill="#cbd5e1" stroke="#475569"/>
+        <rect x="120" y="15" width="22" height="65" fill="#cbd5e1" stroke="#475569"/>
+        <rect x="150" y="5" width="22" height="75" fill="#475569"/>
+        <text x="0" y="95" class="text-code" style="font-size:10px;">近7日能耗计量趋势</text>
+      </g>
+    </g>
+
+    <g transform="translate(15, 275)">
+      <rect width="230" height="180" fill="#ffffff" stroke="#0f172a" stroke-width="1.5"/>
+      <text x="15" y="30" class="text-subtitle">报表自动化配置</text>
+      
+      <rect x="15" y="50" width="100" height="28" fill="#f8fafc" stroke="#475569" stroke-width="1"/>
+      <text x="65" y="68" text-anchor="middle" class="text-code" style="font-weight: bold;">.CSV / .XLSX</text>
+      
+      <rect x="125" y="50" width="90" height="28" fill="#f1f5f9" stroke="#0f766e" stroke-width="1"/>
+      <text x="170" y="68" text-anchor="middle" class="text-code" style="fill:#0f766e; font-weight: bold;">自动同步</text>
+      
+      <line x1="15" y1="105" x2="215" y2="105" stroke="#cbd5e1" stroke-width="1"/>
+      
+      <text x="15" y="130" class="text-code">系统状态: 运行正常</text>
+      <text x="15" y="150" class="text-code">异常计次: 0 (无通信丢包)</text>
+    </g>
+  </g>
+
+  <circle r="4" fill="#0f766e"><animateMotion dur="4s" repeatCount="indefinite"><mpath href="#wire_elec"/></animateMotion></circle>
+  <circle r="4" fill="#0284c7"><animateMotion dur="3.5s" repeatCount="indefinite"><mpath href="#wire_water"/></animateMotion></circle>
+  <circle r="4" fill="#4f46e5"><animateMotion dur="4.5s" repeatCount="indefinite"><mpath href="#wire_gas"/></animateMotion></circle>
+  <circle r="4" fill="#0f172a"><animateMotion dur="2.5s" repeatCount="indefinite"><mpath href="#wire_report"/></animateMotion></circle>
+</svg>

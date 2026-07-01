@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="700" viewBox="0 0 1400 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="alarm_bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff7ed"/>
+      <stop offset="100%" stop-color="#fef2f2"/>
+    </linearGradient>
+    <linearGradient id="alarm_hot" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#fed7aa"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </linearGradient>
+    <filter id="alarm_glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrow_red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10z" fill="#ef4444"/>
+    </marker>
+    <style>
+      .title { fill:#7f1d1d; font-family:'Segoe UI',sans-serif; font-weight:bold; font-size:18px; }
+      .lbl { fill:#475569; font-family:'Segoe UI',sans-serif; font-size:13px; font-weight:600; }
+      .code { fill:#64748b; font-family:'Courier New',monospace; font-size:11px; }
+      .val { fill:#dc2626; font-family:'Segoe UI',sans-serif; font-weight:800; font-size:26px; }
+      .pulse { animation: blink 0.8s ease-in-out infinite; }
+      @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+      .dash { stroke-dasharray:6 4; animation: march 1s linear infinite; }
+      @keyframes march { to { stroke-dashoffset:-20; } }
+    </style>
+  </defs>
+
+  <rect width="1360" height="660" x="20" y="20" rx="16" fill="url(#alarm_bg)" stroke="#fecaca" stroke-width="1.5"/>
+  <rect x="20" y="20" width="1360" height="6" rx="3" fill="#ef4444" opacity="0.85"/>
+
+  <text x="700" y="58" text-anchor="middle" class="title">告警联动：温度越限联动、故障自动响应</text>
+
+  <g transform="translate(90,140)">
+    <text x="0" y="0" class="lbl" fill="#991b1b">[ 传感器 ]</text>
+    
+    <g transform="translate(0, 15)">
+      <rect x="0" y="0" width="200" height="130" rx="12" fill="#fff" stroke="#f97316" stroke-width="2"/>
+      <rect x="30" y="20" width="14" height="70" rx="7" fill="#fee2e2" stroke="#ef4444" stroke-width="1.5"/>
+      <circle cx="37" cy="100" r="16" fill="url(#alarm_hot)" stroke="#b91c1c" stroke-width="1.5"/>
+      <rect x="33" y="40" width="8" height="45" rx="4" fill="#ef4444" class="pulse"/>
+      <text x="65" y="40" class="lbl">设备温度</text>
+      <text x="65" y="62" class="val" style="font-size:22px">87.3&#8451;</text>
+      <text x="65" y="85" class="code">告警: temp &gt; 85&#8451;</text>
+      <circle cx="175" cy="20" r="7" fill="#ef4444" class="pulse" filter="url(#alarm_glow)"/>
+      <text x="165" y="23" text-anchor="middle" fill="#fff" font-size="9" font-weight="bold">!</text>
+    </g>
+    
+    <g transform="translate(0, 165)">
+      <rect x="0" y="0" width="200" height="75" rx="10" fill="#fff" stroke="#fb923c" stroke-width="1.5"/>
+      <text x="15" y="30" class="lbl">设备故障码</text>
+      <text x="15" y="56" class="code">fault_code = 0xE042</text>
+      <rect x="140" y="16" width="48" height="18" rx="9" fill="#fee2e2"/>
+      <text x="164" y="29" text-anchor="middle" fill="#991b1b" font-size="10" font-weight="bold">FAULT</text>
+    </g>
+  </g>
+
+  <g transform="translate(420,95)">
+    <text x="180" y="15" text-anchor="middle" class="lbl" fill="#991b1b">[ 规则引擎 ]</text>
+    <rect x="0" y="30" width="360" height="480" rx="14" fill="#fff" stroke="#fca5a5" stroke-width="2" stroke-dasharray="8 5" opacity="0.95"/>
+
+    <g transform="translate(40,80)">
+      <polygon points="140,0 280,35 140,70 0,35" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+      <text x="140" y="32" text-anchor="middle" fill="#991b1b" font-size="12" font-weight="bold">温度判定</text>
+      <text x="140" y="48" text-anchor="middle" class="code">if temp &gt; 85</text>
+    </g>
+    <path d="M180 150 L180 185" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow_red)"/>
+    <g transform="translate(80,195)">
+      <rect width="200" height="55" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+      <text x="100" y="22" text-anchor="middle" fill="#c2410c" font-size="12" font-weight="bold">冷却风扇启用</text>
+      <text x="100" y="42" text-anchor="middle" class="code">cooling_fan = ON</text>
+    </g>
+
+    <g transform="translate(40,290)">
+      <polygon points="140,0 280,35 140,70 0,35" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+      <text x="140" y="32" text-anchor="middle" fill="#991b1b" font-size="12" font-weight="bold">故障判定</text>
+      <text x="140" y="48" text-anchor="middle" class="code">if fault_code != 0</text>
+    </g>
+    <path d="M180 360 L180 395" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow_red)"/>
+    <g transform="translate(80,405)">
+      <rect width="200" height="55" rx="10" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+      <text x="100" y="22" text-anchor="middle" fill="#991b1b" font-size="12" font-weight="bold">切换备用通道</text>
+      <text x="100" y="42" text-anchor="middle" class="code">channel &#8594; CH-B</text>
+    </g>
+    
+    <rect x="90" y="480" width="180" height="32" rx="16" fill="#ef4444"/>
+    <text x="180" y="501" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">联动响应 &lt; 10ms</text>
+  </g>
+
+  <g transform="translate(920,110)">
+    <text x="0" y="0" class="lbl" fill="#991b1b">[ 联动响应 ]</text>
+    
+    <g transform="translate(0, 20)">
+      <rect width="280" height="120" rx="14" fill="#fff" stroke="#f97316" stroke-width="2.5"/>
+      <circle cx="50" cy="60" r="28" fill="#fff7ed" stroke="#fb923c" stroke-width="1.5"/>
+      <path d="M50 32 Q62 50 50 68 Q38 50 50 32" fill="#f97316" opacity="0.7">
+        <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="2s" repeatCount="indefinite"/>
+      </path>
+      <path d="M68 50 Q50 62 32 50 Q50 38 68 50" fill="#f97316" opacity="0.7">
+        <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="2s" repeatCount="indefinite"/>
+      </path>
+      <text x="95" y="45" class="lbl">冷却风扇</text>
+      <text x="95" y="78" fill="#ea580c" font-size="24" font-weight="800">ON</text>
+      <rect x="200" y="25" width="60" height="22" rx="11" fill="#ffedd5"/>
+      <text x="230" y="40" text-anchor="middle" fill="#c2410c" font-size="10" font-weight="bold">运行中</text>
+    </g>
+    
+    <g transform="translate(0, 165)">
+      <rect width="280" height="120" rx="14" fill="#fff" stroke="#ef4444" stroke-width="2.5"/>
+      <rect x="25" y="35" width="50" height="50" rx="8" fill="#fee2e2" stroke="#ef4444" stroke-width="1.5"/>
+      <text x="50" y="55" text-anchor="middle" fill="#991b1b" font-size="11" font-weight="bold">CH-A</text>
+      <text x="50" y="72" text-anchor="middle" fill="#94a3b8" font-size="9">OFF</text>
+      <path d="M85 60 L105 60" stroke="#ef4444" stroke-width="2" class="dash"/>
+      <rect x="110" y="35" width="50" height="50" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+      <text x="135" y="55" text-anchor="middle" fill="#dc2626" font-size="11" font-weight="bold">CH-B</text>
+      <text x="135" y="72" text-anchor="middle" fill="#166534" font-size="9">ACTIVE</text>
+      <text x="200" y="55" class="lbl">通信通道</text>
+      <text x="200" y="85" class="val" style="font-size:20px">已切换</text>
+    </g>
+  </g>
+
+  <g id="logic-wires">
+    <path id="wire_temp" d="M 290 220 H 420" class="dash" stroke="#fca5a5" stroke-width="2"/>
+    <path d="M 780 220 H 920" class="flow-line" stroke="#f97316" stroke-width="2" marker-end="url(#arrow_red)" opacity="0.7"/>
+    
+    <path id="wire_fault" d="M 290 340 H 420" class="dash" stroke="#fca5a5" stroke-width="2"/>
+    <path d="M 780 340 H 920" class="flow-line" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow_red)" opacity="0.7"/>
+  </g>
+
+  <circle r="5" fill="#ef4444"><animateMotion dur="1s" repeatCount="indefinite"><mpath d="M 290 220 H 420"/></animateMotion></circle>
+  <circle r="4" fill="#f97316"><animateMotion dur="1s" repeatCount="indefinite"><mpath d="M 780 220 H 920"/></animateMotion></circle>
+  <circle r="5" fill="#dc2626"><animateMotion dur="1.2s" repeatCount="indefinite"><mpath d="M 290 340 H 420"/></animateMotion></circle>
+  <circle r="4" fill="#ef4444"><animateMotion dur="1s" repeatCount="indefinite"><mpath d="M 780 340 H 920"/></animateMotion></circle>
+</svg>

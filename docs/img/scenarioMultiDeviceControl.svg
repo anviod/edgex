@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="780" viewBox="0 0 1400 780" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ctrl_bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+    
+    <linearGradient id="hub_bg" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+
+    <marker id="arrow_teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#14b8a6"/>
+    </marker>
+    <marker id="arrow_blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow_purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#8b5cf6"/>
+    </marker>
+    <marker id="arrow_orange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#f97316"/>
+    </marker>
+
+    <style>
+      .main-title { fill:#0f172a; font-family:'Segoe UI',system-ui,sans-serif; font-weight:800; font-size:24px; letter-spacing:1px; }
+      .section-title { fill:#475569; font-family:'Segoe UI',sans-serif; font-weight:700; font-size:14px; letter-spacing:3px; }
+      .lbl { fill:#1e293b; font-family:'Segoe UI',sans-serif; font-size:14px; font-weight:700; }
+      .code { fill:#64748b; font-family:'Courier New',monospace; font-size:12px; font-weight:600; }
+      .val { fill:#0f766e; font-family:'Segoe UI',sans-serif; font-weight:800; font-size:16px; }
+      .flow-line { stroke-dasharray: 8 4; animation: flow 30s linear infinite; }
+      @keyframes flow { to { stroke-dashoffset: -1000; } }
+    </style>
+  </defs>
+
+  <rect width="1360" height="740" x="20" y="20" rx="24" fill="url(#ctrl_bg)" stroke="#cbd5e1" stroke-width="2"/>
+  
+  <text x="700" y="65" text-anchor="middle" class="main-title">多设备联动控制：跨协议编排与产线楼宇协同</text>
+
+  <line x1="340" y1="110" x2="340" y2="720" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="6 6"/>
+  <line x1="1020" y1="110" x2="1020" y2="720" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="6 6"/>
+  
+  <text x="190" y="115" text-anchor="middle" class="section-title">智能外围设备层 (INPUT)</text>
+  <text x="680" y="115" text-anchor="middle" class="section-title">跨协议规则编排引擎 (ENGINE)</text>
+  <text x="1190" y="115" text-anchor="middle" class="section-title">实时执行与反馈层 (OUTPUT)</text>
+
+  <g transform="translate(50, 150)">
+    <rect width="240" height="90" rx="12" fill="#fff" stroke="#14b8a6" stroke-width="2" box-shadow="0 4px 6px -1px rgba(0,0,0,0.1)"/>
+    <rect x="0" y="0" width="12" height="90" fill="#14b8a6" rx="12"/> <rect x="6" y="0" width="6" height="90" fill="#14b8a6"/>
+    <text x="30" y="35" class="lbl">PLC 控制器</text>
+    <text x="30" y="58" class="code">Modbus / S7 协议</text>
+    <rect x="30" y="68" width="80" height="16" rx="4" fill="#ccfbf1"/>
+    <text x="70" y="80" text-anchor="middle" fill="#0f766e" font-size="10" font-weight="bold">生产线系统</text>
+  </g>
+
+  <g transform="translate(420, 150)">
+    <rect width="200" height="90" rx="12" fill="#fff" stroke="#14b8a6" stroke-width="2"/>
+    <rect x="12" y="12" width="50" height="20" rx="4" fill="#ccfbf1"/>
+    <text x="37" y="26" text-anchor="middle" fill="#0f766e" font-size="11" font-weight="bold">Step 1</text>
+    <text x="14" y="55" class="lbl">触发：PLC 启动</text>
+    <text x="14" y="75" class="code">emit("line_start")</text>
+  </g>
+
+  <g transform="translate(1070, 150)">
+    <rect width="240" height="90" rx="12" fill="#fff" stroke="#14b8a6" stroke-width="1.5"/>
+    <text x="20" y="32" class="code" fill="#0d9488">[ 产线状态反馈 ]</text>
+    <text x="20" y="62" class="val" fill="#0d9488">PLC ➔ RUNNING</text>
+    <circle cx="210" cy="55" r="6" fill="#22c55e">
+      <animate attributeName="opacity" values="1;0.4;1" dur="1.2s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <path id="line_row1_a" d="M 290,195 H 420" fill="none" stroke="#14b8a6" stroke-width="2.5" marker-end="url(#arrow_teal)"/>
+  <path id="line_row1_b" d="M 620,195 H 1070" fill="none" stroke="#14b8a6" stroke-width="2" stroke-dasharray="6 4" class="flow-line"/>
+
+  <g transform="translate(50, 290)">
+    <rect width="240" height="90" rx="12" fill="#fff" stroke="#3b82f6" stroke-width="2"/>
+    <rect x="0" y="0" width="12" height="90" fill="#3b82f6" rx="12"/> <rect x="6" y="0" width="6" height="90" fill="#3b82f6"/>
+    <text x="30" y="35" class="lbl">BACnet 楼宇控制器</text>
+    <text x="30" y="58" class="code">BACnet / IP 协议</text>
+    <rect x="30" y="68" width="80" height="16" rx="4" fill="#dbeafe"/>
+    <text x="70" y="80" text-anchor="middle" fill="#1d4ed8" font-size="10" font-weight="bold">楼宇自动化</text>
+  </g>
+
+  <g transform="translate(420, 290)">
+    <rect width="200" height="90" rx="12" fill="#fff" stroke="#3b82f6" stroke-width="2"/>
+    <rect x="12" y="12" width="50" height="20" rx="4" fill="#dbeafe"/>
+    <text x="37" y="26" text-anchor="middle" fill="#1d4ed8" font-size="11" font-weight="bold">Step 2</text>
+    <text x="14" y="55" class="lbl">联动：新风加压</text>
+    <text x="14" y="75" class="code">setMode("Auto")</text>
+  </g>
+
+  <g transform="translate(1070, 290)">
+    <rect width="240" height="90" rx="12" fill="#fff" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="20" y="32" class="code" fill="#2563eb">[ 新风系统状态 ]</text>
+    <text x="20" y="62" class="val" fill="#2563eb">HVAC: 自动风速</text>
+  </g>
+
+  <path id="line_row2_a" d="M 290,335 H 420" fill="none" stroke="#3b82f6" stroke-width="2.5" marker-end="url(#arrow_blue)"/>
+  <path id="line_row2_b" d="M 620,335 H 1070" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="6 4" class="flow-line"/>
+
+  <g transform="translate(50, 430)">
+    <rect width="240" height="90" rx="12" fill="#fff" stroke="#8b5cf6" stroke-width="2"/>
+    <rect x="0" y="0" width="12" height="90" fill="#8b5cf6" rx="12"/> <rect x="6" y="0" width="6" height="90" fill="#8b5cf6"/>
+    <text x="30" y="35" class="lbl">KNX 照明主控</text>
+    <text x="30" y="58" class="code">KNX 总线协议</text>
+    <rect x="30" y="68" width="80" height="16" rx="4" fill="#fbfeff" stroke="#e2e8f0"/>
+    <text x="70" y="80" text-anchor="middle" fill="#6d28d9" font-size="10" font-weight="bold">环境光照度</text>
+  </g>
+
+  <g transform="translate(420, 430)">
+    <rect width="200" height="90" rx="12" fill="#fff" stroke="#8b5cf6" stroke-width="2"/>
+    <rect x="12" y="12" width="50" height="20" rx="4" fill="#ede9fe"/>
+    <text x="37" y="26" text-anchor="middle" fill="#6d28d9" font-size="11" font-weight="bold">Step 3</text>
+    <text x="14" y="55" class="lbl">调光：工作模式</text>
+    <text x="14" y="75" class="code">dimming(value: 80)</text>
+  </g>
+
+  <g transform="translate(1070, 430)">
+    <rect width="240" height="90" rx="12" fill="#fff" stroke="#8b5cf6" stroke-width="1.5"/>
+    <text x="20" y="32" class="code" fill="#7c3aed">[ 照明调光反馈 ]</text>
+    <text x="20" y="62" class="val" fill="#7c3aed">区域照明 ➔ 80%</text>
+  </g>
+
+  <path id="line_row3_a" d="M 290,475 H 420" fill="none" stroke="#8b5cf6" stroke-width="2.5" marker-end="url(#arrow_purple)"/>
+  <path id="line_row3_b" d="M 620,475 H 1070" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="6 4" class="flow-line"/>
+
+  <g transform="translate(50, 570)">
+    <rect width="240" height="90" rx="12" fill="#fff" stroke="#f97316" stroke-width="2"/>
+    <rect x="0" y="0" width="12" height="90" fill="#f97316" rx="12"/> <rect x="6" y="0" width="6" height="90" fill="#f97316"/>
+    <text x="30" y="35" class="lbl">RMW 状态模块</text>
+    <text x="30" y="58" class="code">安全状态监测协议</text>
+    <rect x="30" y="68" width="80" height="16" rx="4" fill="#ffedd5"/>
+    <text x="70" y="80" text-anchor="middle" fill="#c2410c" font-size="10" font-weight="bold">安全互锁防护</text>
+  </g>
+
+  <g transform="translate(420, 570)">
+    <rect width="200" height="90" rx="12" fill="#fff" stroke="#f97316" stroke-width="2"/>
+    <rect x="12" y="12" width="50" height="20" rx="4" fill="#ffedd5"/>
+    <text x="37" y="26" text-anchor="middle" fill="#c2410c" font-size="11" font-weight="bold">Step 4</text>
+    <text x="14" y="55" class="lbl">安全合规性判定</text>
+    <text x="14" y="75" class="code">if(safe) ➔ commit</text>
+  </g>
+
+  <g transform="translate(1070, 570)">
+    <rect width="240" height="90" rx="12" fill="#fff" stroke="#f97316" stroke-width="1.5"/>
+    <text x="20" y="32" class="code" fill="#ea580c">[ 统一编排校验 ]</text>
+    <text x="20" y="62" class="val" fill="#ea580c" font-size="14px">多协议流程写入成功</text>
+  </g>
+
+  <path id="line_row4_a" d="M 290,615 H 420" fill="none" stroke="#f97316" stroke-width="2.5" marker-end="url(#arrow_orange)"/>
+  <path id="line_row4_b" d="M 620,615 H 1070" fill="none" stroke="#f97316" stroke-width="2" stroke-dasharray="6 4" class="flow-line"/>
+
+  <rect x="380" y="132" width="280" height="545" rx="16" fill="none" stroke="url(#hub_bg)" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.7"/>
+  
+  <path d="M 650,195 V 615" fill="none" stroke="url(#hub_bg)" stroke-width="3" opacity="0.3"/>
+  <g transform="translate(650, 405)">
+    <circle cx="0" cy="0" r="35" fill="url(#hub_bg)" stroke="#fff" stroke-width="2"/>
+    <text x="0" y="-5" text-anchor="middle" fill="#fff" font-size="11" font-weight="bold">跨协议</text>
+    <text x="0" y="12" text-anchor="middle" fill="#fff" font-size="11" font-weight="bold">中枢</text>
+  </g>
+
+  <circle r="4" fill="#14b8a6"><animateMotion dur="3s" repeatCount="indefinite"><mpath href="#line_row1_a"/></animateMotion></circle>
+  <circle r="4" fill="#3b82f6"><animateMotion dur="3.5s" repeatCount="indefinite"><mpath href="#line_row2_a"/></animateMotion></circle>
+  <circle r="4" fill="#8b5cf6"><animateMotion dur="2.8s" repeatCount="indefinite"><mpath href="#line_row3_a"/></animateMotion></circle>
+  <circle r="4" fill="#f97316"><animateMotion dur="3.2s" repeatCount="indefinite"><mpath href="#line_row4_a"/></animateMotion></circle>
+
+</svg>

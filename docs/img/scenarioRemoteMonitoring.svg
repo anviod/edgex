@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="700" viewBox="0 0 1400 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky_bg" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="60%" stop-color="#f0f9ff"/>
+      <stop offset="100%" stop-color="#ede9fe"/>
+    </linearGradient>
+    <linearGradient id="cloud_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="100%" stop-color="#e0e7ff"/>
+    </linearGradient>
+    <marker id="arrow_sky" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0 L10 5 L0 10z" fill="#64748b"/>
+    </marker>
+    <style>
+      .title { fill:#1e3a8a; font-family:'Segoe UI',sans-serif; font-weight:bold; font-size:18px; }
+      .lbl { fill:#475569; font-family:'Segoe UI',sans-serif; font-size:12px; font-weight:600; }
+      .code { fill:#64748b; font-family:'Courier New',monospace; font-size:10px; }
+      .val { fill:#4338ca; font-family:'Segoe UI',sans-serif; font-weight:800; font-size:16px; }
+      .uplink { stroke-dasharray:6 4; animation: up 1.5s linear infinite; }
+      @keyframes up { to { stroke-dashoffset:-20; } }
+      .spark { fill:none; stroke:#6366f1; stroke-width:1.5; opacity:0.5; }
+    </style>
+  </defs>
+
+  <rect width="1360" height="660" x="20" y="20" rx="16" fill="url(#sky_bg)" stroke="#bfdbfe" stroke-width="1.5"/>
+  <text x="700" y="55" text-anchor="middle" class="title">设备远程监控：OPC UA / MQTT 云端可视化与 SCADA 集成 (正交优化版)</text>
+
+  <g id="logic-wires">
+    <path id="wire_base" d="M 700 550 V 490" fill="none" stroke="#14b8a6" stroke-width="2.5" marker-end="url(#arrow_sky)" class="uplink"/>
+
+    <path id="wire_left_lane" d="M 510 390 V 230" fill="none" stroke="#6366f1" stroke-width="2.5" marker-end="url(#arrow_sky)" class="uplink"/>
+
+    <path id="wire_center_lane" d="M 700 390 V 230" fill="none" stroke="#0ea5e9" stroke-width="2.5" marker-end="url(#arrow_sky)" class="uplink"/>
+
+    <path id="wire_right_lane" d="M 890 390 V 240" fill="none" stroke="#8b5cf6" stroke-width="2.5" marker-end="url(#arrow_sky)" class="uplink"/>
+  </g>
+
+  <g transform="translate(700, 150)">
+    <ellipse cx="0" cy="0" rx="460" ry="60" fill="url(#cloud_grad)" stroke="#a5b4fc" stroke-width="1.5" opacity="0.4"/>
+    <text x="0" y="-75" text-anchor="middle" class="lbl" fill="#4338ca">[ 云端 / 应用层 ]</text>
+
+    <g transform="translate(-265, -40)">
+      <rect width="150" height="80" rx="10" fill="#fff" stroke="#6366f1" stroke-width="2"/>
+      <rect x="12" y="12" width="126" height="36" rx="4" fill="#eef2ff" stroke="#818cf8" stroke-width="1"/>
+      <path class="spark" d="M18 30 Q40 20 60 25 T100 23 T120 27"/>
+      <text x="75" y="62" text-anchor="middle" class="lbl">SCADA 系统</text>
+      <text x="75" y="74" text-anchor="middle" class="code">Ignition / 核心订阅</text>
+    </g>
+
+    <g transform="translate(-75, -40)">
+      <rect width="150" height="80" rx="10" fill="#fff" stroke="#0ea5e9" stroke-width="2"/>
+      <text x="75" y="28" text-anchor="middle" class="lbl">MQTT 消息总线</text>
+      <text x="75" y="48" text-anchor="middle" class="val" style="font-size:14px">EMQX Broker</text>
+      <rect x="45" y="56" width="60" height="16" rx="8" fill="#dcfce7"/>
+      <text x="75" y="68" text-anchor="middle" fill="#166534" font-size="10" font-weight="bold">云端在线</text>
+    </g>
+
+    <g transform="translate(160, -50)">
+      <rect width="60" height="95" rx="10" fill="#fff" stroke="#8b5cf6" stroke-width="2"/>
+      <rect x="8" y="10" width="44" height="60" rx="4" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="1"/>
+      <circle cx="30" cy="78" r="4" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1"/>
+      <text x="30" y="88" text-anchor="middle" class="lbl" style="font-size:10px; font-weight:bold;">移动 App</text>
+    </g>
+  </g>
+
+  <g transform="translate(700, 415)">
+    <rect x="-290" y="-45" width="580" height="90" rx="14" fill="#ffffff" stroke="#38bdf8" stroke-width="2"/>
+    <text x="0" y="-60" text-anchor="middle" class="lbl" fill="#0369a1">[ 边缘网关数据分发层 ]</text>
+
+    <g transform="translate(-265, -25)">
+      <rect width="150" height="50" rx="8" fill="#eff6ff" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="75" y="22" text-anchor="middle" fill="#4338ca" font-size="12" font-weight="bold">OPC UA Server</text>
+      <text x="75" y="38" text-anchor="middle" class="code">北向安全发布</text>
+    </g>
+
+    <g transform="translate(-75, -25)">
+      <rect width="150" height="50" rx="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5"/>
+      <text x="75" y="22" text-anchor="middle" fill="#166534" font-size="12" font-weight="bold">Sparkplug B 组件</text>
+      <text x="75" y="38" text-anchor="middle" class="code">Topic: DDATA</text>
+    </g>
+
+    <g transform="translate(115, -25)">
+      <rect width="150" height="50" rx="8" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="75" y="22" text-anchor="middle" fill="#b45309" font-size="12" font-weight="bold">WebSocket 推送</text>
+      <text x="75" y="38" text-anchor="middle" class="code">轻量化实时流</text>
+    </g>
+  </g>
+
+  <g transform="translate(700, 585)">
+    <rect x="-290" y="-35" width="580" height="75" rx="14" fill="#ffffff" stroke="#14b8a6" stroke-width="2"/>
+    <text x="0" y="-50" text-anchor="middle" class="lbl" fill="#0f766e">[ 边缘 EdgeX 采集架构 ]</text>
+
+    <g transform="translate(-265, -18)">
+      <rect width="150" height="42" rx="6" fill="#ccfbf1" stroke="#0d9488" stroke-width="1"/>
+      <text x="75" y="20" text-anchor="middle" class="lbl">ShadowCore</text>
+      <text x="75" y="33" text-anchor="middle" class="code">静态物模型 (SoT)</text>
+    </g>
+
+    <g transform="translate(-75, -18)">
+      <rect width="150" height="42" rx="6" fill="#ecfdf5" stroke="#14b8a6" stroke-width="1"/>
+      <text x="75" y="20" text-anchor="middle" class="lbl">DataPipeline</text>
+      <text x="75" y="33" text-anchor="middle" class="code">格式清洗 · 高速缓存</text>
+    </g>
+
+    <g transform="translate(115, -18)">
+      <rect width="150" height="42" rx="6" fill="#f0fdfa" stroke="#14b8a6" stroke-width="1"/>
+      <text x="75" y="20" text-anchor="middle" class="lbl">Event Driver</text>
+      <text x="75" y="33" text-anchor="middle" class="code">工业协议南向对接</text>
+    </g>
+  </g>
+
+  <g transform="translate(50, 110)">
+    <rect width="140" height="120" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.03))"/>
+    <text x="70" y="22" text-anchor="middle" class="lbl" style="fill:#94a3b8; font-size:11px;">[ 工业通信协议 ]</text>
+    
+    <g transform="translate(20, 35)">
+      <rect width="100" height="22" rx="11" fill="#eef2ff" stroke="#6366f1" stroke-width="1"/>
+      <text x="50" y="15" text-anchor="middle" fill="#4338ca" font-size="10" font-weight="bold">OPC UA</text>
+    </g>
+    <g transform="translate(20, 62)">
+      <rect width="100" height="22" rx="11" fill="#ecfdf5" stroke="#22c55e" stroke-width="1"/>
+      <text x="50" y="15" text-anchor="middle" fill="#166534" font-size="10" font-weight="bold">MQTT</text>
+    </g>
+    <g transform="translate(10, 89)">
+      <rect width="120" height="22" rx="11" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="1"/>
+      <text x="60" y="15" text-anchor="middle" fill="#0369a1" font-size="10" font-weight="bold">Sparkplug B</text>
+    </g>
+  </g>
+
+  <circle r="4" fill="#6366f1"><animateMotion dur="2.2s" repeatCount="indefinite"><mpath href="#wire_left_lane"/></animateMotion></circle>
+  <circle r="4" fill="#0ea5e9"><animateMotion dur="1.8s" begin="0.3s" repeatCount="indefinite"><mpath href="#wire_center_lane"/></animateMotion></circle>
+  <circle r="4" fill="#8b5cf6"><animateMotion dur="2.5s" begin="0.6s" repeatCount="indefinite"><mpath href="#wire_right_lane"/></animateMotion></circle>
+  <circle r="4" fill="#14b8a6"><animateMotion dur="1.5s" begin="0.1s" repeatCount="indefinite"><mpath href="#wire_base"/></animateMotion></circle>
+</svg>
