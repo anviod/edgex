@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -273,5 +274,197 @@ func TestShadowIngress_Metrics(t *testing.T) {
 
 	if metrics.LastProcessTime.IsZero() {
 		t.Errorf("Expected non-zero last process time")
+	}
+}
+
+func TestShadowIngress_IngestQoS1DirectWrite(t *testing.T) {
+	sc := NewShadowCore()
+	sc.Start()
+	defer sc.Stop()
+
+	si := NewShadowIngress(sc, 10, 100*time.Millisecond)
+
+	val := model.Value{
+		ChannelID: "channel-1",
+		DeviceID:  "device-1",
+		PointID:   "point-1",
+		Value:     99.0,
+		Quality:   "good",
+		TS:        time.Now(),
+		Meta:      map[string]any{"qos": 1},
+	}
+
+	if err := si.Ingest(val); err != nil {
+		t.Fatalf("Ingest QoS1 failed: %v", err)
+	}
+
+	device, err := sc.GetShadowDevice("shadow-device-1")
+	if err != nil {
+		t.Fatalf("GetShadowDevice failed: %v", err)
+	}
+	if got := device.Points["point-1"].Value; got != 99.0 {
+		t.Fatalf("expected point value 99.0, got %v", got)
+	}
+
+	metrics := si.GetMetrics()
+	if metrics.TotalMessages != 1 || metrics.TotalPoints != 1 {
+		t.Fatalf("metrics = %+v, want 1 message / 1 point", metrics)
+	}
+}
+
+func TestShadowIngress_BufferReliable_IngestQoS1(t *testing.T) {
+	sc := NewShadowCore()
+	sc.Start()
+	defer sc.Stop()
+
+	si := NewShadowIngress(sc, 10, 100*time.Millisecond)
+	si.writeShadow = func(_ model.ShadowIngressMessage) (*model.ShadowWriteResponse, error) {
+		return nil, errors.New("simulated write failure")
+	}
+
+	val := model.Value{
+		ChannelID: "channel-1",
+		DeviceID:  "device-1",
+		PointID:   "point-1",
+		Value:     42.0,
+		Quality:   "good",
+		TS:        time.Now(),
+		Meta:      map[string]any{"qos": 1},
+	}
+
+	err := si.Ingest(val)
+	if err == nil {
+		t.Fatal("expected Ingest QoS1 to return write error")
+	}
+
+	metrics := si.GetMetrics()
+	if metrics.TotalMessages != 0 || metrics.TotalPoints != 0 {
+		t.Fatalf("metrics = %+v, want no successful writes", metrics)
+	}
+
+	si.writeShadow = func(msg model.ShadowIngressMessage) (*model.ShadowWriteResponse, error) {
+		return sc.WriteShadowDevice(msg)
+	}
+	si.replayReliable()
+
+	device, err := sc.GetShadowDevice("shadow-device-1")
+	if err != nil {
+		t.Fatalf("GetShadowDevice failed: %v", err)
+	}
+	if got := device.Points["point-1"].Value; got != 42.0 {
+		t.Fatalf("expected replayed value 42.0, got %v", got)
+	}
+}
+
+func TestShadowIngress_BufferReliable_IngestDirect(t *testing.T) {
+	sc := NewShadowCore()
+	sc.Start()
+	defer sc.Stop()
+
+	si := NewShadowIngress(sc, 10, 100*time.Millisecond)
+	si.writeShadow = func(_ model.ShadowIngressMessage) (*model.ShadowWriteResponse, error) {
+		return nil, errors.New("simulated write failure")
+	}
+
+	msg := model.ShadowIngressMessage{
+		MessageID: "reliable-msg-1",
+		QoS:       1,
+		DeviceID:  "device-1",
+		ChannelID: "channel-1",
+		Timestamp: time.Now(),
+		Points: []model.ShadowIngressPoint{
+			{PointID: "point-1", Value: 88.0, Quality: "good"},
+		},
+	}
+
+	err := si.IngestDirect(msg)
+	if err == nil {
+		t.Fatal("expected IngestDirect QoS1 to return write error")
+	}
+
+	metrics := si.GetMetrics()
+	if metrics.TotalMessages != 0 {
+		t.Fatalf("metrics = %+v, want no successful writes", metrics)
+	}
+
+	si.writeShadow = nil
+	si.replayReliable()
+
+	device, err := sc.GetShadowDevice("shadow-device-1")
+	if err != nil {
+		t.Fatalf("GetShadowDevice failed: %v", err)
+	}
+	if got := device.Points["point-1"].Value; got != 88.0 {
+		t.Fatalf("expected replayed value 88.0, got %v", got)
+	}
+}
+
+func TestShadowIngress_ReplayReliable_OnStart(t *testing.T) {
+	sc := NewShadowCore()
+	sc.Start()
+	defer sc.Stop()
+
+	si := NewShadowIngress(sc, 10, 100*time.Millisecond)
+	fail := true
+	si.writeShadow = func(msg model.ShadowIngressMessage) (*model.ShadowWriteResponse, error) {
+		if fail {
+			return nil, errors.New("simulated write failure")
+		}
+		return sc.WriteShadowDevice(msg)
+	}
+
+	msg := model.ShadowIngressMessage{
+		MessageID: "start-replay-1",
+		QoS:       1,
+		DeviceID:  "device-1",
+		ChannelID: "channel-1",
+		Timestamp: time.Now(),
+		Points: []model.ShadowIngressPoint{
+			{PointID: "point-1", Value: 77.0, Quality: "good"},
+		},
+	}
+	if err := si.IngestDirect(msg); err == nil {
+		t.Fatal("expected write failure before Start")
+	}
+
+	fail = false
+	si.Start()
+	defer si.Stop()
+
+	device, err := sc.GetShadowDevice("shadow-device-1")
+	if err != nil {
+		t.Fatalf("GetShadowDevice failed: %v", err)
+	}
+	if got := device.Points["point-1"].Value; got != 77.0 {
+		t.Fatalf("expected replayed value 77.0 on Start, got %v", got)
+	}
+}
+
+func TestShadowIngress_BufferReliable_ReplayStillFails(t *testing.T) {
+	sc := NewShadowCore()
+	si := NewShadowIngress(sc, 10, 100*time.Millisecond)
+	si.writeShadow = func(_ model.ShadowIngressMessage) (*model.ShadowWriteResponse, error) {
+		return nil, errors.New("simulated write failure")
+	}
+
+	msg := model.ShadowIngressMessage{
+		MessageID: "still-fail-1",
+		QoS:       1,
+		DeviceID:  "device-1",
+		ChannelID: "channel-1",
+		Timestamp: time.Now(),
+		Points: []model.ShadowIngressPoint{
+			{PointID: "point-1", Value: 55.0, Quality: "good"},
+		},
+	}
+	if err := si.IngestDirect(msg); err == nil {
+		t.Fatal("expected write failure")
+	}
+
+	si.Start()
+	si.Stop()
+
+	if _, err := sc.GetShadowDevice("shadow-device-1"); err == nil {
+		t.Fatal("expected no shadow device when replay keeps failing")
 	}
 }

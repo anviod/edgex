@@ -16,6 +16,8 @@ type ShadowIngress struct {
 	mu sync.RWMutex
 
 	shadowCore *ShadowCore
+	// writeShadow overrides shadowCore.WriteShadowDevice when set (tests only).
+	writeShadow func(msg model.ShadowIngressMessage) (*model.ShadowWriteResponse, error)
 
 	ring            *ShadowWriteRingBuffer
 	messageBuffer   []*model.ShadowIngressMessage
@@ -55,6 +57,13 @@ func NewShadowIngress(sc *ShadowCore, bufferSize int, flushInterval time.Duratio
 	}
 
 	return si
+}
+
+func (si *ShadowIngress) writeShadowDevice(msg model.ShadowIngressMessage) (*model.ShadowWriteResponse, error) {
+	if si.writeShadow != nil {
+		return si.writeShadow(msg)
+	}
+	return si.shadowCore.WriteShadowDevice(msg)
 }
 
 func (si *ShadowIngress) Start() {
@@ -147,7 +156,7 @@ func (si *ShadowIngress) Ingest(val model.Value) error {
 	msg.QoS = qos
 
 	if qos >= 1 {
-		if _, err := si.shadowCore.WriteShadowDevice(*msg); err != nil {
+		if _, err := si.writeShadowDevice(*msg); err != nil {
 			si.bufferReliable(msg)
 			return err
 		}
@@ -183,7 +192,7 @@ func (si *ShadowIngress) replayReliable() {
 	si.bufferMu.Unlock()
 
 	for _, msg := range pending {
-		if _, err := si.shadowCore.WriteShadowDevice(*msg); err != nil {
+		if _, err := si.writeShadowDevice(*msg); err != nil {
 			si.bufferReliable(msg)
 		}
 	}
@@ -257,7 +266,7 @@ func (si *ShadowIngress) valuesToMessage(values []model.Value) *model.ShadowIngr
 
 func (si *ShadowIngress) IngestDirect(msg model.ShadowIngressMessage) error {
 	if msg.QoS >= 1 {
-		if _, err := si.shadowCore.WriteShadowDevice(msg); err != nil {
+		if _, err := si.writeShadowDevice(msg); err != nil {
 			copy := msg
 			si.bufferReliable(&copy)
 			return err
