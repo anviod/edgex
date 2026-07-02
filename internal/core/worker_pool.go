@@ -2,19 +2,22 @@ package core
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
 )
 
 type WorkerPool struct {
-	workers     []*Worker
-	taskQueue   chan func()
-	wg          sync.WaitGroup
-	stopCh      chan struct{}
+	workers      []*Worker
+	taskQueue    chan func()
+	wg           sync.WaitGroup
+	stopCh       chan struct{}
 	maxQueueSize int
-	mu          sync.Mutex
-	activeCount int
+	mu           sync.Mutex
+	stopOnce     sync.Once
+	stopped      atomic.Bool
+	activeCount  int
 }
 
 type Worker struct {
@@ -30,10 +33,10 @@ func NewWorkerPool(workerCount int) *WorkerPool {
 	}
 
 	wp := &WorkerPool{
-		taskQueue:   make(chan func(), 1000),
-		stopCh:      make(chan struct{}),
+		taskQueue:    make(chan func(), 1000),
+		stopCh:       make(chan struct{}),
 		maxQueueSize: 1000,
-		workers:     make([]*Worker, 0, workerCount),
+		workers:      make([]*Worker, 0, workerCount),
 	}
 
 	for i := 0; i < workerCount; i++ {
@@ -46,10 +49,10 @@ func NewWorkerPool(workerCount int) *WorkerPool {
 
 func NewWorker(id int, taskQueue chan func(), stopCh chan struct{}, wg *sync.WaitGroup) *Worker {
 	w := &Worker{
-		id:        id,
-		taskQueue: taskQueue,
-		stopCh:    stopCh,
-		wg:        wg,
+	 id:        id,
+	 taskQueue: taskQueue,
+	 stopCh:    stopCh,
+	 wg:        wg,
 	}
 
 	w.wg.Add(1)
@@ -63,7 +66,10 @@ func (w *Worker) run() {
 
 	for {
 		select {
-		case task := <-w.taskQueue:
+		case task, ok := <-w.taskQueue:
+			if !ok {
+				return
+			}
 			if task != nil {
 				task()
 			}
@@ -81,21 +87,34 @@ func (wp *WorkerPool) Start() {
 }
 
 func (wp *WorkerPool) Stop() {
-	close(wp.stopCh)
+	wp.stopOnce.Do(func() {
+		wp.stopped.Store(true)
+		close(wp.stopCh)
+		wp.wg.Wait()
 
-	wp.wg.Wait()
+		wp.mu.Lock()
+		close(wp.taskQueue)
+		wp.mu.Unlock()
 
-	close(wp.taskQueue)
-
-	zap.L().Info("[WorkerPool] Worker池已停止")
+		zap.L().Info("[WorkerPool] Worker池已停止")
+	})
 }
 
 func (wp *WorkerPool) Submit(task func()) bool {
+	if wp.stopped.Load() {
+		return false
+	}
+
+	wp.mu.Lock()
+	defer wp.mu.Unlock()
+
+	if wp.stopped.Load() {
+		return false
+	}
+
 	select {
 	case wp.taskQueue <- task:
-		wp.mu.Lock()
 		wp.activeCount++
-		wp.mu.Unlock()
 		return true
 	default:
 		zap.L().Warn("[WorkerPool] 任务队列已满")
@@ -129,10 +148,8 @@ func (wp *WorkerPool) SetWorkerCount(count int) {
 			wp.workers = append(wp.workers, worker)
 		}
 	} else {
-		for i := currentCount - 1; i >= count; i-- {
-			close(wp.workers[i].stopCh)
-			wp.workers = wp.workers[:i]
-		}
+		// Workers share stopCh; extra workers exit on pool Stop().
+		wp.workers = wp.workers[:count]
 	}
 
 	zap.L().Info("[WorkerPool] Worker数量已更新",

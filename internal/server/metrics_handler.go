@@ -74,6 +74,7 @@ func (s *Server) getChannelMetrics(c *fiber.Ctx) error {
 	}
 
 	finalizeChannelMetrics(metrics)
+	s.enrichChannelScanEngineMetrics(channelID, ch, metrics)
 
 	// 更新时间戳
 	metrics.Timestamp = time.Now()
@@ -309,6 +310,44 @@ func (s *Server) getPointDebug(c *fiber.Ctx) error {
 	}
 
 	return c.Status(404).JSON(fiber.Map{"error": "debug info not found"})
+}
+
+func (s *Server) enrichChannelScanEngineMetrics(channelID string, ch *model.Channel, metrics *model.ChannelMetrics) {
+	if s.cm == nil || metrics == nil || ch == nil {
+		return
+	}
+
+	seSnap := s.cm.GetScanEngineMetricsSnapshot()
+	if p95, ok := seSnap["scan_lag_p95_ms"].(float64); ok {
+		metrics.ScanLagP95Ms = p95
+	}
+
+	cbSnap, _ := seSnap["circuit_breaker"].(map[string]any)
+	devices, _ := cbSnap["devices"].(map[string]any)
+	openCount := 0
+	maxLag := metrics.ScanLagP95Ms
+	for _, dev := range ch.Devices {
+		if devices != nil {
+			if entry, ok := devices[dev.ID].(map[string]any); ok {
+				if state, _ := entry["state"].(string); state == "Open" {
+					openCount++
+				}
+			}
+		}
+		diag := s.cm.GetDeviceDiagnostics(dev.ID)
+		if tasks, ok := diag["scan_tasks"].([]map[string]any); ok {
+			for _, task := range tasks {
+				if lag, ok := task["lag_ms"].(float64); ok && lag > maxLag {
+					maxLag = lag
+				}
+			}
+		}
+	}
+	if maxLag > metrics.ScanLagP95Ms {
+		metrics.ScanLagP95Ms = maxLag
+	}
+	metrics.CircuitBreakerOpen = openCount
+	metrics.QualityScore = model.CalculateQualityScore(metrics)
 }
 
 // init 初始化

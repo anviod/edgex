@@ -100,3 +100,17 @@ func (sqm *SerialQueueManager) Stop() {
 	sqm.wg.Wait()
 	sqm.contexts = make(map[string]*ExecutionContext)
 }
+
+func (sqm *SerialQueueManager) QueueDepths() map[string]int {
+	sqm.mu.RLock()
+	defer sqm.mu.RUnlock()
+
+	depths := make(map[string]int, len(sqm.contexts))
+	for key, ctx := range sqm.contexts {
+		if ctx == nil || ctx.Queue == nil {
+			continue
+		}
+		depths[key] = len(ctx.Queue)
+	}
+	return depths
+}

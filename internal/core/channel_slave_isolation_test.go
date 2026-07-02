@@ -45,10 +45,10 @@ func (m *blockingSlaveMock) ReadPoints(ctx context.Context, points []model.Point
 
 	if slave == m.blockSlave {
 		select {
+		case <-ctx.Done():
+			return nil, context.DeadlineExceeded
 		case <-time.After(m.blockDuration):
 			return nil, fmt.Errorf("i/o timeout")
-		case <-ctx.Done():
-			return nil, ctx.Err()
 		}
 	}
 
@@ -157,6 +157,59 @@ func TestScenario_SevenSlavesOneOfflineIsolation(t *testing.T) {
 	if stats[0].OnlineCount < 6 {
 		t.Fatalf("expected at least 6 online devices, got online=%d offline=%d",
 			stats[0].OnlineCount, stats[0].OfflineCount)
+	}
+}
+
+func TestScenario_CircuitBreakerIsolatesOfflineSlave(t *testing.T) {
+	cm, mock := newSevenSlaveChannelManager()
+	channelMu := cm.driverMus["modbus-tcp-1"]
+
+	el := NewExecutionLayer()
+	el.RegisterProtocol("modbus-tcp", ProtocolTypeSerial)
+	for i := 1; i <= 7; i++ {
+		devID := fmt.Sprintf("modbus-slave-%d", i)
+		el.RegisterDriver(devID, mock)
+	}
+
+	openOfflineDevice := func() {
+		task := &ScanTask{
+			DeviceKey: "modbus-slave-6",
+			Protocol:  "modbus-tcp",
+			Interval:  time.Second,
+			PointIDs:  []string{"p1"},
+			Params: map[string]any{
+				"channelID": "modbus-tcp-1",
+				"channelMu": channelMu,
+				"slave_id":  6,
+			},
+		}
+		for i := 0; i < circuitBreakerConsecutiveTimeoutThreshold; i++ {
+			el.Execute(task)
+		}
+	}
+	openOfflineDevice()
+
+	if el.GetCircuitBreaker().State("modbus-slave-6") != CircuitOpen {
+		t.Fatalf("offline slave circuit should be open")
+	}
+
+	healthyTask := &ScanTask{
+		DeviceKey: "modbus-slave-1",
+		Protocol:  "modbus-tcp",
+		Interval:  time.Second,
+		PointIDs:  []string{"p1"},
+		Params: map[string]any{
+			"channelID": "modbus-tcp-1",
+			"channelMu": channelMu,
+			"slave_id":  1,
+		},
+	}
+	res := el.Execute(healthyTask)
+	if !res.Success {
+		t.Fatalf("healthy slave on shared channel should succeed, err=%v", res.Error)
+	}
+	if el.GetCircuitBreaker().State("modbus-slave-1") != CircuitClosed {
+		t.Fatalf("healthy slave circuit should remain closed")
 	}
 }
 

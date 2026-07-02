@@ -48,6 +48,10 @@ type ChannelMetrics struct {
 	// 最近异常 (最近10条)
 	RecentErrors []ErrorRecord `json:"recentErrors,omitempty"`
 
+	// ScanEngine SLA 联动（Phase C）
+	ScanLagP95Ms       float64 `json:"scanLagP95Ms,omitempty"`
+	CircuitBreakerOpen int     `json:"circuitBreakerOpen,omitempty"`
+
 	// 时间戳
 	Timestamp time.Time `json:"timestamp"`
 }
@@ -412,6 +416,12 @@ func (mc *MetricsCollector) updateChannelMetrics(channelID string) {
 	metrics.Timestamp = time.Now()
 }
 
+// CalculateQualityScore computes channel quality score including SLA penalties.
+func CalculateQualityScore(m *ChannelMetrics) int {
+	mc := &MetricsCollector{}
+	return mc.calculateQualityScore(m)
+}
+
 // calculateQualityScore 计算质量评分
 func (mc *MetricsCollector) calculateQualityScore(m *ChannelMetrics) int {
 	score := 100
@@ -429,6 +439,20 @@ func (mc *MetricsCollector) calculateQualityScore(m *ChannelMetrics) int {
 	// RTT扣分 (RTT > 100ms开始扣分)
 	if m.AvgRtt > 100 {
 		score -= int(min(10, (m.AvgRtt-100)/50))
+	}
+
+	// 调度 lag P95 扣分（>100ms 起扣，最多 15 分）
+	if m.ScanLagP95Ms > 100 {
+		score -= int(min(15, (m.ScanLagP95Ms-100)/20))
+	}
+
+	// 断路器 Open 设备扣分（每设备 10 分，最多 20 分）
+	if m.CircuitBreakerOpen > 0 {
+		penalty := m.CircuitBreakerOpen * 10
+		if penalty > 20 {
+			penalty = 20
+		}
+		score -= penalty
 	}
 
 	if score < 0 {

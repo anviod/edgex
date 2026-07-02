@@ -61,6 +61,12 @@ export function computeQualityScore(metrics) {
   }
   if (m.avgRtt > 100) score -= Math.min(10, (m.avgRtt - 100) / 50)
 
+  const scanLag = m.scanLagP95Ms ?? m.scan_lag_p95_ms
+  if (scanLag > 100) score -= Math.min(15, (scanLag - 100) / 20)
+
+  const cbOpen = m.circuitBreakerOpen ?? m.circuit_breaker_open ?? 0
+  if (cbOpen > 0) score -= Math.min(20, cbOpen * 10)
+
   return Math.max(0, Math.round(score))
 }
 

@@ -45,6 +45,8 @@ type q3BenchmarkResult struct {
 	ScanLagAvgMs        float64
 	ScanLagP95Ms        float64
 	ScanLagMaxMs        float64
+	ScanDriftAvgMs      float64
+	ScanMissDeadline    uint64
 	StarvationRescues   uint64
 	TaskOverdueTotal    uint64
 	PipelineValues      uint64
@@ -52,6 +54,7 @@ type q3BenchmarkResult struct {
 	ThroughputPointsSec float64
 	GoroutinesStart     int
 	GoroutinesEnd       int
+	GCPauseMaxMs        float64
 }
 
 func q3BenchmarkDuration() time.Duration {
@@ -140,6 +143,13 @@ func runQ3TenThousandTagBenchmark(t *testing.T, cfg q3BenchmarkConfig) q3Benchma
 	metrics := se.GetMetrics().Snapshot()
 	shadowMetrics := sc.GetMetrics()
 
+	gcPauseMax := 0.0
+	if gc := se.GetGCMonitor(); gc != nil {
+		if v, ok := gc.Metrics().Snapshot()["gc_pause_max_ms"].(float64); ok {
+			gcPauseMax = v
+		}
+	}
+
 	memStartMB := float64(memStart.HeapInuse) / (1024 * 1024)
 	memEndMB := float64(memEnd.HeapInuse) / (1024 * 1024)
 	driftPct := 0.0
@@ -155,6 +165,8 @@ func runQ3TenThousandTagBenchmark(t *testing.T, cfg q3BenchmarkConfig) q3Benchma
 	avgLag, _ := metrics["scan_lag_avg_ms"].(float64)
 	p95Lag, _ := metrics["scan_lag_p95_ms"].(float64)
 	maxLag, _ := metrics["scan_lag_max_ms"].(float64)
+	driftAvg, _ := metrics["scan_drift_avg_ms"].(float64)
+	missDeadline, _ := metrics["scan_miss_deadline_total"].(uint64)
 
 	shadowCount := 0
 	if v, ok := shadowMetrics["real_shadow_count"].(int); ok {
@@ -179,6 +191,8 @@ func runQ3TenThousandTagBenchmark(t *testing.T, cfg q3BenchmarkConfig) q3Benchma
 		ScanLagAvgMs:        avgLag,
 		ScanLagP95Ms:        p95Lag,
 		ScanLagMaxMs:        maxLag,
+		ScanDriftAvgMs:      driftAvg,
+		ScanMissDeadline:    missDeadline,
 		StarvationRescues:   starvation,
 		TaskOverdueTotal:    overdue,
 		PipelineValues:      pipelineCount.Load(),
@@ -186,6 +200,7 @@ func runQ3TenThousandTagBenchmark(t *testing.T, cfg q3BenchmarkConfig) q3Benchma
 		ThroughputPointsSec: throughput,
 		GoroutinesStart:     goroutinesStart,
 		GoroutinesEnd:       goroutinesEnd,
+		GCPauseMaxMs:        gcPauseMax,
 	}
 
 	logQ3BenchmarkResult(t, result)
@@ -200,10 +215,10 @@ func logQ3BenchmarkResult(t *testing.T, r q3BenchmarkResult) {
 		r.Duration, r.WarmupDuration, r.Config.ScanInterval, r.Config.Devices, r.Config.PointsPerDev, totalTags, r.Config.WithPipeline, r.Config.WithVirtualDev)
 	t.Logf("  memory(heap_inuse): start=%.2fMB end=%.2fMB drift=%.2f%% heap_objs=%d->%d",
 		r.MemInuseStartMB, r.MemInuseEndMB, r.MemInuseDriftPct, r.HeapObjectsStart, r.HeapObjectsEnd)
-	t.Logf("  scan: executed=%d succeeded=%d failed=%d lag_avg=%.2fms lag_p95=%.2fms lag_max=%.2fms overdue=%d rescue=%d",
-		r.TasksExecuted, r.TasksSucceeded, r.TasksFailed, r.ScanLagAvgMs, r.ScanLagP95Ms, r.ScanLagMaxMs, r.TaskOverdueTotal, r.StarvationRescues)
-	t.Logf("  pipeline_values=%d shadow_devices=%d throughput=%.0f points/s goroutines=%d->%d",
-		r.PipelineValues, r.ShadowDevices, r.ThroughputPointsSec, r.GoroutinesStart, r.GoroutinesEnd)
+	t.Logf("  scan: executed=%d succeeded=%d failed=%d lag_avg=%.2fms lag_p95=%.2fms lag_max=%.2fms drift_avg=%.2fms miss_deadline=%d overdue=%d rescue=%d",
+		r.TasksExecuted, r.TasksSucceeded, r.TasksFailed, r.ScanLagAvgMs, r.ScanLagP95Ms, r.ScanLagMaxMs, r.ScanDriftAvgMs, r.ScanMissDeadline, r.TaskOverdueTotal, r.StarvationRescues)
+	t.Logf("  pipeline_values=%d shadow_devices=%d throughput=%.0f points/s goroutines=%d->%d gc_pause_max=%.2fms",
+		r.PipelineValues, r.ShadowDevices, r.ThroughputPointsSec, r.GoroutinesStart, r.GoroutinesEnd, r.GCPauseMaxMs)
 }
 
 func TestQ3_TenThousandTagBenchmark(t *testing.T) {
@@ -226,8 +241,17 @@ func TestQ3_TenThousandTagBenchmark(t *testing.T) {
 	if result.ScanLagP95Ms > 100 {
 		t.Errorf("scan lag P95 %.2fms exceeds 100ms SLA", result.ScanLagP95Ms)
 	}
+	if result.ScanDriftAvgMs > SLAScanDriftAvgMsThreshold {
+		t.Errorf("scan drift avg %.2fms exceeds %.0fms SLA", result.ScanDriftAvgMs, SLAScanDriftAvgMsThreshold)
+	}
+	if result.ScanMissDeadline > SLAScanMissDeadlineMax {
+		t.Errorf("scan miss deadline total %d exceeds %d", result.ScanMissDeadline, SLAScanMissDeadlineMax)
+	}
 	if result.MemInuseDriftPct > 5 {
 		t.Errorf("memory drift %.2f%% exceeds 5%% threshold", result.MemInuseDriftPct)
+	}
+	if result.GCPauseMaxMs >= 20 {
+		t.Errorf("gc_pause_max_ms %.2f exceeds 20ms SLA gate", result.GCPauseMaxMs)
 	}
 	expectedMinPipeline := uint64(result.TasksSucceeded) * uint64(result.Config.PointsPerDev) / 2
 	if result.PipelineValues < expectedMinPipeline {

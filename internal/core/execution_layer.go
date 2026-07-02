@@ -41,24 +41,28 @@ type IOProfileProvider func(deviceID string) DeviceIOProfile
 type ExecutionLayer struct {
 	serialManager      *SerialQueueManager
 	backpressure       *BackpressureController
+	protocolCongestion *ProtocolCongestionController
 	workerPool         *WorkerPool
 	gapOptimizer       *GapOptimizer
 	pointDegradation   *PointDegradationManager
 	ioProfileProvider  IOProfileProvider
 	protocolRegistry   map[string]ProtocolType
 	driverRegistry     map[string]driver.Driver
+	circuitBreaker     *DriverCircuitBreaker
 	mu                 sync.RWMutex
 	stopCh             chan struct{}
 }
 
 func NewExecutionLayer() *ExecutionLayer {
 	return &ExecutionLayer{
-		serialManager:    NewSerialQueueManager(),
-		backpressure:     NewBackpressureController(512, 1000),
-		workerPool:       NewWorkerPool(32),
+		serialManager:      NewSerialQueueManager(),
+		backpressure:       NewBackpressureController(512, 1000),
+		protocolCongestion: NewProtocolCongestionController(),
+		workerPool:         NewWorkerPool(32),
 		gapOptimizer:     NewGapOptimizer(),
 		protocolRegistry: make(map[string]ProtocolType),
 		driverRegistry:   make(map[string]driver.Driver),
+		circuitBreaker:   NewDriverCircuitBreaker(),
 		stopCh:           make(chan struct{}),
 	}
 }
@@ -90,23 +94,102 @@ func (el *ExecutionLayer) GetDriver(deviceKey string) driver.Driver {
 }
 
 func (el *ExecutionLayer) Execute(task *ScanTask) *ExecuteResult {
+	cbKey := el.circuitBreakerKey(task)
+	if !el.circuitBreaker.Allow(cbKey) {
+		return el.circuitBreakerRejectedResult(task)
+	}
+
 	el.mu.RLock()
 	pType, ok := el.protocolRegistry[task.Protocol]
 	el.mu.RUnlock()
 
+	var result *ExecuteResult
 	if !ok {
 		pType = ProtocolTypeSerial
 	}
 
 	switch pType {
 	case ProtocolTypeSerial:
-		return el.executeSerial(task)
+		result = el.executeSerial(task)
 	case ProtocolTypeParallel:
-		return el.executeParallel(task)
+		if el.protocolCongestion != nil && !el.protocolCongestion.Allow(task.Protocol) {
+			return &ExecuteResult{Success: false, Error: ErrRateLimited}
+		}
+		result = el.executeParallel(task)
 	case ProtocolTypeLimited:
-		return el.executeLimited(task)
+		if el.protocolCongestion != nil && !el.protocolCongestion.Allow(task.Protocol) {
+			return &ExecuteResult{Success: false, Error: ErrRateLimited}
+		}
+		result = el.executeLimited(task)
 	default:
-		return el.executeSerial(task)
+		result = el.executeSerial(task)
+	}
+
+	el.recordCircuitOutcome(cbKey, result)
+	return result
+}
+
+func (el *ExecutionLayer) circuitBreakerKey(task *ScanTask) string {
+	if task == nil {
+		return ""
+	}
+	return task.DeviceKey
+}
+
+func (el *ExecutionLayer) recordCircuitOutcome(key string, result *ExecuteResult) {
+	if el.circuitBreaker == nil || result == nil {
+		return
+	}
+	timeout := errors.Is(result.Error, ErrTimeout) || errors.Is(result.Error, context.DeadlineExceeded)
+	el.circuitBreaker.Record(key, result.Success, timeout)
+}
+
+func (el *ExecutionLayer) circuitBreakerRejectedResult(task *ScanTask) *ExecuteResult {
+	pointIDs := taskCollectPointIDs(task)
+	values := make(map[string]model.Value, len(pointIDs))
+	now := time.Now()
+	for _, id := range pointIDs {
+		values[id] = model.Value{
+			PointID: id,
+			Quality: "Bad",
+			TS:      now,
+		}
+	}
+	return &ExecuteResult{
+		Success: false,
+		Error:   ErrCircuitOpen,
+		Values:  values,
+	}
+}
+
+func (el *ExecutionLayer) GetCircuitBreaker() *DriverCircuitBreaker {
+	return el.circuitBreaker
+}
+
+func (el *ExecutionLayer) ReduceBackpressureRate(factor float64) {
+	if el.backpressure != nil {
+		el.backpressure.ReduceTokenRate(factor)
+	}
+}
+
+func (el *ExecutionLayer) GetBackpressure() *BackpressureController {
+	return el.backpressure
+}
+
+func (el *ExecutionLayer) GetProtocolCongestion() *ProtocolCongestionController {
+	return el.protocolCongestion
+}
+
+func (el *ExecutionLayer) GetSerialQueueDepths() map[string]int {
+	if el.serialManager == nil {
+		return map[string]int{}
+	}
+	return el.serialManager.QueueDepths()
+}
+
+func (el *ExecutionLayer) SetCircuitBreakerEventHandler(fn CircuitBreakerEventHandler) {
+	if el.circuitBreaker != nil {
+		el.circuitBreaker.SetEventHandler(fn)
 	}
 }
 
@@ -240,18 +323,23 @@ func (el *ExecutionLayer) executeLimited(task *ScanTask) *ExecuteResult {
 
 func (el *ExecutionLayer) loadPoints(task *ScanTask) []model.Point {
 	if len(task.Points) > 0 {
-		points := make([]model.Point, len(task.Points))
-		copy(points, task.Points)
-		for i := range points {
-			points[i].DeviceID = task.DeviceKey
+		for i := range task.Points {
+			task.Points[i].DeviceID = task.DeviceKey
 		}
-		return points
+		return task.Points
 	}
-	var points []model.Point
-	for _, id := range task.PointIDs {
-		points = append(points, model.Point{ID: id, DeviceID: task.DeviceKey})
+
+	n := len(task.PointIDs)
+	if cap(task.pointsScratch) < n {
+		task.pointsScratch = make([]model.Point, n)
+	} else {
+		task.pointsScratch = task.pointsScratch[:n]
 	}
-	return points
+	for i, id := range task.PointIDs {
+		task.pointsScratch[i].ID = id
+		task.pointsScratch[i].DeviceID = task.DeviceKey
+	}
+	return task.pointsScratch
 }
 
 func (el *ExecutionLayer) SetPointDegradation(m *PointDegradationManager) {

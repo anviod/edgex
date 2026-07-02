@@ -2,6 +2,7 @@ package core
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/sync/semaphore"
@@ -48,6 +49,7 @@ type BackpressureController struct {
 	globalSemaphore     *semaphore.Weighted
 	perDeviceSemaphores sync.Map
 	tokenBucket         *TokenBucket
+	rejectTotal         atomic.Uint64
 }
 
 func NewBackpressureController(globalLimit int, rate float64) *BackpressureController {
@@ -59,16 +61,19 @@ func NewBackpressureController(globalLimit int, rate float64) *BackpressureContr
 
 func (bc *BackpressureController) Allow(deviceKey string, deviceLimit int) bool {
 	if !bc.tokenBucket.Allow() {
+		bc.rejectTotal.Add(1)
 		return false
 	}
 
 	if !bc.globalSemaphore.TryAcquire(1) {
+		bc.rejectTotal.Add(1)
 		return false
 	}
 
 	sem, _ := bc.perDeviceSemaphores.LoadOrStore(deviceKey, semaphore.NewWeighted(int64(deviceLimit)))
 	if !sem.(*semaphore.Weighted).TryAcquire(1) {
 		bc.globalSemaphore.Release(1)
+		bc.rejectTotal.Add(1)
 		return false
 	}
 
@@ -80,4 +85,32 @@ func (bc *BackpressureController) Release(deviceKey string) {
 		sem.(*semaphore.Weighted).Release(1)
 	}
 	bc.globalSemaphore.Release(1)
+}
+
+func (bc *BackpressureController) ReduceTokenRate(factor float64) {
+	if bc == nil || bc.tokenBucket == nil || factor <= 0 || factor >= 1 {
+		return
+	}
+	bc.tokenBucket.mu.Lock()
+	defer bc.tokenBucket.mu.Unlock()
+	bc.tokenBucket.rate *= factor
+	if bc.tokenBucket.rate < 1 {
+		bc.tokenBucket.rate = 1
+	}
+}
+
+func (bc *BackpressureController) TokenRate() float64 {
+	if bc == nil || bc.tokenBucket == nil {
+		return 0
+	}
+	bc.tokenBucket.mu.Lock()
+	defer bc.tokenBucket.mu.Unlock()
+	return bc.tokenBucket.rate
+}
+
+func (bc *BackpressureController) RejectTotal() uint64 {
+	if bc == nil {
+		return 0
+	}
+	return bc.rejectTotal.Load()
 }

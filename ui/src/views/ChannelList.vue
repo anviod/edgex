@@ -1119,6 +1119,7 @@
         :loading="metricsDialog.loading"
         :error="metricsDialog.error"
         :metrics="metricsDialog.metrics"
+        :scan-diagnostics="metricsDialog.scanDiagnostics"
       />
 
       <template #footer>
@@ -1190,6 +1191,7 @@ const metricsDialog = reactive({
   error: null,
   channel: null,
   metrics: null,
+  scanDiagnostics: null,
 })
 
 const channelHelpVisible = ref(false)
@@ -1364,21 +1366,30 @@ const openMetricsDialog = async (channel) => {
   metricsDialog.channel = channel
   metricsDialog.error = null
   metricsDialog.metrics = null
+  metricsDialog.scanDiagnostics = null
   metricsDialog.loading = true
   metricsDialog.show = true
 
   try {
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('加载超时')), 2000)
+      setTimeout(() => reject(new Error('加载超时')), 3000)
     )
 
     const metricsResPromise = request({
       url: `/api/channels/${channel.id}/metrics`,
       method: 'get'
     })
+    const scanDiagPromise = request({
+      url: '/api/diagnostics/scan-engine',
+      method: 'get'
+    }).catch(() => null)
 
-    const metricsRes = await Promise.race([metricsResPromise, timeoutPromise])
+    const [metricsRes, scanDiag] = await Promise.all([
+      Promise.race([metricsResPromise, timeoutPromise]),
+      scanDiagPromise,
+    ])
     metricsDialog.metrics = metricsRes
+    metricsDialog.scanDiagnostics = scanDiag
   } catch (error) {
     metricsDialog.error = `获取监控指标失败: ${error.message}`
     console.error('Failed to get channel metrics:', error)

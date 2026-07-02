@@ -12,4 +12,5 @@ var (
 	ErrTimeout                  = errors.New("operation timeout")
 	ErrInvalidState             = errors.New("invalid state transition")
 	ErrConnectionUnavailable    = errors.New("connection unavailable")
+	ErrCircuitOpen              = errors.New("circuit breaker open")
 )

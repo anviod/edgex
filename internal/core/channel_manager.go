@@ -83,6 +83,7 @@ func NewChannelManager(pipeline *DataPipeline, saveFunc func([]model.Channel) er
 	scanEngine.SetCollectFinalize(cm.finalizeScanCollect)
 	cm.scanEngineAdapter.scanEngine.SetPointDegradation(cm.pointDegradation)
 	cm.scanEngineAdapter.scanEngine.SetIOProfileProvider(cm.deviceIOProfile)
+	cm.scanEngineAdapter.scanEngine.SetCircuitBreakerEventHandler(cm.recordCircuitBreakerEvent)
 
 	// Wire state manager events
 	cm.stateManager.OnStateChange = func(deviceID string, oldState, newState NodeState) {
@@ -147,6 +148,23 @@ func (cm *ChannelManager) GetScanEngineMetricsSnapshot() map[string]any {
 	snap := se.GetMetrics().Snapshot()
 	snap["active_tasks"] = se.GetActiveTaskCount()
 	snap["pending_tasks"] = se.GetPendingTaskCount()
+	cb := se.GetCircuitBreaker()
+	if cb != nil {
+		cbSnap := cb.Snapshot()
+		snap["driver_circuit_open_total"] = cbSnap["open_total"]
+		snap["driver_circuit_reject_total"] = cbSnap["reject_total"]
+		snap["driver_circuit_state"] = cbSnap["devices"]
+		snap["circuit_breaker"] = cbSnap
+	}
+	if gc := se.GetGCMonitor(); gc != nil {
+		for k, v := range gc.Metrics().Snapshot() {
+			snap[k] = v
+		}
+	}
+	snap["sla_warnings"] = se.GetMetrics().SLAWarnings(cb)
+	for k, v := range se.OperationalSnapshot() {
+		snap[k] = v
+	}
 	return snap
 }
 
@@ -204,7 +222,22 @@ func (cm *ChannelManager) GetDeviceDiagnostics(deviceID string) map[string]any {
 	if cm.pointDegradation != nil && len(pointIDs) > 0 {
 		out["point_degradation"] = cm.pointDegradation.SnapshotDevice(deviceID, pointIDs)
 	}
+	if se := cm.scanEngineAdapter.scanEngine; se != nil {
+		if cb := se.GetCircuitBreaker(); cb != nil {
+			out["circuit_breaker"] = cb.DeviceSnapshot(deviceID)
+		}
+	}
 	return out
+}
+
+func (cm *ChannelManager) recordCircuitBreakerEvent(deviceKey, eventType, message string) {
+	channelID := cm.channelIDForDevice(deviceKey)
+	if channelID == "" {
+		return
+	}
+	if mc := model.GetGlobalMetricsCollector(); mc != nil {
+		mc.RecordError(channelID, eventType, eventType, message)
+	}
 }
 
 func (cm *ChannelManager) finalizeScanCollect(deviceID string, result *ExecuteResult) {

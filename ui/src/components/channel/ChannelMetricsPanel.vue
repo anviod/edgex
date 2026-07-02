@@ -74,6 +74,43 @@
         </div>
       </section>
 
+      <section v-if="scanDiagnostics" class="channel-metrics-detail channel-metrics-sla">
+        <h3 class="channel-metrics-detail__title">调度 SLA</h3>
+        <div class="channel-metrics-detail__grid">
+          <div class="channel-metrics-detail__cell">
+            <span class="channel-metrics-detail__label">Lag P95</span>
+            <span class="channel-metrics-detail__val" :class="lagClass">
+              {{ formatLag(scanDiagnostics.scan_lag_p95_ms) }}
+            </span>
+          </div>
+          <div class="channel-metrics-detail__cell">
+            <span class="channel-metrics-detail__label">Drift 均值</span>
+            <span class="channel-metrics-detail__val">{{ formatLag(scanDiagnostics.scan_drift_avg_ms) }}</span>
+          </div>
+          <div class="channel-metrics-detail__cell">
+            <span class="channel-metrics-detail__label">CB Open</span>
+            <span class="channel-metrics-detail__val" :class="cbOpenClass">
+              {{ cbOpenCount }}
+            </span>
+          </div>
+          <div class="channel-metrics-detail__cell">
+            <span class="channel-metrics-detail__label">反压拒绝</span>
+            <span class="channel-metrics-detail__val">{{ scanDiagnostics.backpressure_reject_total ?? 0 }}</span>
+          </div>
+        </div>
+        <a-alert
+          v-if="slaWarnings.length"
+          type="warning"
+          show-icon
+          class="channel-metrics-sla__warnings"
+          :title="`SLA 告警 (${slaWarnings.length})`"
+        >
+          <ul class="channel-metrics-sla__warning-list">
+            <li v-for="(w, idx) in slaWarnings" :key="idx">{{ w.message || w.code }}</li>
+          </ul>
+        </a-alert>
+      </section>
+
       <section class="channel-metrics-detail">
         <h3 class="channel-metrics-detail__title">详细指标</h3>
         <div class="channel-metrics-detail__grid">
@@ -131,6 +168,7 @@ import {
 
 const props = defineProps({
   metrics: { type: Object, default: null },
+  scanDiagnostics: { type: Object, default: null },
   loading: { type: Boolean, default: false },
   error: { type: String, default: '' },
 })
@@ -159,6 +197,34 @@ const failureCount = computed(() => getFailureCount(props.metrics))
 
 const successRateClass = computed(() => getSuccessRateClass(props.metrics?.successRate, props.metrics))
 const packetLossClass = computed(() => getPacketLossClass(props.metrics?.packetLoss, props.metrics))
+
+const slaWarnings = computed(() => {
+  const list = props.scanDiagnostics?.sla_warnings
+  return Array.isArray(list) ? list : []
+})
+
+const cbOpenCount = computed(() => {
+  const cb = props.scanDiagnostics?.circuit_breaker
+  const devices = cb?.devices
+  if (!devices || typeof devices !== 'object') return 0
+  return Object.values(devices).filter((d) => d?.state === 'Open').length
+})
+
+const lagClass = computed(() => {
+  const lag = props.scanDiagnostics?.scan_lag_p95_ms
+  if (lag == null) return ''
+  if (lag <= 100) return 'is-success'
+  if (lag <= 200) return 'is-warning'
+  return 'is-danger'
+})
+
+const cbOpenClass = computed(() => (cbOpenCount.value > 0 ? 'is-danger' : 'is-success'))
+
+function formatLag(ms) {
+  if (ms == null || ms === undefined) return '—'
+  if (ms < 1) return '<1ms'
+  return `${Number(ms).toFixed(2)}ms`
+}
 </script>
 
 <style scoped>

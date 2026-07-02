@@ -92,3 +92,14 @@ REST/写点路径仍直写 `ShadowCore.WriteShadowDevice`（低延迟）。
 - WriteShadowDevice 单点写 alloc 略增（worker pool 入队 + COW map 合并）；高写频场景收益在 goroutine 稳定与批量路径
 - ARMv7 板端需交叉编译后复跑 benchmark 验证对齐与真实 P99
 - Virtual shadow 路径尚未 COW（低优先级）
+
+## 8. SLA Phase B 补充（2026-07-02）
+
+| 项 | 结果 |
+|----|------|
+| loadPoints 热路径 | **0 allocs/op** |
+| per-device RTT throttle | 100+5 压测 P95 增幅 **10.9%** |
+| GC gate | Q3 `gc_pause_max_ms` <20ms |
+| Soak | build tag + CI short gate |
+
+详见 `docs/testing/sla_completion_report_2026Q3.md`。
