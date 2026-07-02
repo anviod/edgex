@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="700" viewBox="0 0 1400 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.05"/>
+    </filter>
+    
+    <linearGradient id="grad-yellow" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#fef08a"/><stop offset="100%" stop-color="#fef9c3"/></linearGradient>
+    <linearGradient id="grad-blue" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#bfdbfe"/><stop offset="100%" stop-color="#eff6ff"/></linearGradient>
+    <linearGradient id="grad-red" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#fecaca"/><stop offset="100%" stop-color="#fef2f2"/></linearGradient>
+    <linearGradient id="grad-green" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#bbf7d0"/><stop offset="100%" stop-color="#f0fdf4"/></linearGradient>
+
+    <marker id="arrow-gold" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#d97706"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#2563eb"/>
+    </marker>
+
+    <style>
+      .title { fill:#0f172a; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:800; font-size:22px; letter-spacing:1px; }
+      .subtitle { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:13px; font-weight:400; }
+      .group-title { font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:700; font-size:14px; letter-spacing:1px; }
+      .lbl { fill:#1e293b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:14px; font-weight:600; }
+      .code { fill:#475569; font-family:'Consolas','Courier New',monospace; font-size:11px; }
+      .val { fill:#0f172a; font-family:'Segoe UI',sans-serif; font-weight:800; font-size:24px; }
+      .unit { fill:#64748b; font-size:12px; font-weight:500; }
+      .chart-lbl { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:11px; font-weight:600; }
+      .dash-line { stroke-dasharray: 6 4; animation: march 1.5s linear infinite; }
+      @keyframes march { to { stroke-dashoffset: -20; } }
+    </style>
+  </defs>
+
+  <rect width="1400" height="700" fill="url(#bg)"/>
+  <rect x="25" y="25" width="1350" height="650" rx="16" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
+  
+  <rect x="25" y="25" width="1350" height="6" rx="3" fill="#d97706" opacity="0.9"/>
+  <g transform="translate(700, 65)" text-anchor="middle">
+    <text class="title">楼宇能耗分项计量：多协议电表聚合与分析系统</text>
+    <text y="24" class="subtitle">栅格化绝对对齐三段式架构 · 信号流无交叉完美工整设计</text>
+  </g>
+
+  <g transform="translate(70, 0)">
+    <rect x="0" y="130" width="260" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="260" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="260" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#d97706">■ 分项计量采集终端</text>
+
+    <g transform="translate(15, 175)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#b45309" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#d97706"/>
+      <text x="20" y="28" class="lbl">照明回路能耗</text>
+      <text x="20" y="48" class="code">Protocol: DL/T 645-2007</text>
+    </g>
+
+    <g transform="translate(15, 285)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#b45309" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#d97706"/>
+      <text x="20" y="28" class="lbl">空调机组能耗</text>
+      <text x="20" y="48" class="code">Protocol: BACnet/IP PTP</text>
+    </g>
+
+    <g transform="translate(15, 395)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#b45309" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#d97706"/>
+      <text x="20" y="28" class="lbl">电梯动力系统</text>
+      <text x="20" y="48" class="code">Protocol: Modbus-RTU</text>
+    </g>
+
+    <g transform="translate(15, 505)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#b45309" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#d97706"/>
+      <text x="20" y="28" class="lbl">公共区域照明</text>
+      <text x="20" y="48" class="code">Protocol: KNX TP1</text>
+    </g>
+  </g>
+
+  <path d="M 330 210 H 490" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-gold)" class="dash-line"/>
+  <path d="M 330 320 H 490" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-gold)" class="dash-line"/>
+  <path d="M 330 430 H 490" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-gold)" class="dash-line"/>
+  <path d="M 330 540 H 490" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-gold)" class="dash-line"/>
+
+  <circle r="4" fill="#f59e0b"><animateMotion dur="2s" repeatCount="indefinite" path="M 330 210 H 490"/></circle>
+  <circle r="4" fill="#f59e0b"><animateMotion dur="2.4s" repeatCount="indefinite" path="M 330 320 H 490"/></circle>
+  <circle r="4" fill="#f59e0b"><animateMotion dur="1.8s" repeatCount="indefinite" path="M 330 430 H 490"/></circle>
+  <circle r="4" fill="#f59e0b"><animateMotion dur="2.2s" repeatCount="indefinite" path="M 330 540 H 490"/></circle>
+
+
+  <g transform="translate(490, 0)">
+    <rect x="0" y="130" width="420" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="420" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="420" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#1e3a8a">■ 实时核心能耗分析引擎 (Core Engine)</text>
+
+    <g transform="translate(25, 175)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-yellow)" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">实时计算：分项能耗汇总</text>
+      <text x="25" y="50" class="code">Formula: E_total = ∑(E_light + E_hvac + E_lift)</text>
+    </g>
+
+    <g transform="translate(25, 285)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-blue)" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">动态解析：楼层公摊模型</text>
+      <text x="25" y="50" class="code">Algorithm: Spatial Area Ratio Allocation Matrix</text>
+    </g>
+
+    <g transform="translate(25, 395)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-red)" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">诊断预警：实时负载突变</text>
+      <text x="25" y="50" class="code">Rule: E_current &gt; Baseline * 1.25 (Trigger Alert)</text>
+    </g>
+
+    <g transform="translate(25, 505)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-green)" stroke="#16a34a" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">统一总线：数据标准化包装</text>
+      <text x="25" y="50" class="code">Output: JSON over MQTT / Industrial OPC UA</text>
+    </g>
+  </g>
+
+
+  <path d="M 910 210 H 1050" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <path d="M 910 320 H 1050" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <path d="M 910 430 H 1050" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <path d="M 910 540 H 1050" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+  <circle r="3.5" fill="#3b82f6"><animateMotion dur="1.5s" repeatCount="indefinite" path="M 910 210 H 1050"/></circle>
+  <circle r="3.5" fill="#3b82f6"><animateMotion dur="1.9s" repeatCount="indefinite" path="M 910 320 H 1050"/></circle>
+  <circle r="3.5" fill="#3b82f6"><animateMotion dur="1.3s" repeatCount="indefinite" path="M 910 430 H 1050"/></circle>
+  <circle r="3.5" fill="#3b82f6"><animateMotion dur="1.7s" repeatCount="indefinite" path="M 910 540 H 1050"/></circle>
+
+
+  <g transform="translate(1050, 0)">
+    <rect x="0" y="130" width="280" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="280" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="280" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#059669">■ 顶层数据综合看板</text>
+
+    <g transform="translate(15, 175)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="20" y="25" class="chart-lbl">今日综合总耗电量</text>
+      <text x="20" y="54" class="val">4,219.50 <tspan class="unit">kWh</tspan></text>
+      <circle cx="225" cy="35" r="5" fill="#16a34a"/>
+    </g>
+
+    <g transform="translate(15, 285)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="18" y="22" class="chart-lbl">各分项实时占比 (比例)</text>
+      <g transform="translate(18, 32)">
+        <rect width="60" height="14" rx="3" fill="#fef08a"/>
+        <rect x="65" width="100" height="14" rx="3" fill="#bfdbfe"/>
+        <rect x="170" width="45" height="14" rx="3" fill="#fecaca"/>
+        <text x="30" y="43" class="chart-lbl" font-size="9" text-anchor="middle" fill="#854d0e">28%</text>
+        <text x="115" y="43" class="chart-lbl" font-size="9" text-anchor="middle" fill="#1e40af">52%</text>
+        <text x="192" y="43" class="chart-lbl" font-size="9" text-anchor="middle" fill="#991b1b">20%</text>
+      </g>
+      <text x="18" y="61" font-size="9" fill="#94a3b8" font-family="sans-serif">黄: 照明 | 蓝: 空调 | 红: 其他</text>
+    </g>
+
+    <g transform="translate(15, 395)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="20" y="26" class="chart-lbl">系统异常诊断及告警记录</text>
+      <rect x="20" y="38" width="65" height="20" rx="4" fill="#fee2e2"/>
+      <text x="52" y="52" fill="#ef4444" font-weight="bold" font-size="11" text-anchor="middle" font-family="sans-serif">02 严重</text>
+      <rect x="95" y="38" width="65" height="20" rx="4" fill="#fef3c7"/>
+      <text x="127" y="52" fill="#d97706" font-weight="bold" font-size="11" text-anchor="middle" font-family="sans-serif">05 警告</text>
+    </g>
+
+    <g transform="translate(15, 505)">
+      <rect width="250" height="70" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+      <text x="20" y="26" class="chart-lbl" fill="#166534">BMS 楼宇管理平台联动状态</text>
+      <text x="20" y="50" class="code" fill="#15803d">OPC UA Server: Connected</text>
+      <circle cx="225" cy="40" r="6" fill="#22c55e" class="dash-line" stroke="#bbf7d0" stroke-width="2"/>
+    </g>
+  </g>
+</svg>

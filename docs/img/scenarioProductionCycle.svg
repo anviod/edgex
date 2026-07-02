@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="700" viewBox="0 0 1400 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.05"/>
+    </filter>
+    
+    <linearGradient id="grad-blue" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#bfdbfe"/><stop offset="100%" stop-color="#eff6ff"/></linearGradient>
+    <linearGradient id="grad-purple" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#ddd6fe"/><stop offset="100%" stop-color="#f5f3ff"/></linearGradient>
+    <linearGradient id="grad-amber" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#fde68a"/><stop offset="100%" stop-color="#fef3c7"/></linearGradient>
+    <linearGradient id="grad-emerald" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#a7f3d0"/><stop offset="100%" stop-color="#ecfdf5"/></linearGradient>
+
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#1d4ed8"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#7c3aed"/>
+    </marker>
+
+    <style>
+      .title { fill:#0f172a; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:800; font-size:22px; letter-spacing:1px; }
+      .subtitle { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:13px; font-weight:400; }
+      .group-title { font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:700; font-size:14px; letter-spacing:1px; }
+      .lbl { fill:#1e293b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:14px; font-weight:600; }
+      .code { fill:#475569; font-family:'Consolas','Courier New',monospace; font-size:11px; }
+      .val { fill:#0f172a; font-family:'Segoe UI',sans-serif; font-weight:800; font-size:24px; }
+      .unit { fill:#64748b; font-size:13px; font-weight:500; }
+      .chart-lbl { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:11px; font-weight:600; }
+      .dash-line { stroke-dasharray: 6 4; animation: march 1.5s linear infinite; }
+      @keyframes march { to { stroke-dashoffset: -20; } }
+    </style>
+  </defs>
+
+  <rect width="1400" height="700" fill="url(#bg)"/>
+  <rect x="25" y="25" width="1350" height="650" rx="16" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
+  <rect x="25" y="25" width="1350" height="6" rx="3" fill="#3b82f6" opacity="0.9"/>
+  
+  <g transform="translate(700, 65)" text-anchor="middle">
+    <text class="title">产线节拍统计：PLC 信号计数与 CT/OEE 联动系统</text>
+    <text y="24" class="subtitle">高阶纵向四级对称栅格化排版 · 数据管道横向绝对单条直线无交错设计</text>
+  </g>
+
+  <g transform="translate(70, 0)">
+    <rect x="0" y="130" width="260" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="260" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="260" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#1d4ed8">■ PLC 边缘信号采集</text>
+
+    <g transform="translate(15, 175)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#3b82f6"/>
+      <text x="20" y="28" class="lbl">产品到位检测信号</text>
+      <text x="20" y="48" class="code">IO: DI_product_ready</text>
+    </g>
+
+    <g transform="translate(15, 285)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#3b82f6"/>
+      <text x="20" y="28" class="lbl">工作循环启动信号</text>
+      <text x="20" y="48" class="code">IO: DI_cycle_start</text>
+    </g>
+
+    <g transform="translate(15, 395)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.2"/>
+      <rect width="6" height="70" rx="3" fill="#64748b"/>
+      <text x="20" y="28" class="lbl">设备异常停机状态</text>
+      <text x="20" y="48" class="code">IO: DI_machine_stop</text>
+    </g>
+
+    <g transform="translate(15, 505)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.2"/>
+      <rect width="6" height="70" rx="3" fill="#64748b"/>
+      <text x="20" y="28" class="lbl">班次计数复位触发</text>
+      <text x="20" y="48" class="code">IO: DI_shift_reset</text>
+    </g>
+  </g>
+
+
+  <path d="M 330 210 H 490" stroke="#1d4ed8" stroke-width="2" marker-end="url(#arrow-blue)" class="dash-line"/>
+  <path d="M 330 320 H 490" stroke="#1d4ed8" stroke-width="2" marker-end="url(#arrow-blue)" class="dash-line"/>
+  <path d="M 330 430 H 490" stroke="#1d4ed8" stroke-width="2" marker-end="url(#arrow-blue)" class="dash-line"/>
+  <path d="M 330 540 H 490" stroke="#1d4ed8" stroke-width="2" marker-end="url(#arrow-blue)" class="dash-line"/>
+
+  <circle r="4" fill="#3b82f6"><animateMotion dur="1.3s" repeatCount="indefinite" path="M 330 210 H 490"/></circle>
+  <circle r="4" fill="#3b82f6"><animateMotion dur="2.0s" repeatCount="indefinite" path="M 330 320 H 490"/></circle>
+  <circle r="4" fill="#3b82f6"><animateMotion dur="1.5s" repeatCount="indefinite" path="M 330 430 H 490"/></circle>
+  <circle r="4" fill="#3b82f6"><animateMotion dur="1.8s" repeatCount="indefinite" path="M 330 540 H 490"/></circle>
+
+
+  <g transform="translate(490, 0)">
+    <rect x="0" y="130" width="420" height="510" rx="14" fill="#ffffff" stroke="#1d4ed8" stroke-width="2" stroke-dasharray="8 5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="420" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="420" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#1e3a8a">■ 边缘计算与虚拟物模型引擎</text>
+
+    <g transform="translate(25, 175)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-blue)" stroke="#1d4ed8" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">高精度波形边沿逻辑捕获</text>
+      <text x="25" y="50" class="code">Method: rising_edge(DI_cycle_start)</text>
+    </g>
+
+    <g transform="translate(25, 285)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-purple)" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">全自动化生产循环原子计数</text>
+      <text x="25" y="50" class="code">Formula: cycle_count += 1 (Increment Event)</text>
+    </g>
+
+    <g transform="translate(25, 395)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-amber)" stroke="#d97706" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">瞬时 Cycle Time (CT) 精准度量</text>
+      <text x="25" y="50" class="code">Formula: cycle_time = timestamps.now - last_time</text>
+    </g>
+
+    <g transform="translate(25, 505)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-emerald)" stroke="#10b981" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">高级设备整体效能 (OEE) 指标动态联动</text>
+      <text x="25" y="50" class="code">Calc: OEE = availability × performance × quality</text>
+    </g>
+  </g>
+
+
+  <path d="M 910 210 H 1050" stroke="#1d4ed8" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <path d="M 910 320 H 1050" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow-purple)"/>
+  <path d="M 910 430 H 1050" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow-purple)"/>
+  <path d="M 910 540 H 1050" stroke="#1d4ed8" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+  <circle r="3.5" fill="#3b82f6"><animateMotion dur="1.1s" repeatCount="indefinite" path="M 910 210 H 1050"/></circle>
+  <circle r="3.5" fill="#8b5cf6"><animateMotion dur="1.6s" repeatCount="indefinite" path="M 910 320 H 1050"/></circle>
+  <circle r="3.5" fill="#8b5cf6"><animateMotion dur="1.3s" repeatCount="indefinite" path="M 910 430 H 1050"/></circle>
+  <circle r="3.5" fill="#3b82f6"><animateMotion dur="1.5s" repeatCount="indefinite" path="M 910 540 H 1050"/></circle>
+
+
+  <g transform="translate(1050, 0)">
+    <rect x="0" y="130" width="280" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="280" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="280" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#0f172a">■ 数据可视化与业务集成</text>
+
+    <g transform="translate(15, 175)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl">当前班次累计完工数</text>
+      <text x="15" y="52" class="val" fill="#1d4ed8">1,284 <tspan class="unit">PCS</tspan></text>
+    </g>
+
+    <g transform="translate(15, 285)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl">产线周期移动平均节拍</text>
+      <text x="15" y="52" class="val" fill="#7c3aed">42.3 <tspan class="unit">Seconds</tspan></text>
+    </g>
+
+    <g transform="translate(15, 395)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#10b981" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl">设备当前OEE时效表现</text>
+      <text x="15" y="52" class="val" fill="#10b981">87.5 <tspan class="unit">%</tspan></text>
+    </g>
+
+    <g transform="translate(15, 505)">
+      <rect width="250" height="70" rx="10" fill="#eff6ff" stroke="#bae6fd" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl" fill="#1e40af">工厂级核心 MES 系统互联</text>
+      <text x="15" y="48" class="code" fill="#0369a1">MQTT Pub: edge/line1/oee_metrics</text>
+    </g>
+  </g>
+</svg>

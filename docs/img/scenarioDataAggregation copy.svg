@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="700" viewBox="0 0 1400 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.05"/>
+    </filter>
+    
+    <linearGradient id="grad-blue" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#e0f2fe"/><stop offset="100%" stop-color="#f0f9ff"/></linearGradient>
+    <linearGradient id="grad-amber" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#fef3c7"/><stop offset="100%" stop-color="#fffbeb"/></linearGradient>
+    <linearGradient id="grad-purple" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#f3e8ff"/><stop offset="100%" stop-color="#faf5ff"/></linearGradient>
+    <linearGradient id="grad-slate" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#e2e8f0"/><stop offset="100%" stop-color="#f8fafc"/></linearGradient>
+
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#0284c7"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#d97706"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#7c3aed"/>
+    </marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#475569"/>
+    </marker>
+
+    <style>
+      .title { fill:#0f172a; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:800; font-size:22px; letter-spacing:1px; }
+      .subtitle { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:13px; font-weight:400; }
+      .group-title { font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:700; font-size:14px; letter-spacing:1px; }
+      .lbl { fill:#1e293b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:14px; font-weight:600; }
+      .code { fill:#475569; font-family:'Consolas','Courier New',monospace; font-size:11px; }
+      .val { fill:#0f172a; font-family:'Segoe UI',sans-serif; font-weight:800; font-size:24px; }
+      .unit { fill:#64748b; font-size:13px; font-weight:500; }
+      .chart-lbl { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:11px; font-weight:600; }
+      .pulse { animation: blink 1.2s ease-in-out infinite; }
+      @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+      .dash-line { stroke-dasharray: 6 4; animation: march 1.5s linear infinite; }
+      @keyframes march { to { stroke-dashoffset: -20; } }
+    </style>
+  </defs>
+
+  <rect width="1400" height="700" fill="url(#bg)"/>
+  <rect x="25" y="25" width="1350" height="650" rx="16" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
+  <rect x="25" y="25" width="1350" height="6" rx="3" fill="#8b5cf6" opacity="0.9"/>
+  
+  <g transform="translate(700, 65)" text-anchor="middle">
+    <text class="title">跨设备时序数据聚合：Virtual Shadow Engine 产线计算与多维综合指标矩阵</text>
+    <text y="24" class="subtitle">Edgex 边缘计算网关 · 数据计算管道横向单条直线全对齐零交叉流转</text>
+  </g>
+
+  <g transform="translate(70, 0)">
+    <rect x="0" y="130" width="260" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="260" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="260" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#0284c7">■ 多源设备物联网输入层</text>
+
+    <g transform="translate(15, 175)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#0284c7" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#0284c7"/>
+      <text x="20" y="28" class="lbl">泵 01/02 差分流量计</text>
+      <text x="20" y="48" class="code">pump_01..02.flow</text>
+      <circle cx="210" cy="22" r="5" fill="#22c55e" class="pulse"/>
+    </g>
+
+    <g transform="translate(15, 285)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#d97706" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#d97706"/>
+      <text x="20" y="28" class="lbl">核心热成像测温电阻</text>
+      <text x="20" y="48" class="code">temp_01..03.val</text>
+      <circle cx="210" cy="22" r="5" fill="#22c55e" class="pulse"/>
+    </g>
+
+    <g transform="translate(15, 395)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#7c3aed"/>
+      <text x="20" y="28" class="lbl">主控系统高精度运行计时</text>
+      <text x="20" y="48" class="code">sys_runtime_seconds</text>
+      <circle cx="210" cy="22" r="5" fill="#22c55e" class="pulse"/>
+    </g>
+
+    <g transform="translate(15, 505)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#475569" stroke-width="1.2"/>
+      <rect width="6" height="70" rx="3" fill="#475569"/>
+      <text x="20" y="28" class="lbl">三相数字智能电能总线</text>
+      <text x="20" y="48" class="code">energy_consumption_kwh</text>
+    </g>
+  </g>
+
+
+  <path d="M 330 210 H 490" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow-blue)" class="dash-line"/>
+  <path d="M 330 320 H 490" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-amber)" class="dash-line"/>
+  <path d="M 330 430 H 490" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow-purple)" class="dash-line"/>
+  <path d="M 330 540 H 490" stroke="#475569" stroke-width="1.5" class="dash-line"/>
+
+  <circle r="4" fill="#0284c7"><animateMotion dur="1.2s" repeatCount="indefinite" path="M 330 210 H 490"/></circle>
+  <circle r="4" fill="#d97706"><animateMotion dur="1.5s" repeatCount="indefinite" path="M 330 320 H 490"/></circle>
+  <circle r="4" fill="#7c3aed"><animateMotion dur="1.0s" repeatCount="indefinite" path="M 330 430 H 490"/></circle>
+  <circle r="4" fill="#475569"><animateMotion dur="1.8s" repeatCount="indefinite" path="M 330 540 H 490"/></circle>
+
+
+  <g transform="translate(490, 0)">
+    <rect x="0" y="130" width="420" height="510" rx="14" fill="#ffffff" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="8 5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="420" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="420" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#7c3aed">■ Engine - 实时多维时序数据聚合 DAG</text>
+
+    <g transform="translate(25, 175)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-blue)" stroke="#0284c7" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">流量双通道级联实时滑动累加求和</text>
+      <text x="25" y="50" class="code">Pipeline: SUM(pump_01.flow, pump_02.flow)</text>
+    </g>
+
+    <g transform="translate(25, 285)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-amber)" stroke="#d97706" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">多点空间多项式滑动时间窗口平均</text>
+      <text x="25" y="50" class="code">Pipeline: AVG(temp_01, temp_02, temp_03)</text>
+    </g>
+
+    <g transform="translate(25, 395)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-purple)" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">产线OEE精细化实时计算状态机 (A×P×Q)</text>
+      <text x="25" y="50" class="code">Pipeline: Aggregation -> Availability × Performance × Quality</text>
+    </g>
+
+    <g transform="translate(25, 505)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-slate)" stroke="#475569" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">能耗向碳排放因子自适应矩阵换算</text>
+      <text x="25" y="50" class="code">Pipeline: Carbon_Index = Total_KWh × 0.557</text>
+    </g>
+  </g>
+
+
+  <path d="M 910 210 H 1050" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <path d="M 910 320 H 1050" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  <path d="M 910 430 H 1050" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow-purple)"/>
+  <path d="M 910 540 H 1050" stroke="#475569" stroke-width="2" marker-end="url(#arrow-slate)"/>
+
+  <circle r="3.5" fill="#0284c7"><animateMotion dur="1.1s" repeatCount="indefinite" path="M 910 210 H 1050"/></circle>
+  <circle r="3.5" fill="#d97706"><animateMotion dur="1.3s" repeatCount="indefinite" path="M 910 320 H 1050"/></circle>
+  <circle r="3.5" fill="#7c3aed"><animateMotion dur="0.9s" repeatCount="indefinite" path="M 910 430 H 1050"/></circle>
+  <circle r="3.5" fill="#475569"><animateMotion dur="1.4s" repeatCount="indefinite" path="M 910 540 H 1050"/></circle>
+
+
+  <g transform="translate(1050, 0)">
+    <rect x="0" y="130" width="280" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="280" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="280" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#1e293b">■ 实时数智产线看板看板</text>
+
+    <g transform="translate(15, 175)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#0284c7" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl">实时流水总体积流量</text>
+      <text x="15" y="52" class="val" fill="#0284c7">186.5 <tspan class="unit">m³/h</tspan></text>
+      <rect x="175" y="12" width="60" height="18" rx="9" fill="#dcfce7"/>
+      <text x="205" y="25" text-anchor="middle" fill="#166534" font-size="10" font-weight="bold">正常</text>
+    </g>
+
+    <g transform="translate(15, 285)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#d97706" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl">核心工况瞬时平均温度</text>
+      <text x="15" y="52" class="val" fill="#b45309">42.7 <tspan class="unit">℃</tspan></text>
+      <rect x="150" y="45" width="85" height="5" rx="2.5" fill="#fef3c7"/>
+      <rect x="150" y="45" width="65" height="5" rx="2.5" fill="#d97706"/>
+    </g>
+
+    <g transform="translate(15, 395)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl">产线综合全效率 (OEE)</text>
+      <text x="15" y="52" class="val" fill="#6d28d9">87.3 <tspan class="unit">%</tspan></text>
+      <rect x="150" y="45" width="85" height="5" rx="2.5" fill="#f3e8ff"/>
+      <rect x="150" y="45" width="74" height="5" rx="2.5" fill="#7c3aed"/>
+    </g>
+
+    <g transform="translate(15, 505)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#475569" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl">碳排放边际效用当量</text>
+      <text x="15" y="52" class="val" fill="#334155">0.24 <tspan class="unit">kg/kWh</tspan></text>
+    </g>
+  </g>
+</svg>

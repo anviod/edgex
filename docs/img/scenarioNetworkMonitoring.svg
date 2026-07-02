@@ -1,179 +1,166 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="1400" height="700" viewBox="0 0 1400 700" xmlns="http://www.w3.org/2000/svg">
   <defs>
+    <linearGradient id="bg_gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+
+    <filter id="card_shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.04"/>
+    </filter>
     <filter id="net_glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feGaussianBlur stdDeviation="3" result="blur"/>
       <feComposite in="SourceGraphic" in2="blur" operator="over"/>
     </filter>
-    <clipPath id="clip_net_a"><rect width="200" height="85" rx="10"/></clipPath>
-    <clipPath id="clip_net_b"><rect width="200" height="85" rx="10"/></clipPath>
-    <clipPath id="clip_net_c"><rect width="200" height="85" rx="10"/></clipPath>
-    <linearGradient id="grad_blue" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#f0f9ff"/>
-    </linearGradient>
-    <linearGradient id="grad_purple" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#f5f3ff"/>
-    </linearGradient>
-    <linearGradient id="grad_amber" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#fffbeb"/>
-    </linearGradient>
-    <linearGradient id="grad_green" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#f0fdf4"/>
-    </linearGradient>
-    <style>
-      .bg-sub { fill:#f8fafc; stroke:#e2e8f0; stroke-width:1; }
-      .node-raw { fill:#ffffff; stroke:#0ea5e9; stroke-width:2; }
-      .node-raw-cyan { fill:#ffffff; stroke:#0891b2; stroke-width:2; }
-      .node-raw-indigo { fill:#ffffff; stroke:#6366f1; stroke-width:2; }
-      .node-calc { fill:#ffffff; stroke:#8b5cf6; stroke-width:2; }
-      .text-title { fill:#1e293b; font-family:'Segoe UI',sans-serif; font-weight:bold; font-size:16px; }
-      .text-code { fill:#64748b; font-family:'Courier New',monospace; font-size:11px; }
-      .flow-line { fill:none; stroke:#cbd5e1; stroke-width:2; marker-end:url(#arrowhead); }
-      .flow-line-active { stroke:#0ea5e9; stroke-dasharray:4; animation:dash 20s linear infinite; }
-      @keyframes dash { to { stroke-dashoffset:-1000; } }
-      .v-panel { stroke-width:1.5; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.05)); }
-      .v-value { font-family:'Segoe UI',Arial; font-weight:800; font-size:22px; fill:#1e293b; }
-      .v-label { font-size:13px; fill:#475569; font-weight:bold; }
-      .sparkline { fill:none; stroke:#0ea5e9; stroke-width:1.5; opacity:0.6; }
-      .title-bg { fill:#f5f3ff; }
-      .title-bg-teal { fill:#ecfeff; }
-      .title-bg-amber { fill:#fef3c7; }
-      .topo-line { stroke:#94a3b8; stroke-width:1.5; fill:none; }
-      .blink { animation:port 1.5s ease-in-out infinite; }
-      @keyframes port { 0%,100%{opacity:1} 50%{opacity:0.4} }
-    </style>
-    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="5" markerHeight="5" orient="auto">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#cbd5e1"/>
+
+    <clipPath id="clip_net_a"><rect width="360" height="75" rx="10"/></clipPath>
+    <clipPath id="clip_net_b"><rect width="360" height="75" rx="10"/></clipPath>
+    <clipPath id="clip_net_c"><rect width="360" height="75" rx="10"/></clipPath>
+
+    <linearGradient id="grad_blue" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#e0f2fe"/><stop offset="100%" stop-color="#f0f9ff"/></linearGradient>
+    <linearGradient id="grad_amber" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#fef3c7"/><stop offset="100%" stop-color="#fffbeb"/></linearGradient>
+    <linearGradient id="grad_green" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#dcfce7"/><stop offset="100%" stop-color="#f0fdf4"/></linearGradient>
+
+    <linearGradient id="title_blue" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#e0f2fe"/><stop offset="100%" stop-color="#ffffff"/></linearGradient>
+    <linearGradient id="title_amber" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#fef3c7"/><stop offset="100%" stop-color="#ffffff"/></linearGradient>
+    <linearGradient id="title_purple" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#f3e8ff"/><stop offset="100%" stop-color="#ffffff"/></linearGradient>
+
+    <marker id="arrow_blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#0ea5e9"/>
     </marker>
+    <marker id="arrow_purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#8b5cf6"/>
+    </marker>
+    <marker id="arrow_amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrow_green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#22c55e"/>
+    </marker>
+
+    <style>
+      .main-title { fill:#0f172a; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:800; font-size:22px; letter-spacing:1px; }
+      .section-subtitle { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:13px; font-weight:400; }
+      .section-title { fill:#475569; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:700; font-size:14px; letter-spacing:2px; }
+      .lbl { fill:#1e293b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:14px; font-weight:600; }
+      .code { fill:#475569; font-family:'Consolas','Courier New',monospace; font-size:11px; }
+      .val { fill:#0f172a; font-family:'Segoe UI',sans-serif; font-weight:800; font-size:24px; }
+      .unit { fill:#64748b; font-size:13px; font-weight:500; }
+      .chart-lbl { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:11px; font-weight:600; }
+      .pulse { animation: blink 1.2s ease-in-out infinite; }
+      @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+      .dash-line { stroke-dasharray: 6 4; animation: march 1.5s linear infinite; }
+      @keyframes march { to { stroke-dashoffset: -20; } }
+    </style>
   </defs>
 
-  <rect width="1360" height="660" x="20" y="20" rx="15" class="bg-sub"/>
-  <text x="700" y="55" text-anchor="middle" class="text-title">网络设备监控：SNMP OID 采集与工业网络健康监测 (正交优化版)</text>
-
-  <g id="logic-wires">
-    <path id="wire_layer_1" d="M 320 200 H 580" class="flow-line flow-line-active" style="stroke:#0891b2;"/>
-    <path id="wire_oid_traffic" d="M 780 200 H 1000" class="flow-line" style="stroke:#8b5cf6;"/>
-
-    <path id="wire_layer_2" d="M 320 320 H 580" class="flow-line flow-line-active" style="stroke:#0891b2;"/>
-    <path id="wire_health_temp" d="M 780 320 H 1000" class="flow-line" style="stroke:#f59e0b;"/>
-
-    <path id="wire_layer_3" d="M 320 460 H 580" class="flow-line flow-line-active" style="stroke:#0891b2;"/>
-    <path id="wire_map_power" d="M 780 460 H 1000" class="flow-line" style="stroke:#22c55e;"/>
-  </g>
-
-  <g transform="translate(60, 110)">
-    <rect width="320" height="510" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-dasharray="6,4" fill-opacity="0.5"/>
-    <text x="160" y="-15" text-anchor="middle" class="text-title" style="font-size:13px; fill:#64748b;">[ 工业网络拓扑 ]</text>
-
-    <g transform="translate(120, 25)">
-      <rect width="80" height="45" rx="6" class="node-raw"/>
-      <path d="M15 15 L65 15 M15 23 L55 23 M15 31 L45 31" stroke="#0284c7" stroke-width="1.5" fill="none"/>
-      <text x="40" y="40" text-anchor="middle" class="text-code">Router</text>
-    </g>
-
-    <g transform="translate(100, 50)">
-      <rect width="120" height="340" rx="10" fill="#ffffff" stroke="#0891b2" stroke-width="2.5"/>
-      
-      <g transform="translate(15, 20)">
-        <rect x="0" y="0" width="12" height="10" rx="2" fill="#22d3ee" class="blink"/>
-        <rect x="16" y="0" width="12" height="10" rx="2" fill="#22d3ee" class="blink"/>
-        <rect x="32" y="0" width="12" height="10" rx="2" fill="#06b6d4"/>
-        <rect x="48" y="0" width="12" height="10" rx="2" fill="#0891b2"/>
-        <rect x="64" y="0" width="12" height="10" rx="2" fill="#10b981"/>
-        <rect x="80" y="0" width="12" height="10" rx="2" fill="#10b981" class="blink"/>
-      </g>
-      
-      <text x="60" y="175" text-anchor="middle" class="v-label" style="fill:#0e7490; font-size:12px; letter-spacing:1px;">核心交换机</text>
-      <text x="60" y="195" text-anchor="middle" class="text-code" style="fill:#0891b2; font-size:10px;">L3_Core_Engine</text>
-      <circle cx="60" cy="310" r="5" fill="#22c55e"><animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/></circle>
-    </g>
-
-    <g transform="translate(20, 420)">
-      <rect width="80" height="50" rx="6" class="node-raw-cyan"/>
-      <rect x="12" y="15" width="10" height="8" rx="1" fill="#22d3ee"/>
-      <rect x="26" y="15" width="10" height="8" rx="1" fill="#06b6d4"/>
-      <text x="40" y="42" text-anchor="middle" class="text-code">Switch-2</text>
-    </g>
-
-    <g transform="translate(220, 420)">
-      <rect width="80" height="50" rx="6" class="node-raw-indigo"/>
-      <circle cx="40" cy="20" r="4" fill="#6366f1"/>
-      <text x="40" y="42" text-anchor="middle" class="text-code">Industrial AP</text>
-    </g>
-
-    <line x1="160" y1="25" x2="160" y2="50" class="topo-line"/>
-    <line x1="100" y1="350" x2="60" y2="420" class="topo-line"/>
-    <line x1="220" y1="350" x2="260" y2="420" class="topo-line"/>
-  </g>
-
-  <g transform="translate(500, 110)">
-    <rect width="360" height="510" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-dasharray="6,4" fill-opacity="0.5"/>
-    <text x="180" y="-15" text-anchor="middle" class="text-title" style="font-size:13px; fill:#64748b;">[ SNMP 数据处理引擎 ]</text>
-
-    <g transform="translate(80, 50)">
-      <rect width="200" height="80" rx="10" class="node-calc" stroke="#8b5cf6" filter="url(#net_glow)"/>
-      <g clip-path="url(#clip_net_a)"><rect width="200" height="26" class="title-bg-teal"/></g>
-      <text x="100" y="18" text-anchor="middle" style="font-size:12px; font-weight:bold; fill:#0e7490;">OID 采集 (Layer 1)</text>
-      <text x="100" y="54" text-anchor="middle" class="text-code" style="fill:#0891b2; font-weight:bold;">ifInOctets · sysUpTime</text>
-    </g>
-
-    <g transform="translate(80, 170)">
-      <rect width="200" height="80" rx="10" class="node-calc" stroke="#f59e0b"/>
-      <g clip-path="url(#clip_net_b)"><rect width="200" height="26" class="title-bg-amber"/></g>
-      <text x="100" y="18" text-anchor="middle" style="font-size:12px; font-weight:bold; fill:#b45309;">健康分析 (Layer 2)</text>
-      <text x="100" y="54" text-anchor="middle" class="text-code" style="fill:#b45309; font-weight:bold;">动态阈值 · 链路状态检验</text>
-    </g>
-
-    <g transform="translate(80, 310)">
-      <rect width="200" height="80" rx="10" class="node-calc" stroke="#22c55e"/>
-      <g clip-path="url(#clip_net_c)"><rect width="200" height="26" class="title-bg"/></g>
-      <text x="100" y="18" text-anchor="middle" style="font-size:12px; font-weight:bold; fill:#7c3aed;">数据映射 (Layer 3)</text>
-      <text x="100" y="54" text-anchor="middle" class="text-code" style="fill:#7c3aed; font-weight:bold;">OID → ShadowCore 点位</text>
-    </g>
-
-    <rect x="100" y="455" width="160" height="24" rx="12" fill="#f1f5f9" stroke="#e2e8f0"/>
-    <text x="180" y="471" text-anchor="middle" style="font-size:11px; fill:#94a3b8; font-weight:bold;">SNMP v2c / v3 Core</text>
-  </g>
-
-  <g transform="translate(1000, 110)">
-    <text x="0" y="-15" class="text-title" style="font-size:13px; fill:#64748b;">[ 实时监控看板 ]</text>
-    
-    <g transform="translate(0, 40)">
-      <rect width="300" height="100" rx="12" fill="url(#grad_blue)" stroke="#0ea5e9" class="v-panel"/>
-      <text x="15" y="28" class="v-label">端口流量 (Mbps)</text>
-      <text x="15" y="62" class="v-value">842.51</text>
-      <rect x="220" y="15" width="65" height="20" rx="10" fill="#dcfce7"/>
-      <text x="252" y="29" text-anchor="middle" style="fill:#166534; font-size:10px; font-weight:bold">实时正常</text>
-      <path class="sparkline" d="M15 85 Q 40 75, 70 82 T 130 78 T 190 85 T 250 78 T 285 82"/>
-    </g>
-    
-    <g transform="translate(0, 160)">
-      <rect width="300" height="100" rx="12" fill="url(#grad_amber)" stroke="#f59e0b" class="v-panel"/>
-      <text x="15" y="28" class="v-label">设备运行温度 (℃)</text>
-      <text x="15" y="62" class="v-value" style="fill:#b45309">68.4</text>
-      <rect x="220" y="15" width="65" height="20" rx="10" fill="#ffedd5"/>
-      <text x="252" y="29" text-anchor="middle" style="fill:#c2410c; font-size:10px; font-weight:bold">高温预警</text>
-      <rect x="150" y="52" width="135" height="6" rx="3" fill="#fef3c7"/>
-      <rect x="150" y="52" width="105" height="6" rx="3" fill="#f59e0b"/>
-    </g>
-    
-    <g transform="translate(0, 300)">
-      <rect width="300" height="100" rx="12" fill="url(#grad_green)" stroke="#22c55e" class="v-panel"/>
-      <text x="15" y="28" class="v-label">供电系统状态 (PSU)</text>
-      <text x="15" y="60" class="v-value" style="font-size:18px; fill:#15803d">双电源冗余 PSU-A / B OK</text>
-      <text x="15" y="82" class="text-code" style="color:#16a34a;">核心主板电压稳定: 12.04V</text>
-    </g>
-  </g>
-
-  <circle r="4" fill="#06b6d4" filter="url(#net_glow)"><animateMotion dur="2.2s" repeatCount="indefinite"><mpath href="#wire_layer_1"/></animateMotion></circle>
-  <circle r="4" fill="#0ea5e9" filter="url(#net_glow)"><animateMotion dur="2.6s" repeatCount="indefinite"><mpath href="#wire_layer_2"/></animateMotion></circle>
-  <circle r="4" fill="#10b981" filter="url(#net_glow)"><animateMotion dur="3.0s" repeatCount="indefinite"><mpath href="#wire_layer_3"/></animateMotion></circle>
+  <rect width="1400" height="700" fill="url(#bg_gradient)"/>
+  <rect x="25" y="25" width="1350" height="650" rx="16" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
+  <rect x="25" y="25" width="1350" height="6" rx="3" fill="#0ea5e9" opacity="0.9"/>
   
-  <circle r="4" fill="#a855f7" filter="url(#net_glow)"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#wire_oid_traffic"/></animateMotion></circle>
-  <circle r="4" fill="#f59e0b" filter="url(#net_glow)"><animateMotion dur="2.0s" repeatCount="indefinite"><mpath href="#wire_health_temp"/></animateMotion></circle>
-  <circle r="4" fill="#22c55e" filter="url(#net_glow)"><animateMotion dur="2.2s" repeatCount="indefinite"><mpath href="#wire_map_power"/></animateMotion></circle>
+  <g transform="translate(700, 65)" text-anchor="middle">
+    <text class="main-title">网络设备监控中心：SNMP OID 数据智能采集与工业网络健康度协同引擎</text>
+    <text y="24" class="section-subtitle">Edgex 边缘计算网关 · 监控计算数据管道横向单条直线全对齐零交叉流转</text>
+  </g>
+
+  <line x1="330" y1="120" x2="330" y2="640" stroke="#e2e8f0" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <line x1="1020" y1="120" x2="1020" y2="640" stroke="#e2e8f0" stroke-width="1.5" stroke-dasharray="6 4"/>
+  
+  <text x="177" y="125" text-anchor="middle" class="section-title">■ 工业网络拓扑层 (INPUT)</text>
+  <text x="675" y="125" text-anchor="middle" class="section-title">■ SNMP 数据处理引擎 (ENGINE)</text>
+  <text x="1195" y="125" text-anchor="middle" class="section-title">■ 实时智能监控看板 (OUTPUT)</text>
+
+  <g transform="translate(50, 175)" filter="url(#card_shadow)">
+    <rect width="250" height="80" rx="12" fill="#ffffff" stroke="#0ea5e9" stroke-width="1.5"/>
+    <rect width="6" height="80" rx="3" fill="#0ea5e9"/>
+    <g transform="translate(20, 15)">
+      <rect x="0" y="0" width="12" height="10" rx="2" fill="#22d3ee" class="pulse"/>
+      <rect x="16" y="0" width="12" height="10" rx="2" fill="#22d3ee"/>
+      <rect x="32" y="0" width="12" height="10" rx="2" fill="#0ea5e9"/>
+      <rect x="48" y="0" width="12" height="10" rx="2" fill="#10b981" class="pulse"/>
+    </g>
+    <text x="20" y="46" class="lbl">L3_Core_Switch 交换机</text>
+    <text x="20" y="66" class="code">Eth_1/1 Port Net_Traffic</text>
+  </g>
+  <g transform="translate(490, 178)" filter="url(#card_shadow)">
+    <rect width="370" height="75" rx="10" fill="#ffffff" stroke="#8b5cf6" stroke-width="1.5"/>
+    <g clip-path="url(#clip_net_a)"><rect width="370" height="24" fill="url(#title_blue)"/></g>
+    <text x="20" y="17" style="font-size:11px; font-weight:700; fill:#0369a1;">OID 采集阶段 (Layer 1)</text>
+    <text x="20" y="44" class="lbl">ifInOctets · sysUpTime 定时轮询计数</text>
+    <text x="20" y="62" class="code">SNMP GET -> 1.3.6.1.2.1.2.2.1.10.1</text>
+  </g>
+  <g transform="translate(1050, 175)" filter="url(#card_shadow)">
+    <rect width="270" height="80" rx="12" fill="url(#grad_blue)" stroke="#0ea5e9" stroke-width="1.5"/>
+    <text x="15" y="24" class="chart-lbl">当前接口下行实时吞吐量</text>
+    <text x="15" y="52" class="val" fill="#0284c7">842.51 <tspan class="unit">Mbps</tspan></text>
+    <rect x="195" y="12" width="60" height="18" rx="9" fill="#dcfce7"/>
+    <text x="225" y="25" text-anchor="middle" fill="#166534" font-size="10" font-weight="bold">正常</text>
+  </g>
+  <path d="M 300 215 H 490" stroke="#0ea5e9" stroke-width="2" marker-end="url(#arrow_blue)" class="dash-line"/>
+  <path d="M 860 215 H 1050" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow_purple)"/>
+
+
+  <g transform="translate(50, 315)" filter="url(#card_shadow)">
+    <rect width="250" height="80" rx="12" fill="#ffffff" stroke="#0891b2" stroke-width="1.5"/>
+    <rect width="6" height="80" rx="3" fill="#0891b2"/>
+    <circle cx="30" cy="22" r="6" fill="#0891b2"/>
+    <path d="M 18 22 Q 30 5 42 22 M 22 22 Q 30 10 38 22" fill="none" stroke="#0891b2" stroke-width="1.5"/>
+    <text x="20" y="46" class="lbl">Industrial AP 工业无线网关</text>
+    <text x="20" y="66" class="code">Internal Thermal Sensor</text>
+  </g>
+  <g transform="translate(490, 318)" filter="url(#card_shadow)">
+    <rect width="370" height="75" rx="10" fill="#ffffff" stroke="#f59e0b" stroke-width="1.5"/>
+    <g clip-path="url(#clip_net_b)"><rect width="370" height="24" fill="url(#title_amber)"/></g>
+    <text x="20" y="17" style="font-size:11px; font-weight:700; fill:#b45309;">健康分析阶段 (Layer 2)</text>
+    <text x="20" y="44" class="lbl">动态包络线逆向推算与极限预警纠偏</text>
+    <text x="20" y="62" class="code">Formula: Threshold_Check(Device_Temp > 65.0)</text>
+  </g>
+  <g transform="translate(1050, 315)" filter="url(#card_shadow)">
+    <rect width="270" height="80" rx="12" fill="url(#grad_amber)" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="15" y="24" class="chart-lbl">核心主板实时运行温度</text>
+    <text x="15" y="52" class="val" fill="#b45309">68.4 <tspan class="unit">℃</tspan></text>
+    <rect x="195" y="12" width="60" height="18" rx="9" fill="#fee2e2"/>
+    <text x="225" y="25" text-anchor="middle" fill="#991b1b" font-size="10" font-weight="bold">高温预警</text>
+  </g>
+  <path d="M 300 355 H 490" stroke="#0891b2" stroke-width="2" marker-end="url(#arrow_blue)" class="dash-line"/>
+  <path d="M 860 355 H 1050" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow_amber)"/>
+
+
+  <g transform="translate(50, 455)" filter="url(#card_shadow)">
+    <rect width="250" height="80" rx="12" fill="#ffffff" stroke="#6366f1" stroke-width="1.5"/>
+    <rect width="6" height="80" rx="3" fill="#6366f1"/>
+    <rect x="20" y="15" width="25" height="10" rx="2" fill="#10b981"/>
+    <rect x="50" y="15" width="25" height="10" rx="2" fill="#10b981"/>
+    <text x="20" y="46" class="lbl">Redundant PSU 双冗余电源</text>
+    <text x="20" y="66" class="code">Power Supply Module A/B</text>
+  </g>
+  <g transform="translate(490, 458)" filter="url(#card_shadow)">
+    <rect width="370" height="75" rx="10" fill="#ffffff" stroke="#22c55e" stroke-width="1.5"/>
+    <g clip-path="url(#clip_net_c)"><rect width="370" height="24" fill="url(#title_purple)"/></g>
+    <text x="20" y="17" style="font-size:11px; font-weight:700; fill:#6d28d9;">数据映射阶段 (Layer 3)</text>
+    <text x="20" y="44" class="lbl">实体节点状态树绑定与点位归一化变换</text>
+    <text x="20" y="62" class="code">Map: OID_Status -> ShadowCore.Network.PSU_Active</text>
+  </g>
+  <g transform="translate(1050, 455)" filter="url(#card_shadow)">
+    <rect width="270" height="80" rx="12" fill="url(#grad_green)" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="15" y="24" class="chart-lbl">供电冗余子系统状态矩阵</text>
+    <text x="15" y="48" class="val" fill="#166534" font-size="15px">PSU-A / B 双路在线</text>
+    <text x="15" y="68" class="code" fill="#16a34a">核心总线电压稳态: 12.04V</text>
+  </g>
+  <path d="M 300 495 H 490" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow_blue)" class="dash-line"/>
+  <path d="M 860 495 H 1050" stroke="#22c55e" stroke-width="2" marker-end="url(#arrow_green)"/>
+
+
+  <rect x="465" y="150" width="420" height="415" rx="16" fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.5"/>
+  <rect x="465" y="575" width="420" height="24" rx="12" fill="#e2e8f0" opacity="0.6"/>
+  <text x="675" y="591" text-anchor="middle" style="font-size:11px; fill:#475569; font-weight:700;">SNMP v1 / v2c / v3 高并发多线程核心架构</text>
+
+  <circle r="4" fill="#0ea5e9" filter="url(#net_glow)"><animateMotion dur="1.3s" repeatCount="indefinite" path="M 300 215 H 490"/></circle>
+  <circle r="4" fill="#0891b2" filter="url(#net_glow)"><animateMotion dur="1.6s" repeatCount="indefinite" path="M 300 355 H 490"/></circle>
+  <circle r="4" fill="#6366f1" filter="url(#net_glow)"><animateMotion dur="1.1s" repeatCount="indefinite" path="M 300 495 H 490"/></circle>
+
+  <circle r="4" fill="#8b5cf6" filter="url(#net_glow)"><animateMotion dur="1.4s" repeatCount="indefinite" path="M 860 215 H 1050"/></circle>
+  <circle r="4" fill="#f59e0b" filter="url(#net_glow)"><animateMotion dur="1.2s" repeatCount="indefinite" path="M 860 355 H 1050"/></circle>
+  <circle r="4" fill="#22c55e" filter="url(#net_glow)"><animateMotion dur="1.5s" repeatCount="indefinite" path="M 860 495 H 1050"/></circle>
 </svg>

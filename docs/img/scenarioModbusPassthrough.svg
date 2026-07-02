@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="700" viewBox="0 0 1400 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.05"/>
+    </filter>
+    
+    <linearGradient id="grad-orange" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#ffedd5"/><stop offset="100%" stop-color="#fff7ed"/></linearGradient>
+    <linearGradient id="grad-emerald" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#a7f3d0"/><stop offset="100%" stop-color="#ecfdf5"/></linearGradient>
+    <linearGradient id="grad-blue" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#bfdbfe"/><stop offset="100%" stop-color="#eff6ff"/></linearGradient>
+    <linearGradient id="grad-amber" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#fde68a"/><stop offset="100%" stop-color="#fef3c7"/></linearGradient>
+
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#ea580c"/>
+    </marker>
+    <marker id="arrow-emerald" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#10b981"/>
+    </marker>
+
+    <style>
+      .title { fill:#0f172a; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:800; font-size:22px; letter-spacing:1px; }
+      .subtitle { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:13px; font-weight:400; }
+      .group-title { font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:700; font-size:14px; letter-spacing:1px; }
+      .lbl { fill:#1e293b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:14px; font-weight:600; }
+      .code { fill:#475569; font-family:'Consolas','Courier New',monospace; font-size:11px; }
+      .val { fill:#0f172a; font-family:'Segoe UI',sans-serif; font-weight:800; font-size:22px; }
+      .chart-lbl { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:11px; font-weight:600; }
+      .dash-line-forward { stroke-dasharray: 6 4; animation: march-f 1.5s linear infinite; }
+      .dash-line-backward { stroke-dasharray: 6 4; animation: march-b 1.5s linear infinite; }
+      @keyframes march-f { to { stroke-dashoffset: -20; } }
+      @keyframes march-b { to { stroke-dashoffset: 20; } }
+    </style>
+  </defs>
+
+  <rect width="1400" height="700" fill="url(#bg)"/>
+  <rect x="25" y="25" width="1350" height="650" rx="16" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
+  <rect x="25" y="25" width="1350" height="6" rx="3" fill="#f97316" opacity="0.9"/>
+  
+  <g transform="translate(700, 65)" text-anchor="middle">
+    <text class="title">Modbus 设备透传：协议转换与地址映射系统</text>
+    <text y="24" class="subtitle">极致工整纵向四级对称栅格化对齐 · 双向交互数据流横向全直连无交叉设计</text>
+  </g>
+
+  <g transform="translate(70, 0)">
+    <rect x="0" y="130" width="260" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="260" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="260" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#ea580c">■ 上位机 / SCADA 系统</text>
+
+    <g transform="translate(15, 175)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#ea580c" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#f97316"/>
+      <text x="20" y="28" class="lbl">Modbus TCP 主站</text>
+      <text x="20" y="48" class="code">Req: FC03 Read Registers</text>
+    </g>
+
+    <g transform="translate(15, 285)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#ea580c" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#f97316"/>
+      <text x="20" y="28" class="lbl">统一寻址域分配</text>
+      <text x="20" y="48" class="code">Target Address: 40001-40010</text>
+    </g>
+
+    <g transform="translate(15, 395)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#10b981" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#10b981"/>
+      <text x="20" y="28" class="lbl">控制写指令下发</text>
+      <text x="20" y="48" class="code">Cmd: FC06 Write Register</text>
+    </g>
+
+    <g transform="translate(15, 505)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#10b981" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#10b981"/>
+      <text x="20" y="28" class="lbl">虚拟主站逻辑端口</text>
+      <text x="20" y="48" class="code">TCP Slave ID Map = 1</text>
+    </g>
+  </g>
+
+
+  <path d="M 330 210 H 490" stroke="#ea580c" stroke-width="2" marker-end="url(#arrow-orange)" class="dash-line-forward"/>
+  <path d="M 330 320 H 490" stroke="#ea580c" stroke-width="2" marker-end="url(#arrow-orange)" class="dash-line-forward"/>
+  <path d="M 490 430 H 330" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-emerald)" class="dash-line-backward"/>
+  <path d="M 490 540 H 330" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-emerald)" class="dash-line-backward"/>
+
+  <circle r="4" fill="#f97316"><animateMotion dur="2.0s" repeatCount="indefinite" path="M 330 210 H 490"/></circle>
+  <circle r="4" fill="#f97316"><animateMotion dur="1.5s" repeatCount="indefinite" path="M 330 320 H 490"/></circle>
+  <circle r="4" fill="#10b981"><animateMotion dur="2.3s" repeatCount="indefinite" path="M 490 430 H 330"/></circle>
+  <circle r="4" fill="#10b981"><animateMotion dur="1.8s" repeatCount="indefinite" path="M 490 540 H 330"/></circle>
+
+
+  <g transform="translate(490, 0)">
+    <rect x="0" y="130" width="420" height="510" rx="14" fill="#ffffff" stroke="#ea580c" stroke-width="2" stroke-dasharray="8 5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="420" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="420" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#9a3412">■ EdgeX 协议透传解析网关</text>
+
+    <g transform="translate(25, 175)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-orange)" stroke="#ea580c" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">工业协议双向动态转换</text>
+      <text x="25" y="50" class="code">Protocol Core: Modbus TCP ↔ Modbus RTU</text>
+    </g>
+
+    <g transform="translate(25, 285)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-emerald)" stroke="#10b981" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">物理线性寄存器地址映射</text>
+      <text x="25" y="50" class="code">Mapping: TCP(40001) → Serial RTU(Slave 2: 30001)</text>
+    </g>
+
+    <g transform="translate(25, 395)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-blue)" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">全透明零开销快速转发内核</text>
+      <text x="25" y="50" class="code">Performance: Zero-Parsing Latency &lt; 5ms</text>
+    </g>
+
+    <g transform="translate(25, 505)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-amber)" stroke="#d97706" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">存量非智能设备无改造平滑接入</text>
+      <text x="25" y="50" class="code">Topology: Non-Invasive Retrofit Integration</text>
+    </g>
+  </g>
+
+
+  <path d="M 910 210 H 1050" stroke="#ea580c" stroke-width="2" marker-end="url(#arrow-orange)" class="dash-line-forward"/>
+  <path d="M 910 320 H 1050" stroke="#ea580c" stroke-width="2" marker-end="url(#arrow-orange)" class="dash-line-forward"/>
+  <path d="M 1050 430 H 910" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-emerald)" class="dash-line-backward"/>
+  <path d="M 1050 540 H 910" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-emerald)" class="dash-line-backward"/>
+
+  <circle r="3.5" fill="#f97316"><animateMotion dur="1.3s" repeatCount="indefinite" path="M 910 210 H 1050"/></circle>
+  <circle r="3.5" fill="#f97316"><animateMotion dur="1.1s" repeatCount="indefinite" path="M 910 320 H 1050"/></circle>
+  <circle r="3.5" fill="#10b981"><animateMotion dur="1.6s" repeatCount="indefinite" path="M 1050 430 H 910"/></circle>
+  <circle r="3.5" fill="#10b981"><animateMotion dur="1.4s" repeatCount="indefinite" path="M 1050 540 H 910"/></circle>
+
+
+  <g transform="translate(1050, 0)">
+    <rect x="0" y="130" width="280" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="280" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="280" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#16a34a">■ 工业现场设备物理层</text>
+
+    <g transform="translate(15, 175)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#ea580c" stroke-width="1.5"/>
+      <text x="18" y="24" class="chart-lbl">Modbus RTU 多功能仪表</text>
+      <text x="18" y="50" class="code" fill="#ea580c">Physical: RS485 Serial Bus</text>
+      <circle cx="225" cy="44" r="5" fill="#22c55e" stroke="#bbf7d0" stroke-width="2"/>
+    </g>
+
+    <g transform="translate(15, 285)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#ea580c" stroke-width="1.5"/>
+      <text x="18" y="24" class="chart-lbl">多从站物理链划分</text>
+      <text x="18" y="50" class="code" fill="#475569">Slaves: ID = 2, 3, 4...</text>
+    </g>
+
+    <g transform="translate(15, 395)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#10b981" stroke-width="1.5"/>
+      <text x="18" y="24" class="chart-lbl">现场 PLC 核心控制寄存器</text>
+      <text x="18" y="50" class="code" fill="#16a34a">Type: Holding Registers</text>
+    </g>
+
+    <g transform="translate(15, 505)">
+      <rect width="250" height="70" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+      <text x="18" y="24" class="chart-lbl" fill="#166534">原始物理协议零修改接入</text>
+      <text x="18" y="48" class="code" fill="#15803d">Status: Plug and Play Active</text>
+    </g>
+  </g>
+</svg>

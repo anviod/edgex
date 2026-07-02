@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="700" viewBox="0 0 1400 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.05"/>
+    </filter>
+    
+    <linearGradient id="grad-blue" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#bfdbfe"/><stop offset="100%" stop-color="#eff6ff"/></linearGradient>
+    <linearGradient id="grad-sky" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#bae6fd"/><stop offset="100%" stop-color="#f0f9ff"/></linearGradient>
+    <linearGradient id="grad-emerald" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#a7f3d0"/><stop offset="100%" stop-color="#ecfdf5"/></linearGradient>
+    <linearGradient id="grad-amber" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#fde68a"/><stop offset="100%" stop-color="#fef3c7"/></linearGradient>
+
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-emerald" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#10b981"/>
+    </marker>
+
+    <style>
+      .title { fill:#0f172a; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:800; font-size:22px; letter-spacing:1px; }
+      .subtitle { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:13px; font-weight:400; }
+      .group-title { font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:700; font-size:14px; letter-spacing:1px; }
+      .lbl { fill:#1e293b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:14px; font-weight:600; }
+      .code { fill:#475569; font-family:'Consolas','Courier New',monospace; font-size:11px; }
+      .val { fill:#0f172a; font-family:'Segoe UI',sans-serif; font-weight:800; font-size:22px; }
+      .unit { fill:#64748b; font-size:12px; font-weight:500; }
+      .chart-lbl { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:11px; font-weight:600; }
+      .dash-line { stroke-dasharray: 6 4; animation: march 1.5s linear infinite; }
+      @keyframes march { to { stroke-dashoffset: -20; } }
+    </style>
+  </defs>
+
+  <rect width="1400" height="700" fill="url(#bg)"/>
+  <rect x="25" y="25" width="1350" height="650" rx="16" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
+  <rect x="25" y="25" width="1350" height="6" rx="3" fill="#3b82f6" opacity="0.9"/>
+  
+  <g transform="translate(700, 65)" text-anchor="middle">
+    <text class="title">环境温湿度监控：BACnet 楼宇环境采集与联动系统</text>
+    <text y="24" class="subtitle">极致工整纵向四级对称栅格化对齐 · 信号流横向全直连不交叉设计</text>
+  </g>
+
+  <g transform="translate(70, 0)">
+    <rect x="0" y="130" width="260" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="260" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="260" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#2563eb">■ 环境传感器接入端</text>
+
+    <g transform="translate(15, 175)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#3b82f6"/>
+      <text x="20" y="28" class="lbl">BACnet 温湿度节点</text>
+      <text x="20" y="48" class="code">Objects: AI-101 / AI-102</text>
+    </g>
+
+    <g transform="translate(15, 285)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#3b82f6"/>
+      <text x="20" y="28" class="lbl">CO₂ 二氧化碳浓度</text>
+      <text x="20" y="48" class="code">Protocol: Modbus-RTU</text>
+    </g>
+
+    <g transform="translate(15, 395)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#3b82f6"/>
+      <text x="20" y="28" class="lbl">CH₄ 煤气泄漏感知</text>
+      <text x="20" y="48" class="code">Status: Secure Safe</text>
+    </g>
+
+    <g transform="translate(15, 505)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#3b82f6"/>
+      <text x="20" y="28" class="lbl">多协议IO扩展模块</text>
+      <text x="20" y="48" class="code">Interface: RS485 Bus</text>
+    </g>
+  </g>
+
+
+  <path d="M 330 210 H 490" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)" class="dash-line"/>
+  <path d="M 330 320 H 490" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)" class="dash-line"/>
+  <path d="M 330 430 H 490" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)" class="dash-line"/>
+  <path d="M 330 540 H 490" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)" class="dash-line"/>
+
+  <circle r="4" fill="#3b82f6"><animateMotion dur="2.0s" repeatCount="indefinite" path="M 330 210 H 490"/></circle>
+  <circle r="4" fill="#3b82f6"><animateMotion dur="1.5s" repeatCount="indefinite" path="M 330 320 H 490"/></circle>
+  <circle r="4" fill="#3b82f6"><animateMotion dur="2.3s" repeatCount="indefinite" path="M 330 430 H 490"/></circle>
+  <circle r="4" fill="#3b82f6"><animateMotion dur="1.8s" repeatCount="indefinite" path="M 330 540 H 490"/></circle>
+
+
+  <g transform="translate(490, 0)">
+    <rect x="0" y="130" width="420" height="510" rx="14" fill="#ffffff" stroke="#2563eb" stroke-width="2" stroke-dasharray="8 5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="420" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="420" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#1e3a8a">■ EdgeX 边缘解析网关 (Edge Gateway)</text>
+
+    <g transform="translate(25, 175)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-blue)" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">ScanEngine 周期性动态采集</text>
+      <text x="25" y="50" class="code">Configuration: polling_interval = 5s</text>
+    </g>
+
+    <g transform="translate(25, 285)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-sky)" stroke="#0284c7" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">边界交叉与动态阈值规则判定</text>
+      <text x="25" y="50" class="code">Expression: If temp &gt; 28°C ∨ CO2 &gt; 1000ppm</text>
+    </g>
+
+    <g transform="translate(25, 395)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-emerald)" stroke="#10b981" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">异构协议数据模型归一化</text>
+      <text x="25" y="50" class="code">Trans: Multi-Protocol → Core Data Schema</text>
+    </g>
+
+    <g transform="translate(25, 505)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-amber)" stroke="#d97706" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">主动决策式异常指标分级告警</text>
+      <text x="25" y="50" class="code">Output: alarm_level = SYSTEM_WARNING</text>
+    </g>
+  </g>
+
+
+  <path d="M 910 210 H 1050" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <path d="M 910 320 H 1050" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-emerald)"/>
+  <path d="M 910 430 H 1050" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <path d="M 910 540 H 1050" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+  <circle r="3.5" fill="#3b82f6"><animateMotion dur="1.3s" repeatCount="indefinite" path="M 910 210 H 1050"/></circle>
+  <circle r="3.5" fill="#10b981"><animateMotion dur="1.1s" repeatCount="indefinite" path="M 910 320 H 1050"/></circle>
+  <circle r="3.5" fill="#3b82f6"><animateMotion dur="1.6s" repeatCount="indefinite" path="M 910 430 H 1050"/></circle>
+  <circle r="3.5" fill="#3b82f6"><animateMotion dur="1.4s" repeatCount="indefinite" path="M 910 540 H 1050"/></circle>
+
+
+  <g transform="translate(1050, 0)">
+    <rect x="0" y="130" width="280" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="280" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="280" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#059669">■ 监控运营与自适应联动</text>
+
+    <g transform="translate(15, 175)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="18" y="24" class="chart-lbl">本地大屏核心指标看板</text>
+      <text x="18" y="52" class="val" fill="#2563eb">23.5<tspan class="unit">°C</tspan> / 58<tspan class="unit">%</tspan></text>
+      <rect x="185" y="32" width="45" height="22" rx="4" fill="#e0f2fe"/>
+      <text x="207" y="47" text-anchor="middle" fill="#0369a1" font-size="11" font-weight="bold">OK</text>
+    </g>
+
+    <g transform="translate(15, 285)">
+      <rect width="250" height="70" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+      <text x="18" y="24" class="chart-lbl" fill="#166534">HVAC 新风自适应强控联动</text>
+      <text x="18" y="50" class="code" fill="#15803d">BACnet Command: Flow +15%</text>
+    </g>
+
+    <g transform="translate(15, 395)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="18" y="24" class="chart-lbl">气态污染物环境数据</text>
+      <text x="18" y="52" class="val">680 <tspan class="unit">ppm (CO₂)</tspan></text>
+    </g>
+
+    <g transform="translate(15, 505)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="18" y="25" class="chart-lbl">北向平台统一总线发布</text>
+      <text x="18" y="48" class="code" fill="#475569">MQTT / OPC UA Standard</text>
+    </g>
+  </g>
+</svg>

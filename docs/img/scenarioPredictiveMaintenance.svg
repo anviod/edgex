@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="700" viewBox="0 0 1400 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.05"/>
+    </filter>
+    
+    <linearGradient id="grad-emerald" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#a7f3d0"/><stop offset="100%" stop-color="#ecfdf5"/></linearGradient>
+    <linearGradient id="grad-amber" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#fde68a"/><stop offset="100%" stop-color="#fef3c7"/></linearGradient>
+    <linearGradient id="grad-orange" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#ffedd5"/><stop offset="100%" stop-color="#fff7ed"/></linearGradient>
+    <linearGradient id="grad-sky" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#bae6fd"/><stop offset="100%" stop-color="#f0f9ff"/></linearGradient>
+
+    <marker id="arrow-emerald" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#059669"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#d97706"/>
+    </marker>
+
+    <style>
+      .title { fill:#0f172a; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:800; font-size:22px; letter-spacing:1px; }
+      .subtitle { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:13px; font-weight:400; }
+      .group-title { font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:700; font-size:14px; letter-spacing:1px; }
+      .lbl { fill:#1e293b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:14px; font-weight:600; }
+      .code { fill:#475569; font-family:'Consolas','Courier New',monospace; font-size:11px; }
+      .val { fill:#0f172a; font-family:'Segoe UI',sans-serif; font-weight:800; font-size:22px; }
+      .unit { fill:#64748b; font-size:12px; font-weight:500; }
+      .chart-lbl { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:11px; font-weight:600; }
+      .dash-line { stroke-dasharray: 6 4; animation: march 1.5s linear infinite; }
+      @keyframes march { to { stroke-dashoffset: -20; } }
+    </style>
+  </defs>
+
+  <rect width="1400" height="700" fill="url(#bg)"/>
+  <rect x="25" y="25" width="1350" height="650" rx="16" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
+  <rect x="25" y="25" width="1350" height="6" rx="3" fill="#10b981" opacity="0.9"/>
+  
+  <g transform="translate(700, 65)" text-anchor="middle">
+    <text class="title">预测性维护：振动趋势分析与故障预警系统</text>
+    <text y="24" class="subtitle">高级纵向四级对称栅格化排版 · 决策管道数据横向纯直连无交错流转</text>
+  </g>
+
+  <g transform="translate(70, 0)">
+    <rect x="0" y="130" width="260" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="260" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="260" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#059669">■ 工业现场传感器采集</text>
+
+    <g transform="translate(15, 175)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#059669" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#10b981"/>
+      <text x="20" y="28" class="lbl">设备振动检测节点</text>
+      <text x="20" y="48" class="code">Metric: vib_rms = 4.8 mm/s</text>
+      <rect x="165" y="12" width="50" height="18" rx="4" fill="#fef3c7"/>
+      <text x="190" y="25" text-anchor="middle" fill="#b45309" font-size="10" font-weight="bold">WARN</text>
+    </g>
+
+    <g transform="translate(15, 285)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#059669" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#10b981"/>
+      <text x="20" y="28" class="lbl">轴承实时红外温度</text>
+      <text x="20" y="48" class="code">Param: bearing_temp = 68℃</text>
+    </g>
+
+    <g transform="translate(15, 395)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#059669" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#10b981"/>
+      <text x="20" y="28" class="lbl">主轴累计运转寿命</text>
+      <text x="20" y="48" class="code">Status: runtime = 4820 h</text>
+    </g>
+
+    <g transform="translate(15, 505)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#059669" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#10b981"/>
+      <text x="20" y="28" class="lbl">高频原始波形特征</text>
+      <text x="20" y="48" class="code">Config: sample_rate = 10kHz</text>
+    </g>
+  </g>
+
+
+  <path d="M 330 210 H 490" stroke="#059669" stroke-width="2" marker-end="url(#arrow-emerald)" class="dash-line"/>
+  <path d="M 330 320 H 490" stroke="#059669" stroke-width="2" marker-end="url(#arrow-emerald)" class="dash-line"/>
+  <path d="M 330 430 H 490" stroke="#059669" stroke-width="2" marker-end="url(#arrow-emerald)" class="dash-line"/>
+  <path d="M 330 540 H 490" stroke="#059669" stroke-width="2" marker-end="url(#arrow-emerald)" class="dash-line"/>
+
+  <circle r="4" fill="#10b981"><animateMotion dur="1.5s" repeatCount="indefinite" path="M 330 210 H 490"/></circle>
+  <circle r="4" fill="#10b981"><animateMotion dur="2.1s" repeatCount="indefinite" path="M 330 320 H 490"/></circle>
+  <circle r="4" fill="#10b981"><animateMotion dur="1.4s" repeatCount="indefinite" path="M 330 430 H 490"/></circle>
+  <circle r="4" fill="#10b981"><animateMotion dur="1.8s" repeatCount="indefinite" path="M 330 540 H 490"/></circle>
+
+
+  <g transform="translate(490, 0)">
+    <rect x="0" y="130" width="420" height="510" rx="14" fill="#ffffff" stroke="#059669" stroke-width="2" stroke-dasharray="8 5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="420" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="420" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#047857">■ 边缘分析与故障判定引擎</text>
+
+    <g transform="translate(25, 175)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-emerald)" stroke="#059669" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">动态发展趋势自适应评估</text>
+      <text x="25" y="50" class="code">Rule: If vib_rms &gt; baseline * 1.12 (Trend ↑ 12%)</text>
+    </g>
+
+    <g transform="translate(25, 285)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-sky)" stroke="#0284c7" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">多元工况设备健康指数退化建模</text>
+      <text x="25" y="50" class="code">Calculation: Current health_score = 72 / 100</text>
+    </g>
+
+    <g transform="translate(25, 395)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-amber)" stroke="#d97706" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">剩余寿命 (RUL) 预测判定</text>
+      <text x="25" y="50" class="code">Predict: RUL &lt; 168h (剩余可用时间小于7天)</text>
+    </g>
+
+    <g transform="translate(25, 505)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-orange)" stroke="#ea580c" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">主动决策式维修工单闭环触发</text>
+      <text x="25" y="50" class="code">Dispatch: Trigger Auto Work Order → CMMS</text>
+    </g>
+  </g>
+
+
+  <path d="M 910 210 H 1050" stroke="#059669" stroke-width="2" marker-end="url(#arrow-emerald)"/>
+  <path d="M 910 320 H 1050" stroke="#059669" stroke-width="2" marker-end="url(#arrow-emerald)"/>
+  <path d="M 910 430 H 1050" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  <path d="M 910 540 H 1050" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-amber)"/>
+
+  <circle r="3.5" fill="#10b981"><animateMotion dur="1.2s" repeatCount="indefinite" path="M 910 210 H 1050"/></circle>
+  <circle r="3.5" fill="#10b981"><animateMotion dur="1.6s" repeatCount="indefinite" path="M 910 320 H 1050"/></circle>
+  <circle r="3.5" fill="#f59e0b"><animateMotion dur="1.1s" repeatCount="indefinite" path="M 910 430 H 1050"/></circle>
+  <circle r="3.5" fill="#f59e0b"><animateMotion dur="1.4s" repeatCount="indefinite" path="M 910 540 H 1050"/></circle>
+
+
+  <g transform="translate(1050, 0)">
+    <rect x="0" y="130" width="280" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="280" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="280" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#1f2937">■ 监控应用与安全响应</text>
+
+    <g transform="translate(15, 175)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl">边缘设备实时健康度</text>
+      <text x="15" y="52" class="val" fill="#059669">72 <tspan class="unit">/ 100 分</tspan></text>
+      <rect x="175" y="22" width="60" height="32" rx="4" fill="#f0fdf4"/>
+      <polyline points="180,44 192,34 204,40 216,28 228,32 232,25" fill="none" stroke="#10b981" stroke-width="1.5"/>
+    </g>
+
+    <g transform="translate(15, 285)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl">北向云端消息分发</text>
+      <text x="15" y="48" class="code" fill="#2563eb">MQTT → MQTT://Cloud_CMMS</text>
+    </g>
+
+    <g transform="translate(15, 395)">
+      <rect width="250" height="70" rx="10" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl" fill="#c2410c">实时故障智能诊断结论</text>
+      <text x="15" y="48" class="code" fill="#b45309">Warning: 轴承机械疲劳早期风险</text>
+    </g>
+
+    <g transform="translate(15, 505)">
+      <rect width="250" height="70" rx="10" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl" fill="#9a3412">企业资产管理平台接单</text>
+      <text x="15" y="48" class="code" fill="#ea580c">WO-2026-0142 Ticket Created</text>
+    </g>
+  </g>
+</svg>

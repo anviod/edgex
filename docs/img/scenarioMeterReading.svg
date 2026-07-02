@@ -1,164 +1,181 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="1400" height="700" viewBox="0 0 1400 700" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <clipPath id="clip_meter_a"><rect width="200" height="70"/></clipPath>
-    <clipPath id="clip_meter_b"><rect width="200" height="70"/></clipPath>
-    <clipPath id="clip_meter_c"><rect width="200" height="70"/></clipPath>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.05"/>
+    </filter>
     
-    <style>
-      .bg-main { fill: #ffffff; stroke: #1e293b; stroke-width: 2; }
-      .bg-container { fill: #f8fafc; stroke: #64748b; stroke-width: 1.5; stroke-dasharray: 4, 4; }
-      
-      /* Outline Style Components */
-      .node-elec { fill: #ffffff; stroke: #0f766e; stroke-width: 2; }
-      .node-water { fill: #ffffff; stroke: #0284c7; stroke-width: 2; }
-      .node-gas { fill: #ffffff; stroke: #4f46e5; stroke-width: 2; }
-      
-      .text-title { fill: #0f172a; font-family: 'Segoe UI', -apple-system, sans-serif; font-weight: 700; font-size: 18px; letter-spacing: 1px; }
-      .text-subtitle { fill: #334155; font-family: 'Segoe UI', sans-serif; font-weight: 600; font-size: 13px; }
-      .text-body { fill: #334155; font-family: sans-serif; font-size: 12px; }
-      .text-code { fill: #475569; font-family: Consolas, 'Courier New', monospace; font-size: 11px; }
-      
-      /* Flow Lines - Pure Linear, No Interferences */
-      .flow-line { fill: none; stroke-width: 2; marker-end: url(#arrowhead); }
-      .flow-line-active { stroke-dasharray: 6, 4; animation: dash 30s linear infinite; }
-      @keyframes dash { to { stroke-dashoffset: -1000; } }
-      
-      .scan-bar { stroke-dasharray: 6 4; animation: scan 3s linear infinite; }
-      @keyframes scan { to { stroke-dashoffset: -20; } }
-    </style>
+    <linearGradient id="grad-teal" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#ccfbf1"/><stop offset="100%" stop-color="#f0fdf4"/></linearGradient>
+    <linearGradient id="grad-sky" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#e0f2fe"/><stop offset="100%" stop-color="#f0f9ff"/></linearGradient>
+    <linearGradient id="grad-indigo" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#e0e7ff"/><stop offset="100%" stop-color="#eef2ff"/></linearGradient>
+    <linearGradient id="grad-slate" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#e2e8f0"/><stop offset="100%" stop-color="#f8fafc"/></linearGradient>
 
-    <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerUnits="strokeWidth" markerWidth="5" height="5" orient="auto">
-      <path d="M 0 1 L 9 5 L 0 9 Z" fill="#1e293b"/>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#0f766e"/>
     </marker>
+    <marker id="arrow-sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#0284c7"/>
+    </marker>
+    <marker id="arrow-indigo" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#4f46e5"/>
+    </marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 1.5 L8 5 L0 8.5 Z" fill="#1e293b"/>
+    </marker>
+
+    <style>
+      .title { fill:#0f172a; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:800; font-size:22px; letter-spacing:1px; }
+      .subtitle { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:13px; font-weight:400; }
+      .group-title { font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-weight:700; font-size:14px; letter-spacing:1px; }
+      .lbl { fill:#1e293b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:14px; font-weight:600; }
+      .code { fill:#475569; font-family:'Consolas','Courier New',monospace; font-size:11px; }
+      .val { fill:#0f172a; font-family:'Segoe UI',sans-serif; font-weight:800; font-size:24px; }
+      .unit { fill:#64748b; font-size:13px; font-weight:500; }
+      .chart-lbl { fill:#64748b; font-family:'Segoe UI','Microsoft YaHei',sans-serif; font-size:11px; font-weight:600; }
+      .dash-line { stroke-dasharray: 6 4; animation: march 1.5s linear infinite; }
+      @keyframes march { to { stroke-dashoffset: -20; } }
+    </style>
   </defs>
 
-  <rect width="1340" height="640" x="30" y="30" class="bg-main"/>
-  <text x="700" y="70" text-anchor="middle" class="text-title">设备联合抄表：电能表批量采集、能耗统计</text>
-
-  <g id="logic-connections">
-    <path id="wire_elec" d="M 260 197.5 H 580" class="flow-line flow-line-active" style="stroke: #0f766e;"/>
-    <path id="wire_water" d="M 260 322.5 H 580" class="flow-line flow-line-active" style="stroke: #0284c7;"/>
-    <path id="wire_gas" d="M 260 447.5 H 580" class="flow-line flow-line-active" style="stroke: #4f46e5;"/>
-    
-    <path id="wire_report" d="M 980 322.5 H 1050" class="flow-line flow-line-active" style="stroke: #0f172a;"/>
+  <rect width="1400" height="700" fill="url(#bg)"/>
+  <rect x="25" y="25" width="1350" height="650" rx="16" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
+  <rect x="25" y="25" width="1350" height="6" rx="3" fill="#0f766e" opacity="0.9"/>
+  
+  <g transform="translate(700, 65)" text-anchor="middle">
+    <text class="title">多能流智能联合抄表：全品类计量批处理采集与能耗可视化统计系统</text>
+    <text y="24" class="subtitle">Edgex 边缘计算网关 · 采集解耦管道横向单条直线全对齐零交叉流转</text>
   </g>
 
-  <g transform="translate(80, 120)">
-    <rect width="180" height="490" class="bg-container"/>
-    <text x="90" y="-15" text-anchor="middle" class="text-subtitle">[ 1. 终端表计层 ]</text>
-    
-    <g transform="translate(0, 20)">
-      <rect width="180" height="115" class="node-elec"/>
-      <circle cx="40" cy="45" r="20" fill="none" stroke="#0f766e" stroke-width="1.5"/>
-      <line x1="40" y1="45" x2="40" y2="32" stroke="#0f766e" stroke-width="2"/>
-      <line x1="40" y1="45" x2="52" y2="50" stroke="#0f766e" stroke-width="1.5"/>
-      <text x="75" y="50" class="text-subtitle">电表 × N</text>
-      <rect x="15" y="85" width="150" height="18" fill="#f1f5f9" stroke="#0f766e" stroke-width="1"/>
-      <text x="90" y="98" text-anchor="middle" class="text-code">DL/T 645-2007</text>
+  <g transform="translate(70, 0)">
+    <rect x="0" y="130" width="260" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="260" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="260" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#0f766e">■ 终端多源表计硬件层</text>
+
+    <g transform="translate(15, 175)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#0f766e" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#0f766e"/>
+      <text x="20" y="28" class="lbl">智能电能表运行阵列 (×N)</text>
+      <text x="20" y="48" class="code">Protocol: DL/T 645-2007</text>
     </g>
 
-    <g transform="translate(0, 145)">
-      <rect width="180" height="115" class="node-water"/>
-      <path d="M40 30 Q48 45 40 60 Q32 45 40 30" fill="none" stroke="#0284c7" stroke-width="1.5"/>
-      <text x="75" y="50" class="text-subtitle">水表 × N</text>
-      <rect x="15" y="85" width="150" height="18" fill="#f1f5f9" stroke="#0284c7" stroke-width="1"/>
-      <text x="90" y="98" text-anchor="middle" class="text-code">Modbus-RTU</text>
+    <g transform="translate(15, 285)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#0284c7" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#0284c7"/>
+      <text x="20" y="28" class="lbl">工业数字水表阵列 (×N)</text>
+      <text x="20" y="48" class="code">Protocol: Modbus-RTU</text>
     </g>
 
-    <g transform="translate(0, 270)">
-      <rect width="180" height="115" class="node-gas"/>
-      <rect x="25" y="33" width="30" height="24" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
-      <line x1="25" y1="45" x2="55" y2="45" stroke="#4f46e5" stroke-width="1"/>
-      <text x="75" y="50" class="text-subtitle">气表 × N</text>
-      <rect x="15" y="85" width="150" height="18" fill="#f1f5f9" stroke="#4f46e5" stroke-width="1"/>
-      <text x="90" y="98" text-anchor="middle" class="text-code">Modbus-RTU</text>
-    </g>
-  </g>
-
-  <g transform="translate(580, 120)">
-    <rect width="400" height="490" class="bg-container"/>
-    <text x="200" y="-15" text-anchor="middle" class="text-subtitle">[ 2. ScanEngine 核心引擎 ]</text>
-
-    <g transform="translate(20, 20)">
-      <rect width="360" height="50" fill="#ffffff" stroke="#1e293b" stroke-width="1.5"/>
-      <circle cx="40" cy="25" r="14" fill="none" stroke="#1e293b" stroke-width="1.5"/>
-      <polyline points="40,16 40,25 48,25" fill="none" stroke="#1e293b" stroke-width="1.5"/>
-      <text x="70" y="30" class="text-subtitle">调度策略 (Cron):</text>
-      <text x="200" y="30" class="text-code" style="font-weight: bold; font-size: 13px;">0 0 * * * (每日定时轮询)</text>
+    <g transform="translate(15, 395)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#4f46e5" stroke-width="1.5"/>
+      <rect width="6" height="70" rx="3" fill="#4f46e5"/>
+      <text x="20" y="28" class="lbl">燃气管道流量计阵列 (×N)</text>
+      <text x="20" y="48" class="code">Protocol: Modbus-RTU / Gas</text>
     </g>
 
-    <g transform="translate(100, 110)">
-      <rect width="200" height="70" class="node-elec"/>
-      <rect width="200" height="20" fill="#f0fdf4" stroke="#0f766e" stroke-width="1"/>
-      <text x="100" y="15" text-anchor="middle" class="text-subtitle" style="font-size: 11px;">1. 批量数据采集</text>
-      <text x="100" y="45" text-anchor="middle" class="text-code">物理层通信 &#183; CRC校验</text>
-    </g>
-
-    <path d="M 200 180 V 235" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-
-    <g transform="translate(100, 235)">
-      <rect width="200" height="70" class="node-water"/>
-      <rect width="200" height="20" fill="#e0f2fe" stroke="#0284c7" stroke-width="1"/>
-      <text x="100" y="15" text-anchor="middle" class="text-subtitle" style="font-size: 11px;">2. 异常识别与校验</text>
-      <text x="100" y="45" text-anchor="middle" class="text-code">阈值过滤 &#183; 自动重试</text>
-    </g>
-
-    <path d="M 200 305 V 360" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-
-    <g transform="translate(100, 360)">
-      <rect width="200" height="70" class="node-gas"/>
-      <rect width="200" height="20" fill="#e0e7ff" stroke="#4f46e5" stroke-width="1"/>
-      <text x="100" y="15" text-anchor="middle" class="text-subtitle" style="font-size: 11px;">3. 写入 ShadowCore</text>
-      <text x="100" y="45" text-anchor="middle" class="text-code">状态机同步 &#183; 历史归档</text>
-    </g>
-
-    <g transform="translate(20, 445)">
-      <rect x="0" y="0" width="360" height="6" fill="#e2e8f0"/>
-      <line x1="0" y1="3" x2="240" y2="3" stroke="#475569" stroke-width="6" class="scan-bar"/>
-      <text x="180" y="28" text-anchor="middle" class="text-code">核心参数: 10ms 高频 Tick | PriorityQueue 实时调度</text>
+    <g transform="translate(15, 505)">
+      <rect width="230" height="70" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.2"/>
+      <rect width="6" height="70" rx="3" fill="#64748b"/>
+      <text x="20" y="28" class="lbl">厂区管道蒸汽热能表 (×N)</text>
+      <text x="20" y="48" class="code">Protocol: M-Bus / Standard</text>
     </g>
   </g>
 
-  <g transform="translate(1050, 120)">
-    <rect width="260" height="490" class="bg-container"/>
-    <text x="130" y="-15" text-anchor="middle" class="text-subtitle">[ 3. 能耗数据业务层 ]</text>
-    
-    <g transform="translate(15, 45)">
-      <rect width="230" height="195" fill="#ffffff" stroke="#0f172a" stroke-width="1.5"/>
-      <text x="15" y="25" class="text-subtitle" style="font-size:12px;">累计总电量 (kWh)</text>
-      <text x="15" y="60" fill="#0f172a" font-family="Consolas, monospace" font-weight="bold" font-size="28px">12,480.00</text>
-      
-      <g transform="translate(15, 80)">
-        <rect x="0" y="40" width="22" height="40" fill="#cbd5e1" stroke="#475569"/>
-        <rect x="30" y="25" width="22" height="55" fill="#cbd5e1" stroke="#475569"/>
-        <rect x="60" y="35" width="22" height="45" fill="#cbd5e1" stroke="#475569"/>
-        <rect x="90" y="10" width="22" height="70" fill="#cbd5e1" stroke="#475569"/>
-        <rect x="120" y="15" width="22" height="65" fill="#cbd5e1" stroke="#475569"/>
-        <rect x="150" y="5" width="22" height="75" fill="#475569"/>
-        <text x="0" y="95" class="text-code" style="font-size:10px;">近7日能耗计量趋势</text>
+
+  <path d="M 330 210 H 490" stroke="#0f766e" stroke-width="2" marker-end="url(#arrow-teal)" class="dash-line"/>
+  <path d="M 330 320 H 490" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow-sky)" class="dash-line"/>
+  <path d="M 330 430 H 490" stroke="#4f46e5" stroke-width="2" marker-end="url(#arrow-indigo)" class="dash-line"/>
+  <path d="M 330 540 H 490" stroke="#64748b" stroke-width="1.5" class="dash-line"/>
+
+  <circle r="4" fill="#0f766e"><animateMotion dur="1.3s" repeatCount="indefinite" path="M 330 210 H 490"/></circle>
+  <circle r="4" fill="#0284c7"><animateMotion dur="1.0s" repeatCount="indefinite" path="M 330 320 H 490"/></circle>
+  <circle r="4" fill="#4f46e5"><animateMotion dur="1.6s" repeatCount="indefinite" path="M 330 430 H 490"/></circle>
+  <circle r="4" fill="#64748b"><animateMotion dur="1.4s" repeatCount="indefinite" path="M 330 540 H 490"/></circle>
+
+
+  <g transform="translate(490, 0)">
+    <rect x="0" y="130" width="420" height="510" rx="14" fill="#ffffff" stroke="#0f766e" stroke-width="2" stroke-dasharray="8 5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="420" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="420" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#0f766e">■ ScanEngine 高并发排队轮询核心</text>
+
+    <g transform="translate(25, 175)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-teal)" stroke="#0f766e" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">高并发多线程批量循环抄表驱动</text>
+      <text x="25" y="50" class="code">Engine: Cron [0 0 * * *] | 10ms High-Precision Tick</text>
+    </g>
+
+    <g transform="translate(25, 285)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-sky)" stroke="#0284c7" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">通信链路CRC安全校验与坏点拦截</text>
+      <text x="25" y="50" class="code">Validator: PriorityQueue Schedule &amp; Auto-Retry Mech</text>
+    </g>
+
+    <g transform="translate(25, 395)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-indigo)" stroke="#4f46e5" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">数据状态机同步及虚拟物模型写入</text>
+      <text x="25" y="50" class="code">Storage: Commit to Virtual ShadowCore &amp; Archiving</text>
+    </g>
+
+    <g transform="translate(25, 505)">
+      <rect width="370" height="70" rx="10" fill="url(#grad-slate)" stroke="#64748b" stroke-width="1.5"/>
+      <text x="25" y="28" class="lbl">多能流交叉碳排因子归一化清洗</text>
+      <text x="25" y="50" class="code">Pipeline: Aggregation Engine -> Real-time Statistics</text>
+    </g>
+  </g>
+
+
+  <path d="M 910 210 H 1050" stroke="#1e293b" stroke-width="2" marker-end="url(#arrow-slate)"/>
+  <path d="M 910 320 H 1050" stroke="#1e293b" stroke-width="2" marker-end="url(#arrow-slate)"/>
+  <path d="M 910 430 H 1050" stroke="#1e293b" stroke-width="2" marker-end="url(#arrow-slate)"/>
+  <path d="M 910 540 H 1050" stroke="#1e293b" stroke-width="2" marker-end="url(#arrow-slate)"/>
+
+  <circle r="3.5" fill="#334155"><animateMotion dur="1.2s" repeatCount="indefinite" path="M 910 210 H 1050"/></circle>
+  <circle r="3.5" fill="#334155"><animateMotion dur="1.5s" repeatCount="indefinite" path="M 910 320 H 1050"/></circle>
+  <circle r="3.5" fill="#334155"><animateMotion dur="1.1s" repeatCount="indefinite" path="M 910 430 H 1050"/></circle>
+  <circle r="3.5" fill="#334155"><animateMotion dur="1.4s" repeatCount="indefinite" path="M 910 540 H 1050"/></circle>
+
+
+  <g transform="translate(1050, 0)">
+    <rect x="0" y="130" width="280" height="510" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect x="0" y="130" width="280" height="40" rx="14" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="0" y="155" width="280" height="15" fill="#f8fafc"/>
+    <text x="20" y="156" class="group-title" fill="#1e293b">■ 综合能源大脑数据视窗</text>
+
+    <g transform="translate(15, 175)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#0f766e" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl">近7日累计总供电量统计</text>
+      <text x="15" y="52" class="val" fill="#0f766e">12,480.00 <tspan class="unit">kWh</tspan></text>
+    </g>
+
+    <g transform="translate(15, 285)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#1e293b" stroke-width="1.5"/>
+      <text x="15" y="22" class="chart-lbl">多品类能耗归一化计量趋势</text>
+      <g transform="translate(15, 30)" opacity="0.85">
+        <rect x="10" y="15" width="16" height="20" fill="#cbd5e1"/>
+        <rect x="35" y="8" width="16" height="27" fill="#cbd5e1"/>
+        <rect x="60" y="12" width="16" height="23" fill="#cbd5e1"/>
+        <rect x="85" y="4" width="16" height="31" fill="#cbd5e1"/>
+        <rect x="110" y="0" width="16" height="35" fill="#475569"/>
+        <path d="M 18 15 L 43 8 L 68 12 L 93 4 L 118 0" fill="none" stroke="#0f766e" stroke-width="1.5"/>
       </g>
+      <text x="160" y="48" class="code" style="font-size:10px;">Data: Normal</text>
     </g>
 
-    <g transform="translate(15, 275)">
-      <rect width="230" height="180" fill="#ffffff" stroke="#0f172a" stroke-width="1.5"/>
-      <text x="15" y="30" class="text-subtitle">报表自动化配置</text>
-      
-      <rect x="15" y="50" width="100" height="28" fill="#f8fafc" stroke="#475569" stroke-width="1"/>
-      <text x="65" y="68" text-anchor="middle" class="text-code" style="font-weight: bold;">.CSV / .XLSX</text>
-      
-      <rect x="125" y="50" width="90" height="28" fill="#f1f5f9" stroke="#0f766e" stroke-width="1"/>
-      <text x="170" y="68" text-anchor="middle" class="text-code" style="fill:#0f766e; font-weight: bold;">自动同步</text>
-      
-      <line x1="15" y1="105" x2="215" y2="105" stroke="#cbd5e1" stroke-width="1"/>
-      
-      <text x="15" y="130" class="text-code">系统状态: 运行正常</text>
-      <text x="15" y="150" class="text-code">异常计次: 0 (无通信丢包)</text>
+    <g transform="translate(15, 395)">
+      <rect width="250" height="70" rx="10" fill="#ffffff" stroke="#0284c7" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl">能耗分析自动报表中心</text>
+      <text x="15" y="50" class="code" fill="#0284c7">Output: Auto CSV / XLSX Sync</text>
+    </g>
+
+    <g transform="translate(15, 505)">
+      <rect width="250" height="70" rx="10" fill="url(#grad-slate)" stroke="#cbd5e1" stroke-width="1.5"/>
+      <text x="15" y="24" class="chart-lbl" fill="#1e293b">企业碳资产管理系统 (EMS)</text>
+      <text x="15" y="48" class="code" fill="#475569">Status: Packet Loss Rate 0.00%</text>
     </g>
   </g>
-
-  <circle r="4" fill="#0f766e"><animateMotion dur="4s" repeatCount="indefinite"><mpath href="#wire_elec"/></animateMotion></circle>
-  <circle r="4" fill="#0284c7"><animateMotion dur="3.5s" repeatCount="indefinite"><mpath href="#wire_water"/></animateMotion></circle>
-  <circle r="4" fill="#4f46e5"><animateMotion dur="4.5s" repeatCount="indefinite"><mpath href="#wire_gas"/></animateMotion></circle>
-  <circle r="4" fill="#0f172a"><animateMotion dur="2.5s" repeatCount="indefinite"><mpath href="#wire_report"/></animateMotion></circle>
 </svg>
