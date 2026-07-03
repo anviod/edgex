@@ -11,6 +11,10 @@
 
 ## 1. 新架构约束（所有 TODO 文档必须对齐）
 
+> **工程铁律：** 任何性能优化不得以牺牲稳定性为代价；任何架构优化不得增加系统恢复复杂度。
+
+> 战略文档：[开发原则与验收标准](../DEVELOPMENT_PRINCIPLES.html) · [分阶段路线图](../ROADMAP.html) · [版本发布门禁](../RELEASE_GATE.html)
+
 ```text
 config.db → ChannelManager → ScanEngine → ExecutionLayer → Driver.ReadPoints
                                     ↓

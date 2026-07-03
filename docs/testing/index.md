@@ -21,6 +21,11 @@ hero_buttons:
 
 ## 目录
 
+### 发布与验收
+- [版本发布门禁](../RELEASE_GATE.html) — 稳定性 / 工业验证 / 性能 / 轻量化四道门禁
+- [CI 与发布门禁对照](CI与发布门禁对照.html) — 文档门禁 vs 当前 GitHub Actions / Makefile 覆盖差距
+- [开发原则与验收标准](../DEVELOPMENT_PRINCIPLES.html) — 量化验收标准
+
 ### 测试计划
 - [测试矩阵](test_matrix.html)
 - [验收测试](acceptance_test.html)
@@ -36,6 +41,7 @@ hero_buttons:
 
 ### 验证报告
 - [验证报告](VERIFICATION_REPORT.html)
+- [工业验证测试报告模板](工业验证测试报告模板.html) — Phase 2 各协议联机验证统一模板（G-Industrial）
 
 ### 南向驱动测试
 - [南向驱动测试报告](南向驱动测试报告.html) — 单元测试、性能基准、边界场景矩阵（2026-06-27）
