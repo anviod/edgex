@@ -177,3 +177,42 @@ Phase 4  轻量化与可观测 ─────────────► HTTP/U
 2. **启动 Phase 2 队列**：Modbus / OPC UA / S7 联机报告优先
 3. **Phase 3 仅做已通过 gate 的优化**：Object Pool、zero-alloc 热路径
 4. **Phase 4 与运维并行**：diagnostics UI、sla_warnings 日志联动
+
+---
+
+## 当前状态（2026-07）
+
+> Q3 任务分解见 [Q3 采集优化方案]([TODO]边缘计算南向采集优化方案2026第三季度.html)。
+
+### 主体交付完成
+
+EdgeX **调度驱动南向采集内核**主体已交付：
+
+```text
+ScanEngine 统一调度 → ExecutionLayer 硬隔离/背压 → Driver 纯执行
+    → ShadowCore 运行时快照 → ShadowBridge/Pipeline 扇出 → WebSocket/REST 读影子
+```
+
+工业网关骨架已具备：多协议、防饿死、背压、ConnectionManager 统一重连（Modbus/DLT645 等已迁移）。
+
+与 [架构总览 Phase 1](edge/边缘网关架构设计总览.html#phase-1--统一数据面p0-largely-)（统一数据面）一致：**largely ✅**。
+
+### 与 Kepware 级工业标准的核心差距
+
+| # | 差距 | 关联 Phase / 包 |
+|---|------|-----------------|
+| 1 | **画像与读路径未闭环** — RTT/MTU/Gap 未驱动 ExecutionLayer 块读分片 | Phase 3 · Q3-B |
+| 2 | **部分 Driver 重连待迁移** — OpcUa/ENIP 尚未完全接入 ConnectionManager single-flight | Phase 1 连接 Owner |
+| 3 | **Scan Class 与可观测 SLA** — 代码已支持多 Class，产品化与调度指标验收仍在 Q3 | Phase 2 · Q3-A/B |
+| 4 | **四阶段灰度运维验证** — 熔断、72h 长跑、DRY_RUN 双跑等待生产确认 | ScanEngine 重构方案 §9 |
+
+**稳定性优先**：Q3 性能项（块读、RTT 闭环、万 Tag 压测）在 Phase A 数据面稳定与 Phase B 调度 SLA 基线之上推进，不跳过发布门禁。详见 [SLA 评估](TODO/SLA评估.html)。
+
+### Q3 最高优先级
+
+| 序 | 项 | 说明 |
+|----|-----|------|
+| 1 | **Q3-B** Gap → Modbus 读路径 | ExecutionLayer 读前分片，画像消费闭环 |
+| 2 | ScanEngine → RTT 画像闭环 | Execute 后 `UpdateDeviceRTT`，驱动动态超时 |
+| 3 | 万 Tag 压测 | 1w Tag 基线报告（`docs/testing/Q3_10k_tag_benchmark_2026Q3.md`） |
+| 4 | OpcUa 重连统一 | 接入 ConnectionManager single-flight |
