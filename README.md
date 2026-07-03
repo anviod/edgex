@@ -297,6 +297,10 @@ CGO_ENABLED=0 go test ./internal/core/... -count=1 -cover
 
 ---
 
+## 分支与协作
+
+日常开发在 **`dev`** 分支进行；功能与修复 PR 请以 **`dev`** 为合并目标。`main` 保留为稳定发布线，由维护者从 `dev` 按需合并。
+
 ## 快速开始（开发）
 
 ```bash
