@@ -49,6 +49,7 @@ type ChannelManager struct {
 	topologyChangeHandler func()
 	tagRegistry           *TagRegistry
 	pointDegradation      *PointDegradationManager
+	soakMonitor           *SoakMonitor
 }
 
 func NewChannelManager(pipeline *DataPipeline, saveFunc func([]model.Channel) error) *ChannelManager {
@@ -84,6 +85,8 @@ func NewChannelManager(pipeline *DataPipeline, saveFunc func([]model.Channel) er
 	cm.scanEngineAdapter.scanEngine.SetPointDegradation(cm.pointDegradation)
 	cm.scanEngineAdapter.scanEngine.SetIOProfileProvider(cm.deviceIOProfile)
 	cm.scanEngineAdapter.scanEngine.SetCircuitBreakerEventHandler(cm.recordCircuitBreakerEvent)
+	cm.soakMonitor = NewSoakMonitor(cm)
+	cm.soakMonitor.Start()
 
 	// Wire state manager events
 	cm.stateManager.OnStateChange = func(deviceID string, oldState, newState NodeState) {

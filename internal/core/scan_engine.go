@@ -1094,6 +1094,12 @@ func (se *ScanEngine) UpdateTaskPriority(deviceKey string, priority int) {
 	}
 }
 
+func (se *ScanEngine) IsRunning() bool {
+	se.mu.RLock()
+	defer se.mu.RUnlock()
+	return se.running
+}
+
 func (se *ScanEngine) GetActiveTaskCount() int {
 	se.mu.RLock()
 	defer se.mu.RUnlock()

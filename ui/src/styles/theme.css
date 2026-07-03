@@ -7,7 +7,11 @@
   /* ── v3.0 core tokens ── */
   --bg: #ffffff;
   --surface: #f8fafc;
+  --surface-1: #f1f5f9;
   --surface-2: #f1f5f9;
+
+  /* shell chrome shares page canvas */
+  --shell-bg: var(--surface);
 
   --border: rgba(15, 23, 42, 0.08);
   --border-hover: rgba(15, 23, 42, 0.12);
@@ -87,7 +91,10 @@
 .dark-theme {
   --bg: #1e293b;
   --surface: #0f172a;
+  --surface-1: #1e293b;
   --surface-2: #334155;
+
+  --shell-bg: var(--surface);
 
   --border: rgba(255, 255, 255, 0.08);
   --border-hover: rgba(255, 255, 255, 0.12);
@@ -149,7 +156,7 @@
 
 /* ── dark: pages & cards ── */
 .dark-theme .page-shell {
-  background: var(--surface);
+  background: var(--shell-bg);
   color: var(--text-primary);
 }
 

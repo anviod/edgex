@@ -92,6 +92,13 @@ type ModbusTransport struct {
 	reconnectCount     atomic.Int32
 	localAddr          string
 	remoteAddr         string
+
+	readRegistersHook     func(ctx context.Context, regType string, offset uint16, count uint16) ([]byte, error)
+	readCoilHook          func(ctx context.Context, offset uint16) (bool, error)
+	readDiscreteInputHook func(ctx context.Context, offset uint16) (bool, error)
+	writeRegisterHook     func(ctx context.Context, offset uint16, value uint16) error
+	writeRegistersHook    func(ctx context.Context, offset uint16, values []uint16) error
+	writeCoilHook         func(ctx context.Context, offset uint16, value bool) error
 }
 
 // SetMetricsRecorder 设置指标收集器

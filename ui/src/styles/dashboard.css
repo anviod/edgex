@@ -1,0 +1,284 @@
+/*
+ * Dashboard — visual hierarchy (primary / secondary / tertiary)
+ */
+
+/* ── compact page flow (no separate page header) ── */
+.dashboard-page.page-shell {
+  gap: var(--space-6);
+}
+
+/* ── status chips (used in soak panel header) ── */
+.soak-panel__status-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.dashboard-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--bg);
+  color: var(--text-secondary);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.dashboard-status-chip .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.dashboard-status-chip.is-online {
+  border-color: rgba(22, 163, 74, 0.35);
+  color: var(--edgex-success);
+  background: rgba(22, 163, 74, 0.05);
+}
+
+.dashboard-status-chip.is-online .status-dot {
+  background: var(--edgex-success);
+}
+
+.dashboard-status-chip.is-offline {
+  border-color: rgba(220, 38, 38, 0.35);
+  color: var(--edgex-error);
+  background: rgba(220, 38, 38, 0.05);
+}
+
+.dashboard-status-chip.is-offline .status-dot {
+  background: var(--edgex-error);
+}
+
+.dashboard-status-chip.is-neutral {
+  color: var(--text-secondary);
+}
+
+.dashboard-status-chip.is-neutral .status-dot {
+  background: var(--text-tertiary);
+}
+
+/* ── zones ── */
+.dashboard-zone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dashboard-zone-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.dashboard-zone-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.dashboard-zone-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.dashboard-zone--primary {
+  gap: 0;
+}
+
+.dashboard-zone--primary .soak-panel {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  gap: var(--space-5);
+}
+
+/* ── compact system stats (secondary) ── */
+.dashboard-page .stats-grid--compact {
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+.dashboard-page .stats-grid--compact .stat-card {
+  padding: var(--space-4) var(--space-5);
+}
+
+.dashboard-page .stats-grid--compact .stat-value {
+  font-size: 20px;
+  margin-bottom: var(--space-2);
+}
+
+.dashboard-page .stats-grid--compact .stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── tertiary: blends with page shell (channels / northbound / edge) ── */
+.dashboard-zone--tertiary {
+  gap: var(--space-8);
+}
+
+.dashboard-tertiary-block {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.dashboard-tertiary-block .section {
+  gap: var(--space-5);
+}
+
+.dashboard-tertiary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: stretch;
+}
+
+.dashboard-tertiary-row > .dashboard-tertiary-block {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dashboard-tertiary-row > .dashboard-tertiary-block > .section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Inner cards — surface-1 elevation (matches soak-card) */
+.dashboard-zone--tertiary .channel-card,
+.dashboard-zone--tertiary .northbound-card,
+.dashboard-zone--tertiary .edge-compute-card {
+  background: var(--surface-1) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+}
+
+.dashboard-zone--tertiary .channel-card:hover,
+.dashboard-zone--tertiary .northbound-card:hover,
+.dashboard-zone--tertiary .edge-compute-card:hover {
+  border-color: rgba(14, 165, 233, 0.2) !important;
+  transform: translateY(-1px);
+}
+
+.dashboard-zone--tertiary .empty-card {
+  background: transparent !important;
+  border: 1px dashed var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+}
+
+.dashboard-zone--tertiary .channel-icon,
+.dashboard-zone--tertiary .quality-score,
+.dashboard-zone--tertiary .channel-metrics,
+.dashboard-zone--tertiary .status-badge:not(.online):not(.offline):not(.disabled) {
+  background: var(--bg);
+}
+
+.dashboard-tertiary-block--channels .channel-card {
+  padding: var(--space-4) var(--space-5);
+}
+
+/* Shared tertiary card body — northbound + edge compute */
+.dashboard-tertiary-block--northbound .northbound-grid,
+.dashboard-tertiary-block--edge .edge-compute-card {
+  flex: 1;
+}
+
+.dashboard-tertiary-block--northbound .northbound-grid {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-4);
+  align-items: stretch;
+}
+
+.dashboard-tertiary-block--northbound .northbound-card,
+.dashboard-tertiary-block--edge .edge-compute-card {
+  padding: var(--space-4) var(--space-5);
+  min-height: 132px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.dashboard-tertiary-block--northbound .northbound-card {
+  justify-content: space-between;
+}
+
+.dashboard-tertiary-block--northbound .northbound-actions {
+  margin-top: auto;
+}
+
+.dashboard-tertiary-block--edge .edge-compute-card {
+  cursor: pointer;
+  justify-content: center;
+}
+
+.dashboard-tertiary-block--edge .edge-stats {
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+  margin-top: 0;
+  width: 100%;
+  align-content: center;
+}
+
+.dashboard-tertiary-block--edge .edge-stat-value {
+  font-size: 20px;
+}
+
+/* ── responsive ── */
+@media (max-width: 1100px) {
+  .dashboard-tertiary-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-page .stats-grid--compact {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-tertiary-block--northbound .northbound-grid {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+@media (max-width: 480px) {
+  .dashboard-page .stats-grid--compact {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dark-theme .dashboard-zone--tertiary .channel-card,
+.dark-theme .dashboard-zone--tertiary .northbound-card,
+.dark-theme .dashboard-zone--tertiary .edge-compute-card {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+}
+
+.dark-theme .dashboard-status-chip.is-online {
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.dark-theme .dashboard-status-chip.is-offline {
+  background: rgba(220, 38, 38, 0.1);
+}

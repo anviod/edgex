@@ -391,6 +391,7 @@ func (s *Server) setupRoutes() {
 	api.Post("/channels/:channelId/scan", s.scanChannel)
 	api.Get("/channels/:channelId/metrics", s.getChannelMetrics) // 通道监控指标
 	api.Get("/diagnostics/scan-engine", s.getScanEngineDiagnostics)
+	api.Get("/diagnostics/soak", s.getSoakMonitor)
 	api.Get("/channels/:channelId/diagnostics/events", s.getChannelEventLog)
 	api.Get("/devices/:deviceId/diagnostics", s.getDeviceDiagnostics)
 	api.Get("/devices/:deviceId/history", s.getDeviceHistory) // New history API
