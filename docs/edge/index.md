@@ -16,6 +16,8 @@ hero_buttons:
     style: secondary
 ---
 
+> **工程铁律：** 任何性能优化不得以牺牲稳定性为代价；任何架构优化不得增加系统恢复复杂度。
+
 ## 目录
 
 ### 功能说明
@@ -52,6 +54,7 @@ hero_buttons:
 
 ## 相关文档
 
+- [开发原则与验收标准](../DEVELOPMENT_PRINCIPLES.html) · [分阶段路线图](../ROADMAP.html) · [版本发布门禁](../RELEASE_GATE.html)
 - [架构设计](../architecture/index.html) — 完整架构与设计文档
 - [北向数据](../northbound/index.html) — MQTT / Sparkplug B 数据格式
 - [测试验证](../testing/index.html) — 影子设备集成测试
