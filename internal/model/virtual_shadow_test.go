@@ -33,10 +33,18 @@ func TestMatchSearchQuery(t *testing.T) {
 	}
 }
 
+func TestInferVirtualShadowChannel(t *testing.T) {
+	ch := InferVirtualShadowChannel([]VirtualShadowPointDef{
+		{PointID: "p1", Mode: "map", SourceRef: "ch1.dev1.temp"},
+	})
+	if ch != "ch1" {
+		t.Fatalf("expected ch1, got %q", ch)
+	}
+}
+
 func TestNormalizeVirtualShadowDevice(t *testing.T) {
 	cfg := VirtualShadowDeviceConfig{
-		ID:        "virtual-a",
-		ChannelID: "ch1",
+		ID: "virtual-a",
 		Points: []VirtualShadowPointDef{
 			{PointID: "p1", Mode: "map", SourceRef: "ch1.d1.p1"},
 		},

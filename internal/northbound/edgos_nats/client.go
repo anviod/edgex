@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/northbound/reconnect"
 	"github.com/anviod/edgex/internal/storage"
 
 	nats "github.com/nats-io/nats.go"
@@ -72,6 +73,8 @@ type Client struct {
 	// Device aggregation for periodic push
 	deviceAggregators map[string]*deviceAggregator
 	aggregatorMu      sync.RWMutex
+
+	reconnectSched reconnect.Scheduler
 }
 
 // NewClient creates a new edgeOS(NATS) client
@@ -161,10 +164,70 @@ func (c *Client) Start() error {
 	return nil
 }
 
-// connectLoop manages NATS connection
+// connectLoop performs the initial NATS connection attempt.
 func (c *Client) connectLoop() {
 	c.setStatus(StatusReconnecting)
 
+	if err := c.doConnect(); err != nil {
+		c.configMu.RLock()
+		url := c.config.URL
+		nodeID := c.config.NodeID
+		c.configMu.RUnlock()
+
+		zap.L().Error("Initial edgeOS(NATS) connection failed",
+			zap.Error(err),
+			zap.String("url", url),
+			zap.String("node_id", nodeID),
+			zap.String("component", "edgos-nats-client"),
+		)
+		c.setStatus(StatusDisconnected)
+		atomic.StoreInt64(&c.lastOfflineTime, time.Now().UnixMilli())
+		c.scheduleReconnect()
+	}
+}
+
+func (c *Client) buildNatsOptions(clientID, nodeID, username, password string) []nats.Option {
+	opts := []nats.Option{
+		nats.Name(clientID),
+		nats.MaxReconnects(0), // disable built-in reconnect; we control it manually
+		nats.PingInterval(20 * time.Second),
+		nats.MaxPingsOutstanding(5),
+		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
+			select {
+			case <-c.stopChan:
+				return
+			default:
+			}
+			zap.L().Warn("edgeOS(NATS) Disconnected",
+				zap.Error(err),
+				zap.String("node_id", nodeID),
+				zap.String("component", "edgos-nats-client"),
+			)
+			c.setStatus(StatusDisconnected)
+			atomic.StoreInt64(&c.lastOfflineTime, time.Now().UnixMilli())
+			c.scheduleReconnect()
+		}),
+		nats.ClosedHandler(func(nc *nats.Conn) {
+			select {
+			case <-c.stopChan:
+				return
+			default:
+			}
+			zap.L().Info("edgeOS(NATS) Connection Closed",
+				zap.String("node_id", nodeID),
+				zap.String("component", "edgos-nats-client"),
+			)
+			c.setStatus(StatusDisconnected)
+			c.scheduleReconnect()
+		}),
+	}
+	if username != "" && password != "" {
+		opts = append(opts, nats.UserInfo(username, password))
+	}
+	return opts
+}
+
+func (c *Client) doConnect() error {
 	c.configMu.RLock()
 	url := c.config.URL
 	clientID := c.config.ClientID
@@ -174,61 +237,30 @@ func (c *Client) connectLoop() {
 	jetStreamEnabled := c.config.JetStreamEnabled
 	c.configMu.RUnlock()
 
-	opts := []nats.Option{
-		nats.Name(clientID),
-		nats.ReconnectWait(2 * time.Second),
-		nats.MaxReconnects(10),
-		nats.PingInterval(20 * time.Second),
-		nats.MaxPingsOutstanding(5),
-		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
-			zap.L().Warn("edgeOS(NATS) Disconnected",
-				zap.Error(err),
-				zap.String("node_id", nodeID),
-				zap.String("component", "edgos-nats-client"),
-			)
-			c.setStatus(StatusDisconnected)
-			atomic.StoreInt64(&c.lastOfflineTime, time.Now().UnixMilli())
-		}),
-		nats.ReconnectHandler(func(nc *nats.Conn) {
-			zap.L().Info("edgeOS(NATS) Reconnected",
-				zap.String("node_id", nodeID),
-				zap.String("component", "edgos-nats-client"),
-			)
-			c.setStatus(StatusConnected)
-			atomic.StoreInt64(&c.lastOnlineTime, time.Now().UnixMilli())
-			atomic.AddInt64(&c.reconnectCount, 1)
-
-			// Re-subscribe to command topics
-			c.subscribeToCommands()
-		}),
-		nats.ClosedHandler(func(nc *nats.Conn) {
-			zap.L().Info("edgeOS(NATS) Connection Closed",
-				zap.String("node_id", nodeID),
-				zap.String("component", "edgos-nats-client"),
-			)
-			c.setStatus(StatusDisconnected)
-		}),
+	if c.nc != nil {
+		c.subMu.Lock()
+		for subject, sub := range c.subscriptions {
+			if err := sub.Unsubscribe(); err != nil {
+				zap.L().Error("Failed to unsubscribe during reconnect",
+					zap.Error(err),
+					zap.String("subject", subject),
+				)
+			}
+			delete(c.subscriptions, subject)
+		}
+		c.subMu.Unlock()
+		c.nc.Close()
+		c.nc = nil
+		c.js = nil
 	}
 
-	if username != "" && password != "" {
-		opts = append(opts, nats.UserInfo(username, password))
-	}
-
-	// Connect to NATS
-	var err error
-	c.nc, err = nats.Connect(url, opts...)
+	opts := c.buildNatsOptions(clientID, nodeID, username, password)
+	nc, err := nats.Connect(url, opts...)
 	if err != nil {
-		zap.L().Error("Failed to connect to NATS",
-			zap.Error(err),
-			zap.String("url", url),
-			zap.String("node_id", nodeID),
-		)
-		c.setStatus(StatusError)
-		atomic.StoreInt64(&c.lastOfflineTime, time.Now().UnixMilli())
-		return
+		return err
 	}
+	c.nc = nc
 
-	// Enable JetStream if configured
 	if jetStreamEnabled {
 		c.js, err = c.nc.JetStream()
 		if err != nil {
@@ -252,11 +284,107 @@ func (c *Client) connectLoop() {
 		zap.String("component", "edgos-nats-client"),
 	)
 
-	// Publish node online status
 	c.publishNodeOnline()
-
-	// Subscribe to command topics
 	c.subscribeToCommands()
+	return nil
+}
+
+func (c *Client) scheduleReconnect() {
+	if !c.reconnectSched.TryStart() {
+		return
+	}
+	go c.reconnectLogic()
+}
+
+func (c *Client) reconnectLogic() {
+	defer c.reconnectSched.Done()
+
+	var logThrottle reconnect.LogThrottle
+	retryCount := 0
+
+	for {
+		select {
+		case <-c.stopChan:
+			return
+		default:
+		}
+
+		if c.nc != nil && c.nc.IsConnected() {
+			return
+		}
+
+		c.setStatus(StatusReconnecting)
+		attempt := retryCount + 1
+
+		c.configMu.RLock()
+		url := c.config.URL
+		nodeID := c.config.NodeID
+		c.configMu.RUnlock()
+
+		if logThrottle.ShouldLog(attempt, 30*time.Second, 10) {
+			zap.L().Info("edgeOS(NATS) reconnect attempt",
+				zap.Int("attempt", attempt),
+				zap.String("url", url),
+				zap.String("node_id", nodeID),
+				zap.String("component", "edgos-nats-client"),
+			)
+		} else {
+			zap.L().Debug("edgeOS(NATS) reconnect attempt",
+				zap.Int("attempt", attempt),
+				zap.String("url", url),
+				zap.String("node_id", nodeID),
+				zap.String("component", "edgos-nats-client"),
+			)
+		}
+
+		if err := c.doConnect(); err == nil {
+			atomic.AddInt64(&c.reconnectCount, 1)
+			zap.L().Info("edgeOS(NATS) reconnected",
+				zap.String("url", url),
+				zap.String("node_id", nodeID),
+				zap.String("component", "edgos-nats-client"),
+			)
+			return
+		}
+
+		retryCount++
+		delay := reconnect.Backoff(retryCount)
+
+		if retryCount <= 10 {
+			if logThrottle.ShouldLog(retryCount, 30*time.Second, 10) {
+				zap.L().Warn("edgeOS(NATS) reconnect failed, retrying",
+					zap.Int("attempt", retryCount),
+					zap.Duration("next_retry_in", delay),
+					zap.String("node_id", nodeID),
+					zap.String("component", "edgos-nats-client"),
+				)
+			} else {
+				zap.L().Debug("edgeOS(NATS) reconnect failed, retrying",
+					zap.Int("attempt", retryCount),
+					zap.Duration("next_retry_in", delay),
+					zap.String("node_id", nodeID),
+					zap.String("component", "edgos-nats-client"),
+				)
+			}
+		} else {
+			c.setStatus(StatusError)
+			if logThrottle.ShouldLog(retryCount, 60*time.Second, 10) {
+				zap.L().Error("edgeOS(NATS) reconnect failed repeatedly, backing off",
+					zap.Int("attempts", retryCount),
+					zap.Duration("backoff", delay),
+					zap.String("node_id", nodeID),
+					zap.String("component", "edgos-nats-client"),
+				)
+			}
+			retryCount = 0
+		}
+
+		select {
+		case <-c.stopChan:
+			return
+		case <-time.After(delay):
+		}
+	}
 }
 
 // publishNodeOnline publishes node registration and online status
@@ -1128,7 +1256,7 @@ func (c *Client) retryLoop() {
 			return
 		case <-ticker.C:
 			if c.GetStatus() == StatusDisconnected || c.GetStatus() == StatusError {
-				go c.connectLoop()
+				c.scheduleReconnect()
 			}
 		}
 	}

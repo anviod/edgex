@@ -1,0 +1,195 @@
+/*
+ * EdgeX v3.0 — 采集通道页（Dashboard 三级视觉对齐）
+ */
+
+/* ── page shell：全宽 + 24px section 间距 ── */
+.channel-list-page.page-shell {
+  gap: var(--space-6);
+  max-width: none;
+}
+
+.channel-list-page .page-header {
+  margin-bottom: 0;
+}
+
+/* ── body flow ── */
+.channel-list-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+/* ── zone 分区（对齐 dashboard-zone / northbound-zone） ── */
+.channel-list-zone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* zones live inside a-spin, so .channel-list-body gap does not apply */
+.channel-list-zone + .channel-list-zone {
+  margin-top: var(--space-8);
+}
+
+.channel-list-zone-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.channel-list-zone-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.channel-list-zone-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.channel-list-zone-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+
+/* ── tertiary block：透明外层 + 内嵌卡片 ── */
+.channel-list-tertiary-block {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.channel-list-tertiary-block .section {
+  gap: var(--space-5);
+}
+
+.channel-list-tertiary-block .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.channel-list-tertiary-block .section-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* Inner cards — surface-1 elevation (matches Dashboard tertiary) */
+.channel-list-page .channel-card {
+  background: var(--surface-1) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.channel-list-page .channel-card:hover {
+  border-color: rgba(14, 165, 233, 0.2) !important;
+  transform: translateY(-1px);
+}
+
+.channel-list-page .channel-card.is-selected {
+  border-color: rgba(14, 165, 233, 0.35) !important;
+  background: rgba(14, 165, 233, 0.04) !important;
+}
+
+.channel-list-page .channel-icon,
+.channel-list-page .quality-score,
+.channel-list-page .channel-metrics {
+  background: var(--bg);
+}
+
+.channel-list-page .empty-card {
+  background: transparent !important;
+  border: 1px dashed var(--border) !important;
+  border-radius: var(--radius-md) !important;
+}
+
+/* ── 管理操作栏（卡片底部） ── */
+.channel-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+
+.channel-card-actions .arco-btn {
+  color: var(--text-secondary);
+}
+
+.channel-card-actions .arco-btn:hover {
+  color: var(--text-primary);
+  background: var(--surface-2);
+}
+
+.channel-list-zone-empty {
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* ── 列表视图 ── */
+.channel-list-page .table-container {
+  min-width: 0;
+}
+
+.channel-list-page .table-ops {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: nowrap;
+}
+
+/* ── Dark ── */
+.dark-theme .channel-list-page .channel-card {
+  background: var(--surface-1) !important;
+}
+
+.dark-theme .channel-list-page .channel-card.is-selected {
+  background: rgba(14, 165, 233, 0.08) !important;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .channel-list-tertiary-block .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

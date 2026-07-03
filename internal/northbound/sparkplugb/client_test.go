@@ -51,3 +51,22 @@ func TestPublishRespectsChangeStrategy(t *testing.T) {
 	// No MQTT client connected; Publish returns early after change detection would skip duplicate.
 	c.Publish(v)
 }
+
+func TestScheduleReconnectSingleFlight(t *testing.T) {
+	c := NewClient(model.SparkplugBConfig{Enable: true, Broker: "127.0.0.1", Port: 1})
+
+	var started int32
+	for i := 0; i < 10; i++ {
+		if c.reconnectSched.TryStart() {
+			started++
+		}
+	}
+	if started != 1 {
+		t.Fatalf("expected exactly one reconnect loop to start, got %d", started)
+	}
+	c.reconnectSched.Done()
+	if !c.reconnectSched.TryStart() {
+		t.Fatal("expected TryStart to succeed after Done")
+	}
+	c.reconnectSched.Done()
+}

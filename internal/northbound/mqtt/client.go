@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/northbound/reconnect"
 	"github.com/anviod/edgex/internal/storage"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -58,6 +59,8 @@ type Client struct {
 	reconnectCount  int64
 	lastOfflineTime int64
 	lastOnlineTime  int64
+
+	reconnectSched reconnect.Scheduler
 }
 
 type AggregatedPayload struct {
@@ -480,8 +483,7 @@ func (c *Client) connectLoop() {
 		)
 		c.setStatus(StatusDisconnected)
 		atomic.StoreInt64(&c.lastOfflineTime, time.Now().UnixMilli())
-		// Trigger reconnection
-		go c.reconnectLogic()
+		c.scheduleReconnect()
 	})
 
 	c.client = mqtt.NewClient(opts)
@@ -494,7 +496,7 @@ func (c *Client) connectLoop() {
 		)
 		c.setStatus(StatusDisconnected)
 		atomic.StoreInt64(&c.lastOfflineTime, time.Now().UnixMilli())
-		go c.reconnectLogic()
+		c.scheduleReconnect()
 	} else {
 		atomic.StoreInt64(&c.lastOnlineTime, time.Now().UnixMilli())
 	}
@@ -618,7 +620,17 @@ func (c *Client) handleWriteRequest(client mqtt.Client, msg mqtt.Message) {
 	}
 }
 
+func (c *Client) scheduleReconnect() {
+	if !c.reconnectSched.TryStart() {
+		return
+	}
+	go c.reconnectLogic()
+}
+
 func (c *Client) reconnectLogic() {
+	defer c.reconnectSched.Done()
+
+	var logThrottle reconnect.LogThrottle
 	retryCount := 0
 
 	for {
@@ -628,43 +640,74 @@ func (c *Client) reconnectLogic() {
 		default:
 		}
 
+		if c.client != nil && c.client.IsConnected() {
+			return
+		}
+
 		c.setStatus(StatusReconnecting)
-		zap.L().Info("MQTT reconnect attempt",
-			zap.Int("attempt", retryCount+1),
-			zap.String("broker", func() string { c.configMu.RLock(); defer c.configMu.RUnlock(); return c.config.Broker }()),
-			zap.String("component", "mqtt-client"),
-		)
+		attempt := retryCount + 1
+		broker := func() string {
+			c.configMu.RLock()
+			defer c.configMu.RUnlock()
+			return c.config.Broker
+		}()
+		if logThrottle.ShouldLog(attempt, 30*time.Second, 10) {
+			zap.L().Info("MQTT reconnect attempt",
+				zap.Int("attempt", attempt),
+				zap.String("broker", broker),
+				zap.String("component", "mqtt-client"),
+			)
+		} else {
+			zap.L().Debug("MQTT reconnect attempt",
+				zap.Int("attempt", attempt),
+				zap.String("broker", broker),
+				zap.String("component", "mqtt-client"),
+			)
+		}
 
 		token := c.client.Connect()
 		if token.Wait() && token.Error() == nil {
-			// Connected successfully
 			atomic.AddInt64(&c.reconnectCount, 1)
 			zap.L().Info("MQTT reconnected",
-				zap.String("broker", func() string { c.configMu.RLock(); defer c.configMu.RUnlock(); return c.config.Broker }()),
+				zap.String("broker", broker),
 				zap.String("component", "mqtt-client"),
 			)
 			return
 		}
 
 		retryCount++
+		delay := reconnect.Backoff(retryCount)
 
-		// Logic: 3s interval for 10 times, then 60s wait
 		if retryCount <= 10 {
-			zap.L().Warn("MQTT reconnect failed, retrying shortly",
-				zap.Int("attempt", retryCount),
-				zap.Duration("next_retry_in", 3*time.Second),
-				zap.String("component", "mqtt-client"),
-			)
-			time.Sleep(3 * time.Second)
+			if logThrottle.ShouldLog(retryCount, 30*time.Second, 10) {
+				zap.L().Warn("MQTT reconnect failed, retrying shortly",
+					zap.Int("attempt", retryCount),
+					zap.Duration("next_retry_in", delay),
+					zap.String("component", "mqtt-client"),
+				)
+			} else {
+				zap.L().Debug("MQTT reconnect failed, retrying",
+					zap.Int("attempt", retryCount),
+					zap.Duration("next_retry_in", delay),
+					zap.String("component", "mqtt-client"),
+				)
+			}
 		} else {
-			c.setStatus(StatusError) // Failed after 10 retries
-			zap.L().Error("MQTT reconnect failed repeatedly, backing off",
-				zap.Int("attempts", retryCount),
-				zap.Duration("backoff", 60*time.Second),
-				zap.String("component", "mqtt-client"),
-			)
-			time.Sleep(60 * time.Second)
-			retryCount = 0 // Reset to try again
+			c.setStatus(StatusError)
+			if logThrottle.ShouldLog(retryCount, 60*time.Second, 10) {
+				zap.L().Error("MQTT reconnect failed repeatedly, backing off",
+					zap.Int("attempts", retryCount),
+					zap.Duration("backoff", delay),
+					zap.String("component", "mqtt-client"),
+				)
+			}
+			retryCount = 0
+		}
+
+		select {
+		case <-c.stopChan:
+			return
+		case <-time.After(delay):
 		}
 	}
 }

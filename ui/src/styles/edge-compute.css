@@ -27,6 +27,7 @@
 
 .edge-compute-container > .main-tabs > .arco-tabs-nav {
   margin-bottom: var(--space-2);
+  border-bottom: none;
 }
 
 .edge-compute-container > .main-tabs .arco-tabs-nav-tab {
@@ -47,14 +48,27 @@
   flex-direction: column;
   gap: var(--space-6);
   min-width: 0;
+  padding-top: var(--space-2);
 }
 
-/* ── zone 分区（对齐 dashboard-zone） ── */
+/* ── tab panel：spacing 分组，无 zone 分割线 ── */
+.edge-compute-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* ── zone 分区（多段内容页内使用，如监控面板） ── */
 .edge-compute-zone {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   min-width: 0;
+}
+
+.edge-compute-zone--metrics {
+  gap: 0;
 }
 
 .edge-compute-zone-header {
@@ -84,16 +98,23 @@
   gap: var(--space-4);
 }
 
-/* ── Flow 区块：toolbar + table，spacing 分组 ── */
+/* ── Flow 区块 ── */
 .edge-compute-flow,
 .edge-compute-metrics {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
   min-width: 0;
 }
 
-.edge-compute-flow .edge-compute-zone {
+.edge-compute-flow {
+  gap: var(--space-6);
+}
+
+.edge-compute-metrics {
+  gap: var(--space-8);
+}
+
+.edge-compute-flow .edge-compute-panel {
   gap: var(--space-4);
 }
 
@@ -106,6 +127,10 @@
   min-width: 0;
 }
 
+.edge-compute-toolbar--primary {
+  justify-content: flex-start;
+}
+
 .edge-compute-toolbar--end {
   justify-content: flex-end;
 }
@@ -114,7 +139,7 @@
   justify-content: flex-start;
   padding: var(--space-2) var(--space-3);
   background: var(--surface-1);
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius-md);
 }
 
@@ -137,6 +162,13 @@
   font-weight: 500;
   color: var(--text-primary);
   white-space: nowrap;
+}
+
+.edge-compute-container .table-ops {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: nowrap;
 }
 
 .edge-compute-container .table-container {
@@ -172,6 +204,7 @@
 .edge-compute-page .stats-grid--compact .stat-card {
   padding: var(--space-4) var(--space-5);
   background: var(--surface-1);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
 
@@ -217,6 +250,17 @@
   border-radius: 0;
   padding: 0;
   background: transparent;
+  min-width: 0;
+}
+
+.edge-compute-tertiary-block .table-container {
+  background: transparent;
+  border: none;
+}
+
+.edge-compute-page .saas-table .arco-table-container {
+  background: transparent;
+  border: none;
 }
 
 .edge-compute-container .subscribers-line {

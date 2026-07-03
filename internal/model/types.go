@@ -592,7 +592,6 @@ type VirtualShadowPointDef struct {
 type VirtualShadowDeviceConfig struct {
 	ID          string                  `json:"id"`
 	Name        string                  `json:"name"`
-	ChannelID   string                  `json:"channel_id"`
 	Description string                  `json:"description,omitempty"`
 	Enable      bool                    `json:"enable"`
 	Points      []VirtualShadowPointDef `json:"points"`
@@ -617,6 +616,8 @@ type SourceDeviceSummary struct {
 	DeviceID    string `json:"device_id"`
 	DeviceName  string `json:"device_name"`
 	PointCount  int    `json:"point_count"`
+	State       int    `json:"state,omitempty"` // 0=Online, 1=Unstable, 2=Offline, 3=Quarantine
+	Online      bool   `json:"online"`
 }
 
 // ShadowIngressMessage represents the standard message format from Points layer to ShadowIngress

@@ -68,6 +68,13 @@
   line-height: 1.4;
 }
 
+.channel-config-modal .config-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
 .channel-config-modal .config-section > .modal-section__title:first-child,
 .channel-config-modal .config-section > .modal-section__title--sub:first-child {
   margin-top: 0;

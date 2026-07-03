@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/northbound/reconnect"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -18,6 +19,7 @@ import (
 const (
 	StatusDisconnected = 0
 	StatusConnected    = 1
+	StatusReconnecting = 2
 	StatusError        = 3
 )
 
@@ -33,6 +35,8 @@ type Client struct {
 
 	periodicMu sync.Mutex
 	periodic   map[string]*periodicItem
+
+	reconnectSched reconnect.Scheduler
 }
 
 type periodicItem struct {
@@ -66,13 +70,36 @@ func (c *Client) Start() error {
 		return nil
 	}
 
+	c.setStatus(StatusReconnecting)
+	if err := c.setupClient(); err != nil {
+		c.setStatus(StatusError)
+		return err
+	}
+
+	var connectErr error
+	if token := c.client.Connect(); token.Wait() && token.Error() != nil {
+		connectErr = token.Error()
+		log.Printf("Sparkplug B initial connection failed: %v", connectErr)
+		c.setStatus(StatusDisconnected)
+	}
+
+	go c.retryLoop()
+
+	if connectErr != nil {
+		c.scheduleReconnect()
+		return connectErr
+	}
+	return nil
+}
+
+func (c *Client) setupClient() error {
 	opts := mqtt.NewClientOptions()
 	broker := fmt.Sprintf("tcp://%s:%d", c.config.Broker, c.config.Port)
 	if c.config.SSL {
 		broker = fmt.Sprintf("ssl://%s:%d", c.config.Broker, c.config.Port)
 		tlsConfig, err := c.createTLSConfig()
 		if err != nil {
-			return err
+			return fmt.Errorf("TLS config: %w", err)
 		}
 		opts.SetTLSConfig(tlsConfig)
 	}
@@ -81,29 +108,113 @@ func (c *Client) Start() error {
 	opts.SetUsername(c.config.Username)
 	opts.SetPassword(c.config.Password)
 	opts.SetCleanSession(true)
+	opts.SetAutoReconnect(false)
 
 	deathTopic := fmt.Sprintf("spBv1.0/%s/NDEATH/%s", c.config.GroupID, c.config.NodeID)
 	deathPayload := c.createDeathPayload()
 	opts.SetWill(deathTopic, string(deathPayload), 0, false)
 
 	opts.SetOnConnectHandler(c.onConnect)
-	opts.SetConnectionLostHandler(c.onConnectionLost)
+	opts.SetConnectionLostHandler(func(client mqtt.Client, err error) {
+		c.onConnectionLost(client, err)
+		c.scheduleReconnect()
+	})
 
-	client := mqtt.NewClient(opts)
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		c.setStatus(StatusError)
-		return token.Error()
-	}
-
-	c.client = client
-	c.setStatus(StatusConnected)
-	c.updatePeriodicTasks()
-	log.Printf("Sparkplug B Client connected to %s", broker)
-
+	c.client = mqtt.NewClient(opts)
 	return nil
 }
 
+func (c *Client) scheduleReconnect() {
+	if !c.reconnectSched.TryStart() {
+		return
+	}
+	go c.reconnectLogic()
+}
+
+func (c *Client) reconnectLogic() {
+	defer c.reconnectSched.Done()
+
+	var logThrottle reconnect.LogThrottle
+	retryCount := 0
+
+	for {
+		select {
+		case <-c.stopChan:
+			return
+		default:
+		}
+
+		if c.client != nil && c.client.IsConnected() {
+			return
+		}
+
+		if c.client == nil {
+			if err := c.setupClient(); err != nil {
+				c.setStatus(StatusError)
+				return
+			}
+		}
+
+		c.setStatus(StatusReconnecting)
+		attempt := retryCount + 1
+		broker := fmt.Sprintf("%s:%d", c.config.Broker, c.config.Port)
+
+		if logThrottle.ShouldLog(attempt, 30*time.Second, 10) {
+			log.Printf("Sparkplug B reconnect attempt %d to %s", attempt, broker)
+		}
+
+		token := c.client.Connect()
+		if token.Wait() && token.Error() == nil {
+			log.Printf("Sparkplug B reconnected to %s", broker)
+			return
+		}
+
+		retryCount++
+		delay := reconnect.Backoff(retryCount)
+
+		if retryCount <= 10 {
+			if logThrottle.ShouldLog(retryCount, 30*time.Second, 10) {
+				log.Printf("Sparkplug B reconnect failed (attempt %d), retrying in %v", retryCount, delay)
+			}
+		} else {
+			c.setStatus(StatusError)
+			if logThrottle.ShouldLog(retryCount, 60*time.Second, 10) {
+				log.Printf("Sparkplug B reconnect failed repeatedly (attempt %d), backing off %v", retryCount, delay)
+			}
+			retryCount = 0
+		}
+
+		select {
+		case <-c.stopChan:
+			return
+		case <-time.After(delay):
+		}
+	}
+}
+
+func (c *Client) retryLoop() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-c.stopChan:
+			return
+		case <-ticker.C:
+			if c.GetStatus() == StatusDisconnected || c.GetStatus() == StatusError {
+				c.scheduleReconnect()
+			}
+		}
+	}
+}
+
 func (c *Client) Stop() {
+	select {
+	case <-c.stopChan:
+	default:
+		close(c.stopChan)
+	}
+
 	if c.client != nil && c.client.IsConnected() {
 		deathTopic := fmt.Sprintf("spBv1.0/%s/NDEATH/%s", c.config.GroupID, c.config.NodeID)
 		deathPayload := c.createDeathPayload()
@@ -112,11 +223,6 @@ func (c *Client) Stop() {
 	}
 	c.stopPeriodicTasks()
 	c.setStatus(StatusDisconnected)
-	select {
-	case <-c.stopChan:
-	default:
-		close(c.stopChan)
-	}
 }
 
 func (c *Client) UpdateConfig(cfg model.SparkplugBConfig) error {
@@ -264,10 +370,12 @@ func (c *Client) onConnect(client mqtt.Client) {
 	birthTopic := fmt.Sprintf("spBv1.0/%s/NBIRTH/%s", c.config.GroupID, c.config.NodeID)
 	birthPayload := c.createBirthPayload()
 	client.Publish(birthTopic, 0, false, birthPayload)
+
+	c.updatePeriodicTasks()
 }
 
 func (c *Client) onConnectionLost(client mqtt.Client, err error) {
-	c.setStatus(StatusError)
+	c.setStatus(StatusDisconnected)
 	log.Printf("Sparkplug B Connection Lost: %v", err)
 }
 

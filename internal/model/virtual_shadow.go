@@ -61,7 +61,6 @@ func NormalizeVirtualShadowDevice(cfg *VirtualShadowDeviceConfig) error {
 	}
 	cfg.ID = strings.TrimSpace(cfg.ID)
 	cfg.Name = strings.TrimSpace(cfg.Name)
-	cfg.ChannelID = strings.TrimSpace(cfg.ChannelID)
 	if cfg.ID == "" {
 		return fmt.Errorf("id is required")
 	}
@@ -71,9 +70,6 @@ func NormalizeVirtualShadowDevice(cfg *VirtualShadowDeviceConfig) error {
 	if cfg.Name == "" {
 		cfg.Name = cfg.ID
 	}
-	if cfg.ChannelID == "" {
-		return fmt.Errorf("channel_id is required")
-	}
 	if len(cfg.Points) == 0 {
 		return fmt.Errorf("at least one point is required")
 	}
@@ -81,6 +77,34 @@ func NormalizeVirtualShadowDevice(cfg *VirtualShadowDeviceConfig) error {
 		return err
 	}
 	return nil
+}
+
+// InferVirtualShadowChannel 从点位引用推断虚拟设备主要归属通道（兼容 OPC UA 等按通道分组场景）。
+func InferVirtualShadowChannel(points []VirtualShadowPointDef) string {
+	formulas, err := BuildVirtualShadowFormulas(points)
+	if err != nil {
+		return ""
+	}
+	for _, formula := range formulas {
+		if ch := inferChannelFromFormula(formula); ch != "" {
+			return ch
+		}
+	}
+	return ""
+}
+
+var virtualShadowPointRefPrefix = regexp.MustCompile(`[a-zA-Z0-9][a-zA-Z0-9_-]*\.[a-zA-Z0-9][a-zA-Z0-9_-]*\.`)
+
+func inferChannelFromFormula(formula string) string {
+	loc := virtualShadowPointRefPrefix.FindStringIndex(formula)
+	if loc == nil {
+		return ""
+	}
+	ref := formula[loc[0]:]
+	if dot := strings.IndexByte(ref, '.'); dot > 0 {
+		return ref[:dot]
+	}
+	return ""
 }
 
 // MatchSearchQuery 多关键词模糊检索（空格分词，子串或字符顺序匹配）。

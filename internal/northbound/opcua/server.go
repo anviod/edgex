@@ -840,7 +840,10 @@ func (s *Server) buildVirtualDevicesForChannel(
 	}
 
 	for _, vcfg := range s.virtualShadows.List() {
-		if vcfg.ChannelID != ch.ID || !vcfg.Enable || len(vcfg.Points) == 0 {
+		if !vcfg.Enable || len(vcfg.Points) == 0 {
+			continue
+		}
+		if model.InferVirtualShadowChannel(vcfg.Points) != ch.ID {
 			continue
 		}
 		if len(s.config.VirtualDevices) > 0 && !s.config.VirtualDevices.AllowsDevice(vcfg.ID) {

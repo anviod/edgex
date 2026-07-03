@@ -18,8 +18,8 @@
             <EdgeComputeMetrics v-if="tab === 'metrics'" />
 
             <div v-if="tab === 'rules'" class="edge-compute-flow">
-                <section class="edge-compute-zone" aria-label="规则管理">
-                <div class="edge-compute-toolbar">
+                <section class="edge-compute-panel" aria-label="规则管理">
+                <div class="edge-compute-toolbar edge-compute-toolbar--primary">
                     <a-space size="small">
                         <a-button type="primary" @click="openDialog">
                             <template #icon><IconPlus /></template>
@@ -38,6 +38,7 @@
                     <a-button size="small" type="outline" @click="handleBatchEnable(false)">批量禁用</a-button>
                     <a-button size="small" type="outline" status="danger" @click="handleBatchDelete">批量删除</a-button>
                 </div>
+                <div class="edge-compute-tertiary-block">
                 <div class="table-container saas-table">
                     <a-table
                         :columns="ruleColumns"
@@ -50,17 +51,21 @@
                         row-key="id"
                     >
                         <template #operations="{ record }">
+                            <span class="table-ops">
                             <a-button type="text" size="small" @click="editRule(record)">
                                 <template #icon><IconEdit /></template>
                             </a-button>
                             <a-button type="text" size="small" status="danger" @click="deleteRule(record)">
                                 <template #icon><IconDelete /></template>
                             </a-button>
+                            </span>
                         </template>
                         <template #enable="{ record }">
+                            <span class="table-cell-semantic">
                             <a-tag :color="record.enable ? 'success' : 'danger'" size="small">
                                 {{ record.enable ? '启用' : '禁用' }}
                             </a-tag>
+                            </span>
                         </template>
                         <template #type="{ record }">
                             {{ formatRuleType(record.type) }}
@@ -70,17 +75,19 @@
                         </template>
                     </a-table>
                 </div>
+                </div>
                 </section>
             </div>
 
             <div v-if="tab === 'status'" class="edge-compute-flow">
-                <section class="edge-compute-zone" aria-label="运行记录">
+                <section class="edge-compute-panel" aria-label="运行记录">
                 <div class="edge-compute-toolbar edge-compute-toolbar--end">
                     <a-button type="outline" size="small" @click="fetchRuleStates">
                         <template #icon><IconRefresh /></template>
                         刷新
                     </a-button>
                 </div>
+                <div class="edge-compute-tertiary-block">
                 <div class="table-container saas-table">
                     <a-table
                         :columns="statusColumns"
@@ -90,9 +97,11 @@
                         :scroll="{ x: 1100 }"
                     >
                         <template #current_status="{ record }">
+                            <span class="table-cell-semantic">
                             <a-tag :color="getStatusColor(record.current_status)" size="small">
                                 {{ record.current_status }}
                             </a-tag>
+                            </span>
                         </template>
                         <template #last_trigger="{ record }">
                             {{ formatDate(record.last_trigger) }}
@@ -107,11 +116,12 @@
                         </template>
                     </a-table>
                 </div>
+                </div>
                 </section>
             </div>
 
             <div v-if="tab === 'logs'" class="edge-compute-flow">
-                <section class="edge-compute-zone" aria-label="日志查询">
+                <section class="edge-compute-panel" aria-label="日志查询">
                 <div class="edge-compute-toolbar edge-compute-toolbar--filters">
                     <a-input v-model="query.start" placeholder="开始时间" type="datetime-local" size="small" class="filter-input" />
                     <a-input v-model="query.end" placeholder="结束时间" type="datetime-local" size="small" class="filter-input" />
@@ -122,6 +132,7 @@
                         导出 CSV
                     </a-button>
                 </div>
+                <div class="edge-compute-tertiary-block">
                 <div class="table-container saas-table">
                     <a-table
                         :columns="logColumns"
@@ -131,9 +142,11 @@
                         :scroll="{ x: 1200 }"
                     >
                         <template #status="{ record }">
+                            <span class="table-cell-semantic">
                             <a-tag :color="getStatusColor(record.status)" size="small">
                                 {{ record.status }}
                             </a-tag>
+                            </span>
                         </template>
                         <template #last_value="{ record }">
                             <span class="single-line-cell" @click="showDetails('完整值', record.last_value)" title="点击查看详情">
@@ -146,6 +159,7 @@
                             </span>
                         </template>
                     </a-table>
+                </div>
                 </div>
                 </section>
             </div>

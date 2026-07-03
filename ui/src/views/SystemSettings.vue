@@ -1,5 +1,5 @@
 <template>
-  <div class="page-shell system-settings-page">
+  <div class="page-shell page-shell--wide system-settings-page">
     <div class="page-header">
       <div>
         <h2 class="page-title">系统设置</h2>

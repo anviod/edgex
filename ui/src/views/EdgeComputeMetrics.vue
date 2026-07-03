@@ -1,9 +1,6 @@
 ﻿<template>
   <div class="edge-compute-metrics">
     <section class="edge-compute-zone edge-compute-zone--metrics" aria-label="运行指标">
-      <div class="edge-compute-zone-header">
-        <h3 class="edge-compute-zone-title">运行指标</h3>
-      </div>
       <div class="stats-grid stats-grid--compact edge-compute-stats-grid">
         <div class="stat-card">
           <div class="stat-label">规则总数</div>

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/northbound/reconnect"
 	"github.com/anviod/edgex/internal/storage"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -149,6 +150,8 @@ type Client struct {
 	// Heartbeat ticker
 	heartbeatTicker   *time.Ticker
 	heartbeatInterval time.Duration
+
+	reconnectSched reconnect.Scheduler
 }
 
 // NewClient creates a new edgeOS(MQTT) client
@@ -259,7 +262,7 @@ func (c *Client) connectLoop() {
 		opts.SetUsername(username)
 		opts.SetPassword(password)
 	}
-	opts.SetAutoReconnect(true)
+	opts.SetAutoReconnect(false)
 	opts.SetKeepAlive(60 * time.Second)
 	opts.SetConnectTimeout(30 * time.Second)
 
@@ -300,6 +303,7 @@ func (c *Client) connectLoop() {
 		)
 		c.setStatus(StatusDisconnected)
 		atomic.StoreInt64(&c.lastOfflineTime, time.Now().UnixMilli())
+		c.scheduleReconnect()
 	})
 
 	c.client = mqtt.NewClient(opts)
@@ -313,6 +317,7 @@ func (c *Client) connectLoop() {
 		)
 		c.setStatus(StatusDisconnected)
 		atomic.StoreInt64(&c.lastOfflineTime, time.Now().UnixMilli())
+		c.scheduleReconnect()
 	} else {
 		atomic.StoreInt64(&c.lastOnlineTime, time.Now().UnixMilli())
 	}
@@ -1316,8 +1321,19 @@ func (c *Client) publishMessage(topic string, msg Message, qos byte) error {
 	return nil
 }
 
+// scheduleReconnect starts a single reconnect loop if one is not already running.
+func (c *Client) scheduleReconnect() {
+	if !c.reconnectSched.TryStart() {
+		return
+	}
+	go c.reconnectLogic()
+}
+
 // reconnectLogic handles reconnection attempts
 func (c *Client) reconnectLogic() {
+	defer c.reconnectSched.Done()
+
+	var logThrottle reconnect.LogThrottle
 	retryCount := 0
 
 	for {
@@ -1327,11 +1343,23 @@ func (c *Client) reconnectLogic() {
 		default:
 		}
 
+		if c.client != nil && c.client.IsConnected() {
+			return
+		}
+
 		c.setStatus(StatusReconnecting)
-		zap.L().Info("edgeOS(MQTT) reconnect attempt",
-			zap.Int("attempt", retryCount+1),
-			zap.String("node_id", c.nodeID),
-		)
+		attempt := retryCount + 1
+		if logThrottle.ShouldLog(attempt, 30*time.Second, 10) {
+			zap.L().Info("edgeOS(MQTT) reconnect attempt",
+				zap.Int("attempt", attempt),
+				zap.String("node_id", c.nodeID),
+			)
+		} else {
+			zap.L().Debug("edgeOS(MQTT) reconnect attempt",
+				zap.Int("attempt", attempt),
+				zap.String("node_id", c.nodeID),
+			)
+		}
 
 		token := c.client.Connect()
 		if token.Wait() && token.Error() == nil {
@@ -1343,21 +1371,35 @@ func (c *Client) reconnectLogic() {
 		}
 
 		retryCount++
+		delay := reconnect.Backoff(retryCount)
 
 		if retryCount <= 10 {
-			zap.L().Warn("edgeOS(MQTT) reconnect failed, retrying",
-				zap.Int("attempt", retryCount),
-				zap.Duration("next_retry_in", 3*time.Second),
-			)
-			time.Sleep(3 * time.Second)
+			if logThrottle.ShouldLog(retryCount, 30*time.Second, 10) {
+				zap.L().Warn("edgeOS(MQTT) reconnect failed, retrying",
+					zap.Int("attempt", retryCount),
+					zap.Duration("next_retry_in", delay),
+				)
+			} else {
+				zap.L().Debug("edgeOS(MQTT) reconnect failed, retrying",
+					zap.Int("attempt", retryCount),
+					zap.Duration("next_retry_in", delay),
+				)
+			}
 		} else {
 			c.setStatus(StatusError)
-			zap.L().Error("edgeOS(MQTT) reconnect failed repeatedly, backing off",
-				zap.Int("attempts", retryCount),
-				zap.Duration("backoff", 60*time.Second),
-			)
-			time.Sleep(60 * time.Second)
+			if logThrottle.ShouldLog(retryCount, 60*time.Second, 10) {
+				zap.L().Error("edgeOS(MQTT) reconnect failed repeatedly, backing off",
+					zap.Int("attempts", retryCount),
+					zap.Duration("backoff", delay),
+				)
+			}
 			retryCount = 0
+		}
+
+		select {
+		case <-c.stopChan:
+			return
+		case <-time.After(delay):
 		}
 	}
 }
@@ -1373,7 +1415,7 @@ func (c *Client) retryLoop() {
 			return
 		case <-ticker.C:
 			if c.GetStatus() == StatusDisconnected || c.GetStatus() == StatusError {
-				go c.reconnectLogic()
+				c.scheduleReconnect()
 			}
 		}
 	}

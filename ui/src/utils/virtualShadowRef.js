@@ -38,7 +38,6 @@ export function newVirtualDeviceForm() {
   return {
     id: '',
     name: '',
-    channel_id: '',
     description: '',
     enable: true,
     points: []
@@ -120,20 +119,28 @@ export function encodeDragPayload({ refs, device } = {}) {
   return JSON.stringify({ refs: list, device: device || null })
 }
 
-/** @returns {{ refs: string[], device: object|null }} */
-export function decodeDragPayload(dataTransfer) {
+function parseDragPayloadJson(raw) {
+  if (!raw) return null
   try {
-    const raw = dataTransfer?.getData(DRAG_MIME)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      const refs = Array.isArray(parsed?.refs) ? parsed.refs : []
-      const device = parsed?.device && typeof parsed.device === 'object' ? parsed.device : null
-      if (refs.length || device) return { refs, device }
-    }
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    const refs = Array.isArray(parsed.refs) ? parsed.refs : []
+    const device = parsed.device && typeof parsed.device === 'object' ? parsed.device : null
+    if (refs.length || device) return { refs, device }
   } catch (_) {
     /* ignore */
   }
-  const plain = dataTransfer?.getData('text/plain')
+  return null
+}
+
+/** @returns {{ refs: string[], device: object|null }} */
+export function decodeDragPayload(dataTransfer) {
+  if (!dataTransfer) return { refs: [], device: null }
+  const fromMime = parseDragPayloadJson(dataTransfer.getData(DRAG_MIME))
+  if (fromMime) return fromMime
+  const fromPlain = parseDragPayloadJson(dataTransfer.getData('text/plain'))
+  if (fromPlain) return fromPlain
+  const plain = dataTransfer.getData('text/plain')
   return { refs: plain ? [plain] : [], device: null }
 }
 
@@ -144,6 +151,14 @@ export function normalizeArrayResponse(res) {
   return []
 }
 
+/** Device.state: 0=Online, 1=Unstable, 2=Offline, 3=Quarantine */
+export function isDeviceOnline(dev) {
+  if (!dev) return false
+  if (typeof dev.online === 'boolean') return dev.online
+  const state = dev.state
+  return state === 0 || state === 1
+}
+
 export function mapDeviceToSummary(dev, channelId, channelName) {
   const points = dev?.points
   return {
@@ -152,7 +167,9 @@ export function mapDeviceToSummary(dev, channelId, channelName) {
     channel_name: channelName || channelId,
     device_id: dev.id,
     device_name: dev.name || dev.id,
-    point_count: Array.isArray(points) ? points.length : 0
+    point_count: Array.isArray(points) ? points.length : 0,
+    online: isDeviceOnline(dev),
+    state: dev?.state ?? 2
   }
 }
 
