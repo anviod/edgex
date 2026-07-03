@@ -3,6 +3,7 @@ package ethernetip
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/anviod/edgex/internal/model"
 
@@ -50,8 +51,9 @@ func TestDriverFullReadPoints(t *testing.T) {
 
 	config := model.DriverConfig{
 		Config: map[string]any{
-			"ip":   "127.0.0.1",
-			"port": 44818,
+			"ip":      "127.0.0.1",
+			"port":    44818,
+			"timeout": 500,
 		},
 	}
 
@@ -60,7 +62,9 @@ func TestDriverFullReadPoints(t *testing.T) {
 		t.Fatalf("Driver init failed: %v", err)
 	}
 
-	err = driver.Connect(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	err = driver.Connect(ctx)
 	if err != nil {
 		t.Skipf("无法连接到模拟器: %v", err)
 	}

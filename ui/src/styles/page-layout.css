@@ -5,7 +5,7 @@
 .page-shell {
   padding: var(--page-padding-y) var(--page-padding-x);
   min-height: calc(100vh - var(--header-height));
-  background: var(--surface);
+  background: var(--shell-bg);
   color: var(--text-primary);
   box-sizing: border-box;
   display: flex;
@@ -18,7 +18,7 @@
 }
 
 .main-content.has-sidebar {
-  background: transparent !important;
+  background: var(--shell-bg) !important;
 }
 
 .page-container {

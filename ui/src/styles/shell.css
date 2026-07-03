@@ -11,7 +11,7 @@ body {
 }
 
 .app-background {
-  background: var(--surface);
+  background: var(--shell-bg);
   min-height: 100vh;
 }
 
@@ -37,7 +37,7 @@ body {
   left: 0;
   height: 100vh;
   width: var(--sidebar-width);
-  background: transparent;
+  background: var(--shell-bg);
   display: flex;
   flex-direction: column;
   z-index: 100;
@@ -60,11 +60,7 @@ body {
   padding: 0;
   margin-bottom: 0;
   box-sizing: border-box;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.dark-theme .sidebar-header {
-  border-bottom-color: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
 }
 
 .industrial-sidebar.is-collapsed .sidebar-header {
@@ -266,10 +262,10 @@ body {
   right: 0;
   left: var(--sidebar-width);
   height: var(--header-height);
-  background: rgba(255, 255, 255, 0.7);
+  background: color-mix(in srgb, var(--shell-bg) 92%, transparent);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -277,11 +273,6 @@ body {
   z-index: 99;
   transition: left 0.2s ease;
   box-sizing: border-box;
-}
-
-.dark-theme .industrial-header {
-  background: rgba(15, 23, 42, 0.75);
-  border-bottom-color: rgba(255, 255, 255, 0.06);
 }
 
 .industrial-header.is-collapsed {
@@ -459,7 +450,7 @@ body {
   min-height: 100vh;
   padding-top: var(--header-height);
   transition: margin-left 0.2s ease;
-  background: transparent;
+  background: var(--shell-bg);
 }
 
 /* 登录 / 安装页无顶栏，取消 header 占位 */
