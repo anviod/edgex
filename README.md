@@ -287,6 +287,9 @@ CGO_ENABLED=0 go test ./internal/core/... -count=1 -cover
 | 类别 | 链接 |
 | :--- | :--- |
 | 文档站点（GitHub Pages） | [https://anviod.github.io/edgex/](https://anviod.github.io/edgex/) |
+| **开发原则与验收标准** | [docs/DEVELOPMENT_PRINCIPLES.md](docs/DEVELOPMENT_PRINCIPLES.md) |
+| **分阶段路线图** | [docs/ROADMAP.md](docs/ROADMAP.md) |
+| **版本发布门禁** | [docs/RELEASE_GATE.md](docs/RELEASE_GATE.md) |
 | 驱动文档 | [docs/drivers/](docs/drivers/index.md) |
 | 部署指南 | [docs/deployment/](docs/deployment/index.md) |
 | 架构设计 | [docs/architecture/](docs/architecture/index.md) |
@@ -296,6 +299,10 @@ CGO_ENABLED=0 go test ./internal/core/... -count=1 -cover
 | 运维参考 | [docs/operations/](docs/operations/index.md) |
 
 ---
+
+## 分支与协作
+
+日常开发在 **`dev`** 分支进行；功能与修复 PR 请以 **`dev`** 为合并目标。`main` 保留为稳定发布线，由维护者从 `dev` 按需合并。
 
 ## 快速开始（开发）
 

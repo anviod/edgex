@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+      - master
+  push:
+    branches:
+      - dev
+      - main
+      - master
+
+jobs:
+  gates:
+    name: Short tests and build smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          check-latest: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run short unit tests
+        env:
+          CGO_ENABLED: '0'
+        run: make test-short
+
+      - name: Run short soak gate
+        env:
+          CGO_ENABLED: '0'
+        run: make test-soak-short
+
+      - name: Build smoke (CGO_ENABLED=0)
+        run: CGO_ENABLED=0 go build -o /dev/null ./cmd/main.go
+
+  bench-q3:
+    name: Q3 10k benchmark gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          check-latest: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run Q3 benchmark gate
+        env:
+          CGO_ENABLED: '0'
+        run: make bench-q3

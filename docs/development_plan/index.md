@@ -16,6 +16,16 @@ hero_buttons:
     style: secondary
 ---
 
+## 战略路线图
+
+正式分阶段路线图与发布门禁（**优先于本页 Q3/Q4 功能列表**）：
+
+- [**分阶段开发路线图**](../ROADMAP.html) — Phase 1 稳定性 → Phase 2 工业验证 → Phase 3 性能 → Phase 4 可观测
+- [**开发原则与验收标准**](../DEVELOPMENT_PRINCIPLES.html) — 量化验收与工程铁律
+- [**版本发布门禁**](../RELEASE_GATE.html) — G-Stability / G-Industrial / G-Performance / G-Lightweight
+
+---
+
 ## 路线图总览
 
 ### 已交付

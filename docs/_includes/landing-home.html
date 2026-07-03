@@ -11,6 +11,9 @@
           <p class="hero-subline">Go · 单文件部署 · 多架构 · Windows · Linux · macOS</p>
           <div class="hero-actions">
             <a class="button-link button-link--primary" href="guide/产品说明.html">产品说明</a>
+            <a class="button-link button-link--secondary" href="DEVELOPMENT_PRINCIPLES.html">开发原则与验收标准</a>
+            <a class="button-link button-link--secondary" href="ROADMAP.html">分阶段开发路线图</a>
+            <a class="button-link button-link--secondary" href="RELEASE_GATE.html">版本发布门禁</a>
             <a class="button-link button-link--secondary" href="guide/USER_MANUAL.html">用户手册</a>
             <a class="button-link button-link--secondary" href="drivers/index.html">设备驱动</a>
             <a class="button-link button-link--secondary" href="architecture/index.html">架构设计</a>
@@ -38,6 +41,56 @@
           </ul>
         </aside>
       </div>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section">
+  <div class="shell shell--wide">
+    <div class="section-heading">
+      <div>
+        <div class="section-kicker">战略与治理</div>
+        <h2>开发原则与发布门禁</h2>
+        <p>工程铁律、分阶段路线图、版本发布四道门禁与工业验证报告模板 — 架构设计与 PR 评审的上位规范。</p>
+      </div>
+    </div>
+
+    <div class="cards-grid cards-grid--four">
+      <article class="feature-card">
+        <span class="feature-card__tag">战略</span>
+        <h3>开发原则与验收标准</h3>
+        <p>稳定性优先、工业级验证、高性能与轻量化 — 含量化验收标准，适用于设计与发布评审。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="DEVELOPMENT_PRINCIPLES.html">阅读全文</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">战略</span>
+        <h3>分阶段开发路线图</h3>
+        <p>Phase 1 稳定性闭环 → Phase 2 工业验证 → Phase 3 性能 → Phase 4 可观测，明确阶段前置条件。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="ROADMAP.html">阅读全文</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">战略</span>
+        <h3>版本发布门禁</h3>
+        <p>G-Stability / G-Industrial / G-Performance / G-Lightweight 四道门禁 — 任一门禁未通过不得对外发布。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="RELEASE_GATE.html">阅读全文</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">验证</span>
+        <h3>工业验证测试报告模板</h3>
+        <p>Phase 2 各协议联机验证统一归档模板，与 G-Industrial 发布判定标准对齐。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="testing/工业验证测试报告模板.html">打开模板</a>
+        </div>
+      </article>
     </div>
   </div>
 </section>
@@ -91,6 +144,7 @@
         <h3>开发计划</h3>
         <p>路线图、待开发驱动与 Q3/Q4 架构特性演进 — ScanEngine、ShadowCore、多节点同步。</p>
         <div class="feature-card__links">
+          <a class="mini-link" href="ROADMAP.html">分阶段路线图</a>
           <a class="mini-link" href="development_plan/index.html">计划总览</a>
           <a class="mini-link" href="development_plan/drivers/采集驱动ICE104开发.html">IEC 104</a>
           <a class="mini-link" href="development_plan/sync/基于go-libp2p%20同步通信规划方案.html">多节点同步</a>
@@ -132,10 +186,14 @@
       <div class="doc-zone">
         <h3>架构与计算</h3>
         <ul>
+          <li><a href="DEVELOPMENT_PRINCIPLES.html">开发原则与验收标准</a></li>
+          <li><a href="ROADMAP.html">分阶段开发路线图</a></li>
+          <li><a href="RELEASE_GATE.html">版本发布门禁</a></li>
           <li><a href="architecture/index.html">架构设计</a></li>
           <li><a href="edge/index.html">边缘计算</a></li>
           <li><a href="northbound/index.html">北向数据</a></li>
           <li><a href="testing/index.html">测试验证</a></li>
+          <li><a href="testing/工业验证测试报告模板.html">工业验证测试报告模板</a></li>
           <li><a href="testing/南向驱动测试报告.html">南向驱动测试报告</a></li>
           <li><a href="drivers/index_en.html">Drivers (EN)</a></li>
         </ul>
@@ -406,7 +464,9 @@
 
     <div class="roadmap-footer">
       <p>
-        详细开发计划与技术方案请查阅
+        战略分阶段路线见
+        <a href="ROADMAP.html">分阶段开发路线图</a>
+        · 季度交付明细与技术方案见
         <a href="development_plan/index.html">开发计划总览</a>
       </p>
     </div>
@@ -420,6 +480,10 @@
       <h2>关键词索引</h2>
       <p>按协议、功能或场景快速查找相关文档：</p>
       <div class="quick-links">
+        <a href="DEVELOPMENT_PRINCIPLES.html">开发原则与验收标准</a>
+        <a href="ROADMAP.html">分阶段开发路线图</a>
+        <a href="RELEASE_GATE.html">版本发布门禁</a>
+        <a href="testing/工业验证测试报告模板.html">工业验证报告模板</a>
         <a href="guide/产品说明.html">产品介绍</a>
         <a href="guide/USER_MANUAL.html">用户手册</a>
         <a href="drivers/index.html">设备驱动</a>
