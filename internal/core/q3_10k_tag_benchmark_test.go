@@ -57,6 +57,14 @@ type q3BenchmarkResult struct {
 	GCPauseMaxMs        float64
 }
 
+
+func q3BenchmarkStabilizeHeap() {
+	for i := 0; i < 3; i++ {
+		runtime.GC()
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 func q3BenchmarkDuration() time.Duration {
 	if raw := os.Getenv("Q3_BENCH_DURATION"); raw != "" {
 		if secs, err := strconv.Atoi(raw); err == nil && secs > 0 {
@@ -128,7 +136,7 @@ func runQ3TenThousandTagBenchmark(t *testing.T, cfg q3BenchmarkConfig) q3Benchma
 
 	se.Run()
 	time.Sleep(q3BenchmarkWarmup)
-	runtime.GC()
+	q3BenchmarkStabilizeHeap()
 	runtime.ReadMemStats(&memStart)
 	goroutinesStart = runtime.NumGoroutine()
 
