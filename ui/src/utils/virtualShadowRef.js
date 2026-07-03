@@ -107,21 +107,34 @@ export function sourceFromRef(ref, sources) {
 export const DRAG_MIME = 'application/vnd.edgex.virtual-shadow-points+json'
 
 export function encodeDragRefs(refs) {
-  return JSON.stringify({ refs: Array.isArray(refs) ? refs : [refs] })
+  return encodeDragPayload({ refs })
 }
 
 export function decodeDragRefs(dataTransfer) {
+  return decodeDragPayload(dataTransfer).refs
+}
+
+/** @param {{ refs?: string[], device?: object|null }} payload */
+export function encodeDragPayload({ refs, device } = {}) {
+  const list = Array.isArray(refs) ? refs : refs ? [refs] : []
+  return JSON.stringify({ refs: list, device: device || null })
+}
+
+/** @returns {{ refs: string[], device: object|null }} */
+export function decodeDragPayload(dataTransfer) {
   try {
-    const raw = dataTransfer.getData(DRAG_MIME)
+    const raw = dataTransfer?.getData(DRAG_MIME)
     if (raw) {
       const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed?.refs) && parsed.refs.length) return parsed.refs
+      const refs = Array.isArray(parsed?.refs) ? parsed.refs : []
+      const device = parsed?.device && typeof parsed.device === 'object' ? parsed.device : null
+      if (refs.length || device) return { refs, device }
     }
   } catch (_) {
     /* ignore */
   }
-  const plain = dataTransfer.getData('text/plain')
-  return plain ? [plain] : []
+  const plain = dataTransfer?.getData('text/plain')
+  return { refs: plain ? [plain] : [], device: null }
 }
 
 /** 兼容直接数组或 { data: [] } 响应 */

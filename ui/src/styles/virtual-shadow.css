@@ -352,19 +352,116 @@
 }
 
 .virtual-shadow-builder-modal .device-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   padding: 10px var(--space-3);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg);
   margin-bottom: var(--space-2);
-  cursor: pointer;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  cursor: grab;
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transition:
+    border-color 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.18s ease,
+    background 0.22s ease;
 }
 
 .virtual-shadow-builder-modal .device-card:hover {
   border-color: rgba(14, 165, 233, 0.35);
-  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.1);
+  box-shadow: 0 2px 10px rgba(14, 165, 233, 0.12);
   transform: translateY(-1px);
+}
+
+.virtual-shadow-builder-modal .device-card:hover .device-drag-grip {
+  color: var(--primary);
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.virtual-shadow-builder-modal .device-card.is-pressing,
+.virtual-shadow-builder-modal .device-card.is-press-hint {
+  border-color: rgba(14, 165, 233, 0.5);
+  box-shadow: 0 4px 18px rgba(14, 165, 233, 0.18);
+  transform: scale(0.985);
+  background: rgba(14, 165, 233, 0.04);
+}
+
+.dark-theme .virtual-shadow-builder-modal .device-card.is-pressing,
+.dark-theme .virtual-shadow-builder-modal .device-card.is-press-hint {
+  background: rgba(14, 165, 233, 0.1);
+}
+
+.virtual-shadow-builder-modal .device-card.is-dragging {
+  opacity: 0.48;
+  cursor: grabbing;
+  transform: scale(0.97);
+  border-style: dashed;
+  border-color: var(--primary);
+  box-shadow: none;
+}
+
+.virtual-shadow-builder-modal .device-card:active {
+  cursor: grabbing;
+}
+
+.virtual-shadow-builder-modal .device-drag-grip {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 28px;
+  color: var(--text-tertiary);
+  border-radius: 4px;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+
+.virtual-shadow-builder-modal .device-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.virtual-shadow-builder-modal .device-drag-hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%) translateY(4px);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.35);
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 5;
+}
+
+.virtual-shadow-builder-modal .device-drag-hint::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--primary);
+}
+
+.virtual-shadow-builder-modal .device-drag-hint.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .virtual-shadow-builder-modal .device-card-main {
@@ -490,6 +587,41 @@
 @keyframes vs-drag-badge-pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.02); }
+}
+
+/* drag ghost (appended to body during HTML5 drag) */
+.vs-drag-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--primary, #0ea5e9);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  border: 2px solid rgba(255, 255, 255, 0.88);
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.vs-drag-ghost--device {
+  padding: 12px 18px;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(14, 165, 233, 0.35);
+}
+
+.vs-drag-ghost-icon {
+  opacity: 0.85;
+  font-size: 12px;
+  letter-spacing: -2px;
+}
+
+.vs-drag-ghost-text {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .virtual-shadow-builder-modal .point-chip {

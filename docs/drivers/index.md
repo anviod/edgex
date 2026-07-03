@@ -59,23 +59,29 @@ hero_buttons:
 
 ## 目录
 
-### Modbus
-- [Modbus 优化](MODBUS_OPTIMIZATION.html)
-- [Modbus 优化最终报告](MODBUS_OPTIMIZATION_FINAL.html)
-- [Modbus 优化报告](MODBUS_OPTIMIZATION_REPORT.html)
-- [Modbus 心跳优化](MODBUS_HEARTBEAT_OPTIMIZATION.html)
-- [Modbus 智能探测](Modbus智能探测.html)
-- [边缘网关 Modbus 优化](边缘网关Modbus优化.html)
-
 ### BACnet
+
+> **权威：** [BACnet 设计说明](BACnet_设计说明.html)（架构）· [BACnet 前端需求](BACnet_Frontend_UI_Requirements.html)（UI PRD）· [驱动采集验收清单](BACnet_Driver_Collection_Test_Acceptance_Checklist.html)（验收）
+
 - [BACnet 设计说明](BACnet_设计说明.html)
 - [BACnet 驱动采集测试验收清单](BACnet_Driver_Collection_Test_Acceptance_Checklist.html)
-- [BACnet 故障隔离报告](BACnet_Fault_Isolation_Report.html)
-- [BACnet 前端功能清单](BACnet_Frontend_UI_Functionality_Checklist.html)
+- [BACnet 故障隔离报告](BACnet_Fault_Isolation_Report.html) — 历史归档
+- [BACnet 前端功能清单](BACnet_Frontend_UI_Functionality_Checklist.html) — 索引
 - [BACnet 前端需求](BACnet_Frontend_UI_Requirements.html)
-- [BACnet 多设备隔离测试计划](BACnet_Multi_Device_Isolation_Test_Plan.html)
-- [BACnet 点位串流 bug](BACnet点位串流bug.html)
+- [BACnet 多设备隔离测试计划](BACnet_Multi_Device_Isolation_Test_Plan.html) — 索引
+- [BACnet 点位串流 bug](BACnet点位串流bug.html) — 历史归档
 - [API BACnet](API_BACnet.html)
+
+### Modbus
+
+> **权威：** [边缘网关 Modbus 优化](边缘网关Modbus优化.html)
+
+- [Modbus 优化](MODBUS_OPTIMIZATION.html) — 批量读索引
+- [Modbus 优化最终报告](MODBUS_OPTIMIZATION_FINAL.html) — 历史归档
+- [Modbus 优化报告](MODBUS_OPTIMIZATION_REPORT.html) — 历史归档
+- [Modbus 心跳优化](MODBUS_HEARTBEAT_OPTIMIZATION.html) — 索引
+- [Modbus 智能探测](Modbus智能探测.html)
+- [边缘网关 Modbus 优化](边缘网关Modbus优化.html)
 
 ### OPC UA
 - [OPC UA 设计](OPC_UA_Design.html)
@@ -103,7 +109,7 @@ hero_buttons:
 
 ### DL/T 645
 - [DL/T 645-2007 驱动](DLT645.html)
-- [开发方案](../development_plan/drivers/DL-T-645-2007驱动开发.html)
+- [开发方案](../TODO/DLT-645-2007/DL-T-645-2007驱动开发.html)
 
 ### IEC 60870-5-104
 - [ICE104 开发计划](../development_plan/drivers/采集驱动ICE104开发.html)

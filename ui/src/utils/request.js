@@ -75,7 +75,7 @@ service.interceptors.response.use(
       showMessage('登录已过期，请重新登录', 'error')
     } else {
       const msg =
-        (error.response && (error.response.data?.message || error.response.data?.msg)) ||
+        (error.response && (error.response.data?.error || error.response.data?.message || error.response.data?.msg)) ||
         error.message ||
         'Error'
       showMessage(msg, 'error')

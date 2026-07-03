@@ -328,6 +328,7 @@ type MQTTConfig struct {
 	Password string                         `json:"password" yaml:"password"`
 	Cache    DataCacheConfig                `json:"cache" yaml:"cache"`
 	Devices  map[string]DevicePublishConfig `json:"devices" yaml:"devices"`
+	VirtualDevices OpcUaDeviceMap           `json:"virtual_devices" yaml:"virtual_devices"`
 }
 
 type HTTPConfig struct {
@@ -346,7 +347,8 @@ type HTTPConfig struct {
 	DataEndpoint        string            `json:"data_endpoint" yaml:"data_endpoint"`                 // Relative path for data
 	DeviceEventEndpoint string            `json:"device_event_endpoint" yaml:"device_event_endpoint"` // Relative path for events
 	Cache               DataCacheConfig   `json:"cache" yaml:"cache"`
-	Devices             map[string]bool   `json:"devices" yaml:"devices"` // Key: DeviceID, Value: Enable
+	Devices             OpcUaDeviceMap    `json:"devices" yaml:"devices"` // Key: DeviceID; legacy bool or DevicePublishConfig
+	VirtualDevices      OpcUaDeviceMap    `json:"virtual_devices" yaml:"virtual_devices"`
 }
 
 type DevicePublishConfig struct {
@@ -374,7 +376,8 @@ type OPCUAConfig struct {
 	TrustedCertsPEM []string          `json:"trusted_certs_pem,omitempty" yaml:"trusted_certs_pem,omitempty"`
 	HasServerCert   bool              `json:"has_server_cert,omitempty" yaml:"-"`
 	HasServerKey    bool              `json:"has_server_key,omitempty" yaml:"-"`
-	Devices         OpcUaDeviceMap    `json:"devices" yaml:"devices"` // Key: DeviceID, Value: enable/strategy/interval
+	Devices         OpcUaDeviceMap    `json:"devices" yaml:"devices"`                   // Key: DeviceID, Value: enable/strategy/interval
+	VirtualDevices  OpcUaDeviceMap    `json:"virtual_devices" yaml:"virtual_devices"` // Key: VirtualShadowDeviceID, Value: enable
 }
 
 type SparkplugBConfig struct {
@@ -399,7 +402,8 @@ type SparkplugBConfig struct {
 	ClientCert     string          `json:"client_cert" yaml:"client_cert"`
 	ClientKey      string          `json:"client_key" yaml:"client_key"`
 	KeyPassword    string          `json:"key_password" yaml:"key_password"`
-	Devices        map[string]bool `json:"devices" yaml:"devices"` // Key: DeviceID, Value: Enable
+	Devices        OpcUaDeviceMap  `json:"devices" yaml:"devices"` // Key: DeviceID; legacy bool or DevicePublishConfig
+	VirtualDevices OpcUaDeviceMap  `json:"virtual_devices" yaml:"virtual_devices"`
 }
 
 // EdgeOSMQTTConfig defines configuration for edgeOS(MQTT) northbound channel
@@ -421,6 +425,7 @@ type EdgeOSMQTTConfig struct {
 	MaxReconnectInterval int                    `json:"max_reconnect_interval" yaml:"max_reconnect_interval"`
 	HeartbeatInterval string                     `json:"heartbeat_interval" yaml:"heartbeat_interval"` // e.g. "30s"
 	Devices         map[string]DevicePublishConfig `json:"devices" yaml:"devices"` // Key: DeviceID, Value: DevicePublishConfig
+	VirtualDevices  OpcUaDeviceMap                 `json:"virtual_devices" yaml:"virtual_devices"`
 }
 
 // EdgeOSNATSConfig defines configuration for edgeOS(NATS) northbound channel
@@ -442,6 +447,7 @@ type EdgeOSNATSConfig struct {
 	JetStreamEnabled bool                         `json:"jetstream_enabled" yaml:"jetstream_enabled"`
 	HeartbeatInterval string                      `json:"heartbeat_interval" yaml:"heartbeat_interval"` // e.g. "30s"
 	Devices          map[string]DevicePublishConfig `json:"devices" yaml:"devices"` // Key: DeviceID, Value: DevicePublishConfig
+	VirtualDevices   OpcUaDeviceMap                 `json:"virtual_devices" yaml:"virtual_devices"`
 }
 
 // EdgeRule represents an edge computing rule

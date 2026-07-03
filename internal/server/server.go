@@ -451,6 +451,7 @@ func (s *Server) setupRoutes() {
 	api.Post("/northbound/opcua/:id/batch-write", s.batchWriteOPCUA)
 	api.Get("/northbound/opcua/:id/write-history", s.getOPCUAWriteHistory)
 	api.Get("/northbound/mqtt/:id/stats", s.getMQTTStats)
+	api.Post("/northbound/sparkplugb", s.upsertSparkplugBConfig)         // Sparkplug B Upsert
 	api.Delete("/northbound/sparkplug_b/:id", s.deleteSparkplugBConfig) // Sparkplug B Delete
 
 	// edgeOS(MQTT)
@@ -768,11 +769,12 @@ func (s *Server) updateMQTTConfig(c *fiber.Ctx) error {
 		cfg.ID = uuid.New().String()
 	}
 
-	if err := s.nbm.UpsertMQTTConfig(cfg); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	warning, err := s.nbm.UpsertMQTTConfig(cfg)
+	if err != nil {
+		return c.Status(northboundUpsertErrorStatus(err)).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.JSON(cfg)
+	return c.JSON(northboundConfigJSON(cfg, warning))
 }
 
 // updateOPCUAConfig updates OPC UA configuration
@@ -789,12 +791,12 @@ func (s *Server) updateOPCUAConfig(c *fiber.Ctx) error {
 		cfg.ID = uuid.New().String()
 	}
 
-	savedCfg, err := s.nbm.UpsertOPCUAConfig(cfg)
+	savedCfg, warning, err := s.nbm.UpsertOPCUAConfig(cfg)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(northboundUpsertErrorStatus(err)).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.JSON(model.SanitizeOPCUAForClient(savedCfg))
+	return c.JSON(northboundConfigJSON(model.SanitizeOPCUAForClient(savedCfg), warning))
 }
 
 func (s *Server) uploadOPCUACertificate(c *fiber.Ctx) error {
@@ -845,11 +847,12 @@ func (s *Server) upsertSparkplugBConfig(c *fiber.Ctx) error {
 		cfg.ID = uuid.New().String()
 	}
 
-	if err := s.nbm.UpsertSparkplugBConfig(cfg); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	warning, err := s.nbm.UpsertSparkplugBConfig(cfg)
+	if err != nil {
+		return c.Status(northboundUpsertErrorStatus(err)).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.JSON(cfg)
+	return c.JSON(northboundConfigJSON(cfg, warning))
 }
 
 func (s *Server) deleteSparkplugBConfig(c *fiber.Ctx) error {
@@ -1916,12 +1919,13 @@ func (s *Server) updateEdgeOSMQTTConfig(c *fiber.Ctx) error {
 		cfg.ID = uuid.New().String()
 	}
 
-	if err := s.nbm.UpsertEdgeOSMQTTConfig(cfg); err != nil {
+	warning, err := s.nbm.UpsertEdgeOSMQTTConfig(cfg)
+	if err != nil {
 		zap.L().Error("Failed to update edgeOS(MQTT) config",
 			zap.Error(err),
 			zap.String("id", cfg.ID),
 		)
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(northboundUpsertErrorStatus(err)).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	zap.L().Info("edgeOS(MQTT) config updated",
@@ -1929,7 +1933,11 @@ func (s *Server) updateEdgeOSMQTTConfig(c *fiber.Ctx) error {
 		zap.String("name", cfg.Name),
 	)
 
-	return c.JSON(fiber.Map{"success": true, "config": cfg})
+	resp := fiber.Map{"success": true, "config": cfg}
+	if warning != "" {
+		resp["warning"] = warning
+	}
+	return c.JSON(resp)
 }
 
 func (s *Server) deleteEdgeOSMQTTConfig(c *fiber.Ctx) error {
@@ -2001,12 +2009,13 @@ func (s *Server) updateEdgeOSNATSConfig(c *fiber.Ctx) error {
 		cfg.ID = uuid.New().String()
 	}
 
-	if err := s.nbm.UpsertEdgeOSNATSConfig(cfg); err != nil {
+	warning, err := s.nbm.UpsertEdgeOSNATSConfig(cfg)
+	if err != nil {
 		zap.L().Error("Failed to update edgeOS(NATS) config",
 			zap.Error(err),
 			zap.String("id", cfg.ID),
 		)
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(northboundUpsertErrorStatus(err)).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	zap.L().Info("edgeOS(NATS) config updated",
@@ -2014,7 +2023,11 @@ func (s *Server) updateEdgeOSNATSConfig(c *fiber.Ctx) error {
 		zap.String("name", cfg.Name),
 	)
 
-	return c.JSON(fiber.Map{"success": true, "config": cfg})
+	resp := fiber.Map{"success": true, "config": cfg}
+	if warning != "" {
+		resp["warning"] = warning
+	}
+	return c.JSON(resp)
 }
 
 func (s *Server) deleteEdgeOSNATSConfig(c *fiber.Ctx) error {

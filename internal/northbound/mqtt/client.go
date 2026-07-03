@@ -168,35 +168,49 @@ func (c *Client) updatePeriodicTasks() {
 	defer c.periodicMu.Unlock()
 
 	c.configMu.RLock()
-	devices := c.config.Devices
+	devices := model.OpcUaDeviceMap(c.config.Devices)
+	virtualDevices := c.config.VirtualDevices
 	c.configMu.RUnlock()
+
+	isPeriodicEnabled := func(devID string) (model.DevicePublishConfig, bool) {
+		cfg, ok := model.LookupNorthboundPublishConfig(devID, devices, virtualDevices)
+		if !ok || cfg.Strategy != "periodic" || time.Duration(cfg.Interval) <= 0 {
+			return cfg, false
+		}
+		return cfg, true
+	}
 
 	// Stop removed or changed tasks
 	for devID, item := range c.periodic {
-		devCfg, ok := devices[devID]
-		if !ok || !devCfg.Enable || devCfg.Strategy != "periodic" || time.Duration(devCfg.Interval) <= 0 {
+		if _, ok := isPeriodicEnabled(devID); !ok {
 			close(item.stop)
 			item.ticker.Stop()
 			delete(c.periodic, devID)
 		}
 	}
 
-	// Start new tasks
+	// Start new tasks from real and virtual device maps
+	startPeriodic := func(devID string, devCfg model.DevicePublishConfig) {
+		if devCfg.Strategy != "periodic" || time.Duration(devCfg.Interval) <= 0 || !devCfg.Enable {
+			return
+		}
+		if _, exists := c.periodic[devID]; exists {
+			return
+		}
+		item := &periodicItem{
+			values: make(map[string]model.Value),
+			ticker: time.NewTicker(time.Duration(devCfg.Interval)),
+			stop:   make(chan struct{}),
+		}
+		c.periodic[devID] = item
+		go c.runPeriodicTask(devID, item)
+	}
+
 	for devID, devCfg := range devices {
-		if !devCfg.Enable || devCfg.Strategy != "periodic" || time.Duration(devCfg.Interval) <= 0 {
-			continue
-		}
-
-		if _, exists := c.periodic[devID]; !exists {
-			item := &periodicItem{
-				values: make(map[string]model.Value),
-				ticker: time.NewTicker(time.Duration(devCfg.Interval)),
-				stop:   make(chan struct{}),
-			}
-			c.periodic[devID] = item
-
-			go c.runPeriodicTask(devID, item)
-		}
+		startPeriodic(devID, devCfg)
+	}
+	for devID, devCfg := range virtualDevices {
+		startPeriodic(devID, devCfg)
 	}
 }
 
@@ -667,33 +681,30 @@ func (c *Client) Publish(v model.Value) {
 
 	// Filter based on device config if configured
 	c.configMu.RLock()
-	devCfg, ok := c.config.Devices[v.DeviceID]
-	devicesCount := len(c.config.Devices)
+	devCfg, ok := model.LookupNorthboundPublishConfig(v.DeviceID, model.OpcUaDeviceMap(c.config.Devices), c.config.VirtualDevices)
 	c.configMu.RUnlock()
 
-	if devicesCount > 0 {
-		if !ok || !devCfg.Enable {
+	if !ok {
+		return
+	}
+
+	// Strategy: COV (Change of Value)
+	if devCfg.Strategy == "cov" || devCfg.Strategy == "change" {
+		key := v.DeviceID + ":" + v.PointID
+		lastVal, loaded := c.lastValues.Load(key)
+		if loaded && lastVal == v.Value {
 			return
 		}
-
-		// Strategy: COV (Change of Value)
-		if devCfg.Strategy == "cov" {
-			key := v.DeviceID + ":" + v.PointID
-			lastVal, loaded := c.lastValues.Load(key)
-			if loaded && lastVal == v.Value {
-				return
-			}
-			c.lastValues.Store(key, v.Value)
-		} else if devCfg.Strategy == "periodic" && time.Duration(devCfg.Interval) > 0 {
-			// Periodic with Interval: Cache value only
-			c.periodicMu.Lock()
-			if item, ok := c.periodic[v.DeviceID]; ok {
-				item.channelID = v.ChannelID
-				item.values[v.PointID] = v
-			}
-			c.periodicMu.Unlock()
-			return // Don't publish immediately
+		c.lastValues.Store(key, v.Value)
+	} else if devCfg.Strategy == "periodic" && time.Duration(devCfg.Interval) > 0 {
+		// Periodic with Interval: Cache value only
+		c.periodicMu.Lock()
+		if item, ok := c.periodic[v.DeviceID]; ok {
+			item.channelID = v.ChannelID
+			item.values[v.PointID] = v
 		}
+		c.periodicMu.Unlock()
+		return // Don't publish immediately
 	}
 
 	c.bufferMu.Lock()
@@ -798,14 +809,14 @@ func (c *Client) PublishDeviceStatus(deviceID string, status int) {
 
 	// Check if device is enabled in this channel
 	c.configMu.RLock()
-	devCfg, ok := c.config.Devices[deviceID]
+	_, ok := model.LookupNorthboundPublishConfig(deviceID, model.OpcUaDeviceMap(c.config.Devices), c.config.VirtualDevices)
 	statusTopic := c.config.StatusTopic
 	topic := c.config.Topic
 	onlinePayload := c.config.OnlinePayload
 	offlinePayload := c.config.OfflinePayload
 	c.configMu.RUnlock()
 
-	if !ok || !devCfg.Enable {
+	if !ok {
 		return
 	}
 

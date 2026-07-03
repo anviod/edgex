@@ -28,14 +28,21 @@ import (
 	"go.uber.org/zap"
 )
 
+// VirtualShadowLister supplies virtual shadow device configs for OPC UA address space.
+type VirtualShadowLister interface {
+	List() []model.VirtualShadowDeviceConfig
+}
+
 // Server is the OPC UA Server implementation
 type Server struct {
 	config    model.OPCUAConfig
 	sb        model.SouthboundManager
+	virtualShadows VirtualShadowLister
 	srv       *server.Server
 	mu        sync.RWMutex
 	lifecycleMu sync.Mutex
 	nodeMap   map[string]*server.VariableNode
+	virtualDeviceIDs map[string]struct{}
 	gatewayID string
 	stats     Stats
 	ctx       context.Context
@@ -47,13 +54,15 @@ type Server struct {
 }
 
 // NewServer creates a new OPC UA Server
-func NewServer(cfg model.OPCUAConfig, sb model.SouthboundManager) *Server {
+func NewServer(cfg model.OPCUAConfig, sb model.SouthboundManager, virtualShadows VirtualShadowLister) *Server {
 	return &Server{
-		config:    cfg,
-		sb:        sb,
-		nodeMap:   make(map[string]*server.VariableNode),
-		gatewayID: "Gateway",
-		idMapper:  NewNodeIDMapper(),
+		config:           cfg,
+		sb:               sb,
+		virtualShadows:   virtualShadows,
+		nodeMap:          make(map[string]*server.VariableNode),
+		virtualDeviceIDs: make(map[string]struct{}),
+		gatewayID:        "Gateway",
+		idMapper:         NewNodeIDMapper(),
 	}
 }
 
@@ -519,10 +528,13 @@ func (s *Server) Update(v model.Value) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if len(s.config.Devices) > 0 {
-		if !s.config.Devices.AllowsDevice(v.DeviceID) {
+	_, isVirtual := s.virtualDeviceIDs[v.DeviceID]
+	if isVirtual {
+		if len(s.config.VirtualDevices) > 0 && !s.config.VirtualDevices.AllowsDevice(v.DeviceID) {
 			return
 		}
+	} else if len(s.config.Devices) > 0 && !s.config.Devices.AllowsDevice(v.DeviceID) {
+		return
 	}
 
 	key := fmt.Sprintf("%s/%s/%s", v.ChannelID, v.DeviceID, v.PointID)
@@ -558,6 +570,9 @@ func (s *Server) buildAddressSpace() error {
 	// Create a new mapper for this address space build
 	// This ensures clean state and correct ID assignment
 	s.idMapper = NewNodeIDMapper()
+	s.mu.Lock()
+	s.virtualDeviceIDs = make(map[string]struct{})
+	s.mu.Unlock()
 
 	createFolder := func(parentID ua.NodeID, id string, name string) ua.NodeID {
 		nodeID := ua.ParseNodeID(fmt.Sprintf("ns=%d;s=%s", nsIndex, id))
@@ -802,6 +817,8 @@ func (s *Server) buildAddressSpace() error {
 				//				zap.L().Info("Added OPC UA Point Node", zap.String("node_id", pNodeID), zap.String("point_id", p.ID), zap.String("point_name", p.Name), zap.String("data_type", p.DataType))
 			}
 		}
+
+		s.buildVirtualDevicesForChannel(ch, devsNodeID, createFolder, createVar)
 	}
 
 	zap.L().Info("OPC UA Address Space built with compact node IDs",
@@ -810,6 +827,119 @@ func (s *Server) buildAddressSpace() error {
 	)
 
 	return nil
+}
+
+func (s *Server) buildVirtualDevicesForChannel(
+	ch model.Channel,
+	devsNodeID ua.NodeID,
+	createFolder func(parentID ua.NodeID, id string, name string) ua.NodeID,
+	createVar func(parentID ua.NodeID, id string, name string, val interface{}, typeID ua.NodeID, accessLevel byte, writeHandler func(sess *server.Session, req ua.WriteValue) (ua.DataValue, ua.StatusCode)) *server.VariableNode,
+) {
+	if s.virtualShadows == nil {
+		return
+	}
+
+	for _, vcfg := range s.virtualShadows.List() {
+		if vcfg.ChannelID != ch.ID || !vcfg.Enable || len(vcfg.Points) == 0 {
+			continue
+		}
+		if len(s.config.VirtualDevices) > 0 && !s.config.VirtualDevices.AllowsDevice(vcfg.ID) {
+			continue
+		}
+
+		dCompactID := s.idMapper.GenerateCompactFolderID(ch.ID, vcfg.ID)
+		dNodeID := createFolder(devsNodeID, dCompactID, vcfg.ID)
+		displayName := vcfg.Name
+		if displayName == "" {
+			displayName = vcfg.ID
+		}
+		createVar(dNodeID, dCompactID+"/Name", "Name", displayName, s.getDataTypeID("string"), 1, nil)
+		createVar(dNodeID, dCompactID+"/Virtual", "Virtual", true, s.getDataTypeID("bool"), 1, nil)
+
+		pointsCompactID := dCompactID + "/P"
+		pointsNodeID := createFolder(dNodeID, pointsCompactID, "Points")
+
+		s.mu.Lock()
+		s.virtualDeviceIDs[vcfg.ID] = struct{}{}
+		s.mu.Unlock()
+
+		for _, pt := range vcfg.Points {
+			pointID := pt.PointID
+			if pointID == "" {
+				continue
+			}
+			pKey := fmt.Sprintf("%s/%s/%s", ch.ID, vcfg.ID, pointID)
+			stringID := fmt.Sprintf("%s.%s.%s", ch.ID, vcfg.ID, pointID)
+			pointName := pt.Name
+			if pointName == "" {
+				pointName = pointID
+			}
+
+			dataType := "double"
+			initialVal := s.getZeroValue(dataType)
+			if sp, err := s.sb.GetShadowPoint(ch.ID, vcfg.ID, pointID); err == nil && sp != nil {
+				dataType = inferShadowPointDataType(sp.Value, dataType)
+				initialVal = convertToType(sp.Value, dataType)
+			}
+
+			dataTypeID := s.getDataTypeID(dataType)
+			cid, vid, pid := ch.ID, vcfg.ID, pointID
+			pType := dataType
+			vNode := createVar(pointsNodeID, stringID, pointName, initialVal, dataTypeID, 1, nil)
+			vNode.SetReadValueHandler(func(sess *server.Session, req ua.ReadValueID) ua.DataValue {
+				if sp, err := s.sb.GetShadowPoint(cid, vid, pid); err == nil && sp != nil {
+					status := uint32(0)
+					if sp.Quality != "good" && sp.Quality != "Good" {
+						status = 0x80000000
+					}
+					return ua.DataValue{
+						Value:           convertToType(sp.Value, pType),
+						StatusCode:      ua.StatusCode(status),
+						SourceTimestamp: sp.CollectedAt,
+						ServerTimestamp: time.Now(),
+					}
+				}
+				return vNode.Value()
+			})
+
+			s.mu.Lock()
+			s.nodeMap[pKey] = vNode
+			s.mu.Unlock()
+		}
+	}
+}
+
+func inferShadowPointDataType(val any, fallback string) string {
+	switch val.(type) {
+	case bool:
+		return "bool"
+	case int8:
+		return "int8"
+	case uint8:
+		return "uint8"
+	case int16:
+		return "int16"
+	case uint16:
+		return "uint16"
+	case int32:
+		return "int32"
+	case uint32:
+		return "uint32"
+	case int64:
+		return "int64"
+	case uint64:
+		return "uint64"
+	case float32:
+		return "float32"
+	case float64:
+		return "double"
+	case string:
+		return "string"
+	case []byte:
+		return "bytestring"
+	default:
+		return fallback
+	}
 }
 
 func (s *Server) systemInfoLoop(ctx context.Context) {

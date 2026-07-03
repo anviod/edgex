@@ -98,9 +98,13 @@ func (nm *NorthboundManager) updateEdgeOSNATSClients(oldConfigs, newConfigs []mo
 }
 
 // UpsertEdgeOSMQTTConfig 更新或插入 edgeOS(MQTT) 配置
-func (nm *NorthboundManager) UpsertEdgeOSMQTTConfig(cfg model.EdgeOSMQTTConfig) error {
+func (nm *NorthboundManager) UpsertEdgeOSMQTTConfig(cfg model.EdgeOSMQTTConfig) (string, error) {
 	nm.mu.Lock()
 	defer nm.mu.Unlock()
+
+	if err := nm.validateNorthboundChannelName(cfg.ID, cfg.Name); err != nil {
+		return "", err
+	}
 
 	found := false
 	for i, c := range nm.config.EdgeOSMQTT {
@@ -115,7 +119,7 @@ func (nm *NorthboundManager) UpsertEdgeOSMQTTConfig(cfg model.EdgeOSMQTTConfig) 
 	}
 
 	if err := nm.saveConfig(); err != nil {
-		return err
+		return "", err
 	}
 
 	client, exists := nm.edgeOSMQTTClients[cfg.ID]
@@ -125,20 +129,19 @@ func (nm *NorthboundManager) UpsertEdgeOSMQTTConfig(cfg model.EdgeOSMQTTConfig) 
 			client.Stop()
 			delete(nm.edgeOSMQTTClients, cfg.ID)
 		}
-		return nil
+		return "", nil
 	}
 
+	var startErr error
 	if !exists {
 		newClient := edgos_mqtt.NewClient(cfg, nm.sb, nm.storage)
-		if err := newClient.Start(); err != nil {
-			return err
-		}
+		startErr = newClient.Start()
 		nm.edgeOSMQTTClients[cfg.ID] = newClient
 	} else {
-		return client.UpdateConfig(cfg)
+		startErr = client.UpdateConfig(cfg)
 	}
 
-	return nil
+	return connectorStartWarning("edgeOS MQTT Broker", cfg.Name, startErr), nil
 }
 
 // DeleteEdgeOSMQTTConfig 删除 edgeOS(MQTT) 配置
@@ -174,9 +177,13 @@ func (nm *NorthboundManager) GetEdgeOSMQTTStats(id string) (edgos_mqtt.EdgeOSMQT
 }
 
 // UpsertEdgeOSNATSConfig 更新或插入 edgeOS(NATS) 配置
-func (nm *NorthboundManager) UpsertEdgeOSNATSConfig(cfg model.EdgeOSNATSConfig) error {
+func (nm *NorthboundManager) UpsertEdgeOSNATSConfig(cfg model.EdgeOSNATSConfig) (string, error) {
 	nm.mu.Lock()
 	defer nm.mu.Unlock()
+
+	if err := nm.validateNorthboundChannelName(cfg.ID, cfg.Name); err != nil {
+		return "", err
+	}
 
 	found := false
 	for i, c := range nm.config.EdgeOSNATS {
@@ -191,7 +198,7 @@ func (nm *NorthboundManager) UpsertEdgeOSNATSConfig(cfg model.EdgeOSNATSConfig) 
 	}
 
 	if err := nm.saveConfig(); err != nil {
-		return err
+		return "", err
 	}
 
 	client, exists := nm.edgeOSNATSClients[cfg.ID]
@@ -201,20 +208,19 @@ func (nm *NorthboundManager) UpsertEdgeOSNATSConfig(cfg model.EdgeOSNATSConfig) 
 			client.Stop()
 			delete(nm.edgeOSNATSClients, cfg.ID)
 		}
-		return nil
+		return "", nil
 	}
 
+	var startErr error
 	if !exists {
 		newClient := edgos_nats.NewClient(cfg, nm.sb, nm.storage)
-		if err := newClient.Start(); err != nil {
-			return err
-		}
+		startErr = newClient.Start()
 		nm.edgeOSNATSClients[cfg.ID] = newClient
 	} else {
-		return client.UpdateConfig(cfg)
+		startErr = client.UpdateConfig(cfg)
 	}
 
-	return nil
+	return connectorStartWarning("NATS 服务", cfg.Name, startErr), nil
 }
 
 // DeleteEdgeOSNATSConfig 删除 edgeOS(NATS) 配置

@@ -17,7 +17,8 @@
       <header class="help-doc__hero">
         <span class="protocol-tag protocol-tag--accent">SLA / Soak</span>
         <p class="help-doc__lead">
-          本面板每 15 秒采样一次 ScanEngine 运行指标，汇总 Release Gate 达标情况、当前快照、会话极值与趋势，用于 soak 测试与发布前验收。
+          本面板每 15 秒采样一次 ScanEngine 运行指标，汇总 Release Gate 达标情况、当前快照、会话极值与趋势，用于 soak 测试与发布前验收。门禁判定标准详见
+          <a href="/docs/RELEASE_GATE.html" target="_blank" class="help-doc-link">版本发布门禁</a>。
         </p>
       </header>
 

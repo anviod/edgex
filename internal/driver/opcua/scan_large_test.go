@@ -120,7 +120,7 @@ func TestScanLargeNumberOfPoints(t *testing.T) {
 		KeyFile:  filepath.Join(tmpDir, "server.key"),
 	}
 
-	srv := nbopcua.NewServer(cfg, mockSB)
+	srv := nbopcua.NewServer(cfg, mockSB, nil)
 	err = srv.Start()
 	require.NoError(t, err, "Failed to start OPC UA server")
 	defer srv.Stop()

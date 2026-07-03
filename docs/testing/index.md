@@ -46,3 +46,16 @@ hero_buttons:
 ### 南向驱动测试
 - [南向驱动测试报告](南向驱动测试报告.html) — 单元测试、性能基准、边界场景矩阵（2026-06-27）
 - [Southbound Driver Test Report (EN)](southbound-driver-test-report.html)
+
+### ScanEngine / ShadowCore 测试（权威版 edge/）
+
+> testing/ 目录下编号测试文档为归档副本，正文以 edge/ 为准。
+
+- [影子设备与采集优化集成测试](../edge/影子设备与采集优化集成测试文档.html)
+- [2. 智能画像方案设计_测试](../edge/2. 智能画像方案设计_测试文档.html)
+- [3. 核心结构体定义_测试](../edge/3. 核心结构体定义_测试文档.html)
+- [4. 核心设计_测试](../edge/4. 核心设计_测试文档.html)
+- [6. 影子设备设计_测试](../edge/6. 影子设备设计_测试文档.html)
+- [8. RTT 管理器_测试](../edge/8. RTT管理器实现_测试文档.html)
+- [9. MTU 管理器_测试](../edge/9. MTU管理器实现_测试文档.html)
+- [10. Gap 优化器_测试](../edge/10. Gap优化器实现_测试文档.html)

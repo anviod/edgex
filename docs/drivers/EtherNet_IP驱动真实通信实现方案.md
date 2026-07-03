@@ -6,6 +6,8 @@ description: EdgeX EtherNet/IP 驱动真实通信实现方案
 
 # EtherNet/IP 驱动真实通信实现方案
 
+> **文档状态：** 本文为 **历史开发方案归档**（驱动已于 2026 Q2 交付，`ethernet-ip` 生产就绪）。现行能力矩阵与配置项见 [驱动总览 · EtherNet/IP](index.html#ethernetip)；实现代码见 `internal/driver/ethernetip/`。
+
 ## 1. 产品概述
 
 将EdgeX边缘网关的EtherNet/IP协议采集通道从模拟实现升级为基于go-ethernet-ip库的真实Allen-Bradley PLC通信，支持ControlLogix、CompactLogix、Micro800等系列PLC。

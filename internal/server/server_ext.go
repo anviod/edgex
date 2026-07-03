@@ -1,11 +1,43 @@
 package server
 
 import (
+	"encoding/json"
+	"strings"
+
 	"github.com/anviod/edgex/internal/model"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
+
+func northboundUpsertErrorStatus(err error) int {
+	if err == nil {
+		return fiber.StatusInternalServerError
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "已存在") {
+		return fiber.StatusConflict
+	}
+	if strings.Contains(msg, "不能为空") {
+		return fiber.StatusBadRequest
+	}
+	return fiber.StatusInternalServerError
+}
+
+func northboundConfigJSON(cfg any, warning string) fiber.Map {
+	out := fiber.Map{}
+	data, err := json.Marshal(cfg)
+	if err != nil {
+		return fiber.Map{"error": err.Error()}
+	}
+	if err := json.Unmarshal(data, &out); err != nil {
+		return fiber.Map{"error": err.Error()}
+	}
+	if warning != "" {
+		out["warning"] = warning
+	}
+	return out
+}
 
 // updateHTTPConfig updates HTTP configuration
 func (s *Server) updateHTTPConfig(c *fiber.Ctx) error {
@@ -22,7 +54,7 @@ func (s *Server) updateHTTPConfig(c *fiber.Ctx) error {
 	}
 
 	if err := s.nbm.UpsertHTTPConfig(cfg); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(northboundUpsertErrorStatus(err)).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	return c.JSON(cfg)

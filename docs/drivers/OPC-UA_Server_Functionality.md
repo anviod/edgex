@@ -2,6 +2,8 @@
 layout: default
 ---
 
+> **文档定位：** 本文为 OPC UA **北向服务端**功能设计与验收任务清单（权威）。UI Help Dialog 提供连接配置、Security Policy 与订阅的快速接入说明；完整地址空间映射、Write-back 与验收标准以本文为准。
+
 任务一：基础能力建设
 
 目标：引入 OPC UA Server 库，完成基本服务启动与地址空间骨架。

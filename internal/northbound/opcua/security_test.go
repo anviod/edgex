@@ -64,7 +64,7 @@ func TestGetEndpointsMultiplePolicies(t *testing.T) {
 		AuthMethods:    []string{"Anonymous"},
 		CertFile:       serverCert,
 		KeyFile:        serverKey,
-	}, sb)
+	}, sb, nil)
 	if err := srv.Start(); err != nil {
 		t.Fatalf("start server: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestServerUserNameAuth(t *testing.T) {
 		Users:          map[string]string{"operator": "secret"},
 		CertFile:       serverCert,
 		KeyFile:        serverKey,
-	}, sb)
+	}, sb, nil)
 	if err := srv.Start(); err != nil {
 		t.Fatalf("start server: %v", err)
 	}

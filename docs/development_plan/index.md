@@ -70,7 +70,7 @@ hero_buttons:
 - [SNMP 驱动开发](drivers/SNMP采集驱动开发.html)
 
 ### 多节点同步通信
-- [基于 go-libp2p 同步通信规划方案](sync/基于go-libp2p%20同步通信规划方案.html)
+- [基于 go-libp2p 同步通信规划方案](../TODO/基于go-libp2p%20同步通信规划方案.html)（权威 · TODO）
 - [联机测试方案](sync/联机测试方案.html)
 
 ---
@@ -118,7 +118,7 @@ hero_buttons:
 - 工业协议适配：Exclusive/Shared/Lease 三种访问模式
 - 轻量级实现：内存占用 < 50MB，ARMv7 友好
 
-> 详细方案请参考 [基于 go-libp2p 同步通信规划方案](sync/基于go-libp2p%20同步通信规划方案.html)
+> 详细方案请参考 [基于 go-libp2p 同步通信规划方案](../TODO/基于go-libp2p%20同步通信规划方案.html)
 
 ---
 

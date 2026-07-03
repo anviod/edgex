@@ -473,6 +473,15 @@ func (c *Client) handleWriteCommand(client mqtt.Client, msg mqtt.Message) {
 	}
 	deviceID := topicParts[3]
 
+	c.configMu.RLock()
+	virtualDevices := c.config.VirtualDevices
+	c.configMu.RUnlock()
+	if model.IsNorthboundVirtualDevice(deviceID, virtualDevices) {
+		zap.L().Warn("Write rejected for virtual device", zap.String("device", deviceID))
+		c.sendCommandResponse(message.Header, "write_response", false, "Virtual device is read-only", map[string]interface{}{"request_id": message.Header.MessageID}, deviceID)
+		return
+	}
+
 	// Parse write command body
 	body, ok := message.Body.(map[string]interface{})
 	if !ok {
@@ -519,7 +528,7 @@ func (c *Client) handleWriteCommand(client mqtt.Client, msg mqtt.Message) {
 
 	// Check if device is enabled in configuration
 	c.configMu.RLock()
-	deviceConfig, deviceExists := c.config.Devices[deviceID]
+	deviceConfig, deviceExists := model.LookupNorthboundPublishConfig(deviceID, model.OpcUaDeviceMap(c.config.Devices), c.config.VirtualDevices)
 	c.configMu.RUnlock()
 
 	if !deviceExists {
@@ -874,12 +883,10 @@ func (c *Client) Publish(v model.Value) {
 	}
 
 	c.configMu.RLock()
-	devices := c.config.Devices
+	deviceConfig, ok := model.LookupNorthboundPublishConfig(v.DeviceID, model.OpcUaDeviceMap(c.config.Devices), c.config.VirtualDevices)
 	c.configMu.RUnlock()
 
-	// Check if device is enabled in config
-	deviceConfig, exists := devices[v.DeviceID]
-	if !exists || !deviceConfig.Enable {
+	if !ok {
 		return
 	}
 
@@ -1061,14 +1068,12 @@ func (c *Client) PublishDeviceStatus(deviceID string, status int) {
 	}
 
 	c.configMu.RLock()
-	devices := c.config.Devices
+	_, ok := model.LookupNorthboundPublishConfig(deviceID, model.OpcUaDeviceMap(c.config.Devices), c.config.VirtualDevices)
 	nodeID := c.config.NodeID
 	c.configMu.RUnlock()
 
-	if len(devices) > 0 {
-		if deviceConfig, ok := devices[deviceID]; !ok || !deviceConfig.Enable {
-			return
-		}
+	if !ok {
+		return
 	}
 
 	topic := fmt.Sprintf("edgex/devices/%s/%s/status", nodeID, deviceID)

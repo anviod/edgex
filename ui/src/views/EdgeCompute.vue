@@ -1,8 +1,10 @@
 ﻿<template>
-    <div class="page-shell edge-compute-container">
-        <div class="page-header edge-compute-page-header">
-            <h2 class="page-title">边缘计算</h2>
-            <p class="page-subtitle">规则监控、管理与运行日志</p>
+    <div class="page-shell page-shell--wide edge-compute-container edge-compute-page">
+        <div class="page-header">
+            <div>
+                <h2 class="page-title">边缘计算</h2>
+                <p class="page-subtitle">规则监控、管理与运行日志</p>
+            </div>
         </div>
 
         <a-tabs v-model:active-key="tab" type="rounded" size="small" class="main-tabs">
@@ -16,6 +18,7 @@
             <EdgeComputeMetrics v-if="tab === 'metrics'" />
 
             <div v-if="tab === 'rules'" class="edge-compute-flow">
+                <section class="edge-compute-zone" aria-label="规则管理">
                 <div class="edge-compute-toolbar">
                     <a-space size="small">
                         <a-button type="primary" @click="openDialog">
@@ -67,9 +70,11 @@
                         </template>
                     </a-table>
                 </div>
+                </section>
             </div>
 
             <div v-if="tab === 'status'" class="edge-compute-flow">
+                <section class="edge-compute-zone" aria-label="运行记录">
                 <div class="edge-compute-toolbar edge-compute-toolbar--end">
                     <a-button type="outline" size="small" @click="fetchRuleStates">
                         <template #icon><IconRefresh /></template>
@@ -102,9 +107,11 @@
                         </template>
                     </a-table>
                 </div>
+                </section>
             </div>
 
             <div v-if="tab === 'logs'" class="edge-compute-flow">
+                <section class="edge-compute-zone" aria-label="日志查询">
                 <div class="edge-compute-toolbar edge-compute-toolbar--filters">
                     <a-input v-model="query.start" placeholder="开始时间" type="datetime-local" size="small" class="filter-input" />
                     <a-input v-model="query.end" placeholder="结束时间" type="datetime-local" size="small" class="filter-input" />
@@ -140,6 +147,7 @@
                         </template>
                     </a-table>
                 </div>
+                </section>
             </div>
         </div>
 
@@ -206,7 +214,7 @@
         </a-modal>
 
         <!-- Rule Dialog -->
-        <a-modal v-model:visible="dialog" :title="editingRule ? '编辑规则' : '添加规则'" width="80%" modal-class="industrial-white-modal">
+        <a-modal v-model:visible="dialog" :title="editingRule ? '编辑规则' : '添加规则'" width="80%" modal-class="industrial-white-modal edge-compute-rule-modal">
             <a-form ref="form" :model="currentRule" layout="vertical" class="industrial-form form-controls-md">
                 <div class="form-section">
                     <div class="section-title">基础配置</div>
@@ -261,7 +269,7 @@
                             </a-form-item>
                         </a-col>
                     </a-row>
-                    <div class="text-gray-500 text-sm mt-1">{{ getRuleTypeExplanation(currentRule.type) }}</div>
+                    <div class="form-hint">{{ getRuleTypeExplanation(currentRule.type) }}</div>
                 </div>
 
                 <div class="form-section">
@@ -282,7 +290,7 @@
                             </a-button>
                         </div>
                     </div>
-                    <div class="text-gray-500 text-sm mb-4">
+                    <div class="form-hint form-hint--block">
                         请为每个数据源设置别名（如 t1, t2），然后在触发条件中使用别名编写逻辑公式（例如：t1 > 20 || t2 > 30）。
                     </div>
                     <div v-for="(src, index) in currentRule.sources" :key="index" class="source-row">

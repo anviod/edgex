@@ -1,65 +1,68 @@
 ﻿<template>
   <div class="edge-compute-metrics">
-    <div class="metrics-grid">
-      <div class="metric-stat">
-        <div class="metrics-label">规则总数</div>
-        <div class="metric-stat-value">
-          <span class="metrics-value">{{ metrics.rule_count }}</span>
+    <section class="edge-compute-zone edge-compute-zone--metrics" aria-label="运行指标">
+      <div class="edge-compute-zone-header">
+        <h3 class="edge-compute-zone-title">运行指标</h3>
+      </div>
+      <div class="stats-grid stats-grid--compact edge-compute-stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">规则总数</div>
+          <div class="stat-value">{{ metrics.rule_count }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">共享源数量</div>
+          <div class="stat-value">{{ metrics.shared_source_count }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">缓存大小</div>
+          <div class="stat-value">{{ metrics.cache_size }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">执行 / 触发 / 丢弃</div>
+          <div class="stat-value stat-value--compound">
+            <span>{{ metrics.rules_executed }}</span>
+            <span class="stat-value-sep">/ {{ metrics.rules_triggered }} / {{ metrics.rules_dropped }}</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">并发执行 (使用/总量)</div>
+          <div class="stat-value stat-value--compound">
+            <span>{{ metrics.worker_pool_usage }}</span>
+            <span class="stat-value-sep">/ {{ metrics.worker_pool_size }}</span>
+            <span class="stat-value-sep">· {{ workerUsagePercent }}%</span>
+          </div>
         </div>
       </div>
-      <div class="metric-stat">
-        <div class="metrics-label">共享源数量</div>
-        <div class="metric-stat-value">
-          <span class="metrics-value">{{ metrics.shared_source_count }}</span>
-        </div>
-      </div>
-      <div class="metric-stat">
-        <div class="metrics-label">缓存大小</div>
-        <div class="metric-stat-value">
-          <span class="metrics-value">{{ metrics.cache_size }}</span>
-        </div>
-      </div>
-      <div class="metric-stat">
-        <div class="metrics-label">执行 / 触发 / 丢弃</div>
-        <div class="metric-stat-value">
-          <span class="metrics-value">{{ metrics.rules_executed }}</span>
-          <span class="metrics-value-sep">/ {{ metrics.rules_triggered }} / {{ metrics.rules_dropped }}</span>
-        </div>
-      </div>
-      <div class="metric-stat">
-        <div class="metrics-label">并发执行 (使用/总量)</div>
-        <div class="metric-stat-value">
-          <span class="metrics-value">{{ metrics.worker_pool_usage }}</span>
-          <span class="metrics-value-sep">/ {{ metrics.worker_pool_size }}</span>
-          <span class="metrics-value-sep">· {{ workerUsagePercent }}%</span>
-        </div>
-      </div>
-    </div>
+    </section>
 
-    <div class="edge-compute-flow-section">
-      <h3 class="flow-section-title">共享源详情</h3>
-      <div class="table-container saas-table">
-        <a-table
-          :columns="columns"
-          :data="sharedSources"
-          size="small"
-          :bordered="false"
-          :scroll="{ x: 720 }"
-        >
-          <template #subscribers="{ record }">
-            <div class="subscribers-line">
-              <span
-                v-for="sub in record.subscribers"
-                :key="sub"
-                class="sub-item"
-              >
-                {{ sub }}
-              </span>
-            </div>
-          </template>
-        </a-table>
+    <section class="edge-compute-zone edge-compute-zone--table" aria-label="共享源详情">
+      <div class="edge-compute-zone-header">
+        <h3 class="edge-compute-zone-title">共享源详情</h3>
       </div>
-    </div>
+      <div class="edge-compute-tertiary-block">
+        <div class="table-container saas-table">
+          <a-table
+            :columns="columns"
+            :data="sharedSources"
+            size="small"
+            :bordered="false"
+            :scroll="{ x: 720 }"
+          >
+            <template #subscribers="{ record }">
+              <div class="subscribers-line">
+                <span
+                  v-for="sub in record.subscribers"
+                  :key="sub"
+                  class="sub-item"
+                >
+                  {{ sub }}
+                </span>
+              </div>
+            </template>
+          </a-table>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 

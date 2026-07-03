@@ -33,7 +33,7 @@ hero_buttons:
 - [边缘网关架构设计总览](边缘网关架构设计总览.html)
 
 ### 最佳实践
-- [边缘计算最佳实践](EDGE_COMPUTING_BEST_PRACTICES.html)
+- [边缘计算最佳实践](../guide/EDGE_COMPUTING_BEST_PRACTICES.html)
 - [边缘计算场景手册](EDGE_COMPUTING_SCENARIO_MANUAL.html)
 - [边缘流](EDGE_FLOW.html)
 
@@ -43,14 +43,14 @@ hero_buttons:
   <img src="../img/dataScanEngineCN.svg" width="100%" alt="Edgex V2.0 架构 · ScanEngine引擎" />
 </div>
 
-> **Edgex V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine 写入影子设备实时快照，再联通虚拟设备、边缘计算与北向接口。
+> **Edgex V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine 写入影子设备实时快照，再联通虚拟设备、边缘计算与北向接口。详见 [边缘网关架构设计总览](边缘网关架构设计总览.html)。
 
-- [边缘网关架构设计总览](边缘网关架构设计总览.html) — 全生命周期与调度驱动架构
-- [ScanEngine 重构方案](../TODO/ScanEngine重构方案.html) — 内核技术规范
-- [影子设备设计](../architecture/6. 影子设备设计.html)
-- [RTT 管理器](../architecture/8. RTT管理器实现.html)
-- [MTU 管理器](../architecture/9. MTU管理器实现.html)
-- [Gap 优化器](../architecture/10. Gap优化器实现.html)
+- [1. 项目现状分析](1. 项目现状分析.html)
+- [ScanEngine 重构方案](../TODO/ScanEngine重构方案.html) — 内核技术规范（权威）
+- [影子设备设计](6. 影子设备设计.html)
+- [RTT 管理器](8. RTT管理器实现.html)
+- [MTU 管理器](9. MTU管理器实现.html)
+- [Gap 优化器](10. Gap优化器实现.html)
 
 ## 相关文档
 

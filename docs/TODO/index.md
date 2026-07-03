@@ -71,6 +71,7 @@ config.db → ChannelManager → ScanEngine → ExecutionLayer → Driver.ReadPo
 | 通道设备状态 | Q3 §6.1 A2 + `channel_device_state.go` | ✅ |
 | 联机测试 | [联机测试方案.md](./联机测试方案.html) | 进行中 |
 | libp2p 同步 | [基于go-libp2p 同步通信规划方案.md](./基于go-libp2p%20同步通信规划方案.html) | 规划中 |
+| 点位读写升级 | [设备点位读写系统升级改造计划.md](./设备点位读写系统升级改造计划.html) | 规划中 |
 | 双向通信测试 | [南向北向双向通信测试报告.md](./南向北向双向通信测试报告.html) | 部分完成 |
 
 ---

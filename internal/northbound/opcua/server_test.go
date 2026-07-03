@@ -174,7 +174,7 @@ func TestWriteViaOPCUA(t *testing.T) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	server := NewServer(config, sb)
+	server := NewServer(config, sb, nil)
 	err := server.Start()
 	if err != nil {
 		t.Fatalf("Failed to start server: %v", err)
@@ -222,7 +222,7 @@ func TestBatchWrite(t *testing.T) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	server := NewServer(config, sb)
+	server := NewServer(config, sb, nil)
 	err := server.Start()
 	if err != nil {
 		t.Fatalf("Failed to start server: %v", err)
@@ -290,7 +290,7 @@ func TestGetWriteHistory(t *testing.T) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	server := NewServer(config, sb)
+	server := NewServer(config, sb, nil)
 	err := server.Start()
 	if err != nil {
 		t.Fatalf("Failed to start server: %v", err)
@@ -334,7 +334,7 @@ func TestWriteHistoryLimit(t *testing.T) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	server := NewServer(config, sb)
+	server := NewServer(config, sb, nil)
 	err := server.Start()
 	if err != nil {
 		t.Fatalf("Failed to start server: %v", err)
@@ -358,7 +358,7 @@ func TestWriteHistoryLimit(t *testing.T) {
 }
 
 func TestServerOpcUaTypeMetadata(t *testing.T) {
-	s := NewServer(model.OPCUAConfig{Name: "Test Server"}, NewMockSouthboundManager())
+	s := NewServer(model.OPCUAConfig{Name: "Test Server"}, NewMockSouthboundManager(), nil)
 
 	nodeID := s.getDataTypeID("bytestring")
 	wantNodeID := ua.ParseNodeID("i=15")
@@ -390,7 +390,7 @@ func TestServerStartStop(t *testing.T) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	server := NewServer(config, sb)
+	server := NewServer(config, sb, nil)
 	err := server.Start()
 	if err != nil {
 		t.Fatalf("Failed to start server: %v", err)
@@ -419,7 +419,7 @@ func TestServerUpdateConfigRebuild(t *testing.T) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	srv := NewServer(config, sb)
+	srv := NewServer(config, sb, nil)
 	if err := srv.Start(); err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
@@ -450,7 +450,7 @@ func TestServerConcurrentUpdateConfig(t *testing.T) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	srv := NewServer(config, sb)
+	srv := NewServer(config, sb, nil)
 	if err := srv.Start(); err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
@@ -495,7 +495,7 @@ func TestServerReadWrite(t *testing.T) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	server := NewServer(config, sb)
+	server := NewServer(config, sb, nil)
 	err := server.Start()
 	if err != nil {
 		t.Fatalf("Failed to start server: %v", err)
@@ -547,7 +547,7 @@ func TestServerUpdate(t *testing.T) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	server := NewServer(config, sb)
+	server := NewServer(config, sb, nil)
 	err := server.Start()
 	if err != nil {
 		t.Fatalf("Failed to start server: %v", err)
@@ -589,7 +589,7 @@ func BenchmarkServerRead(b *testing.B) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	server := NewServer(config, sb)
+	server := NewServer(config, sb, nil)
 	err := server.Start()
 	if err != nil {
 		b.Fatalf("Failed to start server: %v", err)
@@ -621,7 +621,7 @@ func BenchmarkServerWrite(b *testing.B) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	server := NewServer(config, sb)
+	server := NewServer(config, sb, nil)
 	err := server.Start()
 	if err != nil {
 		b.Fatalf("Failed to start server: %v", err)
@@ -653,7 +653,7 @@ func BenchmarkServerUpdate(b *testing.B) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	server := NewServer(config, sb)
+	server := NewServer(config, sb, nil)
 	err := server.Start()
 	if err != nil {
 		b.Fatalf("Failed to start server: %v", err)
@@ -692,7 +692,7 @@ func TestServerStress(t *testing.T) {
 		AuthMethods: []string{"Anonymous"},
 	}
 
-	server := NewServer(config, sb)
+	server := NewServer(config, sb, nil)
 	err := server.Start()
 	if err != nil {
 		t.Fatalf("Failed to start server: %v", err)

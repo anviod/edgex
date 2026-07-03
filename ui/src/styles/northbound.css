@@ -1,0 +1,159 @@
+/*
+ * EdgeX v3.0 — 北向接口页（Dashboard / EdgeCompute 三级视觉对齐）
+ */
+
+/* ── page shell：全宽 + 24px section 间距 ── */
+.northbound-page.page-shell {
+  gap: var(--space-6);
+  max-width: none;
+}
+
+.northbound-page .page-header {
+  margin-bottom: 0;
+}
+
+/* ── body flow ── */
+.northbound-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+/* ── zone 分区（对齐 edge-compute-zone / dashboard-zone） ── */
+.northbound-zone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.northbound-zone-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.northbound-zone-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.northbound-zone-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.northbound-zone-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+
+.northbound-zone-desc {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+
+.northbound-zone > .arco-row {
+  row-gap: var(--space-6) !important;
+}
+
+/* ── 加载 / 空状态 ── */
+.northbound-page .loading-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) 0;
+}
+
+.northbound-page .empty-wrap {
+  padding: var(--space-12) 0;
+}
+
+/* ── 通道卡片：Dashboard tertiary 抬升层 ── */
+.northbound-page .nb-card.arco-card {
+  background: var(--surface-1) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.northbound-page .nb-card.arco-card:hover {
+  border-color: rgba(14, 165, 233, 0.2) !important;
+  transform: translateY(-1px);
+}
+
+.northbound-page .nb-card .arco-card-header {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-4) var(--space-5);
+  background: transparent;
+}
+
+.northbound-page .nb-card .arco-card-body {
+  padding: var(--space-4) var(--space-5);
+}
+
+.northbound-page .nb-card .arco-card-actions {
+  border-top: 1px solid var(--border);
+  background: transparent;
+  padding: var(--space-2) var(--space-5);
+}
+
+/* ── Dark ── */
+.dark-theme .northbound-page .nb-card.arco-card {
+  background: var(--surface-1) !important;
+  border-color: var(--border) !important;
+}
+
+.dark-theme .northbound-page .nb-card.arco-card:hover {
+  border-color: rgba(14, 165, 233, 0.25) !important;
+}
+
+.dark-theme .northbound-page .northbound-zone-count {
+  background: var(--surface-1);
+  border-color: var(--border);
+}
+
+/* ── 卡片工具栏操作按钮（对齐 help-trigger-btn） ── */
+.northbound-page .nb-card .arco-card-extra .arco-btn-text {
+  color: var(--text-secondary);
+}
+
+.northbound-page .nb-card .arco-card-extra .arco-btn-text:hover {
+  color: var(--primary);
+  background: transparent;
+}
+
+.northbound-page .nb-card .arco-card-extra .arco-btn-text.arco-btn-status-danger {
+  color: var(--text-secondary);
+}
+
+.northbound-page .nb-card .arco-card-extra .arco-btn-text.arco-btn-status-danger:hover {
+  color: rgb(var(--danger-6));
+  background: transparent;
+}

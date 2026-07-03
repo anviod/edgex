@@ -1,6 +1,12 @@
 /*
- * EdgeX v3.0 — 边缘计算页（Flow UI，无 Tab 重复标题、无嵌套边框）
+ * EdgeX v3.0 — 边缘计算页（Dashboard 三级视觉层次对齐）
  */
+
+/* ── page shell：全宽 + 24px section 间距 ── */
+.edge-compute-page.page-shell {
+  gap: var(--space-6);
+  max-width: none;
+}
 
 .edge-compute-container {
   height: 100%;
@@ -10,45 +16,17 @@
   min-width: 0;
 }
 
-.edge-compute-container .edge-compute-page-header {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  flex-wrap: nowrap;
-  margin: 0;
-  padding: 0;
-  min-height: 0;
+.edge-compute-container .page-header {
+  margin-bottom: 0;
 }
 
-.edge-compute-container .edge-compute-page-header .page-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.3;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.edge-compute-container .edge-compute-page-header .page-subtitle {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--text-tertiary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-.edge-compute-container .edge-compute-page-header .page-subtitle::before {
-  content: '·';
-  margin: 0 var(--space-2) 0 0;
-  color: var(--text-tertiary);
-}
-
+/* ── tabs：与系统设置页一致，内容区外置渲染 ── */
 .edge-compute-container > .main-tabs {
   flex-shrink: 0;
-  margin-top: calc(-1 * var(--space-1));
+}
+
+.edge-compute-container > .main-tabs > .arco-tabs-nav {
+  margin-bottom: var(--space-2);
 }
 
 .edge-compute-container > .main-tabs .arco-tabs-nav-tab {
@@ -71,7 +49,42 @@
   min-width: 0;
 }
 
-/* ── Flow 区块：toolbar + table，spacing 分组，无共用外边框 ── */
+/* ── zone 分区（对齐 dashboard-zone） ── */
+.edge-compute-zone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.edge-compute-zone-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.edge-compute-zone-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.edge-compute-zone-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.edge-compute-zone--table {
+  gap: var(--space-4);
+}
+
+/* ── Flow 区块：toolbar + table，spacing 分组 ── */
 .edge-compute-flow,
 .edge-compute-metrics {
   display: flex;
@@ -80,20 +93,8 @@
   min-width: 0;
 }
 
-.edge-compute-flow-section {
-  display: flex;
-  flex-direction: column;
+.edge-compute-flow .edge-compute-zone {
   gap: var(--space-4);
-  min-width: 0;
-}
-
-.edge-compute-container .flow-section-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.5;
-  white-space: nowrap;
 }
 
 .edge-compute-toolbar {
@@ -111,6 +112,10 @@
 
 .edge-compute-toolbar--batch {
   justify-content: flex-start;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
 
 .edge-compute-toolbar--filters {
@@ -158,43 +163,37 @@
   color: var(--text-primary);
 }
 
-/* ── 监控指标：单行 grid，等高同质 ── */
-.edge-compute-metrics .metrics-grid {
-  display: grid;
+/* ── compact stat-card（对齐 Dashboard Secondary 区） ── */
+.edge-compute-page .stats-grid--compact.edge-compute-stats-grid {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--space-4);
-  min-width: 0;
 }
 
-.edge-compute-metrics .metric-stat {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-width: 0;
+.edge-compute-page .stats-grid--compact .stat-card {
   padding: var(--space-4) var(--space-5);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  transition: border-color var(--transition-fast), transform var(--transition-fast);
+  background: var(--surface-1);
+  border-radius: var(--radius-md);
 }
 
-.edge-compute-metrics .metric-stat:hover {
+.edge-compute-page .stats-grid--compact .stat-card:hover {
   border-color: rgba(14, 165, 233, 0.2);
   transform: translateY(-1px);
 }
 
-.edge-compute-metrics .metrics-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.4;
-  flex-shrink: 0;
+.edge-compute-page .stats-grid--compact .stat-value {
+  font-size: 20px;
+  margin-bottom: 0;
+  font-variant-numeric: tabular-nums;
 }
 
-.edge-compute-metrics .metric-stat-value {
+.edge-compute-page .stats-grid--compact .stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-2);
+}
+
+.edge-compute-page .stat-value--compound {
   display: flex;
   align-items: baseline;
   gap: var(--space-1);
@@ -203,24 +202,21 @@
   overflow: hidden;
 }
 
-.edge-compute-metrics .metrics-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.edge-compute-metrics .metrics-value-sep {
+.edge-compute-page .stat-value-sep {
   font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
-  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-variant-numeric: tabular-nums;
+}
+
+/* ── tertiary block：透明外层 + 内嵌表格 flow ── */
+.edge-compute-tertiary-block {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
 }
 
 .edge-compute-container .subscribers-line {
@@ -236,8 +232,8 @@
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  padding: 4px 10px;
-  background: var(--surface);
+  padding: 3px 8px;
+  background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 12px;
@@ -245,57 +241,107 @@
   white-space: nowrap;
 }
 
+/* ── 规则弹窗：Modal 壳层 ── */
+.edge-compute-rule-modal .arco-modal-header {
+  padding: var(--space-3) var(--space-4);
+}
+
+.edge-compute-rule-modal .arco-modal-body {
+  padding: var(--space-4);
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+.edge-compute-rule-modal .arco-modal-footer {
+  padding: var(--space-3) var(--space-4);
+}
+
 /* ── 规则弹窗表单 ── */
-.industrial-white-modal .form-section {
-  margin-bottom: var(--space-6);
-  padding: var(--space-5) var(--space-6);
+.edge-compute-rule-modal .form-section {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
 
-.industrial-white-modal .section-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  margin-bottom: var(--space-4);
-}
-
-.industrial-white-modal .section-header-row {
-  margin-bottom: var(--space-5);
-}
-
-.industrial-white-modal .section-header-row .section-title {
+.edge-compute-rule-modal .form-section:last-child {
   margin-bottom: 0;
 }
 
-.industrial-white-modal .actions-list {
+.edge-compute-rule-modal .section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  margin-bottom: var(--space-2);
+}
+
+.edge-compute-rule-modal .section-header-row {
+  margin-bottom: var(--space-3);
+}
+
+.edge-compute-rule-modal .section-header-row .section-title {
+  margin-bottom: 0;
+}
+
+.edge-compute-rule-modal .industrial-form .arco-form-item {
+  margin-bottom: var(--space-3) !important;
+}
+
+.edge-compute-rule-modal .industrial-form .arco-form-item-label-col {
+  padding-bottom: 4px;
+}
+
+.edge-compute-rule-modal .industrial-form .arco-form-item-extra {
+  margin-top: var(--space-1);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+.edge-compute-rule-modal .form-hint {
+  margin-top: var(--space-1);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+.edge-compute-rule-modal .form-hint--block {
+  margin-top: 0;
+  margin-bottom: var(--space-2);
+}
+
+.edge-compute-rule-modal .actions-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  margin-top: var(--space-2);
+  gap: var(--space-3);
+  margin-top: 0;
 }
 
-.industrial-white-modal .source-row {
+.edge-compute-rule-modal .source-row {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-  margin-bottom: var(--space-3);
+  gap: var(--space-3);
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
 }
 
-.industrial-white-modal .source-index {
+.edge-compute-rule-modal .source-row:last-child {
+  margin-bottom: 0;
+}
+
+.edge-compute-rule-modal .source-index {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
   background: var(--surface);
@@ -303,40 +349,40 @@
   border-radius: var(--radius-sm);
 }
 
-.industrial-white-modal .action-row {
+.edge-compute-rule-modal .action-row {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-5);
-  padding: var(--space-5) var(--space-6);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   margin-bottom: 0;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
 }
 
-.industrial-white-modal .action-row .action-editor {
+.edge-compute-rule-modal .action-row .action-editor {
   flex: 1;
   min-width: 0;
 }
 
-.industrial-white-modal .action-row .action-editor .arco-row {
-  row-gap: var(--space-4);
+.edge-compute-rule-modal .action-row .action-editor .arco-row {
+  row-gap: var(--space-3);
 }
 
-.industrial-white-modal .action-row .action-editor .arco-form-item {
-  margin-bottom: var(--space-5);
+.edge-compute-rule-modal .action-row .action-editor .arco-form-item {
+  margin-bottom: var(--space-3);
 }
 
-.industrial-white-modal .action-row .action-editor .arco-col:last-child > .arco-form-item:last-child,
-.industrial-white-modal .action-row .action-editor .arco-col > div > .arco-form-item:last-child {
+.edge-compute-rule-modal .action-row .action-editor .arco-col:last-child > .arco-form-item:last-child,
+.edge-compute-rule-modal .action-row .action-editor .arco-col > div > .arco-form-item:last-child {
   margin-bottom: 0;
 }
 
-.industrial-white-modal .action-index {
+.edge-compute-rule-modal .action-index {
   flex-shrink: 0;
-  min-width: 32px;
-  height: 32px;
-  padding: 0 6px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 5px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -350,47 +396,59 @@
   white-space: nowrap;
 }
 
-.industrial-white-modal .empty-box {
-  padding: var(--space-6);
+.edge-compute-rule-modal .empty-box {
+  padding: var(--space-4);
+  font-size: 12px;
   text-align: center;
   color: var(--text-tertiary);
   border: 1px dashed var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--bg);
 }
 
 /* ── Dark ── */
-.dark-theme .edge-compute-metrics .metric-stat {
-  background: var(--bg);
+.dark-theme .edge-compute-page .stats-grid--compact .stat-card {
+  background: var(--surface-1);
 }
 
 .dark-theme .edge-compute-container .subscribers-line .sub-item {
+  background: var(--surface-1);
+}
+
+.dark-theme .edge-compute-toolbar--batch {
+  background: var(--surface-1);
+}
+
+.dark-theme .edge-compute-rule-modal .form-section {
   background: var(--surface-2);
 }
 
-.dark-theme .industrial-white-modal .form-section {
-  background: var(--surface-2);
+.dark-theme .edge-compute-rule-modal .source-row,
+.dark-theme .edge-compute-rule-modal .action-row,
+.dark-theme .edge-compute-rule-modal .empty-box {
+  background: var(--bg);
 }
 
 /* ── Responsive ── */
-@media (max-width: 1024px) {
-  .edge-compute-metrics .metrics-grid {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: var(--space-4);
-    scrollbar-width: thin;
-    padding-bottom: var(--space-1);
-  }
-
-  .edge-compute-metrics .metric-stat {
-    flex: 0 0 168px;
+@media (max-width: 1200px) {
+  .edge-compute-page .stats-grid--compact.edge-compute-stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 768px) {
+  .edge-compute-page .stats-grid--compact.edge-compute-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .edge-compute-toolbar--filters .filter-input,
   .edge-compute-toolbar--filters .filter-input--narrow {
     width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .edge-compute-page .stats-grid--compact.edge-compute-stats-grid {
+    grid-template-columns: 1fr;
   }
 }

@@ -213,15 +213,39 @@
                       v-for="dev in deviceSearchResults"
                       :key="dev.key"
                       class="device-card"
-                      @click="selectSourceDevice(dev)"
+                      :class="{
+                        'is-dragging': draggingDeviceKey === dev.key,
+                        'is-press-hint': devicePressHint.key === dev.key,
+                        'is-pressing': devicePressState.key === dev.key && devicePressState.pressing
+                      }"
+                      draggable="true"
+                      @click="onDeviceCardClick(dev)"
+                      @mousedown="onDeviceCardPressStart(dev)"
+                      @mouseup="onDeviceCardPressEnd"
+                      @mouseleave="onDeviceCardPressEnd"
+                      @dragstart="onDeviceDragStart($event, dev)"
+                      @dragend="onDragEnd"
                     >
-                      <div class="device-card-main">
-                        <span class="device-name" v-html="highlightMatch(dev.device_name, deviceSearch)" />
-                        <a-tag size="small" color="arcoblue">{{ dev.point_count }} 点</a-tag>
+                      <span class="device-drag-grip" aria-hidden="true">
+                        <icon-drag-dot-vertical />
+                      </span>
+                      <div class="device-card-body">
+                        <div class="device-card-main">
+                          <span class="device-name" v-html="highlightMatch(dev.device_name, deviceSearch)" />
+                          <a-tag size="small" color="arcoblue">{{ dev.point_count }} 点</a-tag>
+                        </div>
+                        <div class="device-card-sub">
+                          <span>{{ dev.channel_name }}</span>
+                          <span class="device-id" v-html="'ID: ' + highlightMatch(dev.device_id, deviceSearch)" />
+                        </div>
                       </div>
-                      <div class="device-card-sub">
-                        <span>{{ dev.channel_name }}</span>
-                        <span class="device-id" v-html="'ID: ' + highlightMatch(dev.device_id, deviceSearch)" />
+                      <div
+                        v-if="devicePressHint.key === dev.key"
+                        class="device-drag-hint"
+                        :class="{ visible: devicePressHint.visible }"
+                      >
+                        <icon-drag-dot-vertical />
+                        <span>拖拽到右侧映射区</span>
                       </div>
                     </div>
                   </template>
@@ -557,8 +581,9 @@ import {
 } from '@/api/virtualShadow'
 import {
   FORMULA_OPERATORS,
+  decodeDragPayload,
   decodeDragRefs,
-  encodeDragRefs,
+  encodeDragPayload,
   fuzzyMatch,
   makePointRef,
   mapDeviceToSummary,
@@ -609,6 +634,13 @@ const dragState = reactive({
 })
 let dragGhostEl = null
 const draggingRefs = reactive(new Set())
+const draggingDeviceKey = ref(null)
+const devicePressHint = reactive({ visible: false, key: '' })
+const devicePressState = reactive({ key: '', pressing: false })
+const devicePointsPrefetch = reactive(new Map())
+let devicePressTimer = null
+let deviceDidDrag = false
+const DEVICE_PRESS_HINT_MS = 420
 
 const detailVisible = ref(false)
 const detailDevice = ref(null)
@@ -842,6 +874,7 @@ async function searchSourceDevices() {
 function clearDeviceSearchResults() {
   deviceSearchResults.value = []
   deviceSearchDone.value = false
+  devicePointsPrefetch.clear()
 }
 
 function onSourceChannelChange() {
@@ -1039,6 +1072,117 @@ function selectSourceDevice(dev) {
   loadDevicePoints(dev.channel_id, dev.device_id)
 }
 
+function clearDevicePressHint() {
+  if (devicePressTimer) {
+    clearTimeout(devicePressTimer)
+    devicePressTimer = null
+  }
+  devicePressHint.visible = false
+  devicePressHint.key = ''
+  devicePressState.key = ''
+  devicePressState.pressing = false
+}
+
+function onDeviceCardPressStart(dev) {
+  clearDevicePressHint()
+  devicePressState.key = dev.key
+  devicePressState.pressing = true
+  devicePressHint.key = dev.key
+  devicePressTimer = setTimeout(() => {
+    devicePressHint.visible = true
+    prefetchDevicePointsForDrag(dev)
+  }, DEVICE_PRESS_HINT_MS)
+}
+
+function onDeviceCardPressEnd() {
+  if (devicePressTimer) {
+    clearTimeout(devicePressTimer)
+    devicePressTimer = null
+  }
+  devicePressState.pressing = false
+  if (!dragState.active) {
+    devicePressHint.visible = false
+    devicePressHint.key = ''
+    devicePressState.key = ''
+  }
+}
+
+function onDeviceCardClick(dev) {
+  if (deviceDidDrag) {
+    deviceDidDrag = false
+    return
+  }
+  selectSourceDevice(dev)
+}
+
+async function prefetchDevicePointsForDrag(dev) {
+  if (devicePointsPrefetch.has(dev.key)) return
+  try {
+    const ch = channels.value.find(c => c.id === dev.channel_id)
+    const channelName = ch?.name || dev.channel_id
+    let pointList = normalizeArrayResponse(
+      await request.get(
+        `/api/channels/${encodeURIComponent(dev.channel_id)}/devices/${encodeURIComponent(dev.device_id)}/points`
+      )
+    )
+    if (pointList.length === 0) {
+      pointList = normalizeArrayResponse(await listDevicePointSources(dev.channel_id, dev.device_id))
+      devicePointsPrefetch.set(dev.key, pointList.map(p => p.ref))
+      cacheSources(pointList)
+    } else {
+      const sources = pointList.map(pt =>
+        mapPointToSource(pt, dev.channel_id, channelName, dev.device_id, dev.device_name)
+      )
+      devicePointsPrefetch.set(dev.key, sources.map(s => s.ref))
+      cacheSources(sources)
+    }
+  } catch (_) {
+    /* prefetch is best-effort */
+  }
+}
+
+function onDeviceDragStart(e, dev) {
+  deviceDidDrag = true
+  clearDevicePressHint()
+  draggingDeviceKey.value = dev.key
+  const refs = devicePointsPrefetch.get(dev.key) || []
+  const label = `${dev.device_name} · ${dev.point_count} 点`
+  setDragPayload(e, refs, label, {
+    device: {
+      key: dev.key,
+      channel_id: dev.channel_id,
+      device_id: dev.device_id,
+      device_name: dev.device_name,
+      point_count: dev.point_count
+    }
+  })
+}
+
+async function handleDeviceDrop(device) {
+  const devSummary =
+    deviceSearchResults.value.find(d => d.key === device.key) ||
+    deviceSearchResults.value.find(d => d.device_id === device.device_id) ||
+    device
+  if (
+    !selectedSourceDevice.value ||
+    selectedSourceDevice.value.device_id !== device.device_id
+  ) {
+    selectedSourceDevice.value = devSummary
+    pointFilter.value = ''
+    selectedPointRefs.clear()
+    await loadDevicePoints(device.channel_id, device.device_id)
+  } else if (!activeDevicePoints.value.length) {
+    await loadDevicePoints(device.channel_id, device.device_id)
+  }
+  const refs = activeDevicePoints.value.map(p => p.ref)
+  const added = addMapBlocksFromRefs(refs)
+  if (added > 0) {
+    Message.success(`已从 ${devSummary.device_name} 批量创建 ${added} 个映射积木`)
+  } else {
+    Message.info('该设备点位均已映射，未重复添加')
+  }
+}
+
 function clearSourceDevice() {
   selectedSourceDevice.value = null
   activeDevicePoints.value = []
@@ -1105,16 +1249,16 @@ function refsForDrag(src) {
   return [src.ref]
 }
 
-function setDragPayload(e, refs, label) {
+function setDragPayload(e, refs, label, { device = null } = {}) {
   if (!e.dataTransfer) return
   e.stopPropagation()
   e.dataTransfer.effectAllowed = 'copy'
-  e.dataTransfer.setData(DRAG_MIME, encodeDragRefs(refs))
-  e.dataTransfer.setData('text/plain', refs[0] || '')
+  e.dataTransfer.setData(DRAG_MIME, encodeDragPayload({ refs, device }))
+  e.dataTransfer.setData('text/plain', refs[0] || device?.device_id || '')
 
   dragState.active = true
-  dragState.count = refs.length
-  dragState.label = label || refs[0] || '点位'
+  dragState.count = refs.length || device?.point_count || 1
+  dragState.label = label || refs[0] || device?.device_name || '点位'
   draggingRefs.clear()
   for (const r of refs) draggingRefs.add(r)
 
@@ -1123,27 +1267,32 @@ function setDragPayload(e, refs, label) {
     dragGhostEl = null
   }
   const ghost = document.createElement('div')
-  const text = refs.length > 1 ? `${refs.length} 个点位` : (label || refs[0])
-  ghost.textContent = text
+  ghost.className = 'vs-drag-ghost' + (device ? ' vs-drag-ghost--device' : '')
+  const icon = document.createElement('span')
+  icon.className = 'vs-drag-ghost-icon'
+  icon.textContent = '⋮⋮'
+  const text = document.createElement('span')
+  text.className = 'vs-drag-ghost-text'
+  text.textContent =
+    device && refs.length > 1
+      ? `${device.device_name} · ${refs.length} 点`
+      : device
+        ? `${device.device_name} · ${device.point_count || refs.length || 0} 点`
+        : refs.length > 1
+          ? `${refs.length} 个点位`
+          : (label || refs[0] || '')
+  ghost.appendChild(icon)
+  ghost.appendChild(text)
   Object.assign(ghost.style, {
     position: 'fixed',
     top: '-1000px',
     left: '-1000px',
-    padding: '10px 16px',
-    background: '#0ea5e9',
-    color: '#fff',
-    borderRadius: '10px',
-    fontSize: '13px',
-    fontWeight: '600',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-    border: '2px solid rgba(255,255,255,0.9)',
-    zIndex: '99999',
-    whiteSpace: 'nowrap',
-    pointerEvents: 'none'
+    pointerEvents: 'none',
+    zIndex: '99999'
   })
   document.body.appendChild(ghost)
   dragGhostEl = ghost
-  e.dataTransfer.setDragImage(ghost, 24, 20)
+  e.dataTransfer.setDragImage(ghost, 28, 22)
 }
 
 function onPointDragStart(e, src) {
@@ -1163,10 +1312,12 @@ function clearDragVisualState() {
   dragState.count = 0
   dragState.label = ''
   draggingRefs.clear()
+  draggingDeviceKey.value = null
   batchDropActive.value = false
   pointListDragOver.value = false
   dropHoverIndex.value = -1
   mapDropHoverIndex.value = -1
+  clearDevicePressHint()
 }
 
 function onDragEnd() {
@@ -1188,9 +1339,23 @@ function onBatchZoneDragLeave(e) {
   batchDropActive.value = false
 }
 
-function onBatchZoneDrop(e) {
+async function onBatchZoneDrop(e) {
+  const payload = decodeDragPayload(e.dataTransfer)
   clearDragVisualState()
-  const refs = decodeDragRefs(e.dataTransfer)
+  if (payload.device) {
+    if (payload.refs.length) {
+      const added = addMapBlocksFromRefs(payload.refs)
+      if (added > 0) {
+        Message.success(`已从 ${payload.device.device_name} 批量创建 ${added} 个映射积木`)
+      } else {
+        Message.info('该设备点位均已映射，未重复添加')
+      }
+      return
+    }
+    await handleDeviceDrop(payload.device)
+    return
+  }
+  const refs = payload.refs
   if (!refs.length) return
   const added = addMapBlocksFromRefs(refs)
   if (added > 0) Message.success(`批量创建了 ${added} 个映射积木`)
@@ -1497,6 +1662,11 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  clearDevicePressHint()
+  if (dragGhostEl) {
+    dragGhostEl.remove()
+    dragGhostEl = null
+  }
   if (ws) {
     ws.close()
     ws = null

@@ -232,6 +232,7 @@ func main() {
 			zap.L().Warn("Failed to load virtual shadows", zap.Error(err))
 		}
 		srv.SetVirtualShadowManager(vsm)
+		nbm.SetVirtualShadowManager(vsm)
 	}
 	srv.SetStorageAttachHook(func(st *storage.Storage) {
 		if ecm != nil {
@@ -253,6 +254,7 @@ func main() {
 					return cfgManager.SaveVirtualShadows(devices)
 				})
 				srv.SetVirtualShadowManager(vsm)
+				nbm.SetVirtualShadowManager(vsm)
 			}
 			zap.L().Info("ShadowCore initialized after install")
 		}

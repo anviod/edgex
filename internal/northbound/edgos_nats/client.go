@@ -455,6 +455,31 @@ func (c *Client) handleWriteCommand(msg *nats.Msg) {
 	}
 	deviceID := subjectParts[3]
 
+	c.configMu.RLock()
+	virtualDevices := c.config.VirtualDevices
+	c.configMu.RUnlock()
+	if model.IsNorthboundVirtualDevice(deviceID, virtualDevices) {
+		zap.L().Warn("Write rejected for virtual device", zap.String("device", deviceID))
+		response := Message{
+			Header: MessageHeader{
+				MessageID:     generateMessageID(),
+				Timestamp:     time.Now().UnixMilli(),
+				Source:        c.nodeID,
+				Destination:   message.Header.Source,
+				MessageType:   "write_response",
+				Version:       "1.0",
+				CorrelationID: message.Header.MessageID,
+			},
+			Body: map[string]interface{}{
+				"success": false,
+				"message": "Virtual device is read-only",
+			},
+		}
+		data, _ := json.Marshal(response)
+		msg.Respond(data)
+		return
+	}
+
 	// Parse write command body
 	body, ok := message.Body.(map[string]interface{})
 	if !ok {
@@ -518,6 +543,50 @@ func (c *Client) handleWriteCommand(msg *nats.Msg) {
 			Body: map[string]interface{}{
 				"success": false,
 				"message": "Southbound not available",
+			},
+		}
+		data, _ := json.Marshal(response)
+		msg.Respond(data)
+		return
+	}
+
+	c.configMu.RLock()
+	deviceConfig, deviceExists := model.LookupNorthboundPublishConfig(deviceID, model.OpcUaDeviceMap(c.config.Devices), c.config.VirtualDevices)
+	c.configMu.RUnlock()
+	if !deviceExists {
+		response := Message{
+			Header: MessageHeader{
+				MessageID:     generateMessageID(),
+				Timestamp:     time.Now().UnixMilli(),
+				Source:        c.nodeID,
+				Destination:   message.Header.Source,
+				MessageType:   "write_response",
+				Version:       "1.0",
+				CorrelationID: message.Header.MessageID,
+			},
+			Body: map[string]interface{}{
+				"success": false,
+				"message": "Device not found in configuration",
+			},
+		}
+		data, _ := json.Marshal(response)
+		msg.Respond(data)
+		return
+	}
+	if !deviceConfig.Enable {
+		response := Message{
+			Header: MessageHeader{
+				MessageID:     generateMessageID(),
+				Timestamp:     time.Now().UnixMilli(),
+				Source:        c.nodeID,
+				Destination:   message.Header.Source,
+				MessageType:   "write_response",
+				Version:       "1.0",
+				CorrelationID: message.Header.MessageID,
+			},
+			Body: map[string]interface{}{
+				"success": false,
+				"message": "Device is disabled",
 			},
 		}
 		data, _ := json.Marshal(response)
@@ -799,12 +868,10 @@ func (c *Client) Publish(v model.Value) {
 	}
 
 	c.configMu.RLock()
-	devices := c.config.Devices
+	deviceConfig, ok := model.LookupNorthboundPublishConfig(v.DeviceID, model.OpcUaDeviceMap(c.config.Devices), c.config.VirtualDevices)
 	c.configMu.RUnlock()
 
-	// Check if device is enabled in config
-	deviceConfig, exists := devices[v.DeviceID]
-	if !exists || !deviceConfig.Enable {
+	if !ok {
 		return
 	}
 
@@ -948,14 +1015,12 @@ func (c *Client) PublishDeviceStatus(deviceID string, status int) {
 	}
 
 	c.configMu.RLock()
-	devices := c.config.Devices
+	_, ok := model.LookupNorthboundPublishConfig(deviceID, model.OpcUaDeviceMap(c.config.Devices), c.config.VirtualDevices)
 	nodeID := c.config.NodeID
 	c.configMu.RUnlock()
 
-	if len(devices) > 0 {
-		if deviceConfig, ok := devices[deviceID]; !ok || !deviceConfig.Enable {
-			return
-		}
+	if !ok {
+		return
 	}
 
 	subject := fmt.Sprintf("edgex.devices.%s.%s.status", nodeID, deviceID)

@@ -12,6 +12,10 @@ func (nm *NorthboundManager) UpsertHTTPConfig(cfg model.HTTPConfig) error {
 	nm.mu.Lock()
 	defer nm.mu.Unlock()
 
+	if err := nm.validateNorthboundChannelName(cfg.ID, cfg.Name); err != nil {
+		return err
+	}
+
 	var oldCfg model.HTTPConfig
 	found := false
 	for i, c := range nm.config.HTTP {
@@ -31,23 +35,23 @@ func (nm *NorthboundManager) UpsertHTTPConfig(cfg model.HTTPConfig) error {
 	removedDevices := []string{}
 
 	if found {
-		for dID, enabled := range cfg.Devices {
-			if enabled {
-				if oldEnabled, ok := oldCfg.Devices[dID]; !ok || !oldEnabled {
+		for dID, devCfg := range cfg.Devices {
+			if devCfg.Enable {
+				if oldDevCfg, ok := oldCfg.Devices[dID]; !ok || !oldDevCfg.Enable {
 					addedDevices = append(addedDevices, dID)
 				}
 			}
 		}
-		for dID, enabled := range oldCfg.Devices {
-			if enabled {
-				if newEnabled, ok := cfg.Devices[dID]; !ok || !newEnabled {
+		for dID, devCfg := range oldCfg.Devices {
+			if devCfg.Enable {
+				if newDevCfg, ok := cfg.Devices[dID]; !ok || !newDevCfg.Enable {
 					removedDevices = append(removedDevices, dID)
 				}
 			}
 		}
 	} else {
-		for dID, enabled := range cfg.Devices {
-			if enabled {
+		for dID, devCfg := range cfg.Devices {
+			if devCfg.Enable {
 				addedDevices = append(addedDevices, dID)
 			}
 		}
@@ -162,9 +166,13 @@ func (nm *NorthboundManager) PublishMQTTClient(clientID string, topic string, pa
 	return fmt.Errorf("MQTT client %s not found", clientID)
 }
 
-func (nm *NorthboundManager) UpsertMQTTConfig(cfg model.MQTTConfig) error {
+func (nm *NorthboundManager) UpsertMQTTConfig(cfg model.MQTTConfig) (string, error) {
 	nm.mu.Lock()
 	defer nm.mu.Unlock()
+
+	if err := nm.validateNorthboundChannelName(cfg.ID, cfg.Name); err != nil {
+		return "", err
+	}
 
 	var oldCfg model.MQTTConfig
 	found := false
@@ -209,7 +217,7 @@ func (nm *NorthboundManager) UpsertMQTTConfig(cfg model.MQTTConfig) error {
 	}
 
 	if err := nm.saveConfig(); err != nil {
-		return err
+		return "", err
 	}
 
 	client, exists := nm.mqttClients[cfg.ID]
@@ -218,19 +226,18 @@ func (nm *NorthboundManager) UpsertMQTTConfig(cfg model.MQTTConfig) error {
 			client.Stop()
 			delete(nm.mqttClients, cfg.ID)
 		}
-		return nil
+		return "", nil
 	}
 
+	var startErr error
 	var targetClient *mqtt.Client
 	if !exists {
 		newClient := mqtt.NewClient(cfg, nm.sb, nm.storage)
-		if err := newClient.Start(); err != nil {
-			return fmt.Errorf("failed to start MQTT client: %w", err)
-		}
+		startErr = newClient.Start()
 		nm.mqttClients[cfg.ID] = newClient
 		targetClient = newClient
 	} else {
-		client.UpdateConfig(cfg)
+		startErr = client.UpdateConfig(cfg)
 		targetClient = client
 	}
 
@@ -249,5 +256,5 @@ func (nm *NorthboundManager) UpsertMQTTConfig(cfg model.MQTTConfig) error {
 			}
 		}
 	}
-	return nil
+	return connectorStartWarning("MQTT Broker", cfg.Name, startErr), nil
 }
