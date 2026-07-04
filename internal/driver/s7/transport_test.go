@@ -89,6 +89,7 @@ type mockClient struct {
 	agWriteABFunc func(start int, size int, buffer []byte) error
 	agWriteTMFunc func(start int, size int, buffer []byte) error
 	agWriteCTFunc func(start int, size int, buffer []byte) error
+	agReadMultiFunc func(dataItems []gos7.S7DataItem, itemsCount int) error
 }
 
 func (m *mockClient) AGReadDB(dbNumber int, start int, size int, buffer []byte) error {
@@ -176,6 +177,9 @@ func (m *mockClient) AGWriteCT(start int, size int, buffer []byte) error {
 }
 
 func (m *mockClient) AGReadMulti(dataItems []gos7.S7DataItem, itemsCount int) error {
+	if m.agReadMultiFunc != nil {
+		return m.agReadMultiFunc(dataItems, itemsCount)
+	}
 	return nil
 }
 

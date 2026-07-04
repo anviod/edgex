@@ -27,38 +27,48 @@ func TestDecoderCoverage(t *testing.T) {
 	bl, isBit = dec.ReadSize("BOOL", &MCAddress{IsBit: true})
 	assert.True(t, isBit)
 
-	v, err := dec.DecodeValue([]byte{0x34, 0x12}, &MCAddress{}, "INT16")
+	wordAddr, err := ParseAddress("D100")
+	require.NoError(t, err)
+	v, err := dec.DecodeValue([]byte{0x34, 0x12}, wordAddr, "INT16")
 	require.NoError(t, err)
 	assert.Equal(t, int16(0x1234), v)
 
-	v, err = dec.DecodeValue([]byte{0x10}, &MCAddress{IsBit: true}, "BOOL")
+	bitAddr, err := ParseAddress("M0")
+	require.NoError(t, err)
+	v, err = dec.DecodeValue([]byte{0x10}, bitAddr, "BOOL")
 	require.NoError(t, err)
 	assert.True(t, v.(bool))
 
-	word := binary.LittleEndian.Uint16([]byte{0x08, 0x00})
-	_ = word
-	v, err = dec.DecodeValue([]byte{0x08, 0x00}, &MCAddress{BitOffset: 3}, "BOOL")
+	wordBitAddr, err := ParseAddress("D0.3")
+	require.NoError(t, err)
+	v, err = dec.DecodeValue([]byte{0x08, 0x00}, wordBitAddr, "BOOL")
 	require.NoError(t, err)
 	assert.True(t, v.(bool))
 
-	v, err = dec.DecodeValue(binary.LittleEndian.AppendUint32(nil, math.Float32bits(1.5)), &MCAddress{}, "FLOAT")
+	floatAddr, err := ParseAddress("D200")
+	require.NoError(t, err)
+	v, err = dec.DecodeValue(binary.LittleEndian.AppendUint32(nil, math.Float32bits(1.5)), floatAddr, "FLOAT")
 	require.NoError(t, err)
 	assert.InDelta(t, 1.5, v.(float32), 0.001)
 
-	v, err = dec.DecodeValue([]byte{'H', 0, 'i', 0}, &MCAddress{StringLen: 4}, "STRING")
+	strAddr, err := ParseAddress("D300.4L")
+	require.NoError(t, err)
+	v, err = dec.DecodeValue([]byte{'H', 0, 'i', 0}, strAddr, "STRING")
 	require.NoError(t, err)
 	assert.Equal(t, "Hi", v)
 
-	payload, isBitWrite, err := dec.EncodeValue(&MCAddress{IsBit: true}, "BOOL", true)
+	payload, isBitWrite, err := dec.EncodeValue(bitAddr, "BOOL", true)
 	require.NoError(t, err)
 	assert.True(t, isBitWrite)
 	assert.Equal(t, byte(0x10), payload[0])
 
-	payload, _, err = dec.EncodeValue(&MCAddress{}, "INT32", int32(1000))
+	payload, _, err = dec.EncodeValue(wordAddr, "INT32", int32(1000))
 	require.NoError(t, err)
 	assert.Equal(t, uint32(1000), binary.LittleEndian.Uint32(payload))
 
-	_, _, err = dec.EncodeValue(&MCAddress{BitOffset: 1}, "BOOL", true)
+	wordBitWrite, err := ParseAddress("D20.1")
+	require.NoError(t, err)
+	_, _, err = dec.EncodeValue(wordBitWrite, "BOOL", true)
 	require.Error(t, err)
 }
 
@@ -137,12 +147,12 @@ func TestConfigParsingCoverage(t *testing.T) {
 	cfg, err := parseDriverConfig(map[string]any{
 		"ip":             "192.168.0.10",
 		"port":           5007,
-		"frame":          "3E",
+		"frame_type":     "3E",
 		"timeout":        1500,
-		"batchReadMax":   32,
-		"maxRetries":     5,
-		"networkNo":      0,
-		"stationNo":      255,
+		"batch_read_max": 32,
+		"max_retries":    5,
+		"network_no":     0,
+		"station_no":     255,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "192.168.0.10", cfg.ip)

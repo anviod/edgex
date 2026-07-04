@@ -926,3 +926,46 @@ func TestCheckRecoveryFailurePath(t *testing.T) {
 	}
 }
 
+func TestReadPointsEmptyAndMixedDevice(t *testing.T) {
+	d := NewBACnetDriver().(*BACnetDriver)
+	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
+
+	results, err := d.ReadPoints(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("empty ReadPoints: %v", err)
+	}
+	if len(results) != 0 {
+		t.Fatalf("expected empty results")
+	}
+
+	_, err = d.ReadPoints(context.Background(), []model.Point{
+		{ID: "p1", DeviceID: "1", Address: "AnalogValue:1"},
+		{ID: "p2", DeviceID: "2", Address: "AnalogValue:2"},
+	})
+	if err == nil {
+		t.Fatal("expected mixed device ID error")
+	}
+}
+
+func TestNormalizePresentValueCoverage(t *testing.T) {
+	if normalizePresentValue(nil) != nil {
+		t.Fatal("nil should stay nil")
+	}
+	if normalizePresentValue(float32(1.5)) != float32(1.5) {
+		t.Fatal("float32 passthrough")
+	}
+	if normalizePresentValue(btypes.Enumerated(3)) != uint32(3) {
+		t.Fatal("enumerated to uint32")
+	}
+
+	devCtx := &DeviceContext{}
+	applyFreshReadToCache(devCtx, "100", map[string]model.Value{
+		"p1": {PointID: "p1", Value: 42, Quality: "Good"},
+	})
+	devCtx.CacheMu.Lock()
+	if devCtx.LastValues["p1"].DeviceID != "100" {
+		t.Fatal("cache should set device id")
+	}
+	devCtx.CacheMu.Unlock()
+}
+

@@ -91,10 +91,10 @@ func sampleValue(dataType string) any {
 
 func TestConfigParsingCoverage(t *testing.T) {
 	ch := parseChannelConfig(map[string]any{
-		"simulation":       true,
-		"timeout":          1500,
-		"local_interface":  "eth0",
-		"maxRetries":       5,
+		"simulation":      true,
+		"timeout":         1500,
+		"local_interface": "eth0",
+		"max_retries":     5,
 	})
 	assert.True(t, ch.simulation)
 	assert.Equal(t, 1500*time.Millisecond, ch.timeout)
@@ -109,9 +109,9 @@ func TestTransportSimulationConnect(t *testing.T) {
 	require.NoError(t, tr.Connect(context.Background()))
 	assert.True(t, tr.IsConnected())
 
-	sec, _, local, remote, _ := tr.GetConnectionMetrics()
+	sec, _, _, remote, _ := tr.GetConnectionMetrics()
 	assert.GreaterOrEqual(t, sec, int64(0))
-	assert.NotEmpty(t, local)
+	assert.Equal(t, "simulation", remote)
 
 	data, err := tr.ReadIO(context.Background(), 1, 1, 0, 4)
 	require.NoError(t, err)
@@ -136,4 +136,53 @@ func TestDriverNotConnectedErrors(t *testing.T) {
 	ctx := context.Background()
 	_, err := d.ReadPoints(ctx, []model.Point{{ID: "p1", Address: "1:1:0"}})
 	require.Error(t, err)
+}
+
+func TestDecoderAllTypesCoverage(t *testing.T) {
+	dec := NewProfinetDecoder()
+	addrLE := &ParsedAddress{Endian: EndianLittle}
+	addrBit := &ParsedAddress{IsBit: true, Bit: 2}
+
+	cases := []struct {
+		dt   string
+		data []byte
+		addr *ParsedAddress
+	}{
+		{"int8", []byte{0xFE}, nil},
+		{"uint8", []byte{0xFF}, nil},
+		{"int16", []byte{0x34, 0x12}, addrLE},
+		{"uint16", []byte{0x34, 0x12}, addrLE},
+		{"int32", []byte{0, 0, 0x80, 0x3F}, addrLE},
+		{"float", []byte{0, 0, 0x80, 0x3F}, addrLE},
+		{"bit", []byte{0x04}, addrBit},
+	}
+	for _, tc := range cases {
+		v, err := dec.DecodeValue(tc.data, tc.dt, tc.addr)
+		require.NoError(t, err, tc.dt)
+		assert.NotNil(t, v)
+	}
+
+	raw, err := dec.EncodeValue(int16(100), "int16", &ParsedAddress{Endian: EndianBig})
+	require.NoError(t, err)
+	assert.Len(t, raw, 2)
+
+	raw, err = dec.EncodeValue(true, "bit", addrBit)
+	require.NoError(t, err)
+	assert.NotEmpty(t, raw)
+}
+
+func TestDriverWritePointSimulation(t *testing.T) {
+	d := NewProfinetIODriver()
+	require.NoError(t, d.Init(model.DriverConfig{
+		ChannelID: "write",
+		Config:    map[string]any{"simulation": true},
+	}))
+	require.NoError(t, d.Connect(context.Background()))
+	defer d.Disconnect()
+
+	ctx := context.Background()
+	require.NoError(t, d.WritePoint(ctx, model.Point{Address: "1:1:0", DataType: "int16"}, int16(42)))
+	results, err := d.ReadPoints(ctx, []model.Point{{ID: "p1", Address: "1:1:0", DataType: "int16"}})
+	require.NoError(t, err)
+	assert.Equal(t, "Good", results["p1"].Quality)
 }

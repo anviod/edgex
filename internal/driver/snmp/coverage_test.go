@@ -38,6 +38,68 @@ func TestDriverLifecycleCoverage(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestDriverReadWriteWithMockHooks(t *testing.T) {
+	d := NewSNMPDriver().(*SNMPDriver)
+	require.NoError(t, d.Init(model.DriverConfig{
+		ChannelID: "rw",
+		Config:    map[string]any{"ip": "127.0.0.1", "community": "public"},
+	}))
+
+	d.transport.getHook = func(oids []string, community string) ([]gosnmp.SnmpPDU, error) {
+		return []gosnmp.SnmpPDU{{Name: oids[0], Type: gosnmp.Integer, Value: 42}}, nil
+	}
+	d.transport.setHook = func(oid string, value interface{}, asnType gosnmp.Asn1BER, community string) error {
+		return nil
+	}
+	d.transport.connected.Store(true)
+	d.transport.client = &gosnmp.GoSNMP{}
+
+	ctx := context.Background()
+	assert.Equal(t, driver.HealthStatusGood, d.Health())
+
+	results, err := d.ReadPoints(ctx, []model.Point{
+		{ID: "p1", Address: "public|1.3.6.1.2.1.1.1.0", DataType: "INT32"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Good", results["p1"].Quality)
+
+	require.NoError(t, d.WritePoint(ctx, model.Point{
+		Address: "public|1.3.6.1.4.1.1.0", DataType: "INT32",
+	}, int32(99)))
+
+	total, success, _ := d.scheduler.GetStats()
+	assert.Equal(t, int64(2), total)
+	assert.Equal(t, int64(2), success)
+}
+
+func TestDecoderFloatAndInt64(t *testing.T) {
+	dec := NewSNMPDecoder()
+	val, quality := dec.DecodePDU(gosnmp.SnmpPDU{Type: gosnmp.Gauge32, Value: uint(12345)}, "UINT32")
+	assert.Equal(t, "Good", quality)
+	assert.NotNil(t, val)
+
+	val, quality = dec.DecodePDU(gosnmp.SnmpPDU{Type: gosnmp.OctetString, Value: []byte("hello")}, "STRING")
+	assert.Equal(t, "Good", quality)
+	assert.Equal(t, "hello", val)
+
+	_, ok := toInt64(gosnmp.SnmpPDU{Type: gosnmp.OctetString, Value: "bad"})
+	assert.False(t, ok)
+
+	v, ok := toUint64(gosnmp.SnmpPDU{Type: gosnmp.Integer, Value: 100})
+	assert.True(t, ok)
+	assert.Equal(t, uint64(100), v)
+}
+
+func TestDriverDisconnectCoverage(t *testing.T) {
+	d := NewSNMPDriver().(*SNMPDriver)
+	require.NoError(t, d.Init(model.DriverConfig{
+		Config: map[string]any{"ip": "127.0.0.1"},
+	}))
+	d.transport.connected.Store(true)
+	require.NoError(t, d.Disconnect())
+	assert.Equal(t, driver.HealthStatusBad, d.Health())
+}
+
 func TestScanObjectsWithWalkHook(t *testing.T) {
 	d := NewSNMPDriver().(*SNMPDriver)
 	require.NoError(t, d.Init(model.DriverConfig{

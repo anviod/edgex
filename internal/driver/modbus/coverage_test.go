@@ -306,3 +306,72 @@ func TestCoverage_QualityScore(t *testing.T) {
 	score := d.calculateQualityScore()
 	assert.Greater(t, score, 0)
 }
+
+func TestCoverage_DriverReadWriteWithMock(t *testing.T) {
+	d := NewModbusDriver().(*ModbusDriver)
+	require.NoError(t, d.Init(model.DriverConfig{
+		ChannelID: "rw",
+		Config:    map[string]any{"url": "127.0.0.1:502", "slave_id": 1},
+	}))
+
+	mock := newMockModbusTransport()
+	mock.connected = true
+	mock.registers[0] = 100
+	d.transport.connected.Store(true)
+	d.scheduler = NewPointScheduler(mock, NewPointDecoder("ABCD", 0, 0), 125, 50, 0)
+	d.scheduler.SetSlaveID(1)
+
+	ctx := context.Background()
+	results, err := d.ReadPoints(ctx, []model.Point{
+		{ID: "p1", Address: "40001", DataType: "int16", RegisterType: model.RegHolding},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int16(100), results["p1"].Value)
+
+	pt := model.Point{ID: "w1", Address: "40001", DataType: "int16", RegisterType: model.RegHolding}
+	require.NoError(t, d.WritePoint(ctx, pt, int16(200)))
+	assert.Equal(t, uint16(200), mock.registers[0])
+}
+
+func TestCoverage_DecoderEncodeAllTypes(t *testing.T) {
+	dec := NewPointDecoder("ABCD", 0, 0)
+
+	encodeCases := []struct {
+		point model.Point
+		value any
+	}{
+		{model.Point{DataType: "int16"}, int16(42)},
+		{model.Point{DataType: "uint16"}, uint16(1000)},
+		{model.Point{DataType: "int32"}, int32(123456)},
+		{model.Point{DataType: "float32"}, float32(1.5)},
+	}
+	for _, tc := range encodeCases {
+		regs, err := dec.Encode(tc.point, tc.value)
+		require.NoError(t, err, tc.point.DataType)
+		assert.NotEmpty(t, regs)
+	}
+
+	scaled := model.Point{DataType: "int16", Scale: 0.1, Offset: 5}
+	regs, err := dec.Encode(scaled, float64(105.0))
+	require.NoError(t, err)
+	assert.NotEmpty(t, regs)
+}
+
+func TestCoverage_SetDeviceConfigPaths(t *testing.T) {
+	d := NewModbusDriver().(*ModbusDriver)
+	require.NoError(t, d.Init(model.DriverConfig{
+		ChannelID: "cfg",
+		Config:    map[string]any{"url": "127.0.0.1:502"},
+	}))
+
+	require.NoError(t, d.SetDeviceConfig(map[string]any{
+		"slave_id":          5,
+		"start_address":     10,
+		"address_base":      1,
+		"batchSize":         30,
+		"max_gap":           4,
+		"group_threshold":   6,
+		"instructionInterval": 20,
+	}))
+	assert.Equal(t, uint8(5), d.slaveID)
+}
