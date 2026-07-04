@@ -3,7 +3,7 @@ layout: section-index
 title: 测试验证
 description: EdgeX 测试验证文档 — 单元测试、回归验证、压力测试与验收报告
 hero_eyebrow: Testing & Verification
-hero_lead: EdgeX 测试验证文档 — 测试矩阵、回归验证、压力测试、南向驱动测试报告（2026-07-04 全量复测 PASS）与验收文档。
+hero_lead: EdgeX 测试验证文档 — 测试矩阵、回归验证、压力测试、南向驱动测试报告与 2026-07-04 自动化回归复测（core/soak/Q3 PASS；driver 1 FAIL、G007 WARN）。
 hero_buttons:
   - text: 南向驱动测试报告
     url: 南向驱动测试报告.html
@@ -34,7 +34,7 @@ hero_buttons:
 - [API 点位测试报告](API_Points_Test_Report.html)
 
 ### 回归验证
-- [南向采集通道回归验证测试方案](南向采集通道回归验证测试方案.html)
+- [南向采集通道回归验证测试方案](南向采集通道回归验证测试方案.html) — 联机/压测步骤；§一/§八 含 2026-07-04 回归状态与排期；D 组 10ms 见 [B1 核验](b1_poll_interval_verification.html)
 
 ### 压力测试
 - [压力测试报告](压力测试报告.html)

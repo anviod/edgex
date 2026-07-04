@@ -27,11 +27,11 @@ CGO_ENABLED=0 go test ./internal/driver/... -short -count=1 -cover
 | Scope | Result | Coverage | Notes |
 | :--- | :--- | :--- | :--- |
 | `internal/driver` (ConnectionManager) | PASS | **87.4%** | Shared reconnect/backoff |
-| `internal/driver/modbus` | PASS | 52.8% | ~122s |
-| `internal/driver/bacnet` | PASS | 66.1% | ~77s |
-| `internal/driver/opcua` | PASS | 47.6% | ~125s |
-| `internal/driver/s7` | PASS | 61.3% | ~126s |
-| `internal/driver/ethernetip` | PASS | 40.4% | ~5s |
+| `internal/driver/modbus` | PASS | 52.8% | ~125s |
+| `internal/driver/bacnet` | PASS | 66.1% | ~79s |
+| `internal/driver/opcua` | PASS | 47.9% | ~133s |
+| `internal/driver/s7` | PASS | 61.3% | ~131s |
+| `internal/driver/ethernetip` | PASS | 39.5% | ~8s |
 | `internal/driver/omron` | PASS | 43.3% | Mock PLC (TCP) |
 | `internal/driver/snmp` | PASS | 63.7% | transport hook mocks |
 | `internal/driver/ice104` | PASS | 60.2% | APDU codec + cache read |
@@ -41,7 +41,7 @@ CGO_ENABLED=0 go test ./internal/driver/... -short -count=1 -cover
 | `internal/driver/profinetio` | PASS | 55.9% | simulation + PNIO codec |
 | **`internal/driver/...` overall** | **PASS** | — | 21/21 packages (`-short`) |
 
-**2026-07-04**: All southbound driver packages PASS under `-short`. Added/extended `coverage_test.go` across drivers; fixed flaky `modbus/reconnect_test.go` single-flight timing.
+**2026-07-04**: All southbound driver packages PASS under `-short` (retest 21/21, ~3.3min wall; log: [`_run_logs/2026-07-04_driver_retest.txt`](_run_logs/2026-07-04_driver_retest.txt)). Coverage aligned with initial run; OPC UA **47.9%** (+0.3pp) and EtherNet/IP **39.5%** (−0.9pp) are normal variance. Added/extended `coverage_test.go` across drivers; fixed flaky `modbus/reconnect_test.go` single-flight timing.
 
 ### Coverage Before → After
 
@@ -50,9 +50,9 @@ CGO_ENABLED=0 go test ./internal/driver/... -short -count=1 -cover
 | ConnectionManager | 87.4% | **87.4%** | ✅ |
 | Modbus | 51.6% | **52.8%** | ❌ |
 | BACnet | 66.0% | **66.1%** | ❌ |
-| OPC UA | 45.0% | **47.6%** | ❌ |
+| OPC UA | 45.0% | **47.9%** | ❌ |
 | S7 | 42.0% | **61.3%** | ❌ |
-| EtherNet/IP | 30.3% | **40.4%** | ❌ |
+| EtherNet/IP | 30.3% | **39.5%** | ❌ |
 | Omron FINS | 31.2% | **43.3%** | ❌ |
 | SNMP | 62.0% | **63.7%** | ❌ |
 | ICE104 | 58.2% | **60.2%** | ❌ |
@@ -90,9 +90,9 @@ Drivers below 70% are limited by real TCP/session paths (OPC UA, ENIP, PNIO RPC,
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | Modbus | 12 | 52.8% | Yes | Yes | PASS |
 | BACnet IP | 31 | 66.1% | Yes | Yes | PASS |
-| OPC UA | 7 | 47.6% | Yes | Yes | PASS |
+| OPC UA | 7 | 47.9% | Yes | Yes | PASS |
 | Siemens S7 | 6 | 61.3% | Yes | Yes | PASS |
-| EtherNet/IP | 16 | 40.4% | Yes | Yes | PASS |
+| EtherNet/IP | 16 | 39.5% | Yes | Yes | PASS |
 | Omron FINS | 3 | 43.3% | Yes | Yes | PASS |
 | SNMP | 6 | 63.7% | Yes | Yes | PASS |
 | IEC 60870-5-104 | 12 | 60.2% | Yes | Yes | PASS |

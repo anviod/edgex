@@ -790,6 +790,8 @@ func (w *SerialWorker) run() {
 └─────────────────────────────────────────────────────┘
 ```
 
+> 与 Limited 模式、ProtocolCongestion、WorkerPool 等完整参数见 **§4.4.4**。
+
 #### 4.2.2 背压控制器实现
 
 ```go
@@ -851,6 +853,165 @@ func (el *ExecutionLayer) Execute(task *ScanTask) *ExecuteResult {
     }
 }
 ```
+
+> 完整限流数值、协议路由表与运维建议见 **§4.4**。
+
+### 4.4 分层并发、限流数值与运维建议
+
+> **设计哲学**：在调度层尽量并发，在连接层严格串行，在协议层按需限流。
+
+#### 4.4.1 为何工业场景需要受控并发
+
+工业网关面对的是**异构总线、半双工链路与脆弱从站**：同一 RS-485 / TCP 链路上多从站共享物理介质；PLC、电表、OPC UA Server 对突发请求极其敏感。无上限并发会导致：
+
+- 串口/TCP 粘包、帧错乱、从站无响应；
+- 连接数与 goroutine 失控，触发 OOM 或 FD 耗尽；
+- 重连风暴放大故障，拖垮整段通道。
+
+ScanEngine 因此采用**三层解耦**：调度 Tick 仍按 EDF 尽量准时派发任务；ExecutionLayer 按协议选择 Serial / Parallel / Limited 执行路径；Backpressure、ProtocolCongestion、AdaptiveThrottle 与 CircuitBreaker 在运行时自动降速或拒载，而非依赖运维手工限线程。
+
+#### 4.4.2 三层模型
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│ 调度层（ScanEngine）                                               │
+│  10ms Tick · 优先级队列 · 指数退避 · AdaptiveThrottle（≤8×间隔）   │
+│  → 尽量并发派发，不因单设备慢而阻塞全局 Tick                        │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │ dispatch
+┌────────────────────────────▼─────────────────────────────────────┐
+│ 链路层（ExecutionLayer · SerialQueue / channelMu）                │
+│  共享 TCP/串口：一 channel 一 serial worker + channelMu 互斥 I/O   │
+│  非共享链路：一 device 一 worker，请求严格串行                      │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │ readPoints
+┌────────────────────────────▼─────────────────────────────────────┐
+│ 协议层（Parallel / Limited 背压 + ProtocolCongestion）            │
+│  全局/单设备信号量 · Token Bucket · 按协议族独立速率桶              │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+| 层次 | 职责 | 典型机制 | 代码入口 |
+|------|------|----------|----------|
+| 调度层 | 何时采、采多频 | Tick、退避、AdaptiveThrottle | `scan_engine.go` |
+| 链路层 | 谁可以占用物理链路 | SerialQueue、`channelMu`、`serialQueueKey` | `execution_layer.go` |
+| 协议层 | 并发度与请求速率 | Backpressure、ProtocolCongestion、CircuitBreaker | `backpressure_controller.go`、`protocol_congestion.go` |
+
+#### 4.4.3 协议执行模式（Serial / Parallel / Limited）
+
+协议类型在通道注册时由 `ChannelManager.registerProtocolToScanEngine` 写入 ScanEngine 路由表；未知协议**默认 Serial**。
+
+| 模式 | 含义 | 协议（现行注册表） | 执行路径 |
+|------|------|-------------------|----------|
+| **Serial** | 设备/共享链路串行，无并行背压 | modbus-tcp、modbus-rtu、modbus-rtu-over-tcp、dlt645、omron-fins、mitsubishi-slmp、knxnet-ip、snmp | `executeSerial` → SerialQueueManager |
+| **Parallel** | 多设备并发，三层背压（512 / 8 / 1000 req/s） | opc-ua、http、rest、mqtt、bacnet-ip | `executeParallel` → WorkerPool |
+| **Limited** | 低并发（单设备 ≤2）+ 协议速率桶，内部仍走串行读 | s7、ethernet-ip、profinet-io、iec60870-5-104 | `executeLimited` → Backpressure(2) + `executeSerial` |
+
+```go
+// internal/core/channel_manager.go — registerProtocolToScanEngine
+case "modbus-tcp", "modbus-rtu", ...:
+    RegisterProtocol(protocol, ProtocolTypeSerial)
+case "opc-ua", "http", "rest", "mqtt", "bacnet-ip":
+    RegisterProtocol(protocol, ProtocolTypeParallel)
+case "s7", "ethernet-ip", "profinet-io", "iec60870-5-104":
+    RegisterProtocol(protocol, ProtocolTypeLimited)
+default:
+    RegisterProtocol(protocol, ProtocolTypeSerial)
+```
+
+#### 4.4.4 限流与资源数值一览
+
+> **说明**：下表数值均为**编译期硬编码**（`NewExecutionLayer`、`NewScanEngine` 等构造函数字面量），暂无运行时配置项。现场调优应通过**采集间隔、通道拆分、设备规模与诊断 API**间接达成目标负载，而非修改常量。
+
+| 组件 | 参数 | 默认值 | 作用 | 代码位置 |
+|------|------|--------|------|----------|
+| **BackpressureController** | 全局并发上限 | **512** | Parallel/Limited 路径共享信号量 | `execution_layer.go` `NewBackpressureController(512, 1000)` |
+| | 全局 Token Bucket 速率 | **1000 req/s**（桶容量 2000） | 全局限请求发放速率 | `backpressure_controller.go` |
+| | Parallel 单设备并发 | **8** | `executeParallel` 传入 `deviceLimit=8` | `execution_layer.go` `executeParallel` |
+| | Limited 单设备并发 | **2** | `executeLimited` 传入 `deviceLimit=2` | `execution_layer.go` `executeLimited` |
+| **ProtocolCongestionController** | Modbus 族 | **1000 req/s** | 独立 Token Bucket（Parallel/Limited 路径生效） | `protocol_congestion.go` |
+| | OPC UA 族 | **400 req/s** | 同上 | 同上 |
+| | S7 族 | **300 req/s** | 同上 | 同上 |
+| | 默认（http/mqtt/bacnet 等） | **600 req/s** | 同上 | 同上 |
+| **WorkerPool** | Worker 数 | **32** | 并行协议实际执行 goroutine 池 | `execution_layer.go` `NewWorkerPool(32)` |
+| | 任务队列深度 | **1000** | 队列满则 Submit 失败 | `worker_pool.go` |
+| **SerialQueueManager** | 每队列深度 | **64** | 满则返回 `ErrQueueFull` | `serial_queue_manager.go` `make(chan *DriverTask, 64)` |
+| **串行外层超时** | shared-link 协议 | **readTimeout × 16** | 允许多从站在同链路上排队 | `execution_layer.go` `serialOuterTimeout` |
+| | 单设备 readTimeout | **max(interval×2, 5s)** | 单次 ReadPoints 上下文 | `execution_layer.go` `executeTimeout` |
+| **ScanEngineConfig**（ChannelManager 默认） | GoroutineLimit | **2048** | ResourceController 拒绝新执行 | `channel_manager.go` |
+| | ConnectionLimit | **500** | 连接数上限 | 同上 |
+| | MaxQueueSize | **10000** | 调度待执行队列 | 同上 |
+| | TickInterval | **10ms** | 全局调度节拍 | 同上 |
+| **AdaptiveThrottle** | 最大降速因子 | **8×** 基础间隔 | 队列压力 / 失败率 / RTT 驱动 | `adaptive_throttle.go` `adaptiveThrottleMaxFactor` |
+| **DriverCircuitBreaker** | 连续超时 | **5 次** → 打开 | 设备级熔断 | `circuit_breaker.go` |
+| | 失败率窗口 | **60s 内 ≥40%**（≥10 样本）→ 打开 | 同上 | 同上 |
+| | 打开持续时间 | **30s** | HalfOpen 探测后恢复 | 同上 |
+
+**Parallel 路径准入顺序**（`BackpressureController.Allow`）：Token Bucket → 全局 512 → 单设备 8。任一失败返回 `ErrRateLimited`，任务留待下次 Tick 重试。
+
+**Limited 路径**：先过 ProtocolCongestion（如 S7=300/s），再过 Backpressure(2)，最后进入 Serial 队列与 `readPoints`。
+
+**Serial 路径**：不经 Backpressure / ProtocolCongestion；仅 SerialQueue + 可选 `channelMu`。
+
+#### 4.4.5 共享链路隔离（channelMu + serialQueueKey）
+
+Modbus、DLT645 等协议下，**多个逻辑设备共用一条 TCP 或 RS-485**。若按 deviceKey 各开 worker，慢从站会长时间占用 `channelMu`，阻塞同通道其它从站。
+
+| 机制 | 行为 | 代码 |
+|------|------|------|
+| `serialQueueKey` | 共享链路设备路由到 `shared:{channelID}` 单一 Serial worker | `execution_layer.go` |
+| `channelMu` | `readPoints` 内对共享链路协议持锁，I/O 与重连互斥 | `execution_layer.go` `readPoints` |
+| `serialOuterTimeout` | 外层等待 = 16× 单次读超时，容纳队列中多个从站 | `execution_layer.go` |
+
+ScanEngineAdapter 注册设备时将 `channelMu` 与 `channelID` 注入 `task.Params`（见 §5.3.2 channelMu 与重连互斥）。
+
+#### 4.4.6 ConnectionManager 重连限流
+
+| 参数 | 值 | 说明 | 代码 |
+|------|-----|------|------|
+| MaxGlobalReconnectRate | **10 次/s** | 滑动 1s 窗口内全局限流 | `driver/connection_manager.go`、`core/connection_controller.go` |
+| Single-flight | 是 | `ScheduleReconnect` 同一通道不并行 dial | ConnectionManager |
+| 指数退避 | 5s → 15s → 30s → 60s → 120s | `calculateBackOffInterval` | `connection_controller.go` |
+
+> `driver` 与 `core` 包内各维护一套全局限流计数器，行为一致，计数器尚未合并（见 §9.3）。
+
+#### 4.4.7 运维建议
+
+**采集间隔**
+
+- 串行 / 共享总线：单通道设备数 × 单次读耗时应 **< 通道内最小 interval**；RS-485 建议 ≥500ms～1s 起，视从站数量线性放大。
+- Parallel 协议：可设较短 interval，但关注 `backpressure_reject_total` 与 `ErrRateLimited`；全局 512 饱和时应**加大 interval 或拆通道**，而非仅加设备。
+- Limited 协议（S7/Profinet 等）：默认单设备并发仅 2，点位过多时优先**增大 interval** 或**拆设备**。
+
+**通道布局**
+
+- 同一 RS-485 / Modbus TCP 网关下的从站 → **一个 Channel**，依赖 `shared:{channelID}` 串行化。
+- OPC UA / HTTP 等独立会话协议 → 每设备或每 Server 独立 Channel，利用 Parallel 背压。
+- 避免将数百 Modbus 从站压在单 Channel 且 interval=100ms：Serial 队列深度仅 64，易 `ErrQueueFull`。
+
+**诊断与巡检**
+
+| API / 手段 | 关注字段 | 建议动作 |
+|------------|----------|----------|
+| `GET /api/diagnostics/scan-engine` | `sla_warnings[]`、`scan_lag_p95_ms`、`scan_miss_deadline_total` | lag/miss 持续 >0 → 降负载或加 interval |
+| 同上 | `backpressure_reject_total`、`protocol_congestion_enabled` | 背压拒载上升 → 检查 Parallel 设备数与 interval |
+| 同上 | `circuit_breaker` / `driver_circuit_open_total` | Open 态设备 → 30s 内排查链路，勿频繁改配置 |
+| `GET /api/diagnostics/soak` | Release Gate 五 gate | 发布前跑 `make test-soak-short` |
+| 同上 | `serial_queue_depth` | 某 `shared:*` 长期接近 64 → 拆分通道或放慢 interval |
+
+**AdaptiveThrottle 与熔断**
+
+- 队列深度 ≥90% MaxQueueSize 时间隔最高 **8×**；运维侧看到 `scan_interval_adjusted_total` 上升属正常保护。
+- 设备连续 5 次超时或 60s 失败率 ≥40% 触发 **30s 熔断**，采集质量标记 Bad；恢复后自动 HalfOpen，无需重启进程。
+
+**硬编码参数的间接调优**
+
+| 目标 | 推荐手段（无需改代码） |
+|------|------------------------|
+| 降低全局并发压力 | 增大 interval、减少 Parallel 设备数、分网关部署 |
+| 缓解 RS-485 阻塞 | 拆 Channel、提高 interval、`serialOuterTimeout` 已按 ×16 排队 |
+| 避免重连风暴 | 确保单 Channel 单 ConnectionManager；勿手工频繁启停通道 |
+| 逼近 512/1000 上限 | 用 diagnostics 观察 reject 计数；达标前扩容或降频 |
 
 ---
 

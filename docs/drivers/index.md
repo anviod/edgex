@@ -27,9 +27,9 @@ hero_buttons:
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
 | Modbus TCP/RTU | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | 生产就绪 | 是 | 是 | — | 是 | **52.8%** |
 | **BACnet IP** | `bacnet-ip` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 故障隔离 | **66.1%** |
-| **OPC UA Client** | `opc-ua` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 是 | **47.6%** |
+| **OPC UA Client** | `opc-ua` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 是 | **47.9%** |
 | **Siemens S7** | `s7` | 生产就绪 | 是 | 是 | — | 是 | **61.3%** |
-| **EtherNet/IP** | `ethernet-ip` | 生产就绪 | 是 | 是 | — | 是 | **40.4%** |
+| **EtherNet/IP** | `ethernet-ip` | 生产就绪 | 是 | 是 | — | 是 | **39.5%** |
 | **Omron FINS** | `omron-fins` | 生产就绪 | 是 | 是 | — | 是 | **43.3%** |
 | **SNMP v2c/v3** | `snmp` | 生产就绪 | 是 | 是 | ScanObjects | 是 | **63.7%** |
 | **IEC 60870-5-104** | `iec60870-5-104` | M1 已交付 | 是 | 是 单点遥控 | — | 是 | **60.2%** |
