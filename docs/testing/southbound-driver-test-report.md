@@ -138,6 +138,6 @@ CGO_ENABLED=0 go test -tags=manual ./internal/driver/bacnet/... -count=1
 ## 6. Related Docs
 
 - [Driver matrix](../drivers/index.html)
-- [Testing index](index.md)
+- [Testing index](index.html)
 - [Channel regression plan](南向采集通道回归验证测试方案.html)
 - [Live test plan](../TODO/联机测试方案.html)

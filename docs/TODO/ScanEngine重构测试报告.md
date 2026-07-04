@@ -124,20 +124,20 @@ go test ./internal/core/... ./internal/driver/...
 
 | 文件 | 变更内容 |
 |------|----------|
-| [channel_manager.go](file:///d:/code/edgex/internal/core/channel_manager.go) | 集成ScanEngineAdapter，替换deviceLoop调用 |
-| [channel_manager.go](file:///d:/code/edgex/internal/core/channel_manager.go) | 删除deviceLoop函数（已废弃） |
-| [channel_manager.go](file:///d:/code/edgex/internal/core/channel_manager.go) | 添加registerProtocolToScanEngine协议路由方法 |
-| [channel_manager.go](file:///d:/code/edgex/internal/core/channel_manager.go) | 移除Device/Channel.StopChan字段及全部读写引用 |
-| [scan_engine_compat.go](file:///d:/code/edgex/internal/core/scan_engine_compat.go) | 使用全局驱动注册机制替代本地registry |
-| [scan_engine_compat.go](file:///d:/code/edgex/internal/core/scan_engine_compat.go) | 移除ProtocolRegistry字段 |
-| [scan_engine_compat.go](file:///d:/code/edgex/internal/core/scan_engine_compat.go) | 添加sync.Once启动控制，防止重复启动 |
-| [scan_engine_compat.go](file:///d:/code/edgex/internal/core/scan_engine_compat.go) | 添加started标志和IsStarted()方法 |
-| [resource_controller.go](file:///d:/code/edgex/internal/core/resource_controller.go) | 修复Monitor()方法缺少wg.Done()的Bug |
-| [scan_engine_large_scale_test.go](file:///d:/code/edgex/internal/core/scan_engine_large_scale_test.go) | 新增大规模压力测试文件 |
-| [device_manager.go](file:///d:/code/edgex/internal/core/device_manager.go) | 删除已废弃且未被引用的DeviceManager |
-| [values_notifier.go](file:///d:/code/edgex/internal/driver/values_notifier.go) | 删除旧轮询通知路径 |
-| [bacnet/polling.go](file:///d:/code/edgex/internal/driver/bacnet/polling.go) | 删除BACnet独立轮询goroutine |
-| [bacnet/isolation.go](file:///d:/code/edgex/internal/driver/bacnet/isolation.go) | 隔离/退避逻辑保留为单元测试辅助，运行时由ScanEngine调度 |
+| [channel_manager.go](https://github.com/anviod/edgex/blob/dev/internal/core/channel_manager.go) | 集成ScanEngineAdapter，替换deviceLoop调用 |
+| [channel_manager.go](https://github.com/anviod/edgex/blob/dev/internal/core/channel_manager.go) | 删除deviceLoop函数（已废弃） |
+| [channel_manager.go](https://github.com/anviod/edgex/blob/dev/internal/core/channel_manager.go) | 添加registerProtocolToScanEngine协议路由方法 |
+| [channel_manager.go](https://github.com/anviod/edgex/blob/dev/internal/core/channel_manager.go) | 移除Device/Channel.StopChan字段及全部读写引用 |
+| [scan_engine_compat.go](https://github.com/anviod/edgex/blob/dev/internal/core/scan_engine_compat.go) | 使用全局驱动注册机制替代本地registry |
+| [scan_engine_compat.go](https://github.com/anviod/edgex/blob/dev/internal/core/scan_engine_compat.go) | 移除ProtocolRegistry字段 |
+| [scan_engine_compat.go](https://github.com/anviod/edgex/blob/dev/internal/core/scan_engine_compat.go) | 添加sync.Once启动控制，防止重复启动 |
+| [scan_engine_compat.go](https://github.com/anviod/edgex/blob/dev/internal/core/scan_engine_compat.go) | 添加started标志和IsStarted()方法 |
+| [resource_controller.go](https://github.com/anviod/edgex/blob/dev/internal/core/resource_controller.go) | 修复Monitor()方法缺少wg.Done()的Bug |
+| [scan_engine_large_scale_test.go](https://github.com/anviod/edgex/blob/dev/internal/core/scan_engine_large_scale_test.go) | 新增大规模压力测试文件 |
+| [device_manager.go](https://github.com/anviod/edgex/blob/dev/internal/core/device_manager.go) | 删除已废弃且未被引用的DeviceManager |
+| [values_notifier.go](https://github.com/anviod/edgex/blob/dev/internal/driver/values_notifier.go) | 删除旧轮询通知路径 |
+| [bacnet/polling.go](https://github.com/anviod/edgex/blob/dev/internal/driver/bacnet/polling.go) | 删除BACnet独立轮询goroutine |
+| [bacnet/isolation.go](https://github.com/anviod/edgex/blob/dev/internal/driver/bacnet/isolation.go) | 隔离/退避逻辑保留为单元测试辅助，运行时由ScanEngine调度 |
 
 ### 3.2 BACnet迁移完成
 

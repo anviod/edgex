@@ -21,7 +21,7 @@ go build ./cmd/main.go -o main.exe
 
 ### 2. 准备配置文件
 
-使用本文件「配置文件详解」中的 YAML 片段，或通过 Web UI/API 导入；全量快照见 [test/README.md](../../test/README.md) 与 `test/legacy/config_full_snapshot.yaml.bak`。参考 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html)。
+使用本文件「配置文件详解」中的 YAML 片段，或通过 Web UI/API 导入；全量快照见 [test/README.md](https://github.com/anviod/edgex/blob/dev/test/README.md) 与 `test/legacy/config_full_snapshot.yaml.bak`。参考 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html)。
 
 ### 3. 运行
 

@@ -51,7 +51,8 @@ Detailed SLA, protocols, and virtual shadow: [Product Guide (中文)](../guide/�
 | [Product Guide (中文)](../guide/产品说明.html) | capabilities, SLA metrics, feature details |
 | [Edge Gateway Architecture (中文)](../edge/边缘网关架构设计总览.html) | component layout and data flow |
 | [Southbound Driver Matrix (EN)](../drivers/index_en.html) | 12 protocol drivers and development standards |
-| [Testing & Verification](../testing/index.html) | SLA benchmarks, Soak, and regression reports |
+| [Testing & Verification](../testing/index.html) | SLA benchmarks, Soak, regression, and driver test reports |
+| [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) | **2026-07-04** retest — 21/21 PASS, coverage matrix |
 | [Deployment](../deployment/index.html) | bare-metal / systemd deployment guides |
 
 ## Implemented Southbound Drivers
@@ -73,7 +74,7 @@ Registered in `cmd/main.go`:
 | Profinet IO | `profinet-io` | Implemented |
 | KNXnet/IP | `knxnet-ip` | Production |
 
-See [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) for coverage.
+See [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) for **2026-07-04** coverage (21/21 main packages PASS under `-short`).
 
 ## Related
 

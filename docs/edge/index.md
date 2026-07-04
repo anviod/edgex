@@ -40,10 +40,10 @@ hero_buttons:
 ### ScanEngine / ShadowCore
 
 <div align="center">
-  <img src="../img/dataScanEngineCN.svg" width="100%" alt="Edgex V2.0 架构 · ScanEngine引擎" />
+  <img src="../img/dataScanEngineCN.svg" width="100%" alt="EdgeX V2.0 架构 · ScanEngine引擎" />
 </div>
 
-> **Edgex V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine（EDF + CB + SLA）写入 ShadowIngress → ShadowCore，再联通虚拟设备、边缘计算与北向接口。详见 [边缘网关架构设计总览](边缘网关架构设计总览.html)。
+> **EdgeX V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine（EDF + CB + SLA）写入 ShadowIngress → ShadowCore，再联通虚拟设备、边缘计算与北向接口。详见 [边缘网关架构设计总览](边缘网关架构设计总览.html)。
 
 - [1. 项目现状分析](1. 项目现状分析.html)
 - [ScanEngine 重构方案](../TODO/ScanEngine重构方案.html) — 内核技术规范（权威）

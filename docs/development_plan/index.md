@@ -68,6 +68,7 @@ hero_buttons:
 - [已交付] **Dashboard v3 UI** — Linear 级 SaaS 样式改版与 Soak 监控面板
 - [已交付] **版本发布门禁** — G-Stability/Industrial/Performance/Lightweight 四道门禁
 - [已交付] **虚拟影子设备体验** — 编辑流程、帮助文档与跨页面样式统一
+- [已交付] **南向驱动测试报告（2026-07-04）** — 21/21 PASS，覆盖率矩阵见 [测试报告](../testing/南向驱动测试报告.html)
 
 ---
 

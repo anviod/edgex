@@ -50,10 +50,10 @@ hero_buttons:
 ### 智能采集优化系列（ScanEngine 调度驱动内核）
 
 <div align="center">
-  <img src="../img/dataScanEngineCN.svg" width="100%" alt="Edgex V2.0 架构 · ScanEngine引擎" />
+  <img src="../img/dataScanEngineCN.svg" width="100%" alt="EdgeX V2.0 架构 · ScanEngine引擎" />
 </div>
 
-> **Edgex V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine（EDF + CB + SLA metrics）写入 ShadowIngress → ShadowCore 快照，再联通虚拟设备、边缘计算与北向接口。
+> **EdgeX V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine（EDF + CB + SLA metrics）写入 ShadowIngress → ShadowCore 快照，再联通虚拟设备、边缘计算与北向接口。
 
 > 规范：`docs/TODO/ScanEngine重构方案.md` · 总览：`docs/edge/边缘网关架构设计总览.md`
 

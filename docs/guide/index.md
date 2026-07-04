@@ -21,9 +21,12 @@ hero_buttons:
 - [产品说明](产品说明.html) — 产品概览、工业级 SLA、协议能力与部署指南
 - [用户手册](USER_MANUAL.html) — 安装部署、配置管理与日常运维
 - [边缘计算最佳实践](EDGE_COMPUTING_BEST_PRACTICES.html) — 场景编排与数据流转建议
+- [南向驱动测试报告](../testing/南向驱动测试报告.html) — 2026-07-04 全量复测与覆盖率矩阵
 
 ## 相关文档
 
 - [部署指南](../deployment/index.html) — 集成指南与 EdgeOS 部署
 - [运维文档](../operations/index.html) — 系统设置与故障修复
 - [设备驱动](../drivers/index.html) — 南向协议驱动文档
+- [测试验证](../testing/index.html) — SLA 压测、Soak 与驱动测试
+- [test/ 目录说明](https://github.com/anviod/edgex/blob/dev/test/README.md) — 联调资产与 `go test` 维护原则

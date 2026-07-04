@@ -21,22 +21,24 @@ hero_buttons:
 
 ## 驱动支持矩阵
 
-> 注册来源：`cmd/main.go` 空白导入 · 测试数据：2026-06-28 · `CGO_ENABLED=0`
+> 注册来源：`cmd/main.go` 空白导入 · 测试数据：**2026-07-04** · `CGO_ENABLED=0` · 详见 [南向驱动测试报告](../testing/南向驱动测试报告.html)
 
-| 协议 | 注册名 | 状态 | 读 | 写 | 扫描/发现 | 连接管理 | 单元测试 |
+| 协议 | 注册名 | 状态 | 读 | 写 | 扫描/发现 | 连接管理 | 单元测试（`-short` 覆盖） |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| Modbus TCP/RTU | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | 生产就绪 | 是 | 是 | — | 是 | 33 项，27% 覆盖 |
-| **BACnet IP** | `bacnet-ip` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 故障隔离 | 80+ 项，59% 覆盖 |
-| **OPC UA Client** | `opc-ua` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 是 | 25 项，40% 覆盖 |
-| **Siemens S7** | `s7` | 生产就绪 | 是 | 是 | — | 是 | 52 项，42% 覆盖 |
-| **EtherNet/IP** | `ethernet-ip` | 生产就绪 | 是 | 是 | — | 是 | 60 项，30% 覆盖 |
-| **Omron FINS** | `omron-fins` | 生产就绪 | 是 | 是 | — | 是 | 12 项，31% 覆盖 |
-| **SNMP v2c/v3** | `snmp` | 生产就绪 | 是 | 是 | ScanObjects | 是 | 22 项，45% 覆盖 |
-| **IEC 60870-5-104** | `iec60870-5-104` | M1 已交付 | 是 | 是 单点遥控 | — | 是 | 16 项，45% 覆盖 |
-| **DL/T645-2007** | `dlt645` | 生产就绪 | 是 | 是 | — | 是 | 24 项，71% 覆盖 |
-| **Mitsubishi SLMP** | `mitsubishi-slmp` | 生产就绪 | 是 | 是 | — | 是 | 13 项，57% 覆盖 |
-| **Profinet IO** | `profinet-io` | 生产就绪 | 是 | 是 | — | 是 | 11 项，49% 覆盖 |
-| **KNXnet/IP** | `knxnet-ip` | 生产就绪 | 是 | 是 | 网关发现 | 是 | 13 项，67% 覆盖 |
+| Modbus TCP/RTU | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | 生产就绪 | 是 | 是 | — | 是 | **52.8%** |
+| **BACnet IP** | `bacnet-ip` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 故障隔离 | **66.1%** |
+| **OPC UA Client** | `opc-ua` | 生产就绪 | 是 | 是 | Scan + ScanObjects | 是 | **47.6%** |
+| **Siemens S7** | `s7` | 生产就绪 | 是 | 是 | — | 是 | **61.3%** |
+| **EtherNet/IP** | `ethernet-ip` | 生产就绪 | 是 | 是 | — | 是 | **40.4%** |
+| **Omron FINS** | `omron-fins` | 生产就绪 | 是 | 是 | — | 是 | **43.3%** |
+| **SNMP v2c/v3** | `snmp` | 生产就绪 | 是 | 是 | ScanObjects | 是 | **63.7%** |
+| **IEC 60870-5-104** | `iec60870-5-104` | M1 已交付 | 是 | 是 单点遥控 | — | 是 | **60.2%** |
+| **DL/T645-2007** | `dlt645` | 生产就绪 | 是 | 是 | — | 是 | **76.5%** ✅ |
+| **Mitsubishi SLMP** | `mitsubishi-slmp` | 生产就绪 | 是 | 是 | — | 是 | **70.7%** ✅ |
+| **Profinet IO** | `profinet-io` | 生产就绪 | 是 | 是 | — | 是 | **55.9%** |
+| **KNXnet/IP** | `knxnet-ip` | 生产就绪 | 是 | 是 | 网关发现 | 是 | **77.2%** ✅ |
+
+> ConnectionManager（公共组件）：**87.4%** · 主驱动包 21/21 PASS（2026-07-04）
 
 ### 主要配置参数
 

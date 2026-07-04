@@ -3,7 +3,7 @@ layout: section-index
 title: 测试验证
 description: EdgeX 测试验证文档 — 单元测试、回归验证、压力测试与验收报告
 hero_eyebrow: Testing & Verification
-hero_lead: EdgeX 测试验证文档 — 测试矩阵、回归验证、压力测试、南向驱动测试报告与验收文档。
+hero_lead: EdgeX 测试验证文档 — 测试矩阵、回归验证、压力测试、南向驱动测试报告（2026-07-04 全量复测 PASS）与验收文档。
 hero_buttons:
   - text: 南向驱动测试报告
     url: 南向驱动测试报告.html
@@ -44,12 +44,15 @@ hero_buttons:
 - [工业验证测试报告模板](工业验证测试报告模板.html) — Phase 2 各协议联机验证统一模板（G-Industrial）
 
 ### 南向驱动测试
-- [南向驱动测试报告](南向驱动测试报告.html) — 单元测试、性能基准、边界场景矩阵（2026-06-27）
+
+> **2026-07-04 复测**：`CGO_ENABLED=0 go test ./internal/driver/... -short` — 主驱动包 **21/21 PASS**；ConnectionManager **87.4%**，DL/T645 **76.5%**、KNXnet/IP **77.2%**、Mitsubishi **70.7%** 达 ≥70%；新增/扩展各驱动 `coverage_test.go`，修复 Modbus 单飞重连时序抖动。
+
+- [南向驱动测试报告](南向驱动测试报告.html) — 单元测试、性能基准、边界场景矩阵（2026-07-04）
 - [Southbound Driver Test Report (EN)](southbound-driver-test-report.html)
 
 ### 代码测试维护
 
-- [test/ 目录说明](../../test/README.md) — 联调资产、`go test` 常用命令与测试腐化处理原则
+- [test/ 目录说明](https://github.com/anviod/edgex/blob/dev/test/README.md) — 联调资产、`go test` 常用命令与测试腐化处理原则
 - [B1 采集间隔核验报告](b1_poll_interval_verification.html) — Modbus 多从站 PollStart Δt 现场样本
 
 ### ScanEngine / ShadowCore SLA 验证
