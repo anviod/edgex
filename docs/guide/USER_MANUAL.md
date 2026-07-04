@@ -486,6 +486,126 @@ description: EdgeX 用户手册
 - **网络状态**：监控网络连接和数据传输情况
 - **日志管理**：查看系统日志和操作记录
 
+### 运维诊断与 SLA 监控
+
+EdgeX 采用**统计 SLA**（非硬实时 PLC），内置阈值门控与 diagnostics API，**无需 Prometheus/Grafana** 等外部监控栈。运维可通过 **HTTP JSON 巡检**、**Web UI 指标页** 与 **结构化日志 grep** 三条通路观察采集健康度。
+
+#### 1. Diagnostics API 巡检
+
+所有 diagnostics 端点挂载在 `/api` 下，需携带登录 JWT（`Authorization: Bearer <token>`）。默认网关端口 `8082`。
+
+| 端点 | 说明 |
+|------|------|
+| `GET /api/diagnostics/scan-engine` | ScanEngine 全局调度指标，含 `sla_warnings[]` |
+| `GET /api/diagnostics/soak` | Soak 长稳会话与 Release Gate 验收项 |
+| `GET /api/devices/:deviceId/diagnostics` | 单设备 IO 画像、scan task lag、断路器状态 |
+| `GET /api/channels/:channelId/diagnostics/events` | 通道 Event Log（CB Open/Reject 等最近事件） |
+| `GET /api/channels/:channelId/metrics` | 通道级通信 KPI（成功率、RTT、丢包率等） |
+| `GET /api/channels/:channelId/devices/:deviceId/metrics` | 设备级通信 KPI |
+| `GET /api/points/:pointId/debug` | 点位调试（原始字节 + 解析值） |
+
+**ScanEngine SLA 快照示例：**
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8082/api/diagnostics/scan-engine | jq '{
+  lag_p95: .scan_lag_p95_ms,
+  drift: .scan_drift_avg_ms,
+  miss: .scan_miss_deadline_total,
+  cb_open: .driver_circuit_open_total,
+  backpressure: .backpressure_reject_total,
+  warnings: .sla_warnings
+}'
+```
+
+**单设备 diagnostics 示例：**
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8082/api/devices/modbus-slave-1/diagnostics | jq .
+```
+
+**通道 Event Log 示例：**
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8082/api/channels/<channelId>/diagnostics/events | jq .
+```
+
+#### 2. 解读 sla_warnings
+
+`sla_warnings` 为数组，由 ScanEngine 内置阈值自动生成。非空表示至少一项 SLA 指标超出稳态阈值，需进一步排查。
+
+| code | 含义 | 常见原因 |
+|------|------|----------|
+| `scan_lag_p95_exceeded` | 调度 lag P95 超阈 | 点位过多、采集周期过短、设备响应慢 |
+| `scan_drift_avg_exceeded` | 漂移均值超阈 | 调度拥塞或共享串口链路慢 |
+| `scan_miss_deadline_exceeded` | miss deadline 累计 | 任务长期 overdue |
+| `circuit_breaker_rejects` | 断路器拒绝请求 | 设备离线或频繁超时 |
+
+**响应示例：**
+
+```json
+{
+  "code": "scan_lag_p95_exceeded",
+  "metric": "scan_lag_p95_ms",
+  "value": 125.5,
+  "threshold": 100,
+  "message": "scan lag P95 125.50ms exceeds 100ms"
+}
+```
+
+**告警响应建议：**
+
+1. `sla_warnings` 非空 → 查对应通道 Event Log 定位 channel/device
+2. `driver_circuit_open_total` 增加 → 检查设备网络或从站状态，等待 HalfOpen 探测
+3. `backpressure_reject_total` 持续上升 → 降载或调大 scan interval
+
+#### 3. Web UI 指标页
+
+**首页 — ScanEngine Soak 面板**
+
+- 浏览器路径：`http://<网关IP>:8082/`（登录后进入 Dashboard）
+- 展示 ScanEngine 运行监控、SLA / Soak 状态、Release Gate 项
+- 数据来源：`GET /api/diagnostics/soak`
+
+**通道列表 — 监控弹窗**
+
+1. 进入 **南向采集 → 通道列表**
+2. 点击目标通道卡片上的 **监控** 图标（图表样式按钮）
+3. 弹窗分区说明：
+   - **质量评分**：综合成功率、RTT、丢包、lag P95、CB Open 的 0–100 分
+   - **调度 SLA**：Lag P95、Drift 均值、CB Open 数、反压拒绝次数
+   - **SLA 告警**：`sla_warnings` 列表（黄色告警条，逐条显示 `message`）
+   - **详细指标**：CRC 错误率、重试率、请求计数等
+4. 并行请求 `GET /api/channels/:id/metrics` 与 `GET /api/diagnostics/scan-engine`
+
+**点位列表 — 点位调试**
+
+1. 进入通道下 **点位列表**
+2. 对目标点位执行 **调试** 操作
+3. 查看原始字节、解析值与质量状态（`GET /api/points/:pointId/debug`）
+
+#### 4. 结构化日志 grep
+
+SLA 周期告警（约每 30s 扫描，有告警才输出 WARN）：
+
+```bash
+grep '\[SLA\]' /var/log/edgex/app.log
+grep 'scan_lag_p95_exceeded\|circuit_breaker_open' /var/log/edgex/app.log
+```
+
+#### 5. UI 手动验证清单
+
+| 步骤 | 预期 |
+|------|------|
+| 登录 Dashboard | 首页可见 ScanEngine Soak 面板 |
+| 通道列表 → 监控 | 弹窗显示质量评分与调度 SLA 区块 |
+| `sla_warnings` 非空时 | 弹窗出现黄色 SLA 告警列表 |
+| 点位调试 | 返回原始字节与解析值 |
+
+更多阈值对照与压测回归命令见 [SLA 运维手册](../deployment/sla_monitoring.html)。
+
 ### 备份与恢复
 
 - **数据备份**：备份系统配置和数据
@@ -709,9 +829,11 @@ journalctl -u edgex -f
 
 ### 诊断工具
 
-- **Ping 测试**：测试网络连接
+- **Diagnostics API**：`GET /api/diagnostics/scan-engine` 与 `sla_warnings[]` 巡检 — 见 [运维诊断与 SLA 监控](#运维诊断与-sla-监控)
+- **UI 指标页**：首页 Soak 面板、通道列表「监控」弹窗 — 同上
+- **Ping 测试**：测试网络连接（系统管理 → 网络）
 - **设备扫描**：扫描可用设备
-- **日志查看**：查看系统和应用日志
+- **日志查看**：查看系统和应用日志；SLA 告警 `grep '[SLA]'`
 - **性能分析**：分析系统性能问题
 
 ### 技术支持
@@ -744,6 +866,7 @@ journalctl -u edgex -f
 
 | 版本 | 日期 | 变更内容 |
 | ---- | ---- | ---- |
+| v1.2 | 2026-07 | 新增运维诊断与 SLA 监控章节（Diagnostics API、sla_warnings、UI 指标页） |
 | v1.1 | 2026-06 | 新增安装指南、部署流程、最佳实践章节；更新驱动支持矩阵 |
 | v1.0 | 2026-03-27 | 初始版本 |
 

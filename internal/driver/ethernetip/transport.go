@@ -135,73 +135,57 @@ func (t *ENIPTransport) Connect(ctx context.Context) error {
 		return nil
 	}
 
+	if t.tcp != nil {
+		t.tcp.Close()
+		t.tcp = nil
+	}
+
+	return t.connMgr.EnsureConnected(ctx, func(ctx context.Context) error {
+		return t.connectOnce(ctx)
+	})
+}
+
+func (t *ENIPTransport) connectOnce(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
 	if t.ip == "" {
 		return fmt.Errorf("ENIP transport: IP address not configured")
 	}
 
 	t.remoteAddr = fmt.Sprintf("%s:%d", t.ip, t.port)
 
-	t.connMgr.SetState(StateConnecting)
-
-	var lastErr error
-	for {
-		canRetry, waitTime := t.connMgr.CanRetry()
-		if !canRetry {
-			return fmt.Errorf("ENIP connection not allowed to retry")
-		}
-
-		if waitTime > 0 {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(waitTime):
-			}
-		}
-
-		tcp, err := t.tcpFactory(t.ip, nil)
-		if err != nil {
-			lastErr = fmt.Errorf("failed to create ENIP client: %w", err)
-			zap.L().Warn("[ENIP] Failed to create ENIP client",
-				zap.Error(err),
-				zap.String("addr", t.remoteAddr),
-			)
-			_, _ = t.connMgr.RecordFailure()
-			continue
-		}
-
-		connectCtx, cancel := context.WithTimeout(ctx, t.timeout)
-		defer cancel()
-		err = tcp.Connect()
-		_ = connectCtx
-
-		if err != nil {
-			lastErr = fmt.Errorf("ENIP connection failed: %w", err)
-			zap.L().Warn("[ENIP] Connection failed",
-				zap.Error(err),
-				zap.String("addr", t.remoteAddr),
-			)
-			shouldRetry, _ := t.connMgr.RecordFailure()
-			if !shouldRetry {
-				return fmt.Errorf("ENIP connection failed, entering coolDown: %w", lastErr)
-			}
-			continue
-		}
-
-		t.tcp = tcp
-		t.connected.Store(true)
-		t.connectTime = time.Now()
-		t.reconnectCount.Add(1)
-		t.localAddr = t.getLocalAddr()
-		t.lastActivityTime.Store(time.Now())
-		t.connMgr.RecordSuccess()
-
-		zap.L().Info("[ENIP] TCP connection established",
+	tcp, err := t.tcpFactory(t.ip, nil)
+	if err != nil {
+		zap.L().Warn("[ENIP] Failed to create ENIP client",
+			zap.Error(err),
 			zap.String("addr", t.remoteAddr),
-			zap.Int("slot", t.slot),
-			zap.Duration("timeout", t.timeout),
 		)
-		return nil
+		return fmt.Errorf("failed to create ENIP client: %w", err)
 	}
+
+	if err := tcp.Connect(); err != nil {
+		zap.L().Warn("[ENIP] Connection failed",
+			zap.Error(err),
+			zap.String("addr", t.remoteAddr),
+		)
+		return fmt.Errorf("ENIP connection failed: %w", err)
+	}
+
+	t.tcp = tcp
+	t.connected.Store(true)
+	t.connectTime = time.Now()
+	t.reconnectCount.Add(1)
+	t.localAddr = t.getLocalAddr()
+	t.lastActivityTime.Store(time.Now())
+
+	zap.L().Info("[ENIP] TCP connection established",
+		zap.String("addr", t.remoteAddr),
+		zap.Int("slot", t.slot),
+		zap.Duration("timeout", t.timeout),
+	)
+	return nil
 }
 
 func (t *ENIPTransport) Disconnect() error {
@@ -247,8 +231,28 @@ func (t *ENIPTransport) RecordFailure(err error) {
 	t.lastActivityTime.Store(time.Now())
 
 	if t.collectFailCount.Load() >= t.maxFailCount {
-		go t.reconnect()
+		t.scheduleReconnect()
 	}
+}
+
+func (t *ENIPTransport) scheduleReconnect() {
+	timeout := t.timeout * time.Duration(t.maxRetries)
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+
+	t.connMgr.ScheduleReconnect(context.Background(), timeout, func(ctx context.Context) error {
+		t.mu.Lock()
+		defer t.mu.Unlock()
+
+		if t.connected.Load() && t.tcp != nil {
+			t.tcp.Close()
+			t.tcp = nil
+		}
+		t.connected.Store(false)
+
+		return t.connectOnce(ctx)
+	})
 }
 
 func (t *ENIPTransport) NeedProbeCheck() bool {
@@ -272,28 +276,6 @@ func (t *ENIPTransport) ProbeConnection() {
 		t.RecordFailure(err)
 	} else {
 		t.RecordSuccess()
-	}
-}
-
-func (t *ENIPTransport) reconnect() {
-	t.mu.Lock()
-	if !t.connected.Load() {
-		t.mu.Unlock()
-		return
-	}
-
-	if t.tcp != nil {
-		t.tcp.Close()
-	}
-	t.connected.Store(false)
-	t.connMgr.SetState(StateRetrying)
-	t.mu.Unlock()
-
-	ctx, cancel := context.WithTimeout(context.Background(), t.timeout*time.Duration(t.maxRetries))
-	defer cancel()
-
-	if err := t.Connect(ctx); err != nil {
-		zap.L().Error("[ENIP] Reconnection failed", zap.Error(err))
 	}
 }
 

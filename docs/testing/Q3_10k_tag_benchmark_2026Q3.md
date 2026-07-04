@@ -132,7 +132,6 @@ ScanEngine → mockStressDriver.ReadPoints
 2. **真实驱动压测**：当前使用 mock 驱动；Modbus/OPC UA 真机 10k Tag 需单独报告。
 3. **100k points/s**：推迟 Q4，当前 ~11.6k points/s 为 mock 基线。
 4. **Pipeline 合并窗口**：北向限频（Publish Rate）在高频场景可进一步 batch 合并。
-5. **P95 Prometheus 直方图**：将 lag 样本导出为 histogram bucket 供 Grafana 分位曲线。
 
 ---
 

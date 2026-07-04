@@ -49,7 +49,7 @@ EdgeX 产品能力分层总览：接入 → 采集 → 边缘 → 北向 → 质
 
 EdgeX SLA 验证闭环：运行时监测 → 可观测 → CI/Soak 验证
 
-统计 SLA（非硬实时 PLC），内置门控与 `GET /diagnostics/scan-engine` 可观测。验证链路覆盖：**运行时指标监测** → **诊断 API 可观测** → **CI 五 gate 回归** → **Soak 长稳验证**。阈值定义、万 Tag 压测、Soak 长稳与部署建议见 [产品说明 — 工业级 SLA](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html#工业级-sla-与稳定性验证)（[源码](docs/guide/产品说明.md#工业级-sla-与稳定性验证)）。
+统计 SLA（非硬实时 PLC），内置门控与 `GET /api/diagnostics/scan-engine` 可观测。验证链路覆盖：**运行时指标监测** → **诊断 API 可观测** → **CI 五 gate 回归** → **Soak 长稳验证**。阈值定义、万 Tag 压测、Soak 长稳与部署建议见 [产品说明 — 工业级 SLA](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html#工业级-sla-与稳定性验证)（[源码](docs/guide/产品说明.md#工业级-sla-与稳定性验证)）；运维操作见 [用户手册 — 运维诊断与 SLA 监控](docs/guide/USER_MANUAL.md#运维诊断与-sla-监控)。
 
 ### 轻量灵活部署
 

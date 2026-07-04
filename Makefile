@@ -1,4 +1,4 @@
-.PHONY: test test-short test-soak test-soak-short bench-q3 bench-loadpoints bench-armv7
+.PHONY: test test-short test-soak test-soak-short bench-q3 bench-g007 bench-loadpoints bench-armv7
 
 test:
 	go test ./internal/core/... ./internal/integration/... -count=1
@@ -16,6 +16,9 @@ test-soak-short:
 
 bench-q3:
 	go test ./internal/core/ -run TestQ3_TenThousandTagBenchmark -count=1 -timeout=15m
+
+bench-g007:
+	go test ./internal/core/ -run TestG007_DeviceThroughputBenchmark -count=1 -timeout=5m
 
 bench-loadpoints:
 	go test ./internal/core/ -run '^$$' -bench BenchmarkExecutionLayer_LoadPoints_Pooled -benchmem -count=3

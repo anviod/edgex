@@ -156,6 +156,18 @@ func TestConnectionController_CanRetry(t *testing.T) {
 	}
 }
 
+func TestConnectionController_CanRetry_ConnectingAfterFailureWaits(t *testing.T) {
+	cc := NewConnectionController("modbus", "device1", "modbus-tcp")
+
+	cc.SetState(ConnStateConnecting)
+	cc.RecordConnectionFailure()
+
+	_, waitTime := cc.CanRetry()
+	if waitTime <= 0 {
+		t.Fatalf("Connecting 态失败重试应有退避，实际 %v", waitTime)
+	}
+}
+
 func TestConnectionController_GlobalReconnectRateLimit(t *testing.T) {
 	cc := NewConnectionController("modbus", "device1", "modbus-tcp")
 

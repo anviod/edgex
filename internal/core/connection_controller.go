@@ -341,7 +341,18 @@ func (cc *ConnectionController) CanRetry() (canRetry bool, waitTime time.Duratio
 	defer cc.mu.Unlock()
 
 	switch cc.state {
-	case ConnStateDisconnected, ConnStateConnecting:
+	case ConnStateDisconnected:
+		if !tryAcquireGlobalReconnectSlot() {
+			return true, 1 * time.Second
+		}
+		return true, 0
+	case ConnStateConnecting:
+		if cc.retryCount > 0 {
+			if !tryAcquireGlobalReconnectSlot() {
+				return true, 1 * time.Second
+			}
+			return true, cc.calculateBackoff(cc.retryCount)
+		}
 		if !tryAcquireGlobalReconnectSlot() {
 			return true, 1 * time.Second
 		}

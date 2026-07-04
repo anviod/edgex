@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	protocolCongestionModbusRate = 800.0
+	protocolCongestionModbusRate = 1000.0
 	protocolCongestionOpcuaRate  = 400.0
 	protocolCongestionS7Rate     = 300.0
 	protocolCongestionDefaultRate = 600.0
