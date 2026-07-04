@@ -6,7 +6,7 @@ hero_eyebrow: EdgeOS Integration
 hero_lead: EdgeX 与 EdgeOS 集成文档 — MQTT/NATS 通信协议规范、联调测试方案、设备级数据推送验证与北向推送优化。
 hero_buttons:
   - text: 通信协议规范
-    url: EdgeX通信协议规范(MQTT-NATS).html
+    url: EdgeX通信协议规范%28MQTT-NATS%29.html
     style: primary
   - text: 部署指南
     url: ../deployment/index.html
@@ -23,9 +23,9 @@ hero_buttons:
 
 ### 通信规范
 
-> **权威：** [EdgeX 通信协议规范 (MQTT/NATS)](EdgeX通信协议规范(MQTT-NATS).html)
+> **权威：** [EdgeX 通信协议规范 (MQTT/NATS)](EdgeX通信协议规范%28MQTT-NATS%29.html)
 
-- [EdgeX 通信协议规范 (MQTT/NATS)](EdgeX通信协议规范(MQTT-NATS).html) — EdgeX ↔ edgeOS 专用 Topic/消息体
+- [EdgeX 通信协议规范 (MQTT/NATS)](EdgeX通信协议规范%28MQTT-NATS%29.html) — EdgeX ↔ edgeOS 专用 Topic/消息体
 - 通用 MQTT 北向插件格式见 [MQTT 数据上下行格式](../northbound/MQTT数据上下行格式.html)
 
 ### 测试与验证

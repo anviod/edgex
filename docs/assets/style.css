@@ -998,6 +998,10 @@ pre {
   gap: 20px;
 }
 
+.doc-zones--wide {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .doc-zone {
   padding: 24px;
   border-radius: 20px;

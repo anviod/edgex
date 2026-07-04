@@ -72,7 +72,7 @@ description: EdgeX EdgeOS 设备级数据推送验证方案
 
 ### 2.1 协议要求的格式
 
-根据 `EdgeX-EdgeOS通信协议规范(MQTT-NATS).md` 第 4.5 节,数据推送格式如下:
+根据 `EdgeX通信协议规范%28MQTT-NATS%29.md` 第 4.5 节,数据推送格式如下:
 
 ```json
 {

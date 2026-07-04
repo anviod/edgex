@@ -127,6 +127,8 @@ def wrap(title: str, description: str, content: str, depth: int) -> str:
         ("首页", f"{root}index.html"),
         ("产品指南", f"{root}guide/index.html"),
         ("设备驱动", f"{root}drivers/index.html"),
+        ("测试验证", f"{root}testing/index.html"),
+        ("部署运维", f"{root}deployment/index.html"),
         ("边缘计算", f"{root}edge/index.html"),
         ("开发计划", f"{root}development_plan/index.html"),
     ]

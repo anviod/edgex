@@ -18,25 +18,39 @@
 
 要在本地预览 GitHub Pages 站点，需要安装 Jekyll：
 
-1. 安装 Ruby 和 RubyGems
-2. 安装 Jekyll 和 bundler：
-   ```bash
-   gem install bundler jekyll
-   ```
-3. 在 docs 目录中运行：
+1. 安装 Ruby 3.0+ 和 RubyGems
+2. 在 `docs` 目录中运行：
    ```bash
    bundle install
-   bundle exec jekyll serve
+   bundle exec jekyll serve --baseurl /edgex
    ```
-4. 打开浏览器访问 `http://localhost:4000`
+3. 打开浏览器访问 `http://localhost:4000/edgex/`
+
+### 链接与资源校验（无需 Jekyll）
+
+```bash
+cd docs
+bash scripts/verify_site.sh
+```
+
+脚本会审计全部内部 Markdown/HTML 链接，并检查首页索引与 `assets/` 静态资源是否齐全。
 
 ## 部署
 
-GitHub Pages 会自动从 `docs` 目录构建站点。要部署更新：
+GitHub Pages 从 `docs/` 目录构建（Jekyll + Cayman 主题，`baseurl: /edgex`）。部署步骤：
 
 1. 提交更改到 GitHub 仓库
-2. 等待 GitHub Actions 完成构建
-3. 访问 `https://[username].github.io/[repository]` 查看站点
+2. 在仓库 Settings → Pages 中确认 Source 为 `docs/` 分支
+3. 等待 GitHub Pages 构建完成
+4. 访问 [https://anviod.github.io/edgex/](https://anviod.github.io/edgex/)
+
+### 发布范围
+
+| 包含 | 排除（不发布） |
+|------|----------------|
+| 全部 `.md` 文档（含 `TODO/`、Q2/Q3 方案） | `done/` 历史归档副本 |
+| `assets/`、`img/` 静态资源 | `man/` 已合并的历史索引 |
+| `testing/_run_logs/` 回归日志 `.txt` | `scripts/` 构建/审计脚本 |
 
 ## 贡献
 

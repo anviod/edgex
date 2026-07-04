@@ -1,6 +1,6 @@
 # Profinet IO 采集驱动
 
-> 规划与扩展项见 [TODO/Profinet IO 采集驱动](../TODO/Profinet%20IO/采集驱动Profinet%20IO开发.html)。
+> 规划与扩展项见 [TODO/Profinet IO 采集驱动](../TODO/Profinet%20IO/采集驱动Profinet%20IO.html)。
 
 EdgeX 南向 PROFINET IO 驱动，作为 IO 控制器通过 TCP（默认端口 34964）对 IO 设备进行非循环读写。
 

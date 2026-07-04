@@ -21,7 +21,7 @@ go build ./cmd/main.go -o main.exe
 
 ### 2. 准备配置文件
 
-使用本文件「配置文件详解」中的 YAML 片段，或通过 Web UI/API 导入；全量快照见 [test/README.md](https://github.com/anviod/edgex/blob/dev/test/README.md) 与 `test/legacy/config_full_snapshot.yaml.bak`。参考 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html)。
+使用本文件「配置文件详解」中的 YAML 片段，或通过 Web UI/API 导入；全量快照见 [test/README.md](https://github.com/anviod/edgex/blob/dev/test/README.md) 与 `test/legacy/config_full_snapshot.yaml.bak`。参考 [ARCHITECTURE_V2](../architecture/ARCHITECTURE_V2.html)。
 
 ### 3. 运行
 
@@ -166,7 +166,7 @@ channels:
 
 ### 完整配置
 
-详见 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html) 中的配置文件格式部分。
+详见 [ARCHITECTURE_V2](../architecture/ARCHITECTURE_V2.html) 中的配置文件格式部分。
 
 ## 常见问题
 
@@ -257,7 +257,7 @@ edgex/
 
 ## 下一步
 
-1. 查看 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html) 了解详细的架构设计
+1. 查看 [ARCHITECTURE_V2](../architecture/ARCHITECTURE_V2.html) 了解详细的架构设计
 2. 通过 Web UI/API 或 [产品说明 — 配置结构](../guide/产品说明.html#配置结构) 调整 channels/devices/points
 3. 将 UI 更新为使用新的三级 API 端点
 4. 测试与实际设备的连接

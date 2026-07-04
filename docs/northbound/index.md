@@ -15,7 +15,7 @@ hero_buttons:
     url: ../drivers/OPC-UA_Server_Functionality.html
     style: secondary
   - text: EdgeOS 通信规范
-    url: ../edgeos/EdgeX通信协议规范(MQTT-NATS).html
+    url: ../edgeos/EdgeX通信协议规范%28MQTT-NATS%29.html
     style: secondary
   - text: 返回首页
     url: ../index.html
@@ -30,6 +30,6 @@ hero_buttons:
 
 ### 协议与服务
 - [OPC UA 服务端功能](../drivers/OPC-UA_Server_Functionality.html) — 功能设计与验收（权威）；UI Help Dialog 为精简接入说明
-- [EdgeX 通信协议规范 (MQTT-NATS)](../edgeos/EdgeX通信协议规范(MQTT-NATS).html) — EdgeOS 北向协议
+- [EdgeX 通信协议规范 (MQTT-NATS)](../edgeos/EdgeX通信协议规范%28MQTT-NATS%29.html) — EdgeOS 北向协议
 
 > UI 内 Help Dialog（MQTT / Sparkplug / OPC UA / EdgeOS）为现场速查；完整字段以本目录与 API 文档为准。
