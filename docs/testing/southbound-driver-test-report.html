@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Southbound Driver Test Report | EdgeX 知识库</title>
+    <meta name="description" content="EdgeX southbound driver unit test and boundary scenario coverage report">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../assets/style.css">
+  </head>
+  <body class="page-docs">
+    <header class="site-header site-header--docs">
+      <div class="shell shell--wide">
+        <div class="site-header__topbar">
+          <a class="site-brand" href="../../index.html">EdgeX 知识库</a>
+          <nav class="site-nav" aria-label="主导航">
+              <a href="https://github.com/anviod/edgex">返回项目</a>
+              <a href="../../index.html">首页</a>
+              <a href="../../guide/index.html">产品指南</a>
+              <a href="../../drivers/index.html">设备驱动</a>
+              <a href="../../edge/index.html">边缘计算</a>
+              <a href="../../development_plan/index.html">开发计划</a>
+          </nav>
+        </div>
+        <div class="site-header__intro"></div>
+      </div>
+    </header>
+    <main class="page-main">
+      <div class="shell shell--wide">
+        <article class="markdown-body">
+          <h1>Southbound Driver Test Report</h1>
+<blockquote><p><strong>Date</strong>: 2026-07-04</p></blockquote>
+<blockquote><p><strong>Environment</strong>: macOS (darwin/amd64), Go toolchain, <code>CGO_ENABLED=0</code></p></blockquote>
+<blockquote><p><strong>Scope</strong>: <code>internal/driver/...</code> — twelve southbound drivers, <code>-short</code> CI-friendly</p></blockquote>
+<p><a href="南向驱动测试报告.html">中文版</a></p>
+<hr />
+<h2>1. Executive Summary</h2>
+<h3>Commands</h3>
+<pre><code class="language-bash">CGO_ENABLED=0 go test ./internal/driver/... -short -count=1 -cover</code></pre>
+<h3>Results Overview</h3>
+<table>
+<thead><tr>
+<th style="text-align:left">Scope</th>
+<th style="text-align:left">Result</th>
+<th style="text-align:left">Coverage</th>
+<th style="text-align:left">Notes</th>
+</tr></thead><tbody>
+<tr>
+<td style="text-align:left">:---</td>
+<td style="text-align:left">:---</td>
+<td style="text-align:left">:---</td>
+<td style="text-align:left">:---</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>internal/driver</code> (ConnectionManager)</td>
+<td style="text-align:left">PASS</td>
+<td style="text-align:left"><strong>87.4%</strong></td>
+<td style="text-align:left">Shared reconnect/backoff</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>internal/driver/modbus</code></td>
+<td style="text-align:left">PASS</td>
+<td style="text-align:left">52.8%</td>
+<td style="text-align:left">~125s</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>internal/driver/bacnet</code></td>
+<td style="text-align:left">PASS</td>
+<td style="text-align:left">66.1%</td>
+<td style="text-align:left">~79s</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>internal/driver/opcua</code></td>
+<td style="text-align:left">PASS</td>
+<td style="text-align:left">47.9%</td>
+<td style="text-align:left">~133s</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>internal/driver/s7</code></td>
+<td style="text-align:left">PASS</td>
+<td style="text-align:left">61.3%</td>
+<td style="text-align:left">~131s</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>internal/driver/ethernetip</code></td>
+<td style="text-align:left">PASS</td>
+<td style="text-align:left">39.5%</td>
+<td style="text-align:left">~8s</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>internal/driver/omron</code></td>
+<td style="text-align:left">PASS</td>
+<td style="text-align:left">43.3%</td>
+<td style="text-align:left">Mock PLC (TCP)</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>internal/driver/snmp</code></td>
+<td style="text-align:left">PASS</td>
+<td style="text-align:left">63.7%</td>
+<td style="text-align:left">transport hook mocks</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>internal/driver/ice104</code></td>
+<td style="text-align:left">PASS</td>
+<td style="text-align:left">60.2%</td>
+<td style="text-align:left">APDU codec + cache read</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>internal/driver/dlt645</code></td>
+<td style="text-align:left">PASS</td>
+<td style="text-align:left"><strong>76.5%</strong></td>
+<td style="text-align:left">frame codec + mock link</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>internal/driver/mitsubishi</code></td>
+<td style="text-align:left">PASS</td>
+<td style="text-align:left"><strong>70.7%</strong></td>
+<td style="text-align:left">SLMP + mock PLC</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>internal/driver/knxnetip</code></td>
+<td style="text-align:left">PASS</td>
+<td style="text-align:left"><strong>77.2%</strong></td>
+<td style="text-align:left">KNXnet/IP simulator</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>internal/driver/profinetio</code></td>
+<td style="text-align:left">PASS</td>
+<td style="text-align:left">55.9%</td>
+<td style="text-align:left">simulation + PNIO codec</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong><code>internal/driver/...</code> overall</strong></td>
+<td style="text-align:left"><strong>PASS</strong></td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">21/21 packages (<code>-short</code>)</td>
+</tr>
+</tbody></table>
+<p><strong>2026-07-04</strong>: All southbound driver packages PASS under <code>-short</code> (retest 21/21, ~3.3min wall; log: <a href="_run_logs/2026-07-04_driver_retest.txt">&lt;code&gt;_run_logs/2026-07-04_driver_retest.txt&lt;/code&gt;</a>). Coverage aligned with initial run; OPC UA <strong>47.9%</strong> (+0.3pp) and EtherNet/IP <strong>39.5%</strong> (−0.9pp) are normal variance. Added/extended <code>coverage_test.go</code> across drivers; fixed flaky <code>modbus/reconnect_test.go</code> single-flight timing.</p>
+<h3>Coverage Before → After</h3>
+<table>
+<thead><tr>
+<th style="text-align:left">Driver</th>
+<th style="text-align:left">Before</th>
+<th style="text-align:left">After</th>
+<th style="text-align:left">≥70%</th>
+</tr></thead><tbody>
+<tr>
+<td style="text-align:left">:---</td>
+<td style="text-align:left">---:</td>
+<td style="text-align:left">---:</td>
+<td style="text-align:left">:---:</td>
+</tr>
+<tr>
+<td style="text-align:left">ConnectionManager</td>
+<td style="text-align:left">87.4%</td>
+<td style="text-align:left"><strong>87.4%</strong></td>
+<td style="text-align:left">✅</td>
+</tr>
+<tr>
+<td style="text-align:left">Modbus</td>
+<td style="text-align:left">51.6%</td>
+<td style="text-align:left"><strong>52.8%</strong></td>
+<td style="text-align:left">❌</td>
+</tr>
+<tr>
+<td style="text-align:left">BACnet</td>
+<td style="text-align:left">66.0%</td>
+<td style="text-align:left"><strong>66.1%</strong></td>
+<td style="text-align:left">❌</td>
+</tr>
+<tr>
+<td style="text-align:left">OPC UA</td>
+<td style="text-align:left">45.0%</td>
+<td style="text-align:left"><strong>47.9%</strong></td>
+<td style="text-align:left">❌</td>
+</tr>
+<tr>
+<td style="text-align:left">S7</td>
+<td style="text-align:left">42.0%</td>
+<td style="text-align:left"><strong>61.3%</strong></td>
+<td style="text-align:left">❌</td>
+</tr>
+<tr>
+<td style="text-align:left">EtherNet/IP</td>
+<td style="text-align:left">30.3%</td>
+<td style="text-align:left"><strong>39.5%</strong></td>
+<td style="text-align:left">❌</td>
+</tr>
+<tr>
+<td style="text-align:left">Omron FINS</td>
+<td style="text-align:left">31.2%</td>
+<td style="text-align:left"><strong>43.3%</strong></td>
+<td style="text-align:left">❌</td>
+</tr>
+<tr>
+<td style="text-align:left">SNMP</td>
+<td style="text-align:left">62.0%</td>
+<td style="text-align:left"><strong>63.7%</strong></td>
+<td style="text-align:left">❌</td>
+</tr>
+<tr>
+<td style="text-align:left">ICE104</td>
+<td style="text-align:left">58.2%</td>
+<td style="text-align:left"><strong>60.2%</strong></td>
+<td style="text-align:left">❌</td>
+</tr>
+<tr>
+<td style="text-align:left">DL/T645</td>
+<td style="text-align:left">70.5%</td>
+<td style="text-align:left"><strong>76.5%</strong></td>
+<td style="text-align:left">✅</td>
+</tr>
+<tr>
+<td style="text-align:left">Mitsubishi</td>
+<td style="text-align:left">70.7%</td>
+<td style="text-align:left"><strong>70.7%</strong></td>
+<td style="text-align:left">✅</td>
+</tr>
+<tr>
+<td style="text-align:left">KNXnet/IP</td>
+<td style="text-align:left">77.2%</td>
+<td style="text-align:left"><strong>77.2%</strong></td>
+<td style="text-align:left">✅</td>
+</tr>
+<tr>
+<td style="text-align:left">Profinet IO</td>
+<td style="text-align:left">55.1%</td>
+<td style="text-align:left"><strong>55.9%</strong></td>
+<td style="text-align:left">❌</td>
+</tr>
+</tbody></table>
+<p>Drivers below 70% are limited by real TCP/session paths (OPC UA, ENIP, PNIO RPC, ICE104 <code>readLoop</code>, etc.). Mock and simulation paths are covered; see <a href="../../test/manual/README.md">test/manual/</a> for live validation.</p>
+<hr />
+<h2>2. Protocol Stack Verification</h2>
+<table>
+<thead><tr>
+<th style="text-align:left">Driver</th>
+<th style="text-align:left">Registry key</th>
+<th style="text-align:left">Stack</th>
+</tr></thead><tbody>
+<tr>
+<td style="text-align:left">:---</td>
+<td style="text-align:left">:---</td>
+<td style="text-align:left">:---</td>
+</tr>
+<tr>
+<td style="text-align:left">Modbus</td>
+<td style="text-align:left"><code>modbus-tcp</code>, <code>modbus-rtu</code>, <code>modbus-rtu-over-tcp</code></td>
+<td style="text-align:left"><code>github.com/simonvetter/modbus</code></td>
+</tr>
+<tr>
+<td style="text-align:left">BACnet IP</td>
+<td style="text-align:left"><code>bacnet-ip</code></td>
+<td style="text-align:left">In-tree BACnet/IP</td>
+</tr>
+<tr>
+<td style="text-align:left">OPC UA</td>
+<td style="text-align:left"><code>opc-ua</code></td>
+<td style="text-align:left"><code>github.com/gopcua/opcua</code></td>
+</tr>
+<tr>
+<td style="text-align:left">Siemens S7</td>
+<td style="text-align:left"><code>s7</code></td>
+<td style="text-align:left"><code>github.com/robinson/gos7</code></td>
+</tr>
+<tr>
+<td style="text-align:left">EtherNet/IP</td>
+<td style="text-align:left"><code>ethernet-ip</code></td>
+<td style="text-align:left">In-tree CIP/EIP</td>
+</tr>
+<tr>
+<td style="text-align:left">Omron FINS</td>
+<td style="text-align:left"><code>omron-fins</code></td>
+<td style="text-align:left"><code>github.com/anviod/fins</code></td>
+</tr>
+<tr>
+<td style="text-align:left">SNMP</td>
+<td style="text-align:left"><code>snmp</code></td>
+<td style="text-align:left"><code>github.com/gosnmp/gosnmp</code></td>
+</tr>
+<tr>
+<td style="text-align:left">IEC 60870-5-104</td>
+<td style="text-align:left"><code>iec60870-5-104</code></td>
+<td style="text-align:left">In-tree 104 APDU</td>
+</tr>
+<tr>
+<td style="text-align:left">DL/T645-2007</td>
+<td style="text-align:left"><code>dlt645</code></td>
+<td style="text-align:left">In-tree DL/T645-2007</td>
+</tr>
+<tr>
+<td style="text-align:left">Mitsubishi SLMP</td>
+<td style="text-align:left"><code>mitsubishi-slmp</code></td>
+<td style="text-align:left">In-tree MC 3E</td>
+</tr>
+<tr>
+<td style="text-align:left">Profinet IO</td>
+<td style="text-align:left"><code>profinet-io</code></td>
+<td style="text-align:left">In-tree PNIO RPC</td>
+</tr>
+<tr>
+<td style="text-align:left">KNXnet/IP</td>
+<td style="text-align:left"><code>knxnet-ip</code></td>
+<td style="text-align:left">In-tree KNXnet/IP</td>
+</tr>
+</tbody></table>
+<hr />
+<h2>3. Per-Driver Summary</h2>
+<table>
+<thead><tr>
+<th style="text-align:left">Driver</th>
+<th style="text-align:left">~Test files</th>
+<th style="text-align:left">Coverage</th>
+<th style="text-align:left">Read mock</th>
+<th style="text-align:left">Write mock</th>
+<th style="text-align:left">Status</th>
+</tr></thead><tbody>
+<tr>
+<td style="text-align:left">:---</td>
+<td style="text-align:left">:---:</td>
+<td style="text-align:left">:---:</td>
+<td style="text-align:left">:---:</td>
+<td style="text-align:left">:---:</td>
+<td style="text-align:left">:---:</td>
+</tr>
+<tr>
+<td style="text-align:left">Modbus</td>
+<td style="text-align:left">12</td>
+<td style="text-align:left">52.8%</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">PASS</td>
+</tr>
+<tr>
+<td style="text-align:left">BACnet IP</td>
+<td style="text-align:left">31</td>
+<td style="text-align:left">66.1%</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">PASS</td>
+</tr>
+<tr>
+<td style="text-align:left">OPC UA</td>
+<td style="text-align:left">7</td>
+<td style="text-align:left">47.9%</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">PASS</td>
+</tr>
+<tr>
+<td style="text-align:left">Siemens S7</td>
+<td style="text-align:left">6</td>
+<td style="text-align:left">61.3%</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">PASS</td>
+</tr>
+<tr>
+<td style="text-align:left">EtherNet/IP</td>
+<td style="text-align:left">16</td>
+<td style="text-align:left">39.5%</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">PASS</td>
+</tr>
+<tr>
+<td style="text-align:left">Omron FINS</td>
+<td style="text-align:left">3</td>
+<td style="text-align:left">43.3%</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">PASS</td>
+</tr>
+<tr>
+<td style="text-align:left">SNMP</td>
+<td style="text-align:left">6</td>
+<td style="text-align:left">63.7%</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">PASS</td>
+</tr>
+<tr>
+<td style="text-align:left">IEC 60870-5-104</td>
+<td style="text-align:left">12</td>
+<td style="text-align:left">60.2%</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">PASS</td>
+</tr>
+<tr>
+<td style="text-align:left">DL/T645</td>
+<td style="text-align:left">6</td>
+<td style="text-align:left">76.5%</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">PASS</td>
+</tr>
+<tr>
+<td style="text-align:left">Mitsubishi SLMP</td>
+<td style="text-align:left">4</td>
+<td style="text-align:left">70.7%</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">PASS</td>
+</tr>
+<tr>
+<td style="text-align:left">KNXnet/IP</td>
+<td style="text-align:left">3</td>
+<td style="text-align:left">77.2%</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">PASS</td>
+</tr>
+<tr>
+<td style="text-align:left">Profinet IO</td>
+<td style="text-align:left">5</td>
+<td style="text-align:left">55.9%</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">Yes</td>
+<td style="text-align:left">PASS</td>
+</tr>
+<tr>
+<td style="text-align:left">ConnectionManager</td>
+<td style="text-align:left">2</td>
+<td style="text-align:left">87.4%</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">—</td>
+<td style="text-align:left">PASS</td>
+</tr>
+</tbody></table>
+<h3>3.1 New/Updated Test Files (2026-07-04)</h3>
+<table>
+<thead><tr>
+<th style="text-align:left">Module</th>
+<th style="text-align:left">File</th>
+<th style="text-align:left">Change</th>
+</tr></thead><tbody>
+<tr>
+<td style="text-align:left">:---</td>
+<td style="text-align:left">:---</td>
+<td style="text-align:left">:---</td>
+</tr>
+<tr>
+<td style="text-align:left">EtherNet/IP</td>
+<td style="text-align:left"><code>coverage_test.go</code></td>
+<td style="text-align:left"><strong>new</strong> — lifecycle, decoder, transport metrics</td>
+</tr>
+<tr>
+<td style="text-align:left">Omron FINS</td>
+<td style="text-align:left"><code>coverage_test.go</code></td>
+<td style="text-align:left"><strong>new</strong> — pre-init API, config helpers</td>
+</tr>
+<tr>
+<td style="text-align:left">S7</td>
+<td style="text-align:left"><code>coverage_test.go</code></td>
+<td style="text-align:left"><strong>new</strong> — mock gos7 read/write</td>
+</tr>
+<tr>
+<td style="text-align:left">OPC UA</td>
+<td style="text-align:left"><code>coverage_test.go</code></td>
+<td style="text-align:left"><strong>new</strong> — endpoint, RTT, Scan defaults</td>
+</tr>
+<tr>
+<td style="text-align:left">DL/T645</td>
+<td style="text-align:left"><code>coverage_test.go</code></td>
+<td style="text-align:left"><strong>new</strong> — lifecycle, Frame errors, mock link</td>
+</tr>
+<tr>
+<td style="text-align:left">Modbus</td>
+<td style="text-align:left"><code>coverage_test.go</code>, <code>reconnect_test.go</code></td>
+<td style="text-align:left">extended + flaky reconnect fix</td>
+</tr>
+<tr>
+<td style="text-align:left">BACnet / SNMP / ICE104 / Profinet IO</td>
+<td style="text-align:left"><code>coverage_test.go</code></td>
+<td style="text-align:left">extended mock paths</td>
+</tr>
+<tr>
+<td style="text-align:left">S7</td>
+<td style="text-align:left"><code>transport_test.go</code></td>
+<td style="text-align:left"><code>agReadMultiFunc</code> on mockClient</td>
+</tr>
+</tbody></table>
+<p>Non-CI: <code>//go:build integration</code>, <code>bacnet/manual_test.go</code> — see <a href="../../test/manual/README.md">test/manual/</a>.</p>
+<hr />
+<h2>4. Boundary Scenario Matrix</h2>
+<p>All 104 cells covered (timeout, reconnect, Dead, invalid config, mock read/write, fault isolation, concurrency). See each package <code>scenario_test.go</code>.</p>
+<hr />
+<h2>5. How to Run</h2>
+<pre><code class="language-bash">CGO_ENABLED=0 go test ./internal/driver/... -short -count=1 -cover
+CGO_ENABLED=0 go test -tags=integration ./internal/driver/ice104/... -count=1
+CGO_ENABLED=0 go test -tags=manual ./internal/driver/bacnet/... -count=1</code></pre>
+<hr />
+<h2>6. Related Docs</h2>
+<ul>
+<li><a href="../drivers/index.html">Driver matrix</a></li>
+<li><a href="index.html">Testing index</a></li>
+<li><a href="南向采集通道回归验证测试方案.html">Channel regression plan</a></li>
+<li><a href="../TODO/联机测试方案.html">Live test plan</a></li>
+</ul>
+        </article>
+      </div>
+    </main>
+    <script src="../../assets/script.js"></script>
+  </body>
+</html>
