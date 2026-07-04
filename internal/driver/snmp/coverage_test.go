@@ -21,13 +21,13 @@ func TestDriverLifecycleCoverage(t *testing.T) {
 
 	assert.Equal(t, driver.HealthStatusBad, d.Health())
 
-	_, _, _, remote, _ := d.GetConnectionMetrics()
-	assert.Contains(t, remote, "127.0.0.1")
-
 	require.NoError(t, d.Init(model.DriverConfig{
 		ChannelID: "cov",
 		Config:    map[string]any{"ip": "127.0.0.1", "port": 161, "community": "public"},
 	}))
+
+	_, _, _, remote, _ := d.GetConnectionMetrics()
+	assert.Contains(t, remote, "127.0.0.1")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -61,14 +61,14 @@ func TestScanObjectsWithWalkHook(t *testing.T) {
 func TestBuildClientV3Coverage(t *testing.T) {
 	t.Run("valid authPriv", func(t *testing.T) {
 		tr := NewSNMPTransport(map[string]any{
-			"version":          "v3",
-			"securityName":     "admin",
-			"authProtocol":     "SHA",
-			"authPassphrase":   "authpass123",
-			"privProtocol":     "AES",
-			"privPassphrase":   "privpass123",
-			"securityLevel":    "authPriv",
-			"ip":               "127.0.0.1",
+			"snmpVersion":    "v3",
+			"securityName":   "admin",
+			"authProtocol":   "SHA",
+			"authPassword":   "authpass123",
+			"privProtocol":   "AES",
+			"privPassword":   "privpass123",
+			"securityLevel":  "authPriv",
+			"ip":             "127.0.0.1",
 		})
 		client, err := tr.buildClient()
 		require.NoError(t, err)
@@ -77,10 +77,13 @@ func TestBuildClientV3Coverage(t *testing.T) {
 
 	t.Run("invalid v3 config", func(t *testing.T) {
 		tr := NewSNMPTransport(map[string]any{
-			"version":      "v3",
-			"securityName": "admin",
-			"authProtocol": "INVALID",
-			"ip":           "127.0.0.1",
+			"snmpVersion":    "v3",
+			"securityName":   "admin",
+			"securityLevel":  "authPriv",
+			"authProtocol":   "INVALID",
+			"authPassword":   "authpass123",
+			"privPassword":   "privpass123",
+			"ip":             "127.0.0.1",
 		})
 		_, err := tr.buildClient()
 		require.Error(t, err)
@@ -89,7 +92,7 @@ func TestBuildClientV3Coverage(t *testing.T) {
 
 func TestDecoderEncodeCoverage(t *testing.T) {
 	dec := NewSNMPDecoder()
-	val, asn, err := dec.EncodeValue(int32(42), "INT32")
+	val, asn, err := dec.EncodeValue(42, "INT32")
 	require.NoError(t, err)
 	assert.Equal(t, gosnmp.Integer, asn)
 	assert.Equal(t, 42, val)

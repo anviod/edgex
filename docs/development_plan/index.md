@@ -46,18 +46,28 @@ hero_buttons:
 - 全驱动采集健康检测（取消独立心跳）
 - 指数退避 + 冷却期策略 + single-flight 重连
 - ShadowCore 影子设备系统 + ShadowBridge → DataPipeline 扇出
-- RTT/MTU/Gap 画像模块（ExecutionLayer 读路径闭环 — Q3-B 进行中）
+- RTT/MTU/Gap 画像模块（ExecutionLayer 读路径闭环 — Q3-B 已交付）
 
 ### 进行中
 
 | 模块 | 状态 | 预计完成 | 说明 |
 | :--- | :--- | :--- | :--- |
-| **DL/T 645-2007** | 开发中 | Q3 2026 | 多功能电能表通信协议 |
-| **ScanEngine 采集优化** | Q3 收尾 | Q3 2026 | 内核已落地；RTT→读分片闭环、熔断、灰度运维验证 |
-| **ShadowCore 增强** | 进行中 | Q3 2026 | 虚拟影子、跨通道聚合 |
+| **工业验证 Phase 2** | 进行中 | Q3 2026 | 各协议联机长跑、断网恢复与统一验证报告 |
+| **ARMv7 板端验收** | 进行中 | Q3 2026 | 目标硬件 2h/72h 长跑与 Shadow/SLA 板端复验 |
+| **ShadowCore 跨通道聚合** | 进行中 | Q3 2026 | 虚拟影子跨通道引用与多源点位聚合 |
 | **多节点同步通信** | 预研中 | Q3 2026 | 基于 go-libp2p 的分布式配置同步 |
 | **高可用接管** | 预研中 | Q3 2026 | 故障自动接管与租约机制 |
 | **IEC 104 M2** | 待启动 | Q4 2026 | 遥调、时钟同步、SOE、双点遥控 |
+
+### 2026年7月（新增已交付）
+
+- [已交付] **Q3 南向采集闭环** — 统一数据面、Scan Class、块读、点位降级、Diagnostics API
+- [已交付] **SLA 调度达标** — Phase A–C 综合达标率 ≥95%，EDF/硬抖动钳制
+- [已交付] **ShadowCore 性能优化** — COW 快照、Worker Pool、ShadowIngress 批量写入
+- [已交付] **北向统一重连** — MQTT/NATS/Sparkplug B 公共 reconnect 模块
+- [已交付] **Dashboard v3 UI** — Linear 级 SaaS 样式改版与 Soak 监控面板
+- [已交付] **版本发布门禁** — G-Stability/Industrial/Performance/Lightweight 四道门禁
+- [已交付] **虚拟影子设备体验** — 编辑流程、帮助文档与跨页面样式统一
 
 ---
 
@@ -75,26 +85,29 @@ hero_buttons:
 
 ---
 
-## Q3 2026 重点交付
+## Q3 2026 重点交付（主体已完成）
 
-1. **ScanEngine 南向采集优化（内核已交付，Q3 收尾画像闭环）**
-   - ScanEngine：10ms Tick、PriorityQueue、防饿死、Scan Class
-   - ExecutionLayer：Serial 硬隔离 + Parallel 三层背压
-   - RTT 管理器：EWMA 算法动态超时（读路径消费待闭环）
-   - MTU 管理器：自动探测最大传输单元
-   - Gap 优化器：寄存器 Gap 合并策略 → Modbus 读分片
+1. **ScanEngine 南向采集优化（✅ 2026-07 交付）**
+   - ScanEngine：事件驱动堆、EDF、hard jitter clamp、CB、Scan Class、diagnostics SLA
+   - ExecutionLayer：Serial 硬隔离 + Parallel 背压 + Gap/MTU 块读分片
+   - RTT 管理器：Execute 后 `UpdateDeviceRTT` + adaptive throttle
+   - 点位降级：`point_degradation_manager.go` — 故障 Tag 隔离
 
-2. **ShadowCore 影子设备**
-   - 统一内部数据模型
-   - 纯内存运行时快照
+2. **ShadowCore 影子设备（✅ 2026-07 性能优化）**
+   - ShadowIngress 批量写入 + COW 快照 + Worker Pool
+   - 统一内部数据模型；纯内存运行时 SoT
    - 真实/虚拟影子设备支持
 
-3. **DL/T 645-2007 驱动**
+3. **SLA 调度达标（✅ Phase A–D 核心）**
+   - B1–B5 ≥95%；P95 lag ~7ms（10k mock）
+   - diagnostics API + `sla_warnings` + UI 通道监控
+   - 详见 [SLA 评估](../TODO/SLA评估.html)
+
+4. **DL/T 645-2007 驱动**（2026-06 已交付）
    - 电能量采集（有功/无功电能）
    - 需量采集与变量采集
-   - 谐波数据与冻结数据支持
 
-4. **多节点同步通信**
+5. **多节点同步通信**（预研中）
    - 基于 go-libp2p 的 P2P 网络
    - 配置自动发现与同步
    - 设备控制权租约机制
@@ -131,7 +144,7 @@ hero_buttons:
 - [已交付] 全驱动采集健康检测集成
 - [已交付] CGO-free CI 流水线稳定
 - [已交付] **ScanEngine 调度驱动内核**（10ms Tick + ExecutionLayer + 12 协议迁移）
-- [进行中] RTT/Gap 读路径闭环、熔断、四阶段灰度运维验证
+- [已交付] DL/T645、Mitsubishi SLMP、Profinet IO、KNXnet/IP 驱动
 - [预研中] 多节点同步通信方案设计
 
 ### 2026年5月
@@ -144,7 +157,7 @@ hero_buttons:
 ## 相关文档
 
 - [驱动总览](../drivers/index.html) — 已支持驱动的完整文档
-- [架构设计](../architecture/index.html) — ScanEngine 调度驱动内核与 ShadowCore 设计
+- [架构设计](../architecture/index.html) — ScanEngine SLA 调度、ShadowCore COW 与 ShadowIngress 设计
 - [边缘计算](../edge/index.html) — 边缘计算功能与场景
 - [测试验证](../testing/index.html) — 测试方案与验证报告
 - [Q3 采集优化方案](../%5BTODO%5D边缘计算南向采集优化方案2026第三季度.html) — ScanEngine 详细规划

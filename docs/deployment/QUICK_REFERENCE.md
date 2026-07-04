@@ -143,7 +143,7 @@ fmt.Printf("NextRetry: %v\n", state.NextRetryTime)  // 下次重试时间
 | 文件 | 位置 | 说明 |
 |-----|-----|------|
 | 状态机实现 | `internal/core/node_status.go` | 核心状态机逻辑 |
-| 设备管理 | `internal/core/device_manager.go` | 采集流程集成 |
+| 采集集成 | `internal/core/channel_manager.go` | ScanEngineAdapter + finalizeScanCollect |
 | 单元测试 | `internal/core/node_status_test.go` | 测试用例 |
 | 完整文档 | `STATE_MACHINE_API.md` | API 参考 |
 | 集成指南 | `INTEGRATION_GUIDE.md` | 使用指南 |

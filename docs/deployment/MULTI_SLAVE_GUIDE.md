@@ -2,6 +2,10 @@
 layout: default
 ---
 
+> **历史文档（2026-01，部分 superseded）**：本文记录多从站 Modbus 初版设计与 `device_manager.go` 时代的实现细节。**2026-06 起**南向采集已由 **ScanEngine** + **ChannelManager** 统一承担；`device_manager.go` / `deviceLoop` 已移除。  
+> **现行多从站配置**：三级架构 `channels → devices → points`，同 TCP 通道下为每个 `slave_id` 建独立 Device，由 ScanEngine 调度 `Driver.ReadPoints`（Modbus 驱动内 `SetSlaveID`）。参阅 [三级架构快速入门](QUICK_START_THREE_LEVEL.html)、[集成指南](INTEGRATION_GUIDE.html)、[Modbus 驱动](../drivers/边缘网关Modbus优化.html)、[架构总览](../edge/边缘网关架构设计总览.html)。  
+> 下文 `slaves:` 嵌套格式与 `device_manager` 代码片段为**历史参考**，配置请以 [三级架构快速入门](QUICK_START_THREE_LEVEL.html)、[产品说明 — 配置结构](../guide/产品说明.html#配置结构) 或 UI/API `BatchAddModbusSlaves` 为准。
+
 # 多从属设备轮询实现指南
 
 ## 概述
@@ -156,50 +160,31 @@ func (d *ModbusDriver) ReadMultipleSlaves(ctx context.Context,
 }
 ```
 
-### 4. 设备管理器更新（core/device_manager.go）
+### 4. 采集调度（现行：ScanEngine + ChannelManager）
 
-#### collect 方法增强
+> **2026-01 历史实现（已 superseded）**：初版在 `internal/core/device_manager.go` 的 `collect()` / `readPointsForSlave()` 中按 Slave 轮询；该文件已与 per-device `deviceLoop` 一并移除。
 
-```go
-func (dm *DeviceManager) collect(dev *model.Device, d drv.Driver, node *DeviceNodeTemplate) {
-    if len(dev.Slaves) > 0 {
-        // 多从属设备模式
-        for _, slave := range dev.Slaves {
-            if !slave.Enable {
-                continue
-            }
-            // 为该 slave 读取数据
-            dm.readPointsForSlave(d, slave.SlaveID, slave.Points, ctx)
-        }
-    } else {
-        // 单设备模式（兼容旧代码）
-        d.ReadPoints(ctx, dev.Points)
-    }
-}
-```
+**现行路径**：
 
-#### 辅助方法
+| 组件 | 路径 | 多从站职责 |
+|------|------|------------|
+| ChannelManager | `internal/core/channel_manager.go` | 通道/设备 CRUD、驱动生命周期；`BatchAddModbusSlaves` 批量建从站 Device |
+| ScanEngine | `internal/core/scan_engine.go` | 按设备 `interval` / Scan Class 调度 `Driver.ReadPoints` |
+| Modbus 驱动 | `internal/driver/modbus/modbus.go` | 共享 TCP 连接；`SetSlaveID` 切换 Unit ID；驱动内 `PointScheduler` 批量读 |
+| 状态裁决 | `ChannelManager.finalizeScanCollect` | → `FinalizeCollect`（见 [状态机 API](../architecture/STATE_MACHINE_API.html)） |
 
-```go
-func (dm *DeviceManager) readPointsForSlave(d drv.Driver, slaveID uint8, 
-    points []model.Point, ctx context.Context) (map[string]model.Value, error) {
-    // 设置 slave_id
-    err := d.SetSlaveID(slaveID)
-    // 读取该 slave 的点位
-    return d.ReadPoints(ctx, points)
-}
-```
+同通道多从站：每个 Device 配置 `config.slave_id`，ScanEngine 分别注册扫描任务；单 Slave 故障由通道级隔离与状态机处理（见 `channel_slave_isolation_test.go`）。
 
 ## 配置示例
 
 ### 完整的多 Slave 配置
 
-见 `config_multi_slave.yaml`
+见 [三级架构快速入门](QUICK_START_THREE_LEVEL.html) 与本文件下方示例；legacy `slaves:` 嵌套见 `test/legacy/config_multi_slave_legacy.yaml`
 
-关键配置点：
-- 在 `config` 中定义连接信息（URL）
-- 在 `slaves` 数组中定义每个从属设备
-- 每个 slave 有独立的 `slave_id` 和 `points` 列表
+关键配置点（现行）：
+- 在 **Channel** `config` 中定义连接信息（URL）
+- 同通道下为每个从站创建独立 **Device**，在 `config.slave_id` 设置 Unit ID
+- 每个 Device 有独立的 `interval` 与 `points` 列表，由 ScanEngine 调度
 
 ## 性能特性
 
@@ -326,25 +311,19 @@ devices:
 ### 单元测试
 
 ```go
-// internal/core/device_manager_test.go
-func TestMultiSlaveCollection(t *testing.T) {
-    // 创建多 Slave 设备
-    // 模拟 Modbus 响应
-    // 验证轮询和数据合并
-}
+// internal/core/channel_slave_isolation_test.go
+// internal/integration/modbus_protocol_test.go
+// 验证同通道多从站隔离、ScanEngine 调度与 Modbus 驱动 SetSlaveID
 ```
 
 ### 集成测试
 
 ```bash
-# 启动网关
-./gateway -config config_multi_slave.yaml
+# 通过 UI / BatchAddModbusSlaves API 配置同通道多 slave_id Device（运行时以 data/config.db 为准）
 
-# 查看日志
-# Device gateway-1 using multi-slave mode (3 slaves)
-# Switched to slave_id: 1
-# Switched to slave_id: 6
-# Switched to slave_id: 10
+# ScanEngine 日志示例（同 TCP 通道轮询 slave 1、6）
+# ScanEngine: device slave-1 slave_id=1 ...
+# ScanEngine: device slave-6 slave_id=6 ...
 ```
 
 ## 故障排查
@@ -392,8 +371,9 @@ func TestMultiSlaveCollection(t *testing.T) {
 | `internal/model/types.go` | 新增 SlaveDevice 结构体 | 支持多从属设备配置 |
 | `internal/driver/interface.go` | 新增 SetSlaveID() 方法 | 通用驱动接口 |
 | `internal/driver/modbus/modbus.go` | 新增 SetSlaveID() 和 ReadMultipleSlaves() | Modbus 驱动实现 |
-| `internal/core/device_manager.go` | 增强 collect() 方法，新增 readPointsForSlave() | 设备管理器支持 |
-| `config_multi_slave.yaml` | 新增 | 配置文件示例 |
+| `internal/core/channel_manager.go` + `scan_engine.go` | 2026-06 起替代 device_manager；多从站经 ScanEngine 调度 | **现行采集路径** |
+| ~~`internal/core/device_manager.go`~~ | 2026-01 collect()/readPointsForSlave()（已删除） | 历史 |
+| [test/README.md](../../test/README.md) | 文档 | v2 配置参考；legacy 见 `test/legacy/` |
 
 ## 总结
 
@@ -407,7 +387,8 @@ func TestMultiSlaveCollection(t *testing.T) {
 
 ---
 
-**相关文档**：
-- 批量读取优化：`MODBUS_OPTIMIZATION.md`
-- 状态机管理：`STATE_MACHINE_API.md`
-- 数据管道：`PIPELINE_ARCHITECTURE.md`
+**相关文档（现行）**：
+- [三级架构快速入门](QUICK_START_THREE_LEVEL.html)
+- [集成指南](INTEGRATION_GUIDE.html)
+- [Modbus 驱动](../drivers/边缘网关Modbus优化.html)
+- [状态机 API](../architecture/STATE_MACHINE_API.html)

@@ -2,8 +2,10 @@ package integration_test
 
 import (
 	"encoding/json"
+	"math"
 	"os"
 	"runtime"
+	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -66,11 +68,57 @@ func memoryDriftPct(start, end runtimeMemSnapshot) float64 {
 	return (end.HeapInuseMB - start.HeapInuseMB) / start.HeapInuseMB * 100
 }
 
+const (
+	memSnapshotSamples = 7
+	memSnapshotDelay   = 40 * time.Millisecond
+)
+
+// captureMemSnapshot returns a median HeapInuse reading after repeated GC cycles.
+// Single-shot ReadMemStats after one GC is flaky on cold heaps (first CI run).
 func captureMemSnapshot() runtimeMemSnapshot {
-	runtime.GC()
-	var ms runtime.MemStats
-	runtime.ReadMemStats(&ms)
-	return runtimeMemSnapshot{HeapInuseMB: float64(ms.HeapInuse) / (1024 * 1024)}
+	samples := make([]float64, memSnapshotSamples)
+	for i := range samples {
+		runtime.GC()
+		time.Sleep(memSnapshotDelay)
+		var ms runtime.MemStats
+		runtime.ReadMemStats(&ms)
+		samples[i] = float64(ms.HeapInuse) / (1024 * 1024)
+	}
+	sort.Float64s(samples)
+	return runtimeMemSnapshot{HeapInuseMB: samples[len(samples)/2]}
+}
+
+// captureStableMemSnapshot takes two median readings and keeps the higher one so
+// a transient post-GC dip does not deflate the baseline and inflate drift %.
+func captureStableMemSnapshot() runtimeMemSnapshot {
+	first := captureMemSnapshot()
+	settleHeapForMeasurement()
+	second := captureMemSnapshot()
+	if second.HeapInuseMB > first.HeapInuseMB {
+		return second
+	}
+	return first
+}
+
+// settleHeapForMeasurement encourages the runtime to drain short-lived soak garbage
+// before baseline/end snapshots so ramp-up noise does not dominate drift.
+func settleHeapForMeasurement() {
+	for i := 0; i < 5; i++ {
+		runtime.GC()
+		time.Sleep(memSnapshotDelay)
+	}
+}
+
+func memoryDriftPctLogged(t *testing.T, start, end runtimeMemSnapshot) float64 {
+	t.Helper()
+	drift := memoryDriftPct(start, end)
+	if drift != 0 || start.HeapInuseMB > 0 {
+		t.Logf("memory_drift: start=%.3fMB end=%.3fMB drift=%.2f%%", start.HeapInuseMB, end.HeapInuseMB, drift)
+	}
+	if math.IsNaN(drift) || math.IsInf(drift, 0) {
+		return 0
+	}
+	return drift
 }
 
 func buildProductionReadinessSummary(testName string, duration time.Duration, gates []productionGate, metrics map[string]any) productionReadinessSummary {

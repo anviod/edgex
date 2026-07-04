@@ -136,6 +136,7 @@ func runQ3TenThousandTagBenchmark(t *testing.T, cfg q3BenchmarkConfig) q3Benchma
 
 	se.Run()
 	time.Sleep(q3BenchmarkWarmup)
+	se.GetMetrics().ResetWindow()
 	q3BenchmarkStabilizeHeap()
 	runtime.ReadMemStats(&memStart)
 	goroutinesStart = runtime.NumGoroutine()

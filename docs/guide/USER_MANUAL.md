@@ -105,26 +105,7 @@ description: EdgeX 用户手册
    /opt/edgex/edgex --version
    ```
 
-#### 方式二：Docker 安装
-
-1. **拉取镜像**
-   ```bash
-   docker pull anviod/edgex:latest
-   ```
-
-2. **启动容器**
-   ```bash
-   docker run -d \
-     --name edgex \
-     -p 8082:8082 \
-     -p 47808:47808/udp \
-     -v /path/to/conf:/opt/edgex/conf \
-     -v /path/to/data:/opt/edgex/data \
-     --restart unless-stopped \
-     anviod/edgex:latest
-   ```
-
-#### 方式三：源码编译安装
+#### 方式二：源码编译安装
 
 1. **前置条件**
    - Go 1.21+
@@ -387,7 +368,7 @@ description: EdgeX 用户手册
 
 ### 支持的协议
 
-> 完整驱动矩阵见 [设备驱动](../drivers/index.html) 与 [产品说明 · 功能一览](产品说明.html#功能一览)。
+> 完整驱动矩阵见 [设备驱动](../drivers/index.html) 与 [产品说明 · 功能索引](产品说明.html#功能索引)。
 
 ### 连接健康检测
 

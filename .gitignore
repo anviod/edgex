@@ -11,3 +11,4 @@ logs/gateway.edgex.log
 *.exe
 dist/
 *.log
+*.txt

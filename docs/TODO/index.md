@@ -11,6 +11,8 @@
 
 ## 1. 新架构约束（所有 TODO 文档必须对齐）
 
+> **规划态说明**：本目录除已标注 ✅ 落地的 ScanEngine 文档外，部分文件仍含 Q2 时代的 `deviceLoop` / `CollectionScheduler` / `collectDevice` 等**历史规划或迁移对比表述**；**请勿将其当作现行 API**。南向采集内核以本节 ScanEngine 数据面为准；现行架构见 [边缘网关架构设计总览](../edge/边缘网关架构设计总览.html)。
+
 > **工程铁律：** 任何性能优化不得以牺牲稳定性为代价；任何架构优化不得增加系统恢复复杂度。
 
 > 战略文档：[开发原则与验收标准](../DEVELOPMENT_PRINCIPLES.html) · [分阶段路线图](../ROADMAP.html) · [版本发布门禁](../RELEASE_GATE.html)

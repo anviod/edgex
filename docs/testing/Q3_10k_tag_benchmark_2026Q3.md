@@ -152,3 +152,27 @@ go test ./internal/core/ -short -count=1
 ---
 
 *报告版本 V1.0 | 2026-06-28 | 维护：架构组*
+
+---
+
+## 4. 复测结果（2026-07-04）
+
+**环境**：macOS darwin，Go 1.26，Intel i5-5257U  
+**命令**：`make bench-q3`（= `go test ./internal/core/ -run TestQ3_TenThousandTagBenchmark -count=1 -timeout=15m`）  
+**结论**：✅ **PASS**（`scan_miss_deadline_total=0`）
+
+| 指标 | 目标 | 实测（60s + 10s warmup，修复后） | 通过 |
+|------|------|----------------------------------|------|
+| 任务成功率 | 100% | 5674/5674 succeeded, 0 failed | ✅ |
+| Scan lag P95 | ≤ 100ms | **1.25 ms** | ✅ |
+| Scan lag avg | — | 0.67 ms | — |
+| Scan lag max | — | 54.20 ms | — |
+| Scan drift avg | ≤ 50ms | **0.00 ms** | ✅ |
+| Scan miss deadline | **0** | **0** | ✅ |
+| GC pause max | ≤ 20ms | **0.05 ms** | ✅ |
+| 内存漂移（heap inuse） | < 5% | **-4.20%** | ✅ |
+| Pipeline 吞吐 | — | **9457 points/s** | — |
+| Goroutines | — | 139 → 3 | — |
+
+> 初测 fail（miss=3）：`enforceHardJitterClamp` 在 dispatch 前计数；修复后 clamp 仅作用于 dispatch 后仍滞留堆中的任务。详见 [q3_phase_abcd_verification_2026-07-04.md](q3_phase_abcd_verification_2026-07-04.html)。
+

@@ -21,7 +21,7 @@ go build ./cmd/main.go -o main.exe
 
 ### 2. 准备配置文件
 
-使用 `config_v2_three_level.yaml` 或创建自己的配置。参考 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html)。
+使用本文件「配置文件详解」中的 YAML 片段，或通过 Web UI/API 导入；全量快照见 [test/README.md](../../test/README.md) 与 `test/legacy/config_full_snapshot.yaml.bak`。参考 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html)。
 
 ### 3. 运行
 
@@ -29,8 +29,8 @@ go build ./cmd/main.go -o main.exe
 # 使用默认配置
 ./main.exe
 
-# 指定配置文件
-./main.exe -config config_v2_three_level.yaml
+# 启动网关（运行时以 data/config.db 为配置源；可经 UI 或导入 YAML 初始化）
+./main.exe
 ```
 
 ### 4. 访问 Web UI
@@ -217,10 +217,13 @@ edgex/
 │   ├── config/
 │   │   └── config.go            # 配置加载
 │   ├── core/
-│   │   ├── channel_manager.go   # 新的三级管理器
-│   │   ├── device_manager.go    # 已弃用
+│   │   ├── channel_manager.go   # 通道/设备/点位 CRUD、驱动生命周期
+│   │   ├── channel_device_state.go  # 通道-设备联动状态
+│   │   ├── scan_engine.go       # 采集调度内核（ScanEngine）
+│   │   ├── execution_layer.go   # 执行层（串行/并行/限流）
+│   │   ├── resource_controller.go   # 资源控制
+│   │   ├── shadow_core.go       # 影子真源（SoT）
 │   │   ├── pipeline.go          # 数据管道
-│   │   ├── scheduler.go         # 调度器
 │   │   └── node_status.go       # 状态机
 │   ├── driver/
 │   │   ├── interface.go         # 驱动接口
@@ -234,9 +237,11 @@ edgex/
 │       └── boltdb.go            # BoltDB 存储
 ├── ui/
 │   └── index.html               # Web UI
-├── config_v2_three_level.yaml   # 三级配置示例
-├── ARCHITECTURE_V2.md           # 架构文档
-└── QUICK_START_THREE_LEVEL.md   # 本文件
+├── test/README.md                    # 测试目录与 v2 配置参考
+├── test/legacy/config_full_snapshot.yaml.bak   # 联调全量 v2 快照（非 schema 模板）
+├── test/legacy/config_multi_slave_legacy.yaml  # 2026-01 slaves: 嵌套格式（已废弃）
+├── docs/deployment/ARCHITECTURE_V2.md   # 架构文档
+└── docs/deployment/QUICK_START_THREE_LEVEL.md   # 本文件
 ```
 
 ## 日志输出示例
@@ -253,7 +258,7 @@ edgex/
 ## 下一步
 
 1. 查看 [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.html) 了解详细的架构设计
-2. 根据需要修改 `config_v2_three_level.yaml` 配置
+2. 通过 Web UI/API 或 [产品说明 — 配置结构](../guide/产品说明.html#配置结构) 调整 channels/devices/points
 3. 将 UI 更新为使用新的三级 API 端点
 4. 测试与实际设备的连接
 

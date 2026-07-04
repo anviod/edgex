@@ -6,9 +6,11 @@ layout: default
 
 ## 1. 环境准备
 
+> **说明**：下文 Docker 示例仅用于快速启动**第三方 MQTT/NATS Broker**（Mosquitto、NATS 等）。**EdgeX 本体**以裸机二进制或 systemd 服务部署，不提供官方 Docker 镜像。部署步骤见 [产品说明 — 部署流程](../guide/产品说明.html#部署流程) 与 [用户手册 — 部署流程](../guide/USER_MANUAL.html#部署流程)。
+
 ### 1.1 启动 MQTT Broker
 
-使用 Mosquitto:
+使用 Mosquitto（第三方 Broker，可选 Docker）:
 ```bash
 docker run -d \
   --name mosquitto \
@@ -19,7 +21,7 @@ docker run -d \
 
 ### 1.2 启动 NATS Server
 
-使用普通模式:
+使用普通模式（第三方 Broker，可选 Docker）:
 ```bash
 docker run -d \
   --name nats \

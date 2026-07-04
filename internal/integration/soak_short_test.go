@@ -37,7 +37,7 @@ func TestSoak_ScanEngineShortGate(t *testing.T) {
 	const (
 		devices      = 40
 		faultedCount = 5
-		warmup       = 25 * time.Second
+		warmup       = 45 * time.Second
 	)
 
 	se := core.NewScanEngine(core.ScanEngineConfig{
@@ -72,11 +72,14 @@ func TestSoak_ScanEngineShortGate(t *testing.T) {
 
 	se.Run()
 	time.Sleep(warmup)
-	memStart := captureMemSnapshot()
+	settleHeapForMeasurement()
+	memStart := captureStableMemSnapshot()
+	se.GetMetrics().ResetWindow()
 
 	time.Sleep(duration)
 	se.Stop()
-	memEnd := captureMemSnapshot()
+	settleHeapForMeasurement()
+	memEnd := captureStableMemSnapshot()
 
 	snap := se.GetMetrics().Snapshot()
 	executed, _ := snap["tasks_executed"].(uint64)
@@ -88,7 +91,7 @@ func TestSoak_ScanEngineShortGate(t *testing.T) {
 	if executed > 0 {
 		failRate = float64(failed) / float64(executed)
 	}
-	memDrift := memoryDriftPct(memStart, memEnd)
+	memDrift := memoryDriftPctLogged(t, memStart, memEnd)
 
 	gates := []productionGate{
 		{

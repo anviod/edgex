@@ -82,11 +82,3 @@ func TestEdgeComputeManager_TypeConversion(t *testing.T) {
 			states["rule-type-test"].ErrorMessage)
 	}
 }
-
-func TestExprNil(t *testing.T) {
-	// Simple test to confirm "unknown" means nil in expr
-	// We need to import github.com/expr-lang/expr, but it's not imported in this file.
-	// Since we can't easily add imports with SearchReplace without messing up,
-	// I'll skip this specific test or rewrite the whole file.
-	// Actually I will just trust my knowledge that nil in expr usually causes type mismatch.
-}

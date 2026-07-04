@@ -1237,6 +1237,8 @@ func (c *NATSClient) SubscribeDiscoverCommands(nodeID string, callback func(Mess
 
 ### 9.1 本地测试环境
 
+> **说明**：下文 Docker 命令仅用于启动**第三方 MQTT/NATS Broker**。**EdgeX 网关本体**以裸机二进制或 systemd 部署，见 [部署流程](../guide/产品说明.html#部署流程)。
+
 #### MQTT Broker
 
 ```bash

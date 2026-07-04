@@ -845,6 +845,19 @@ func TestClientIsRunning(t *testing.T) {
 
 func TestParseExistingDeviceIDs(t *testing.T) {
 	ids := parseExistingDeviceIDs(map[string]any{
+		"existing_device_ids": []int{100, 200},
+	})
+	if len(ids) != 2 {
+		t.Fatalf("expected 2 ids, got %d", len(ids))
+	}
+	if _, ok := ids[100]; !ok {
+		t.Fatal("expected device 100")
+	}
+	if _, ok := ids[200]; !ok {
+		t.Fatal("expected device 200")
+	}
+
+	ids = parseExistingDeviceIDs(map[string]any{
 		"existing_device_ids": []any{float64(100), 200},
 	})
 	if len(ids) != 2 {

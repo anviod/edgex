@@ -47,6 +47,20 @@ hero_buttons:
 - [南向驱动测试报告](南向驱动测试报告.html) — 单元测试、性能基准、边界场景矩阵（2026-06-27）
 - [Southbound Driver Test Report (EN)](southbound-driver-test-report.html)
 
+### 代码测试维护
+
+- [test/ 目录说明](../../test/README.md) — 联调资产、`go test` 常用命令与测试腐化处理原则
+- [B1 采集间隔核验报告](b1_poll_interval_verification.html) — Modbus 多从站 PollStart Δt 现场样本
+
+### ScanEngine / ShadowCore SLA 验证
+
+- [Q3 Phase A–D 验收复测 2026-07-04](q3_phase_abcd_verification_2026-07-04.html) — 完整命令、实测指标与 gate 结论
+- [SLA 完成报告 2026Q3](sla_completion_report_2026Q3.html) — Phase A–D 测试与指标（含 2026-07-04 复测）
+- [确定性 SLA 报告](deterministic_sla_report.html) — EDF + hard jitter；P99 承诺
+- [Shadow 性能优化报告 2026Q3](shadow_optimization_report_2026Q3.html) — COW / Worker Pool / Ingress
+- [ScanEngine SLA 评估](../TODO/SLA评估.html) — 工业边界 B1–B6 达标矩阵
+- [SLA 轻量化运维手册](../deployment/sla_monitoring.html) — diagnostics 巡检
+
 ### ScanEngine / ShadowCore 测试（权威版 edge/）
 
 > testing/ 目录下编号测试文档为归档副本，正文以 edge/ 为准。

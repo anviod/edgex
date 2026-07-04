@@ -166,6 +166,28 @@ func (m *ScanEngineMetrics) scanLagP95Ms() float64 {
 	return float64(samples[idx]) / 1000.0
 }
 
+// ResetWindow clears cumulative counters and lag samples for steady-state measurement windows (benchmarks/soak).
+func (m *ScanEngineMetrics) ResetWindow() {
+	if m == nil {
+		return
+	}
+	m.TasksExecuted.Store(0)
+	m.TasksSucceeded.Store(0)
+	m.TasksFailed.Store(0)
+	m.StarvationRescues.Store(0)
+	m.TaskOverdueTotal.Store(0)
+	m.ScanMissDeadlineTotal.Store(0)
+	m.ScanDriftMicrosTotal.Store(0)
+	m.ScanDriftSamples.Store(0)
+	m.TotalScanLagMicros.Store(0)
+	m.ScanLagSamples.Store(0)
+	m.MaxScanLagMicros.Store(0)
+	m.IntervalAdjustedTotal.Store(0)
+	m.lagMu.Lock()
+	m.lagSamples = m.lagSamples[:0]
+	m.lagMu.Unlock()
+}
+
 func (m *ScanEngineMetrics) Snapshot() map[string]any {
 	if m == nil {
 		return map[string]any{}

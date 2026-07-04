@@ -1,5 +1,7 @@
 # ScanEngine重构测试报告
 
+> **文档性质**：ScanEngine 迁移验收报告（2026-06-29）。文中 `deviceLoop`、`device_manager.go` 等为**迁移前后对比**的历史术语，表示已下线组件；**现行唯一采集调度内核为 ScanEngine**。
+
 ## 一、测试概述
 
 | 项目 | 内容 |

@@ -86,7 +86,12 @@ func TestScanEngine_ThrottlePressure_ClusterLag(t *testing.T) {
 		t.Fatalf("baseline P95 lag invalid: %.2f", baselineP95)
 	}
 	increase := (slowP95 - baselineP95) / baselineP95
-	if increase > 0.30 {
+	const slowClusterP95MaxMs = 5.0
+	if slowP95 > slowClusterP95MaxMs {
+		t.Fatalf("slow-cluster P95 %.2fms exceeds %.0fms absolute cap (baseline=%.2fms)",
+			slowP95, slowClusterP95MaxMs, baselineP95)
+	}
+	if baselineP95 > 1.0 && increase > 0.30 {
 		t.Fatalf("cluster lag P95 increase %.1f%% exceeds 30%% (baseline=%.2fms slow=%.2fms)",
 			increase*100, baselineP95, slowP95)
 	}

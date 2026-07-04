@@ -1,3 +1,9 @@
+---
+layout: default
+title: B1 采集间隔核验报告
+description: Modbus TCP 多从站 PollStart 时间戳 Δt 现场核验
+---
+
 # B1 时间戳核验报告（Modbus TCP）
 
 - 场景：同通道 3 台从站（slave-1/2 正常，slave-3 恢复后在线）

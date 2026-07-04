@@ -1,9 +1,9 @@
 ---
 layout: section-index
 title: 架构设计
-description: EdgeX 架构设计 — ScanEngine 调度驱动内核、ShadowCore 影子设备与系统架构
+description: EdgeX 架构设计 — ScanEngine 调度驱动内核、SLA 统计调度、ShadowCore 影子设备与系统架构
 hero_eyebrow: Architecture
-hero_lead: EdgeX 系统架构与设计文档 — ScanEngine 调度驱动采集（ExecutionLayer / ConnectionManager）、ShadowCore 影子设备与 RTT/MTU/Gap 管理器。
+hero_lead: EdgeX 系统架构权威文档 — ScanEngine 调度驱动采集（EDF/CB/SLA diagnostics）、ExecutionLayer 背压、ShadowCore COW 快照与 ShadowIngress 批量写入。运行时架构细节以此目录与 edge/ 总览为准。
 hero_buttons:
   - text: 核心设计
     url: "4. 核心设计.html"
@@ -29,12 +29,23 @@ hero_buttons:
 ## 目录
 
 ### 基础架构
-- [**边缘网关架构设计总览**](../edge/边缘网关架构设计总览.html) — 全生命周期架构与 ScanEngine 调度驱动内核
+- [**边缘网关架构设计总览**](../edge/边缘网关架构设计总览.html) — 全生命周期架构、SLA 调度架构与 ScanEngine 内核（**权威 · v2.2**）
 - [ScanEngine 重构方案](../TODO/ScanEngine重构方案.html) — 四阶段实施规范
+- [Q3 采集优化方案](../%5BTODO%5D边缘计算南向采集优化方案2026第三季度.html) — Q3 交付验收与进度跟踪
 - [架构 V2](ARCHITECTURE_V2.html) — 三级模型索引（权威见 [edge/边缘网关架构设计总览](../edge/边缘网关架构设计总览.html)）
 - [状态机 API](STATE_MACHINE_API.html)
 - [后端重构完成报告](BACKEND_RESTRUCTURING_COMPLETE.html) — 历史归档
 - [数据源与输出动作设计](数据源与输出动作设计.html)
+
+### SLA 调度与可观测（2026 Q3）
+
+| 文档 | 说明 |
+|------|------|
+| [ScanEngine SLA 评估](../TODO/SLA评估.html) | Phase A–D 达标矩阵与工业边界 B1–B6 |
+| [SLA 完成报告 2026Q3](../testing/sla_completion_report_2026Q3.html) | Phase A–C 测试命令与关键指标 |
+| [确定性 SLA 报告](../testing/deterministic_sla_report.html) | EDF + hard jitter；P99 书面承诺 |
+| [Shadow 性能优化报告](../testing/shadow_optimization_report_2026Q3.html) | COW / Worker Pool / ShadowIngress |
+| [SLA 轻量化运维手册](../deployment/sla_monitoring.html) | diagnostics 巡检与告警响应 |
 
 ### 智能采集优化系列（ScanEngine 调度驱动内核）
 
@@ -42,7 +53,7 @@ hero_buttons:
   <img src="../img/dataScanEngineCN.svg" width="100%" alt="Edgex V2.0 架构 · ScanEngine引擎" />
 </div>
 
-> **Edgex V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine 写入影子设备实时快照，再联通虚拟设备、边缘计算与北向接口。
+> **Edgex V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine（EDF + CB + SLA metrics）写入 ShadowIngress → ShadowCore 快照，再联通虚拟设备、边缘计算与北向接口。
 
 > 规范：`docs/TODO/ScanEngine重构方案.md` · 总览：`docs/edge/边缘网关架构设计总览.md`
 
@@ -72,4 +83,5 @@ hero_buttons:
 
 - [边缘计算](../edge/index.html) — 边缘计算功能与场景
 - [设备驱动](../drivers/index.html) — 南向驱动文档
-- [测试验证](../testing/index.html) — 各模块测试文档
+- [测试验证](../testing/index.html) — SLA 报告与各模块测试文档
+- [SLA 轻量化运维](../deployment/sla_monitoring.html) — diagnostics 巡检手册

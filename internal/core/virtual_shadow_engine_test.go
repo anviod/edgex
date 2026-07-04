@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -584,5 +585,130 @@ func TestVirtualShadowEngine_MapModeBadSource(t *testing.T) {
 	}
 	if pt.Value != float64(42) {
 		t.Fatalf("expected preserved value 42, got %v", pt.Value)
+	}
+}
+
+func TestStress_VirtualShadow_10kRefresh(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping virtual shadow 10k refresh stress in short mode")
+	}
+
+	const (
+		numDevices   = 100
+		pointsPerDev = 100
+		newValue     = 42.0
+	)
+	totalTags := numDevices * pointsPerDev
+
+	sc := NewShadowCore()
+	sc.Start()
+	defer sc.Stop()
+
+	vse := NewVirtualShadowEngine(sc)
+
+	for i := 0; i < numDevices; i++ {
+		devID := fmt.Sprintf("dev%03d", i)
+		points := make([]model.ShadowIngressPoint, pointsPerDev)
+		formulas := make(map[string]string, pointsPerDev)
+		for j := 0; j < pointsPerDev; j++ {
+			pointID := fmt.Sprintf("p%03d", j)
+			points[j] = model.ShadowIngressPoint{PointID: pointID, Value: 0.0, Quality: "Good"}
+			formulas[pointID] = fmt.Sprintf("ch1.%s.%s", devID, pointID)
+		}
+		if _, err := sc.WriteShadowDevice(model.ShadowIngressMessage{
+			DeviceID:  devID,
+			ChannelID: "ch1",
+			Timestamp: time.Now(),
+			Points:    points,
+		}); err != nil {
+			t.Fatalf("seed shadow %s: %v", devID, err)
+		}
+		vdID := fmt.Sprintf("virt-%03d", i)
+		if err := vse.CreateVirtualDevice(vdID, "ch1", formulas); err != nil {
+			t.Fatalf("CreateVirtualDevice %s: %v", vdID, err)
+		}
+	}
+
+	msgs := make([]model.ShadowIngressMessage, numDevices)
+	for i := 0; i < numDevices; i++ {
+		devID := fmt.Sprintf("dev%03d", i)
+		points := make([]model.ShadowIngressPoint, pointsPerDev)
+		for j := 0; j < pointsPerDev; j++ {
+			points[j] = model.ShadowIngressPoint{
+				PointID: fmt.Sprintf("p%03d", j),
+				Value:   newValue,
+				Quality: "Good",
+			}
+		}
+		msgs[i] = model.ShadowIngressMessage{
+			DeviceID:  devID,
+			ChannelID: "ch1",
+			Timestamp: time.Now(),
+			Points:    points,
+		}
+	}
+
+	start := time.Now()
+	if err := sc.ApplyShadowWrites(msgs); err != nil {
+		t.Fatalf("ApplyShadowWrites: %v", err)
+	}
+
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		ready := 0
+		for i := 0; i < numDevices; i++ {
+			vdID := fmt.Sprintf("virt-%03d", i)
+			vd, err := vse.GetVirtualDevice(vdID)
+			if err != nil {
+				break
+			}
+			if len(vd.Points) != pointsPerDev {
+				break
+			}
+			ok := true
+			for _, pt := range vd.Points {
+				if pt.Value != newValue || !strings.EqualFold(pt.Quality, "good") {
+					ok = false
+					break
+				}
+			}
+			if ok {
+				ready++
+			}
+		}
+		if ready == numDevices {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	elapsed := time.Since(start)
+	ready := 0
+	for i := 0; i < numDevices; i++ {
+		vdID := fmt.Sprintf("virt-%03d", i)
+		vd, err := vse.GetVirtualDevice(vdID)
+		if err != nil {
+			t.Fatalf("GetVirtualDevice %s: %v", vdID, err)
+		}
+		if len(vd.Points) != pointsPerDev {
+			t.Fatalf("virtual %s: expected %d points, got %d", vdID, pointsPerDev, len(vd.Points))
+		}
+		for pid, pt := range vd.Points {
+			if pt.Value != newValue {
+				t.Fatalf("virtual %s.%s: expected %v, got %v", vdID, pid, newValue, pt.Value)
+			}
+		}
+		ready++
+	}
+
+	tagsPerSec := float64(totalTags) / elapsed.Seconds()
+	t.Logf("virtual shadow 10k refresh: %v (%.0f source tags/sec, %d virtual devices × %d points)",
+		elapsed, tagsPerSec, numDevices, pointsPerDev)
+
+	if ready != numDevices {
+		t.Fatalf("only %d/%d virtual devices refreshed", ready, numDevices)
+	}
+	if elapsed > 5*time.Second {
+		t.Errorf("virtual shadow 10k refresh took %v, want <= 5s", elapsed)
 	}
 }

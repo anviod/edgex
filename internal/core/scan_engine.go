@@ -218,7 +218,9 @@ func NewScanEngine(config ScanEngineConfig) *ScanEngine {
 			QueueLimit:      config.MaxQueueSize,
 		}),
 		shadowCore: nil,
-		metrics:    &ScanEngineMetrics{},
+		metrics: &ScanEngineMetrics{
+			lagSamples: make([]int64, 0, scanLagSampleCap),
+		},
 		config:     config,
 		stopCh:     make(chan struct{}),
 	}
@@ -390,8 +392,6 @@ func (se *ScanEngine) processReadyTasks() {
 		)
 	}
 
-	se.enforceHardJitterClamp(now)
-
 	for {
 		task := se.popReadyTaskEDF(now)
 		if task == nil {
@@ -402,7 +402,7 @@ func (se *ScanEngine) processReadyTasks() {
 			se.mu.Lock()
 			heap.Push(se.priorityQueue, task)
 			se.mu.Unlock()
-			continue
+			break
 		}
 
 		if task.GetStatus() == ScanTaskStatusStopped {
@@ -412,6 +412,10 @@ func (se *ScanEngine) processReadyTasks() {
 		se.resourceCtrl.Acquire()
 		go se.executeTaskAsync(task)
 	}
+
+	// Clamp only tasks still queued after dispatch; avoids counting a miss
+	// for work dispatched in the same tick.
+	se.enforceHardJitterClamp(time.Now())
 
 	se.enforceAntiStarvation(now)
 }
@@ -608,9 +612,6 @@ func (se *ScanEngine) rescheduleTask(task *ScanTask, completedAt time.Time) {
 	}
 
 	jitter := taskDeterministicJitter(task.ID, jitterBound)
-	if task.PhaseOffset != 0 {
-		next = next.Add(task.PhaseOffset)
-	}
 
 	task.LastScheduledAt = next
 	task.NextRun = next.Add(jitter)
