@@ -48,8 +48,6 @@ type KNXTransport struct {
 	cache   map[uint16][]byte
 
 	connMgr         *driver.ConnectionManager
-	heartbeatCancel context.CancelFunc
-	heartbeatMu     sync.Mutex
 }
 
 func NewKNXTransport(cfg map[string]any) *KNXTransport {
@@ -479,38 +477,27 @@ func (t *KNXTransport) setReadDeadline(tm time.Time) error {
 }
 
 func (t *KNXTransport) startHeartbeat() {
-	t.heartbeatMu.Lock()
-	defer t.heartbeatMu.Unlock()
-	if t.cfg.heartbeatInterval <= 0 {
+	if t.connMgr == nil || t.cfg.heartbeatInterval <= 0 {
 		return
 	}
-	if t.heartbeatCancel != nil {
-		t.heartbeatCancel()
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	t.heartbeatCancel = cancel
-	go t.heartbeatLoop(ctx)
+	interval := t.cfg.heartbeatInterval
+	t.connMgr.StartBackgroundLoop(func(ctx context.Context) {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				t.sendConnectionState(ctx)
+			}
+		}
+	})
 }
 
 func (t *KNXTransport) stopHeartbeat() {
-	t.heartbeatMu.Lock()
-	defer t.heartbeatMu.Unlock()
-	if t.heartbeatCancel != nil {
-		t.heartbeatCancel()
-		t.heartbeatCancel = nil
-	}
-}
-
-func (t *KNXTransport) heartbeatLoop(ctx context.Context) {
-	ticker := time.NewTicker(t.cfg.heartbeatInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			t.sendConnectionState(ctx)
-		}
+	if t.connMgr != nil {
+		t.connMgr.StopBackgroundLoop()
 	}
 }
 

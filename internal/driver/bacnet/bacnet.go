@@ -68,6 +68,7 @@ type BACnetDriver struct {
 	scheduler            *PointScheduler
 	mu                   sync.RWMutex
 	useDataformatDecoder bool
+	connMgr              *drv.ConnectionManager
 
 	// Factory for creating clients (injectable for testing)
 	clientFactory func(cb *ClientBuilder) (Client, error)
@@ -127,6 +128,7 @@ func NewBACnetDriver() drv.Driver {
 		subnetCIDR:        24,        // Default CIDR
 		connected:         false,
 		clientFactory:     NewClient,
+		connMgr:           drv.NewConnectionManager("bacnet-ip"),
 		historicalObjects: make(map[int]map[string]ObjectResult),
 		deviceContexts:    make(map[int]*DeviceContext),
 		idMap:             make(map[string]int),
@@ -190,51 +192,71 @@ func (d *BACnetDriver) Init(config model.DriverConfig) error {
 
 func (d *BACnetDriver) Connect(ctx context.Context) error {
 	d.mu.Lock()
-	defer d.mu.Unlock()
-
 	if d.connected && d.client != nil && d.client.IsRunning() {
+		d.mu.Unlock()
 		return nil
 	}
-
-	// Record connection start time
 	d.connectionStartTime = time.Now()
 	d.reconnectCount++
+	d.mu.Unlock()
 
-	// Create Client
+	return d.connMgr.EnsureConnected(ctx, d.connectOnce)
+}
+
+func (d *BACnetDriver) connectOnce(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
+	d.mu.Lock()
+	if d.client != nil {
+		d.client.Close()
+		d.connMgr.StopBackgroundLoop()
+		d.client = nil
+	}
+
 	cb := &ClientBuilder{
 		Ip:         d.interfaceIP,
 		Port:       d.interfacePort,
 		SubnetCIDR: d.subnetCIDR,
 	}
-	// If interfaceIP is not set, we might default to 0.0.0.0 or let NewClient handle it
-	if d.interfaceIP == "" {
-		// Try to find a sensible default or just use 0.0.0.0 equivalent?
-		// NewClient implementation logic:
-		// if iface != "" -> NewUDPDataLink(iface, port)
-		// else -> NewUDPDataLinkFromIP(ip, sub, port)
-		// We should probably set Ip to "0.0.0.0" if not specified, but NewUDPDataLinkFromIP needs valid IP.
-		// For now, let's assume config provides IP or we try to bind broadly.
-		// If Ip is empty, NewClient might fail or we should handle it.
-		// Let's assume user provides config for now, or we default to a local IP.
-	}
 
 	client, err := d.clientFactory(cb)
 	if err != nil {
+		d.mu.Unlock()
 		return fmt.Errorf("failed to create BACnet client: %v", err)
 	}
 	d.client = client
+	d.mu.Unlock()
 
-	// Start Client
-	go d.client.ClientRun()
+	d.connMgr.StartBackgroundLoop(func(_ context.Context) {
+		client.ClientRun()
+	})
 
-	// Wait a bit for client to start?
 	time.Sleep(100 * time.Millisecond)
 
-	// Discover Target Device
-	// Only if we had some target configured? No, wait for SetDeviceConfig.
+	d.mu.Lock()
 	d.connected = true
-
+	d.mu.Unlock()
 	return nil
+}
+
+// startEphemeralClient starts a bounded BACnet receive loop for discovery/scan APIs.
+// Call the returned stop function when the session completes.
+func startEphemeralClient(client Client) (stop func(), err error) {
+	if client == nil {
+		return nil, fmt.Errorf("bacnet client is nil")
+	}
+	done := make(chan struct{})
+	go func() {
+		client.ClientRun()
+		close(done)
+	}()
+	time.Sleep(100 * time.Millisecond)
+	return func() {
+		_ = client.Close()
+		<-done
+	}, nil
 }
 
 func (d *BACnetDriver) SetBACnetAddressNotifier(notifier drv.BACnetAddressNotifier) {
@@ -281,15 +303,16 @@ func (d *BACnetDriver) discoverDevice(deviceID int, ip string, port int) error {
 
 func (d *BACnetDriver) Disconnect() error {
 	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	// Record disconnect time
 	d.lastDisconnectTime = time.Now()
-
-	if d.client != nil {
-		d.client.Close()
-	}
+	client := d.client
+	d.client = nil
 	d.connected = false
+	d.mu.Unlock()
+
+	if client != nil {
+		_ = client.Close()
+	}
+	d.connMgr.StopBackgroundLoop()
 	return nil
 }
 
@@ -322,7 +345,7 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 	if !exists || devCtx.Scheduler == nil {
 		d.mu.Unlock()
 		if targetID != -1 {
-			go d.checkRecovery(targetID)
+			d.scheduleDeviceRecovery(targetID)
 		}
 		return nil, fmt.Errorf("scheduler not initialized for device %s (targetID=%d). Ensure device ID contains the BACnet Instance ID.", sID, targetID)
 	}
@@ -390,7 +413,7 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 		failures := devCtx.ConsecutiveFailures
 		d.mu.Unlock()
 		if failures >= readFailureRecoveryThreshold {
-			go d.checkRecovery(targetID)
+			d.scheduleDeviceRecovery(targetID)
 		}
 	} else {
 		d.mu.Unlock()
@@ -402,90 +425,70 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 	return results, fmt.Errorf("incomplete read for device %s: %d/%d points failed", sID, failed, len(points))
 }
 
-func (d *BACnetDriver) checkRecovery(deviceID int) {
+func (d *BACnetDriver) scheduleDeviceRecovery(deviceID int) {
 	d.mu.Lock()
-	zap.L().Debug("checkRecovery called", zap.Int("device_id", deviceID))
 	if d.client == nil {
-		zap.L().Debug("checkRecovery: d.client is nil")
 		d.mu.Unlock()
 		return
 	}
-
-	var lastDiscovery time.Time
-	var isContextExists bool
 
 	devCtx, exists := d.deviceContexts[deviceID]
-	if exists {
-		zap.L().Debug("checkRecovery: context found", zap.Int("device_id", deviceID))
-		lastDiscovery = devCtx.LastDiscovery
-		isContextExists = true
-	} else {
-		zap.L().Debug("checkRecovery: context NOT found", zap.Int("device_id", deviceID))
-		// Cannot recover unknown device
+	if !exists {
 		d.mu.Unlock()
 		return
 	}
 
-	if time.Since(lastDiscovery) < 30*time.Second {
-		zap.L().Debug("checkRecovery skipped: too soon", zap.Int("device_id", deviceID))
+	if time.Since(devCtx.LastDiscovery) < 30*time.Second {
 		d.mu.Unlock()
 		return
 	}
 
-	// Update timestamp to prevent spamming
-	zap.L().Debug("checkRecovery triggering", zap.Int("device_id", deviceID))
-	if isContextExists {
-		devCtx.LastDiscovery = time.Now()
-		zap.L().Debug("Updated LastDiscovery", zap.Int("device_id", deviceID))
-	} else {
-		d.lastDiscovery = time.Now()
-		zap.L().Debug("Updated driver.lastDiscovery")
-	}
+	devCtx.LastDiscovery = time.Now()
+	client := d.client
+	currentIP := devCtx.Config.IP
+	currentPort := devCtx.Config.Port
 	d.mu.Unlock()
 
-	go func() {
-		d.mu.Lock()
-		client := d.client
-		var currentIP string
-		var currentPort int
-		if ctx, ok := d.deviceContexts[deviceID]; ok {
-			currentIP = ctx.Config.IP
-			currentPort = ctx.Config.Port
-		} else {
-			d.mu.Unlock()
-			return
+	const recoveryTimeout = 60 * time.Second
+	d.connMgr.ScheduleAsyncTask(context.Background(), recoveryTimeout, func(ctx context.Context) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
-		d.mu.Unlock()
-
 		if client == nil {
-			return
+			return fmt.Errorf("bacnet client not available")
 		}
 
 		zap.L().Info("BACnet auto-recovery starting", zap.Int("device_id", deviceID))
 
-		success := d.probeDevice(client, deviceID, currentIP, currentPort)
-		if success {
+		if d.probeDevice(client, deviceID, currentIP, currentPort) {
 			d.mu.Lock()
 			d.connected = true
 			d.mu.Unlock()
 			zap.L().Info("BACnet auto-recovery successful", zap.Int("device_id", deviceID))
-		} else {
-			zap.L().Warn("BACnet auto-recovery failed, extending isolation", zap.Int("device_id", deviceID))
-			d.mu.Lock()
-			if devCtx, ok := d.deviceContexts[deviceID]; ok && devCtx.State == DeviceStateIsolated {
-				backoff := d.calculateBackoff(devCtx.IsolationCount + 1)
-				jitter := time.Duration(rand.Intn(5000)) * time.Millisecond
-				totalBackoff := backoff + jitter
-				if totalBackoff > 1*time.Hour {
-					totalBackoff = 1 * time.Hour
-				}
-				devCtx.IsolationUntil = time.Now().Add(totalBackoff)
-				devCtx.IsolationCount++
-				zap.L().Warn("BACnet isolation extended", zap.Int("device_id", deviceID), zap.Duration("backoff", totalBackoff), zap.Int("isolation_count", devCtx.IsolationCount))
-			}
-			d.mu.Unlock()
+			return nil
 		}
-	}()
+
+		zap.L().Warn("BACnet auto-recovery failed, extending isolation", zap.Int("device_id", deviceID))
+		d.mu.Lock()
+		if devCtx, ok := d.deviceContexts[deviceID]; ok && devCtx.State == DeviceStateIsolated {
+			backoff := d.calculateBackoff(devCtx.IsolationCount + 1)
+			jitter := time.Duration(rand.Intn(5000)) * time.Millisecond
+			totalBackoff := backoff + jitter
+			if totalBackoff > 1*time.Hour {
+				totalBackoff = 1 * time.Hour
+			}
+			devCtx.IsolationUntil = time.Now().Add(totalBackoff)
+			devCtx.IsolationCount++
+			zap.L().Warn("BACnet isolation extended", zap.Int("device_id", deviceID), zap.Duration("backoff", totalBackoff), zap.Int("isolation_count", devCtx.IsolationCount))
+		}
+		d.mu.Unlock()
+		return fmt.Errorf("bacnet probe failed for device %d", deviceID)
+	})
+}
+
+// checkRecovery is retained for tests; production uses scheduleDeviceRecovery via ConnectionManager.
+func (d *BACnetDriver) checkRecovery(deviceID int) {
+	d.scheduleDeviceRecovery(deviceID)
 }
 
 // probeDevice performs network discovery without holding global lock.
@@ -820,10 +823,13 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 					SubnetCIDR: defaultSubnetCIDR,
 				}
 				if cli, err := clientFactory(cb); err == nil {
-					scanClient = cli
-					defer cli.Close()
-					go cli.ClientRun()
-					time.Sleep(100 * time.Millisecond)
+					stop, startErr := startEphemeralClient(cli)
+					if startErr != nil {
+						zap.L().Warn("Failed to start ephemeral scan client", zap.Error(startErr))
+					} else {
+						defer stop()
+						scanClient = cli
+					}
 				}
 			}
 		}
@@ -934,9 +940,13 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 				zap.L().Warn("Failed to create client for scan", zap.String("interface", ifaceIP), zap.Error(err))
 				return
 			}
-			defer scanClient.Close()
-			go scanClient.ClientRun()
-			time.Sleep(100 * time.Millisecond)
+			stop, startErr := startEphemeralClient(scanClient)
+			if startErr != nil {
+				zap.L().Warn("Failed to start ephemeral scan client", zap.String("interface", ifaceIP), zap.Error(startErr))
+				_ = scanClient.Close()
+				return
+			}
+			defer stop()
 
 			// Calculate broadcast address
 			ip := net.ParseIP(ifaceIP)
@@ -1077,10 +1087,11 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 			SubnetCIDR: defaultSubnetCIDR,
 		}
 		if cli, err := clientFactory(cb); err == nil {
-			readerClient = cli
-			defer cli.Close()
-			go cli.ClientRun()
-			time.Sleep(100 * time.Millisecond)
+			stop, startErr := startEphemeralClient(cli)
+			if startErr == nil {
+				defer stop()
+				readerClient = cli
+			}
 		}
 	}
 

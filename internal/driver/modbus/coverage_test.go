@@ -3,6 +3,7 @@ package modbus
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -40,6 +41,9 @@ func (m *mockModbusTransport) Disconnect() error {
 func (m *mockModbusTransport) IsConnected() bool { return m.connected }
 
 func (m *mockModbusTransport) ReadRegisters(_ context.Context, regType string, offset uint16, count uint16) ([]byte, error) {
+	if !m.connected {
+		return nil, fmt.Errorf("transport not connected")
+	}
 	buf := make([]byte, count*2)
 	for i := uint16(0); i < count; i++ {
 		val := m.registers[offset+i]
@@ -50,10 +54,16 @@ func (m *mockModbusTransport) ReadRegisters(_ context.Context, regType string, o
 }
 
 func (m *mockModbusTransport) ReadCoil(_ context.Context, offset uint16) (bool, error) {
+	if !m.connected {
+		return false, fmt.Errorf("transport not connected")
+	}
 	return m.coil[offset], nil
 }
 
 func (m *mockModbusTransport) ReadDiscreteInput(_ context.Context, offset uint16) (bool, error) {
+	if !m.connected {
+		return false, fmt.Errorf("transport not connected")
+	}
 	return m.coil[offset], nil
 }
 
@@ -62,11 +72,17 @@ func (m *mockModbusTransport) ReadCustom(_ context.Context, _ byte, offset uint1
 }
 
 func (m *mockModbusTransport) WriteRegister(_ context.Context, offset uint16, value uint16) error {
+	if !m.connected {
+		return fmt.Errorf("transport not connected")
+	}
 	m.registers[offset] = value
 	return nil
 }
 
 func (m *mockModbusTransport) WriteRegisters(_ context.Context, offset uint16, values []uint16) error {
+	if !m.connected {
+		return fmt.Errorf("transport not connected")
+	}
 	for i, v := range values {
 		m.registers[offset+uint16(i)] = v
 	}
@@ -74,6 +90,9 @@ func (m *mockModbusTransport) WriteRegisters(_ context.Context, offset uint16, v
 }
 
 func (m *mockModbusTransport) WriteCoil(_ context.Context, offset uint16, value bool) error {
+	if !m.connected {
+		return fmt.Errorf("transport not connected")
+	}
 	m.coil[offset] = value
 	return nil
 }
@@ -374,4 +393,222 @@ func TestCoverage_SetDeviceConfigPaths(t *testing.T) {
 		"instructionInterval": 20,
 	}))
 	assert.Equal(t, uint8(5), d.slaveID)
+}
+
+func TestCoverage_CoilReadWithMock(t *testing.T) {
+	mock := newMockModbusTransport()
+	mock.connected = true
+	mock.coil[1000] = true
+	mock.coil[1001] = false
+
+	decoder := NewPointDecoder("ABCD", 0, 0)
+	scheduler := NewPointScheduler(mock, decoder, 125, 50, 0)
+
+	results, err := scheduler.Read(context.Background(), []model.Point{
+		{ID: "c1", Address: "1001", DataType: "bool", RegisterType: model.RegCoil},
+		{ID: "c2", Address: "1002", DataType: "bool", RegisterType: model.RegCoil},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, true, results["c1"].Value)
+	assert.Equal(t, false, results["c2"].Value)
+}
+
+func TestCoverage_DisconnectedDriverReadWrite(t *testing.T) {
+	d := NewModbusDriver().(*ModbusDriver)
+	require.NoError(t, d.Init(model.DriverConfig{
+		ChannelID: "disc",
+		Config:    map[string]any{"url": "127.0.0.1:502"},
+	}))
+
+	mock := newMockModbusTransport()
+	mock.connected = false
+	d.scheduler = NewPointScheduler(mock, NewPointDecoder("ABCD", 0, 0), 125, 50, 0)
+
+	ctx := context.Background()
+	results, err := d.ReadPoints(ctx, []model.Point{
+		{ID: "p1", Address: "40001", DataType: "int16", RegisterType: model.RegHolding},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Bad", results["p1"].Quality)
+	require.Error(t, d.WritePoint(ctx, model.Point{Address: "40001", DataType: "int16", RegisterType: model.RegHolding}, int16(1)))
+}
+
+func TestCoverage_SchedulerTransportError(t *testing.T) {
+	mock := newMockModbusTransport()
+	mock.connected = false
+
+	scheduler := NewPointScheduler(mock, NewPointDecoder("ABCD", 0, 0), 125, 50, 0)
+	results, err := scheduler.Read(context.Background(), []model.Point{
+		{ID: "p1", Address: "40001", DataType: "int16", RegisterType: model.RegHolding},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Bad", results["p1"].Quality)
+}
+
+func TestCoverage_RTTModelAdaptive(t *testing.T) {
+	m := NewRTTModel()
+	for i := 0; i < 5; i++ {
+		m.Record(50, 30*time.Millisecond)
+	}
+	for i := 0; i < 5; i++ {
+		m.Record(10, 5*time.Millisecond)
+	}
+	assert.Equal(t, 10, m.BestBatchSize())
+}
+
+func TestCoverage_DecoderInt32AndUint16(t *testing.T) {
+	dec := NewPointDecoder("ABCD", 0, 0)
+
+	val, quality, err := dec.Decode(model.Point{DataType: "int32"}, []byte{0x00, 0x00, 0x30, 0x39})
+	require.NoError(t, err)
+	assert.Equal(t, "Good", quality)
+	assert.Equal(t, int32(12345), val)
+
+	val, quality, err = dec.Decode(model.Point{DataType: "uint16", RegisterType: model.RegCoil}, []byte{0x00, 0x01})
+	require.NoError(t, err)
+	assert.Equal(t, "Good", quality)
+	assert.Equal(t, uint16(1), val)
+}
+
+func TestCoverage_HealthReconnectExhausted(t *testing.T) {
+	d := NewModbusDriver().(*ModbusDriver)
+	require.NoError(t, d.Init(model.DriverConfig{
+		ChannelID: "health",
+		Config:    map[string]any{"url": "127.0.0.1:502", "max_retries": 2},
+	}))
+
+	d.transport.connMgr.SetMaxRetries(2)
+	d.transport.connMgr.SetState(StateConnected)
+	d.transport.connMgr.RecordFailure()
+	d.transport.connMgr.RecordFailure()
+	assert.Equal(t, driver.HealthStatusBad, d.Health())
+}
+
+func TestCoverage_IsDeviceLevelModbusError(t *testing.T) {
+	assert.True(t, isDeviceLevelModbusError(fmt.Errorf("modbus exception: illegal data address")))
+	assert.True(t, isDeviceLevelModbusError(fmt.Errorf("request timed out")))
+	assert.False(t, isDeviceLevelModbusError(fmt.Errorf("connection refused")))
+	assert.False(t, isDeviceLevelModbusError(nil))
+}
+
+func TestCoverage_TransportRecordFailureDeviceError(t *testing.T) {
+	cfg := model.DriverConfig{Config: map[string]any{"url": "127.0.0.1:502", "max_fail_count": 2}}
+	tr := NewModbusTransport(cfg)
+	defer tr.connMgr.Close()
+	tr.RecordFailure(fmt.Errorf("illegal function"))
+	assert.Equal(t, int32(0), tr.collectFailCount.Load())
+}
+
+func TestCoverage_SchedulerBatchReadGroup(t *testing.T) {
+	mock := newMockModbusTransport()
+	mock.connected = true
+	for i := uint16(0); i < 5; i++ {
+		mock.registers[i] = uint16(100 + i)
+	}
+
+	dec := NewPointDecoder("ABCD", 0, 0)
+	s := NewPointScheduler(mock, dec, 125, 50, 0)
+	s.SetGroupThreshold(2)
+	s.SetMaxPacketSize(10)
+
+	points := []model.Point{
+		{ID: "p1", Address: "40001", DataType: "uint16", RegisterType: model.RegHolding},
+		{ID: "p2", Address: "40002", DataType: "uint16", RegisterType: model.RegHolding},
+		{ID: "p3", Address: "40003", DataType: "uint16", RegisterType: model.RegHolding},
+		{ID: "p4", Address: "40005", DataType: "uint16", RegisterType: model.RegHolding},
+	}
+	results, err := s.Read(context.Background(), points)
+	require.NoError(t, err)
+	for _, pt := range points {
+		assert.Equal(t, "Good", results[pt.ID].Quality, pt.ID)
+	}
+	assert.GreaterOrEqual(t, s.getEffectiveMaxPacketSize(), uint16(8))
+}
+
+func TestCoverage_DecoderEncodeFloat64AndInt64(t *testing.T) {
+	dec := NewPointDecoder("DCBA", 0, 0)
+
+	regs, err := dec.Encode(model.Point{DataType: "float32"}, float32(1.25))
+	require.NoError(t, err)
+	assert.Len(t, regs, 2)
+
+	val, quality, err := dec.Decode(model.Point{DataType: "float32"}, []byte{0, 0, 0x80, 0x3f})
+	require.NoError(t, err)
+	assert.Equal(t, "Good", quality)
+	assert.InDelta(t, float32(1.0), val, 0.01)
+
+	regs, err = dec.Encode(model.Point{DataType: "int32"}, int32(100))
+	require.NoError(t, err)
+	assert.NotEmpty(t, regs)
+}
+
+func TestCoverage_DecoderDataformatPath(t *testing.T) {
+	dec := NewPointDecoder("ABCD", 0, 0)
+	dec.EnableDataformatDecoder(true)
+
+	pt := model.Point{DataType: "int16", ReadFormula: "v"}
+	val, quality, err := dec.Decode(pt, []byte{0x04, 0xD2})
+	require.NoError(t, err)
+	assert.Equal(t, "Good", quality)
+	assert.NotNil(t, val)
+}
+
+func TestCoverage_ModbusInitAllOptions(t *testing.T) {
+	d := NewModbusDriver().(*ModbusDriver)
+	require.NoError(t, d.Init(model.DriverConfig{
+		ChannelID: "full-init",
+		Protocol:  "modbus-tcp",
+		Config: map[string]any{
+			"url":             "tcp://127.0.0.1:502",
+			"slave_id":        1,
+			"byteOrder":       "DCBA",
+			"batchSize":       20,
+			"timeout":         800,
+			"max_retries":     3,
+			"max_fail_count":  4,
+			"collect_cycle":   3000,
+			"instructionInterval": 15,
+		},
+	}))
+	dec, ok := d.scheduler.GetDecoder().(*PointDecoder)
+	require.True(t, ok)
+	assert.Equal(t, "DCBA", dec.byteOrder4)
+}
+
+func TestCoverage_NormalizeModbusURL(t *testing.T) {
+	assert.Equal(t, "tcp://127.0.0.1:502", normalizeModbusURL("127.0.0.1:502"))
+	assert.Equal(t, "tcp://127.0.0.1:502", normalizeModbusURL("tcp://127.0.0.1:502"))
+}
+
+func TestCoverage_DriverReadPointsWithTransportHooks(t *testing.T) {
+	d := NewModbusDriver().(*ModbusDriver)
+	require.NoError(t, d.Init(model.DriverConfig{
+		ChannelID: "hooked",
+		Config:    map[string]any{"url": "127.0.0.1:502", "slave_id": 1},
+	}))
+	regs := map[uint16]uint16{0: 4242}
+	d.transport.readRegistersHook = func(_ context.Context, _ string, offset uint16, count uint16) ([]byte, error) {
+		buf := make([]byte, count*2)
+		for i := uint16(0); i < count; i++ {
+			binary.BigEndian.PutUint16(buf[i*2:], regs[offset+i])
+		}
+		return buf, nil
+	}
+	d.transport.writeRegisterHook = func(_ context.Context, offset uint16, value uint16) error {
+		regs[offset] = value
+		return nil
+	}
+	d.transport.connected.Store(true)
+
+	results, err := d.ReadPoints(context.Background(), []model.Point{
+		{ID: "p1", Address: "40001", DataType: "int16", RegisterType: model.RegHolding},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int16(4242), results["p1"].Value)
+	assert.Equal(t, "Good", results["p1"].Quality)
+
+	require.NoError(t, d.WritePoint(context.Background(), model.Point{
+		Address: "40001", DataType: "int16", RegisterType: model.RegHolding,
+	}, int16(999)))
+	assert.Equal(t, uint16(999), regs[0])
 }

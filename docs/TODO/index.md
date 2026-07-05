@@ -2,8 +2,8 @@
 
 | 项 | 内容 |
 |----|------|
-| 版本 | V1.1 |
-| 更新 | 2026-07-04 |
+| 版本 | V1.2 |
+| 更新 | 2026-07-05 |
 | 架构基线 | [边缘计算南向采集优化方案2026第三季度.md](../[TODO]边缘计算南向采集优化方案2026第三季度.html) |
 | 总览 | [边缘网关架构设计总览.md](../edge/边缘网关架构设计总览.html) |
 
@@ -68,6 +68,7 @@ config.db → ChannelManager → ScanEngine → ExecutionLayer → Driver.ReadPo
 
 | 主题 | 文档 | 状态 |
 |------|------|------|
+| 边缘计算 2.0 升级（**V2.2 Pipeline Worker PRIMARY**） | [边缘计算优化升级2.0.md](./边缘计算优化升级2.0.md) · [ARMv7工业控制内核 Go 参考实现.md](./ARMv7工业控制内核 Go 参考实现.md) | 规划中 |
 | ScanEngine 重构 | [ScanEngine重构方案.md](./ScanEngine重构方案.html) | ✅ 已落地 |
 | ScanEngine 测试 | [ScanEngine重构测试报告.md](./ScanEngine重构测试报告.html) | ✅ |
 | 通道设备状态 | Q3 §6.1 A2 + `channel_device_state.go` | ✅ |

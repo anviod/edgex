@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"testing"
+	"time"
 
 	"github.com/anviod/edgex/internal/driver"
 	"github.com/anviod/edgex/internal/model"
@@ -104,4 +105,65 @@ func TestCoverage_SchedulerInvalidAddress(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "Bad", results["bad"].Quality)
+}
+
+func TestCoverage_ParseConfigFloat(t *testing.T) {
+	cfg := map[string]any{"ratio": 1.5, "count": 10, "label": "x"}
+	assert.InDelta(t, 1.5, parseConfigFloat(cfg, "ratio", 0), 0.001)
+	assert.InDelta(t, 10.0, parseConfigFloat(cfg, "count", 0), 0.001)
+	assert.InDelta(t, 99.0, parseConfigFloat(cfg, "missing", 99), 0.001)
+}
+
+func TestCoverage_TransportMetricsAndProbe(t *testing.T) {
+	tr := NewS7Transport(map[string]any{
+		"ip": "10.0.0.8", "rack": 0, "slot": 1, "timeout": 500,
+	})
+	defer tr.connMgr.Close()
+
+	connSec, recon, _, remote, _ := tr.GetConnectionMetrics()
+	assert.Equal(t, int64(0), connSec)
+	assert.Equal(t, int64(0), recon)
+	assert.Contains(t, remote, "10.0.0.8")
+
+	tr.RecordFailure(assert.AnError)
+	tr.RecordSuccess()
+	assert.False(t, tr.NeedProbeCheck())
+
+	tr.connected.Store(true)
+	tr.connectTime = time.Now()
+	tr.lastSuccessTime.Store(time.Now().Add(-31 * time.Second))
+	assert.True(t, tr.NeedProbeCheck())
+	assert.False(t, tr.ProbeConnection())
+}
+
+func TestCoverage_SchedulerMerkerRead(t *testing.T) {
+	tr := NewS7Transport(map[string]any{"ip": "127.0.0.1"})
+	tr.connected.Store(true)
+
+	mockCli := &mockClient{
+		agReadMultiFunc: func(dataItems []gos7.S7DataItem, itemsCount int) error {
+			for i := range dataItems {
+				if len(dataItems[i].Data) >= 2 {
+					binary.BigEndian.PutUint16(dataItems[i].Data, 100)
+				}
+			}
+			return nil
+		},
+	}
+	tr.client = mockCli
+
+	s := NewS7Scheduler(tr, NewS7Decoder(), nil)
+	results, err := s.ReadPoints(context.Background(), []model.Point{
+		{ID: "m2", Address: "MW10", DataType: "int16"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Good", results["m2"].Quality)
+}
+
+func TestCoverage_QualityScoreDisconnected(t *testing.T) {
+	d := NewS7Driver().(*S7Driver)
+	require.NoError(t, d.Init(model.DriverConfig{
+		Config: map[string]any{"ip": "127.0.0.1"},
+	}))
+	assert.Equal(t, 45, d.calculateQualityScore(1.0))
 }

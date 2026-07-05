@@ -281,3 +281,77 @@ func TestKNXDecoderWrapper(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, uint16(0x0A03), parsed.GroupAddr)
 }
+
+func TestSchedulerWriteWithSimulator(t *testing.T) {
+	sim := NewSimulator()
+	_, _ = parseGroupAddress("2/1/10")
+	addr, err := sim.Start()
+	require.NoError(t, err)
+	defer sim.Close()
+
+	host, portStr, _ := net.SplitHostPort(addr)
+	d := NewKNXnetIPDriver().(*KNXnetIPDriver)
+	require.NoError(t, d.Init(model.DriverConfig{
+		ChannelID: "write-test",
+		Config: map[string]any{
+			"ip": host, "port": mustAtoi(portStr), "timeout": 2000,
+		},
+	}))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, d.Connect(ctx))
+	defer d.Disconnect()
+
+	require.NoError(t, d.WritePoint(ctx, model.Point{
+		ID: "w1", Address: "2/1/10", DataType: "BOOL",
+	}, true))
+
+	results, err := d.ReadPoints(ctx, []model.Point{
+		{ID: "r1", Address: "2/1/10", DataType: "BOOL"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Good", results["r1"].Quality)
+	assert.True(t, results["r1"].Value.(bool))
+}
+
+func TestSchedulerInvalidAddressBatch(t *testing.T) {
+	tr := NewKNXTransport(map[string]any{"ip": "127.0.0.1"})
+	s := NewKNXScheduler(tr, NewKNXDecoder())
+
+	results, err := s.ReadPoints(context.Background(), []model.Point{
+		{ID: "bad", Address: "invalid"},
+		{ID: "bad2", Address: ""},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Bad", results["bad"].Quality)
+	assert.Equal(t, "Bad", results["bad2"].Quality)
+
+	total, _, failures := s.GetStats()
+	assert.Equal(t, int64(2), failures)
+	assert.Equal(t, int64(0), total)
+}
+
+func TestProtocolConnectResponse(t *testing.T) {
+	body := make([]byte, 24)
+	for i := 0; i < 16; i++ {
+		body[i] = 0x08
+	}
+	body[16] = 8
+	body[17] = 0x1A
+	body[18] = 0x00
+	binary.BigEndian.PutUint16(body[19:21], 0x1101)
+	cr, err := parseConnectResponse(body)
+	require.NoError(t, err)
+	assert.Equal(t, byte(0x1A), cr.ChannelID)
+	assert.Equal(t, uint16(0x1101), cr.KNXAddr)
+}
+
+func TestBuildConnectionStateRequest(t *testing.T) {
+	req := buildConnectionStateRequest(5)
+	require.NotEmpty(t, req)
+	ch, status, err := parseConnectionStateResponse([]byte{4, 5, 0, 0})
+	require.NoError(t, err)
+	assert.Equal(t, byte(5), ch)
+	assert.Equal(t, byte(0), status)
+}

@@ -634,25 +634,27 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 		return nil, fmt.Errorf("no active client")
 	}
 	if !client.Connected {
-		canRetry, waitTime := client.connMgr.CanRetry()
-		if !canRetry {
-			d.recordReadOutcome(startTime, false, "network")
-			return nil, fmt.Errorf("client not connected, cannot retry")
-		}
-		if waitTime > 0 {
-			time.Sleep(waitTime)
-		}
+		err := client.connMgr.EnsureConnected(ctx, func(ctx context.Context) error {
+			d.mu.Lock()
+			defer d.mu.Unlock()
 
-		if err := client.Client.Connect(ctx); err != nil {
-			client.connMgr.RecordFailure()
+			if client.Connected {
+				return nil
+			}
+			if client.Client == nil {
+				return fmt.Errorf("opcua client not initialized")
+			}
+			if err := client.Client.Connect(ctx); err != nil {
+				return err
+			}
+			client.Connected = true
+			d.recordReconnect()
+			return nil
+		})
+		if err != nil {
 			d.recordReadOutcome(startTime, false, "network")
 			return nil, fmt.Errorf("client not connected: %v", err)
 		}
-		d.mu.Lock()
-		client.Connected = true
-		client.connMgr.RecordSuccess()
-		d.recordReconnect()
-		d.mu.Unlock()
 	}
 
 	deviceID := points[0].DeviceID

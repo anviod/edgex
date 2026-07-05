@@ -11,6 +11,7 @@ func TestEdgeComputeManager_TypeConversion(t *testing.T) {
 	// Setup
 	pipeline := NewDataPipeline(10)
 	em := NewEdgeComputeManager(pipeline, nil, func(rules []model.EdgeRule) error { return nil })
+	em.SetBatchWindow(0)
 	em.Start()
 	defer em.Stop()
 

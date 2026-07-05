@@ -8,6 +8,11 @@ import (
 	"github.com/anviod/edgex/internal/model"
 )
 
+const (
+	serialQueueBufferSize   = 64
+	serialQueueSoftLimitPct = 0.9
+)
+
 type DriverTask struct {
 	Ctx       context.Context
 	DeviceKey string
@@ -36,6 +41,11 @@ func (sqm *SerialQueueManager) Submit(task *DriverTask) bool {
 	}
 	sqm.mu.Unlock()
 
+	softLimit := int(float64(cap(ctx.Queue)) * serialQueueSoftLimitPct)
+	if len(ctx.Queue) > softLimit {
+		return false
+	}
+
 	select {
 	case ctx.Queue <- task:
 		return true
@@ -60,7 +70,7 @@ func (sqm *SerialQueueManager) RegisterDriver(deviceKey string, d driver.Driver)
 func (sqm *SerialQueueManager) createContext(deviceKey string) *ExecutionContext {
 	ctx := &ExecutionContext{
 		DeviceKey: deviceKey,
-		Queue:     make(chan *DriverTask, 64),
+		Queue:     make(chan *DriverTask, serialQueueBufferSize),
 	}
 
 	worker := &SerialWorker{

@@ -240,14 +240,21 @@ func (t *ModbusTransport) ProbeConnection() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	if !t.connected.Load() || t.client == nil {
+	if !t.connected.Load() {
 		return
 	}
 
 	_, cancel := context.WithTimeout(context.Background(), t.timeout)
 	defer cancel()
 
-	_, err := t.client.ReadCoil(0)
+	var err error
+	if t.readCoilHook != nil {
+		_, err = t.readCoilHook(context.Background(), 0)
+	} else if t.client != nil {
+		_, err = t.client.ReadCoil(0)
+	} else {
+		return
+	}
 	if err != nil {
 		t.RecordFailure(err)
 		if t.collectFailCount.Load() >= t.maxFailCount {
@@ -596,19 +603,29 @@ func contains(s, substr string) bool {
 	return strings.Contains(strings.ToLower(s), substr)
 }
 
+// getClient snapshots the client pointer under mu; I/O runs without holding mu
+// (channelMu or SerialQueue provides serialization — v5.2).
+func (t *ModbusTransport) getClient() *modbus.ModbusClient {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.client
+}
+
 func (t *ModbusTransport) ReadRegisters(ctx context.Context, regType string, offset uint16, count uint16) ([]byte, error) {
+	if t.readRegistersHook != nil {
+		return t.readRegistersHook(ctx, regType, offset, count)
+	}
 	res, err := t.withRetry(ctx, func() (any, error) {
-		t.mu.Lock()
-		defer t.mu.Unlock()
-		if t.client == nil {
+		client := t.getClient()
+		if client == nil {
 			return nil, fmt.Errorf("client is nil")
 		}
 
 		switch regType {
 		case "HOLDING_REGISTER", "holding", "holding_register", "HOLDING", "Holding Registers":
-			return t.client.ReadBytes(offset, count*2, modbus.HOLDING_REGISTER)
+			return client.ReadBytes(offset, count*2, modbus.HOLDING_REGISTER)
 		case "INPUT_REGISTER", "input", "input_register", "INPUT", "Input Registers":
-			return t.client.ReadBytes(offset, count*2, modbus.INPUT_REGISTER)
+			return client.ReadBytes(offset, count*2, modbus.INPUT_REGISTER)
 		default:
 			return nil, fmt.Errorf("unsupported regType for ReadRegisters: %s", regType)
 		}
@@ -620,13 +637,15 @@ func (t *ModbusTransport) ReadRegisters(ctx context.Context, regType string, off
 }
 
 func (t *ModbusTransport) ReadCoil(ctx context.Context, offset uint16) (bool, error) {
+	if t.readCoilHook != nil {
+		return t.readCoilHook(ctx, offset)
+	}
 	res, err := t.withRetry(ctx, func() (any, error) {
-		t.mu.Lock()
-		defer t.mu.Unlock()
-		if t.client == nil {
+		client := t.getClient()
+		if client == nil {
 			return nil, fmt.Errorf("client is nil")
 		}
-		return t.client.ReadCoil(offset)
+		return client.ReadCoil(offset)
 	})
 	if err != nil {
 		return false, err
@@ -635,13 +654,15 @@ func (t *ModbusTransport) ReadCoil(ctx context.Context, offset uint16) (bool, er
 }
 
 func (t *ModbusTransport) ReadDiscreteInput(ctx context.Context, offset uint16) (bool, error) {
+	if t.readDiscreteInputHook != nil {
+		return t.readDiscreteInputHook(ctx, offset)
+	}
 	res, err := t.withRetry(ctx, func() (any, error) {
-		t.mu.Lock()
-		defer t.mu.Unlock()
-		if t.client == nil {
+		client := t.getClient()
+		if client == nil {
 			return nil, fmt.Errorf("client is nil")
 		}
-		return t.client.ReadDiscreteInput(offset)
+		return client.ReadDiscreteInput(offset)
 	})
 	if err != nil {
 		return false, nil
@@ -655,13 +676,15 @@ func (t *ModbusTransport) ReadCustom(ctx context.Context, funcCode byte, offset 
 }
 
 func (t *ModbusTransport) WriteRegister(ctx context.Context, offset uint16, value uint16) error {
+	if t.writeRegisterHook != nil {
+		return t.writeRegisterHook(ctx, offset, value)
+	}
 	_, err := t.withRetry(ctx, func() (any, error) {
-		t.mu.Lock()
-		defer t.mu.Unlock()
-		if t.client == nil {
+		client := t.getClient()
+		if client == nil {
 			return nil, fmt.Errorf("client is nil")
 		}
-		return nil, t.client.WriteRegister(offset, value)
+		return nil, client.WriteRegister(offset, value)
 	})
 	return err
 }
@@ -757,25 +780,29 @@ func getLocalAddr(client *modbus.ModbusClient) string {
 }
 
 func (t *ModbusTransport) WriteRegisters(ctx context.Context, offset uint16, values []uint16) error {
+	if t.writeRegistersHook != nil {
+		return t.writeRegistersHook(ctx, offset, values)
+	}
 	_, err := t.withRetry(ctx, func() (any, error) {
-		t.mu.Lock()
-		defer t.mu.Unlock()
-		if t.client == nil {
+		client := t.getClient()
+		if client == nil {
 			return nil, fmt.Errorf("client is nil")
 		}
-		return nil, t.client.WriteRegisters(offset, values)
+		return nil, client.WriteRegisters(offset, values)
 	})
 	return err
 }
 
 func (t *ModbusTransport) WriteCoil(ctx context.Context, offset uint16, value bool) error {
+	if t.writeCoilHook != nil {
+		return t.writeCoilHook(ctx, offset, value)
+	}
 	_, err := t.withRetry(ctx, func() (any, error) {
-		t.mu.Lock()
-		defer t.mu.Unlock()
-		if t.client == nil {
+		client := t.getClient()
+		if client == nil {
 			return nil, fmt.Errorf("client is nil")
 		}
-		return nil, t.client.WriteCoil(offset, value)
+		return nil, client.WriteCoil(offset, value)
 	})
 	return err
 }

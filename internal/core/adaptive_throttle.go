@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	adaptiveThrottleMaxFactor = 8.0
+	adaptiveThrottleMaxFactor = 4.0
 	deviceRTTMinFactor        = 1.5
 	deviceRTTMaxFactor        = 4.0
 )

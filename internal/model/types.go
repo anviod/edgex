@@ -499,15 +499,22 @@ type RuleRuntimeState struct {
 	RuleID         string            `json:"rule_id"`
 	RuleName       string            `json:"rule_name"`
 	Enable         bool              `json:"enable"`
-	LastCheckTime  time.Time         `json:"last_check_time,omitempty"` // For CheckInterval
-	LastTrigger    time.Time         `json:"last_trigger"`
+	LastCheckTime   time.Time         `json:"last_check_time,omitempty"`    // For CheckInterval
+	LastWindowEval  time.Time         `json:"last_window_eval,omitempty"`   // Window aggregation step tick
+	LastTrigger     time.Time         `json:"last_trigger"`
 	LastValue      any               `json:"last_value"`
-	TriggerCount   int64             `json:"trigger_count"`
-	CurrentStatus  string            `json:"current_status"` // NORMAL, ALARM
-	ConditionStart time.Time         `json:"condition_start,omitempty"`
-	ConditionCount int               `json:"condition_count,omitempty"`
-	ErrorMessage   string            `json:"error_message,omitempty"`
-	ActionLastRuns map[int]time.Time `json:"action_last_runs,omitempty"`
+	TriggerCount         int64             `json:"trigger_count"`
+	SuccessCount         int64             `json:"success_count"`          // completed trigger cycles without error
+	FailureCount         int64             `json:"failure_count"`          // evaluate/dispatch/action failures
+	ActionSuccessCount   int64             `json:"action_success_count"`   // individual action successes
+	ActionFailureCount   int64             `json:"action_failure_count"`   // individual action failures
+	CurrentStatus        string            `json:"current_status"` // NORMAL, WARNING, ALARM
+	ConditionStart       time.Time         `json:"condition_start,omitempty"`
+	ConditionCount       int               `json:"condition_count,omitempty"`
+	ErrorMessage         string            `json:"error_message,omitempty"`
+	ActionLastRuns       map[int]time.Time   `json:"action_last_runs,omitempty"`
+	ExecutionPhase       string            `json:"execution_phase,omitempty"`        // idle, window, evaluate, state_hold, trigger, action, completed, error
+	ExecutionActionIndex int               `json:"execution_action_index,omitempty"` // 0-based when execution_phase=action
 }
 
 type FailedAction struct {

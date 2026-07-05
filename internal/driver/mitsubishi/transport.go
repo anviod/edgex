@@ -154,29 +154,30 @@ func (t *MCTransport) WriteRaw(addr *MCAddress, data []byte, isBit bool) error {
 
 func (t *MCTransport) transact(frame []byte) ([]byte, error) {
 	t.mu.Lock()
-	defer t.mu.Unlock()
+	conn := t.conn
+	t.mu.Unlock()
 
-	if !t.connected.Load() || t.conn == nil {
+	if !t.connected.Load() || conn == nil {
 		return nil, fmt.Errorf("mitsubishi not connected")
 	}
 
-	_ = t.conn.SetDeadline(time.Now().Add(t.cfg.timeout))
+	_ = conn.SetDeadline(time.Now().Add(t.cfg.timeout))
 
-	if _, err := t.conn.Write(frame); err != nil {
+	if _, err := conn.Write(frame); err != nil {
 		t.markDisconnected()
 		return nil, fmt.Errorf("mitsubishi write failed: %w", err)
 	}
 
 	buf := make([]byte, 4096)
-	n, err := io.ReadAtLeast(t.conn, buf, 11)
+	n, err := io.ReadAtLeast(conn, buf, 11)
 	if err != nil {
 		t.markDisconnected()
 		return nil, fmt.Errorf("mitsubishi read failed: %w", err)
 	}
 
 	for n < len(buf) {
-		_ = t.conn.SetDeadline(time.Now().Add(100 * time.Millisecond))
-		m, err := t.conn.Read(buf[n:])
+		_ = conn.SetDeadline(time.Now().Add(100 * time.Millisecond))
+		m, err := conn.Read(buf[n:])
 		if m > 0 {
 			n += m
 		}
@@ -195,6 +196,9 @@ func (t *MCTransport) transact(frame []byte) ([]byte, error) {
 }
 
 func (t *MCTransport) markDisconnected() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	if t.conn != nil {
 		_ = t.conn.Close()
 		t.conn = nil

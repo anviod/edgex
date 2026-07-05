@@ -129,3 +129,21 @@ func TestBoostPriorityOnMiss_CapsAtPriorityLevels(t *testing.T) {
 		t.Fatalf("priority = %d, want capped at 10", task.Priority)
 	}
 }
+
+func TestEnforceAntiStarvation_RescuesOverdueTask(t *testing.T) {
+	se := NewScanEngine(ScanEngineConfig{AntiStarvationSec: 1, JitterBound: 10 * time.Millisecond})
+	now := time.Date(2026, 7, 3, 12, 0, 0, 0, time.UTC)
+	task := se.AddTask("dev-starve", "modbus-tcp", time.Second, 3, []string{"p1"}, nil)
+	task.NextRun = now.Add(-2 * time.Second)
+	task.DeadlineAt = now.Add(-time.Second)
+
+	before := se.GetMetrics().Snapshot()["starvation_rescue_total"].(uint64)
+	se.enforceAntiStarvation(now)
+	after := se.GetMetrics().Snapshot()["starvation_rescue_total"].(uint64)
+	if after <= before {
+		t.Fatalf("starvation rescue total = %d, want increase from %d", after, before)
+	}
+	if task.Priority != 10 {
+		t.Fatalf("rescued task priority = %d, want 10", task.Priority)
+	}
+}

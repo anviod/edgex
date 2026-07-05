@@ -10,8 +10,7 @@
         <a-tabs v-model:active-key="tab" type="rounded" size="small" class="main-tabs">
             <a-tab-pane key="metrics" title="监控面板" />
             <a-tab-pane key="rules" title="规则管理" />
-            <a-tab-pane key="status" title="运行记录" />
-            <a-tab-pane key="logs" title="日志查询" />
+            <a-tab-pane key="status" title="记录与日志" />
         </a-tabs>
 
         <div class="edge-compute-body">
@@ -19,17 +18,26 @@
 
             <div v-if="tab === 'rules'" class="edge-compute-flow">
                 <section class="edge-compute-panel" aria-label="规则管理">
-                <div class="edge-compute-toolbar edge-compute-toolbar--primary">
-                    <a-space size="small">
-                        <a-button type="primary" @click="openDialog">
-                            <template #icon><IconPlus /></template>
-                            添加规则
-                        </a-button>
-                        <a-button type="text" size="small" class="help-trigger-btn" @click="helpVisible = true">
-                            <template #icon><IconQuestionCircle /></template>
-                            帮助说明
-                        </a-button>
-                    </a-space>
+                <div class="edge-compute-toolbar edge-compute-toolbar--view">
+                    <div class="edge-compute-toolbar__left">
+                        <a-space size="small">
+                            <a-button type="primary" size="small" @click="openDialog">
+                                <template #icon><IconPlus /></template>
+                                添加规则
+                            </a-button>
+                            <a-button type="text" size="small" class="help-trigger-btn" @click="helpVisible = true">
+                                <template #icon><IconQuestionCircle /></template>
+                                帮助说明
+                            </a-button>
+                        </a-space>
+                        <span v-if="rules.length > 0" class="edge-compute-panel-meta">{{ rules.length }} 条规则</span>
+                    </div>
+                    <div class="edge-compute-toolbar__right">
+                        <a-radio-group v-model="rulesViewMode" type="button" size="small" class="edge-compute-view-toggle">
+                            <a-radio value="flow">流程视图</a-radio>
+                            <a-radio value="table">表格视图</a-radio>
+                        </a-radio-group>
+                    </div>
                 </div>
                 <div v-show="selectedRuleKeys.length > 0" class="edge-compute-toolbar edge-compute-toolbar--batch">
                     <span class="selection-count">已选 {{ selectedRuleKeys.length }} 项</span>
@@ -39,128 +47,217 @@
                     <a-button size="small" type="outline" status="danger" @click="handleBatchDelete">批量删除</a-button>
                 </div>
                 <div class="edge-compute-tertiary-block">
-                <div class="table-container saas-table">
-                    <a-table
-                        :columns="ruleColumns"
-                        :data="rules"
-                        size="small"
-                        :bordered="false"
-                        :scroll="{ x: 960 }"
-                        :row-selection="{ type: 'checkbox', showCheckedAll: true }"
-                        v-model:selected-keys="selectedRuleKeys"
-                        row-key="id"
-                    >
-                        <template #operations="{ record }">
-                            <span class="table-ops">
-                            <a-button type="text" size="small" @click="editRule(record)">
-                                <template #icon><IconEdit /></template>
-                            </a-button>
-                            <a-button type="text" size="small" status="danger" @click="deleteRule(record)">
-                                <template #icon><IconDelete /></template>
-                            </a-button>
-                            </span>
-                        </template>
-                        <template #enable="{ record }">
-                            <span class="table-cell-semantic">
-                            <a-tag :color="record.enable ? 'success' : 'danger'" size="small">
-                                {{ record.enable ? '启用' : '禁用' }}
-                            </a-tag>
-                            </span>
-                        </template>
-                        <template #type="{ record }">
-                            {{ formatRuleType(record.type) }}
-                        </template>
-                        <template #trigger_mode="{ record }">
-                            {{ formatTriggerMode(record.trigger_mode) }}
-                        </template>
-                    </a-table>
-                </div>
+                    <div v-if="rulesViewMode === 'flow'" class="rule-flow-list">
+                        <RuleFlowCard
+                            v-for="rule in rules"
+                            :key="rule.id"
+                            :rule="rule"
+                            :state="ruleStateMap[rule.id]"
+                            :selected="selectedRuleKeys.includes(rule.id)"
+                            :compact="true"
+                            @select="(checked) => toggleRuleSelection(rule.id, checked)"
+                        >
+                            <template #operations>
+                                <span class="table-ops">
+                                    <a-button
+                                        v-if="rule.type === 'window'"
+                                        type="text"
+                                        size="small"
+                                        @click="viewWindowData(rule.id, rule.name)"
+                                    >
+                                        窗口数据
+                                    </a-button>
+                                    <a-button type="text" size="small" @click="editRule(rule)">
+                                        <template #icon><IconEdit /></template>
+                                    </a-button>
+                                    <a-button type="text" size="small" status="danger" @click="deleteRule(rule)">
+                                        <template #icon><IconDelete /></template>
+                                    </a-button>
+                                </span>
+                            </template>
+                        </RuleFlowCard>
+                        <a-empty v-if="rules.length === 0" class="empty-wrap">
+                            <template #image><IconStorage :size="48" class="empty-icon-muted" /></template>
+                            <div class="empty-title">暂无规则</div>
+                            <div class="empty-desc">点击「添加规则」创建第一条边缘计算规则</div>
+                        </a-empty>
+                    </div>
+                    <div v-else class="table-container saas-table">
+                        <a-table
+                            :columns="ruleColumns"
+                            :data="rules"
+                            size="small"
+                            :bordered="false"
+                            :scroll="{ x: 960 }"
+                            :row-selection="{ type: 'checkbox', showCheckedAll: true }"
+                            v-model:selected-keys="selectedRuleKeys"
+                            row-key="id"
+                        >
+                            <template #operations="{ record }">
+                                <span class="table-ops">
+                                <a-button type="text" size="small" @click="editRule(record)">
+                                    <template #icon><IconEdit /></template>
+                                </a-button>
+                                <a-button type="text" size="small" status="danger" @click="deleteRule(record)">
+                                    <template #icon><IconDelete /></template>
+                                </a-button>
+                                </span>
+                            </template>
+                            <template #enable="{ record }">
+                                <span class="table-cell-semantic">
+                                <a-tag :color="record.enable ? 'success' : 'danger'" size="small">
+                                    {{ record.enable ? '启用' : '禁用' }}
+                                </a-tag>
+                                </span>
+                            </template>
+                            <template #type="{ record }">
+                                {{ formatRuleType(record.type) }}
+                            </template>
+                            <template #trigger_mode="{ record }">
+                                {{ formatTriggerMode(record.trigger_mode) }}
+                            </template>
+                        </a-table>
+                    </div>
                 </div>
                 </section>
             </div>
 
             <div v-if="tab === 'status'" class="edge-compute-flow">
-                <section class="edge-compute-panel" aria-label="运行记录">
-                <div class="edge-compute-toolbar edge-compute-toolbar--end">
-                    <a-button type="outline" size="small" @click="fetchRuleStates">
-                        <template #icon><IconRefresh /></template>
-                        刷新
-                    </a-button>
-                </div>
-                <div class="edge-compute-tertiary-block">
-                <div class="table-container saas-table">
-                    <a-table
-                        :columns="statusColumns"
-                        :data="ruleStates"
-                        size="small"
-                        :bordered="false"
-                        :scroll="{ x: 1100 }"
-                    >
-                        <template #current_status="{ record }">
-                            <span class="table-cell-semantic">
-                            <a-tag :color="getStatusColor(record.current_status)" size="small">
-                                {{ record.current_status }}
-                            </a-tag>
-                            </span>
-                        </template>
-                        <template #last_trigger="{ record }">
-                            {{ formatDate(record.last_trigger) }}
-                        </template>
-                        <template #operations="{ record }">
-                            <a-button type="text" size="small" @click="viewWindowData(record.rule_id, record.rule_name)">
-                                查看窗口数据
+                <section class="edge-compute-panel" aria-label="记录与日志">
+                <div class="edge-compute-toolbar edge-compute-toolbar--records">
+                    <div class="edge-compute-toolbar__left edge-compute-records-heading">
+                        <a-radio-group v-model="recordType" type="button" size="small" class="edge-compute-record-type-toggle">
+                            <a-radio value="events">事件记录</a-radio>
+                            <a-radio value="logs">分钟日志</a-radio>
+                        </a-radio-group>
+                        <a-tooltip v-if="recordType === 'events'" content="仅记录条件满足后的完整触发周期；日常校验与窗口等待不产生记录。">
+                            <IconInfoCircle class="edge-compute-records-info" />
+                        </a-tooltip>
+                        <span v-if="recordCount > 0" class="edge-compute-panel-meta">{{ recordCount }} 条</span>
+                    </div>
+                    <div class="edge-compute-toolbar__right">
+                    <a-space size="small">
+                        <a-badge :count="activeFilterCount" :dot="activeFilterCount > 0">
+                            <a-button type="outline" size="small" @click="filterVisible = true">
+                                <template #icon><IconFilter /></template>
+                                筛选
                             </a-button>
-                        </template>
-                        <template #error_message="{ record }">
-                            <span class="single-line-cell text-error">{{ record.error_message }}</span>
-                        </template>
-                    </a-table>
+                        </a-badge>
+                        <a-button type="outline" size="small" @click="refreshRecords">
+                            <template #icon><IconRefresh /></template>
+                            刷新
+                        </a-button>
+                        <a-popconfirm
+                            content="确定清空所有边缘计算日志（事件、失败记录、分钟级日志）？规则与实时状态不会受影响。"
+                            @ok="clearEdgeLogs"
+                        >
+                            <a-button type="outline" status="danger" size="small">
+                                清空日志
+                            </a-button>
+                        </a-popconfirm>
+                        <a-button
+                            v-if="recordType === 'logs'"
+                            type="outline"
+                            size="small"
+                            @click="exportLogs"
+                            :disabled="logs.length === 0"
+                        >
+                            <template #icon><IconDownload /></template>
+                            导出 CSV
+                        </a-button>
+                    </a-space>
+                    </div>
                 </div>
-                </div>
-                </section>
-            </div>
 
-            <div v-if="tab === 'logs'" class="edge-compute-flow">
-                <section class="edge-compute-panel" aria-label="日志查询">
-                <div class="edge-compute-toolbar edge-compute-toolbar--filters">
-                    <a-input v-model="query.start" placeholder="开始时间" type="datetime-local" size="small" class="filter-input" />
-                    <a-input v-model="query.end" placeholder="结束时间" type="datetime-local" size="small" class="filter-input" />
-                    <a-input v-model="query.ruleId" placeholder="规则ID (可选)" size="small" class="filter-input filter-input--narrow" />
-                    <a-button type="primary" size="small" @click="queryLogs">查询</a-button>
-                    <a-button type="outline" size="small" @click="exportLogs" :disabled="logs.length === 0">
-                        <template #icon><IconDownload /></template>
-                        导出 CSV
-                    </a-button>
-                </div>
-                <div class="edge-compute-tertiary-block">
-                <div class="table-container saas-table">
-                    <a-table
-                        :columns="logColumns"
-                        :data="logs"
+                <div v-if="activeFilterChips.length > 0" class="edge-compute-filter-chips">
+                    <a-tag
+                        v-for="chip in activeFilterChips"
+                        :key="chip.key"
                         size="small"
-                        :bordered="false"
-                        :scroll="{ x: 1200 }"
+                        closable
+                        @close="removeFilterChip(chip.key)"
                     >
-                        <template #status="{ record }">
-                            <span class="table-cell-semantic">
-                            <a-tag :color="getStatusColor(record.status)" size="small">
-                                {{ record.status }}
-                            </a-tag>
-                            </span>
-                        </template>
-                        <template #last_value="{ record }">
-                            <span class="single-line-cell" @click="showDetails('完整值', record.last_value)" title="点击查看详情">
-                                {{ record.last_value }}
-                            </span>
-                        </template>
-                        <template #error_message="{ record }">
-                            <span class="single-line-cell text-error" @click="showDetails('错误详情', record.error_message)" title="点击查看详情">
-                                {{ record.error_message }}
-                            </span>
-                        </template>
-                    </a-table>
+                        {{ chip.label }}
+                    </a-tag>
+                    <a-button type="text" size="mini" @click="resetRecordFilters">清除筛选</a-button>
                 </div>
-                </div>
+
+                <template v-if="recordType === 'events'">
+                    <a-empty v-if="edgeEvents.length === 0" class="empty-wrap">
+                        <template #image><IconHistory :size="48" class="empty-icon-muted" /></template>
+                        <div class="empty-title">暂无运行记录</div>
+                        <div class="empty-desc">规则触发后将在此显示完整执行周期</div>
+                    </a-empty>
+                    <div v-else class="edge-compute-tertiary-block">
+                    <div class="table-container saas-table edge-compute-records-table">
+                        <a-table
+                            :columns="eventColumns"
+                            :data="edgeEvents"
+                            size="small"
+                            :bordered="false"
+                            :pagination="{ pageSize: 20, showTotal: true }"
+                            row-key="id"
+                        >
+                            <template #status="{ record }">
+                                <a-tag :color="getEventStatusColor(record.status)" size="small">{{ record.status }}</a-tag>
+                            </template>
+                            <template #duration_ms="{ record }">
+                                {{ record.duration_ms != null ? `${record.duration_ms} ms` : '—' }}
+                            </template>
+                            <template #started_at="{ record }">
+                                {{ formatDate(record.started_at) }}
+                            </template>
+                            <template #actions="{ record }">
+                                <span class="single-line-cell" :title="formatEventActions(record.actions)">
+                                    {{ formatEventActions(record.actions) }}
+                                </span>
+                            </template>
+                            <template #error_message="{ record }">
+                                <span v-if="record.error_message" class="edge-compute-records-error">{{ record.error_message }}</span>
+                                <span v-else class="edge-compute-records-muted">—</span>
+                            </template>
+                        </a-table>
+                    </div>
+                    </div>
+                </template>
+
+                <template v-else>
+                    <a-empty v-if="logs.length === 0" class="empty-wrap">
+                        <template #image><IconClockCircle :size="48" class="empty-icon-muted" /></template>
+                        <div class="empty-title">暂无分钟日志</div>
+                        <div class="empty-desc">规则运行后将按分钟汇总状态与触发次数</div>
+                    </a-empty>
+                    <div v-else class="edge-compute-tertiary-block">
+                        <div class="table-container saas-table">
+                            <a-table
+                                :columns="logColumns"
+                                :data="logs"
+                                size="small"
+                                :bordered="false"
+                                :scroll="{ x: 1200 }"
+                                :pagination="{ pageSize: 20, showTotal: true }"
+                            >
+                                <template #status="{ record }">
+                                    <span class="table-cell-semantic">
+                                    <a-tag :color="getStatusColor(record.status)" size="small">
+                                        {{ record.status }}
+                                    </a-tag>
+                                    </span>
+                                </template>
+                                <template #last_value="{ record }">
+                                    <span class="single-line-cell" @click="showDetails('完整值', record.last_value)" title="点击查看详情">
+                                        {{ record.last_value }}
+                                    </span>
+                                </template>
+                                <template #error_message="{ record }">
+                                    <span class="single-line-cell text-error" @click="showDetails('错误详情', record.error_message)" title="点击查看详情">
+                                        {{ record.error_message }}
+                                    </span>
+                                </template>
+                            </a-table>
+                        </div>
+                    </div>
+                </template>
                 </section>
             </div>
         </div>
@@ -476,6 +573,14 @@
 
         <EdgeComputeHelpDrawer v-model:visible="helpVisible" />
 
+        <EdgeRecordFilterModal
+            v-model:visible="filterVisible"
+            :mode="recordType"
+            :filters="currentRecordFilters"
+            :rules="rules"
+            @apply="applyRecordFilters"
+        />
+
                 <!-- Expression Helper Dialog -->
                 <a-modal v-model:visible="helperDialog" title="表达式转换助手" width="600px">
                     <div class="pt-4">
@@ -654,13 +759,26 @@
 <script setup>
 import {
   Tabs, TabPane, Card, Table, Button, Modal, Form, FormItem, Input,
-  InputNumber, Select, Switch, Alert, Collapse, CollapseItem, Tag, Row, Col
+  InputNumber, Select, Switch, Alert, Collapse, CollapseItem, Tag, Row, Col,
+  RadioGroup, Radio, Empty
 } from '@arco-design/web-vue'
 import {
-  IconPlus, IconEdit, IconDelete, IconRefresh, IconDownload, IconCode, IconInfoCircle, IconBook, IconArrowDown, IconQuestionCircle
+  IconPlus, IconEdit, IconDelete, IconRefresh, IconDownload, IconCode, IconInfoCircle, IconBook, IconArrowDown, IconQuestionCircle, IconFilter,
+  IconStorage, IconHistory, IconClockCircle
 } from '@arco-design/web-vue/es/icon'
 import ActionEditor from '@/components/ActionEditor.vue'
 import EdgeComputeHelpDrawer from '@/components/edge-compute/EdgeComputeHelpDrawer.vue'
+import EdgeRecordFilterModal from '@/components/edge-compute/EdgeRecordFilterModal.vue'
+import RuleFlowCard from '@/components/edge-compute/RuleFlowCard.vue'
+import {
+  buildEventApiParams,
+  buildLogApiParams,
+  countActiveFilters,
+  createDefaultFilters,
+  describeFilterChips,
+  filterEventsClient,
+  filterLogsClient,
+} from '@/composables/useEdgeRecordFilters'
 
 // 表格列定义
 const ruleColumns = [
@@ -672,16 +790,6 @@ const ruleColumns = [
   { title: '操作', dataIndex: 'operations', slotName: 'operations', fixed: 'right', width: 120 }
 ]
 
-const statusColumns = [
-  { title: '规则名称', dataIndex: 'rule_name', width: 140 },
-  { title: '当前状态', dataIndex: 'current_status', slotName: 'current_status', width: 100 },
-  { title: '最近触发时间', dataIndex: 'last_trigger', slotName: 'last_trigger', width: 160 },
-  { title: '触发次数', dataIndex: 'trigger_count', width: 90 },
-  { title: '最新值', dataIndex: 'last_value', width: 120 },
-  { title: '操作', dataIndex: 'operations', slotName: 'operations', width: 120 },
-  { title: '错误信息', dataIndex: 'error_message', slotName: 'error_message', width: 200 }
-]
-
 const logColumns = [
   { title: '时间', dataIndex: 'minute', width: 160 },
   { title: '规则ID', dataIndex: 'rule_id', width: 120 },
@@ -690,6 +798,15 @@ const logColumns = [
   { title: '触发次数', dataIndex: 'trigger_count', width: 100 },
   { title: '值', dataIndex: 'last_value', slotName: 'last_value', width: 400 },
   { title: '错误信息', dataIndex: 'error_message', slotName: 'error_message', width: 400 }
+]
+
+const eventColumns = [
+  { title: '时间', dataIndex: 'started_at', slotName: 'started_at', width: 160 },
+  { title: '规则', dataIndex: 'rule_name', ellipsis: true },
+  { title: '状态', dataIndex: 'status', slotName: 'status', width: 90 },
+  { title: '耗时', dataIndex: 'duration_ms', slotName: 'duration_ms', width: 80 },
+  { title: '动作', dataIndex: 'actions', slotName: 'actions', ellipsis: true },
+  { title: '错误', dataIndex: 'error_message', slotName: 'error_message', ellipsis: true },
 ]
 
 const windowDataColumns = [
@@ -749,10 +866,11 @@ const logicalFunctions = [
   { function: '<code>lt(a, b)</code>', description: '小于', example: '<code>lt(v, 50)</code>' },
   { function: '<code>le(a, b)</code>', description: '小于等于', example: '<code>le(v, 50)</code>' }
 ]
-import { ref, reactive, computed, watch, watchEffect, onMounted, onUnmounted, provide } from 'vue'
+import { ref, reactive, computed, watch, watchEffect, onMounted, provide } from 'vue'
 import { useRoute } from 'vue-router'
 import request from '@/utils/request'
 import { showMessage } from '@/composables/useGlobalState'
+import { useEdgeStatePolling } from '@/composables/useEdgeStatePolling'
 import { base64ToUint8Array, uint8ArrayToHex, detectFileType, downloadBytes } from '@/utils/decode'
 import EdgeComputeMetrics from './EdgeComputeMetrics.vue'
 
@@ -824,8 +942,26 @@ const copyExample = (example) => {
 
 const route = useRoute()
 const tab = ref('metrics')
+const rulesViewMode = ref('flow')
 const rules = ref([])
 const ruleStates = ref([])
+
+const ruleStateMap = computed(() => {
+    const map = {}
+    for (const state of ruleStates.value) {
+        if (state?.rule_id) map[state.rule_id] = state
+    }
+    return map
+})
+
+const toggleRuleSelection = (ruleId, checked) => {
+    const idx = selectedRuleKeys.value.indexOf(ruleId)
+    if (checked && idx === -1) {
+        selectedRuleKeys.value = [...selectedRuleKeys.value, ruleId]
+    } else if (!checked && idx !== -1) {
+        selectedRuleKeys.value = selectedRuleKeys.value.filter(id => id !== ruleId)
+    }
+}
 const dialog = ref(false)
 const helpVisible = ref(false)
 const editingRule = ref(false)
@@ -892,7 +1028,6 @@ const devices = ref([])
 const windowDialog = ref(false)
 const windowData = ref([])
 const currentWindowRuleName = ref('')
-let timer = null
 
 const fetchNorthboundConfig = async () => {
     try {
@@ -950,12 +1085,18 @@ const downloadDetectedFile = () => {
     }
 }
 
-const query = reactive({
-    start: '',
-    end: '',
-    ruleId: ''
-})
-const logs = ref([])
+const recordType = ref('events')
+const filterVisible = ref(false)
+const eventFilters = reactive(createDefaultFilters('events'))
+const logFilters = reactive(createDefaultFilters('logs'))
+const rawEdgeEvents = ref([])
+const rawLogs = ref([])
+const edgeEvents = computed(() => filterEventsClient(rawEdgeEvents.value, eventFilters))
+const logs = computed(() => filterLogsClient(rawLogs.value, logFilters))
+const currentRecordFilters = computed(() => (recordType.value === 'events' ? eventFilters : logFilters))
+const activeFilterCount = computed(() => countActiveFilters(currentRecordFilters.value, recordType.value))
+const activeFilterChips = computed(() => describeFilterChips(currentRecordFilters.value, recordType.value, rules.value))
+const recordCount = computed(() => (recordType.value === 'events' ? edgeEvents.value.length : logs.value.length))
 
 const currentRule = reactive({
     id: '',
@@ -1155,17 +1296,87 @@ const fetchRuleStates = async () => {
     }
 }
 
+const fetchEdgeEvents = async () => {
+    try {
+        const params = buildEventApiParams(eventFilters)
+        const data = await request.get(`/api/edge/events?${params.toString()}`)
+        rawEdgeEvents.value = data || []
+    } catch (e) {
+        console.error('Failed to fetch edge events', e)
+    }
+}
+
+const refreshRecords = async () => {
+    if (recordType.value === 'events') {
+        await fetchEdgeEvents()
+    } else {
+        await queryLogs()
+    }
+}
+
+const refreshRuntimeRecords = async () => {
+    await Promise.all([fetchRuleStates(), refreshRecords()])
+}
+
+const getEventStatusColor = (status) => {
+    switch (status) {
+        case 'completed': return 'green'
+        case 'error': return 'red'
+        case 'dropped': return 'orange'
+        case 'running': return 'blue'
+        default: return 'gray'
+    }
+}
+
+const formatEventActions = (actions) => {
+    if (!actions?.length) return '—'
+    return actions.map(a => `${a.type}:${a.status}`).join(', ')
+}
+
+const { refresh: refreshRuleStates } = useEdgeStatePolling({
+    tab,
+    rulesViewMode,
+    fetchRuleStates: refreshRuntimeRecords,
+})
+
 const queryLogs = async () => {
     try {
-        const params = new URLSearchParams()
-        if (query.start) params.append('start_date', query.start.replace('T', ' '))
-        if (query.end) params.append('end_date', query.end.replace('T', ' '))
-        if (query.ruleId) params.append('rule_id', query.ruleId)
-        
+        const params = buildLogApiParams(logFilters)
         const data = await request.get(`/api/edge/logs?${params.toString()}`)
-        logs.value = data || []
+        rawLogs.value = data || []
     } catch (e) {
-        console.error("Failed to query logs", e)
+        console.error('Failed to query logs', e)
+    }
+}
+
+const applyRecordFilters = async (filters) => {
+    Object.assign(currentRecordFilters.value, filters)
+    await refreshRecords()
+}
+
+const removeFilterChip = async (key) => {
+    const filters = currentRecordFilters.value
+    if (key === 'limit') {
+        filters.limit = 100
+    } else {
+        filters[key] = ''
+    }
+    await refreshRecords()
+}
+
+const resetRecordFilters = async () => {
+    Object.assign(currentRecordFilters.value, createDefaultFilters(recordType.value))
+    await refreshRecords()
+}
+
+const clearEdgeLogs = async () => {
+    try {
+        await request.post('/api/edge/logs/clear')
+        rawEdgeEvents.value = []
+        rawLogs.value = []
+        showMessage('日志已清空', 'success')
+    } catch (e) {
+        showMessage('清空失败: ' + (e.message || e), 'error')
     }
 }
 
@@ -1437,13 +1648,29 @@ const fetchDevices = async (channelId) => {
 
 // Action Helper Functions removed - moved to ActionEditor component
 
+watch(recordType, () => {
+    if (tab.value === 'status') {
+        refreshRecords()
+    }
+})
+
+watch(tab, (newTab) => {
+    if (newTab === 'status') {
+        refreshRecords()
+    }
+})
+
 onMounted(async () => {
     await fetchRules()
     fetchChannels()
-    fetchRuleStates()
     fetchNorthboundConfig()
-    // Poll status every 5 seconds
-    timer = setInterval(fetchRuleStates, 5000)
+
+    if (route.query.tab === 'logs') {
+        tab.value = 'status'
+        recordType.value = 'logs'
+    } else if (route.query.tab === 'status') {
+        tab.value = 'status'
+    }
 
     if (route.query.rule) {
         const rule = rules.value.find(r => r.id === route.query.rule)
@@ -1451,10 +1678,6 @@ onMounted(async () => {
             editRule(rule)
         }
     }
-})
-
-onUnmounted(() => {
-    if (timer) clearInterval(timer)
 })
 </script>
 

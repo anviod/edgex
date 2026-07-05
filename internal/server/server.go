@@ -488,6 +488,9 @@ func (s *Server) setupRoutes() {
 	api.Get("/edge/metrics", s.getEdgeMetrics)
 	api.Get("/edge/shared-sources", s.getEdgeSharedSources)
 	api.Get("/edge/logs", s.handleGetEdgeLogs)
+	api.Post("/edge/logs/clear", s.clearEdgeLogs)
+	api.Get("/edge/events", s.getEdgeEvents)
+	api.Get("/edge/failures", s.getEdgeFailures)
 
 	tools := api.Group("/tools")
 	tools.Post("/random-write/start", s.startRandomWrite)

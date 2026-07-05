@@ -27,6 +27,18 @@ func TestEnsureConnected_Success(t *testing.T) {
 	}
 }
 
+func TestCanRetry_ConnectingMinBackoff(t *testing.T) {
+	cm := NewConnectionManager("test")
+	defer cm.Close()
+
+	cm.SetState(StateConnecting)
+
+	_, wait := cm.CanRetry()
+	if wait < connectingMinBackoff {
+		t.Fatalf("Connecting state should enforce min backoff %v, got %v", connectingMinBackoff, wait)
+	}
+}
+
 func TestCanRetry_ConnectingAfterFailureWaits(t *testing.T) {
 	cm := NewConnectionManager("test")
 	defer cm.Close()

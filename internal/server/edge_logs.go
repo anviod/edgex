@@ -101,3 +101,18 @@ func (s *Server) handleGetEdgeLogs(c *fiber.Ctx) error {
 
 	return c.JSON(logs)
 }
+
+func (s *Server) clearEdgeLogs(c *fiber.Ctx) error {
+	if s.ecm == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "Edge Compute manager not initialized"})
+	}
+	result, err := s.ecm.ClearEdgeLogs()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "edge logs cleared",
+		"cleared": result,
+	})
+}

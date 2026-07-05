@@ -381,3 +381,29 @@ func TestRegisterDriver_GetDriver(t *testing.T) {
 		t.Fatal("GetDriver for unknown name should return ok=false")
 	}
 }
+
+func TestConnectionManager_BackgroundLoop(t *testing.T) {
+	cm := NewConnectionManager("bg-test")
+	ran := make(chan struct{}, 1)
+
+	cm.StartBackgroundLoop(func(ctx context.Context) {
+		select {
+		case ran <- struct{}{}:
+		default:
+		}
+		<-ctx.Done()
+	})
+
+	select {
+	case <-ran:
+	case <-time.After(time.Second):
+		t.Fatal("background loop did not start")
+	}
+
+	cm.StopBackgroundLoop()
+
+	cm.StartBackgroundLoop(func(ctx context.Context) {
+		<-ctx.Done()
+	})
+	cm.StopBackgroundLoop()
+}

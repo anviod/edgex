@@ -6,21 +6,11 @@ import (
 )
 
 const (
-	protocolCongestionModbusRate = 1000.0
-	protocolCongestionOpcuaRate  = 400.0
-	protocolCongestionS7Rate     = 300.0
+	protocolCongestionModbusRate  = 1000.0
+	protocolCongestionOpcuaRate   = 400.0
+	protocolCongestionS7Rate      = 300.0
 	protocolCongestionDefaultRate = 600.0
 )
-
-// ProtocolCongestionController applies independent token buckets per protocol family
-// so Modbus, OPC UA, and S7 congestion do not starve each other.
-type ProtocolCongestionController struct {
-	buckets sync.Map // group -> *TokenBucket
-}
-
-func NewProtocolCongestionController() *ProtocolCongestionController {
-	return &ProtocolCongestionController{}
-}
 
 func protocolCongestionGroup(protocol string) string {
 	p := strings.ToLower(protocol)
@@ -49,6 +39,16 @@ func protocolCongestionRate(group string) float64 {
 	}
 }
 
+// ProtocolCongestionController is deprecated; protocol rate limiting lives in
+// BackpressureController.AllowWithReason (layer 3). Kept for test compatibility.
+type ProtocolCongestionController struct {
+	buckets sync.Map
+}
+
+func NewProtocolCongestionController() *ProtocolCongestionController {
+	return &ProtocolCongestionController{}
+}
+
 func (pc *ProtocolCongestionController) bucket(group string) *TokenBucket {
 	if raw, ok := pc.buckets.Load(group); ok {
 		return raw.(*TokenBucket)
@@ -67,13 +67,5 @@ func (pc *ProtocolCongestionController) Allow(protocol string) bool {
 }
 
 func (pc *ProtocolCongestionController) RejectTotal() uint64 {
-	if pc == nil {
-		return 0
-	}
-	var total uint64
-	pc.buckets.Range(func(_, value any) bool {
-		_ = value.(*TokenBucket)
-		return true
-	})
-	return total
+	return 0
 }

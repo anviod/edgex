@@ -39,10 +39,9 @@ type DeviceIOProfile struct {
 type IOProfileProvider func(deviceID string) DeviceIOProfile
 
 type ExecutionLayer struct {
-	serialManager      *SerialQueueManager
-	backpressure       *BackpressureController
-	protocolCongestion *ProtocolCongestionController
-	workerPool         *WorkerPool
+	serialManager *SerialQueueManager
+	backpressure  *BackpressureController
+	workerPool    *WorkerPool
 	gapOptimizer       *GapOptimizer
 	pointDegradation   *PointDegradationManager
 	ioProfileProvider  IOProfileProvider
@@ -55,10 +54,9 @@ type ExecutionLayer struct {
 
 func NewExecutionLayer() *ExecutionLayer {
 	return &ExecutionLayer{
-		serialManager:      NewSerialQueueManager(),
-		backpressure:       NewBackpressureController(512, 1000),
-		protocolCongestion: NewProtocolCongestionController(),
-		workerPool:         NewWorkerPool(32),
+		serialManager: NewSerialQueueManager(),
+		backpressure:  NewBackpressureController(512, 1000),
+		workerPool:    NewWorkerPool(32),
 		gapOptimizer:     NewGapOptimizer(),
 		protocolRegistry: make(map[string]ProtocolType),
 		driverRegistry:   make(map[string]driver.Driver),
@@ -112,14 +110,8 @@ func (el *ExecutionLayer) Execute(task *ScanTask) *ExecuteResult {
 	case ProtocolTypeSerial:
 		result = el.executeSerial(task)
 	case ProtocolTypeParallel:
-		if el.protocolCongestion != nil && !el.protocolCongestion.Allow(task.Protocol) {
-			return &ExecuteResult{Success: false, Error: ErrRateLimited}
-		}
 		result = el.executeParallel(task)
 	case ProtocolTypeLimited:
-		if el.protocolCongestion != nil && !el.protocolCongestion.Allow(task.Protocol) {
-			return &ExecuteResult{Success: false, Error: ErrRateLimited}
-		}
 		result = el.executeLimited(task)
 	default:
 		result = el.executeSerial(task)
@@ -176,8 +168,19 @@ func (el *ExecutionLayer) GetBackpressure() *BackpressureController {
 	return el.backpressure
 }
 
-func (el *ExecutionLayer) GetProtocolCongestion() *ProtocolCongestionController {
-	return el.protocolCongestion
+func (el *ExecutionLayer) allowThrottled(task *ScanTask, deviceLimit int) bool {
+	if el.backpressure == nil {
+		return true
+	}
+	ok, reason := el.backpressure.AllowWithReason(ThrottleContext{
+		DeviceKey:   task.DeviceKey,
+		Protocol:    task.Protocol,
+		DeviceLimit: deviceLimit,
+	})
+	if !ok {
+		el.backpressure.LogReject(task.DeviceKey, task.Protocol, reason)
+	}
+	return ok
 }
 
 func (el *ExecutionLayer) GetSerialQueueDepths() map[string]int {
@@ -284,14 +287,14 @@ func (el *ExecutionLayer) executeParallel(task *ScanTask) *ExecuteResult {
 		return &ExecuteResult{Success: false, Error: ErrDriverNotFound}
 	}
 
-	if !el.backpressure.Allow(task.DeviceKey, 8) {
+	if !el.allowThrottled(task, 8) {
 		return &ExecuteResult{Success: false, Error: ErrRateLimited}
 	}
 
 	resultChan := make(chan *ExecuteResult, 1)
 	points := el.loadPoints(task)
 
-	el.workerPool.Submit(func() {
+	if !el.workerPool.Submit(func() {
 		defer el.backpressure.Release(task.DeviceKey)
 
 		values, err := el.readPoints(d, task, context.Background(), points)
@@ -301,7 +304,10 @@ func (el *ExecutionLayer) executeParallel(task *ScanTask) *ExecuteResult {
 		} else {
 			resultChan <- &ExecuteResult{Success: true, Values: values}
 		}
-	})
+	}) {
+		el.backpressure.Release(task.DeviceKey)
+		return &ExecuteResult{Success: false, Error: ErrRateLimited}
+	}
 
 	select {
 	case result := <-resultChan:
@@ -312,7 +318,7 @@ func (el *ExecutionLayer) executeParallel(task *ScanTask) *ExecuteResult {
 }
 
 func (el *ExecutionLayer) executeLimited(task *ScanTask) *ExecuteResult {
-	if !el.backpressure.Allow(task.DeviceKey, 2) {
+	if !el.allowThrottled(task, 2) {
 		return &ExecuteResult{Success: false, Error: ErrRateLimited}
 	}
 
@@ -406,6 +412,9 @@ func (el *ExecutionLayer) readPoints(d driver.Driver, task *ScanTask, ctx contex
 	}
 
 	if task.Params != nil {
+		// channelMu is the sole I/O serialization guard for shared links.
+		// Transport.mu must only protect connection lifecycle (Connect/Disconnect),
+		// not Read/Write I/O — see v5.2 stable patch §评审项 2.
 		if isSharedLinkProtocol(task.Protocol) {
 			if mu, ok := task.Params["channelMu"].(*sync.Mutex); ok && mu != nil {
 				mu.Lock()

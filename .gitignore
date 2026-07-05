@@ -12,3 +12,4 @@ logs/gateway.edgex.log
 dist/
 *.log
 *.txt
+*.out

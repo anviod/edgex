@@ -172,10 +172,7 @@ func NewStorage(dataDir string) (*Storage, error) {
 	runtimePath := filepath.Join(dataDir, "runtime.db")
 
 	// 打开配置数据库（强一致写入）
-	configDB, err := bbolt.Open(configPath, 0600, &bbolt.Options{
-		Timeout:    30 * time.Second,
-		NoGrowSync: false,
-	})
+	configDB, err := openBoltDB(configPath, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open config database %s: %w", configPath, err)
 	}
@@ -202,10 +199,7 @@ func NewStorage(dataDir string) (*Storage, error) {
 	}
 
 	// 打开运行时数据库（允许清理、compact、重建）
-	runtimeDB, err := bbolt.Open(runtimePath, 0600, &bbolt.Options{
-		Timeout:    30 * time.Second,
-		NoGrowSync: true,
-	})
+	runtimeDB, err := openBoltDB(runtimePath, true)
 	if err != nil {
 		configDB.Close()
 		return nil, fmt.Errorf("failed to open runtime database %s: %w", runtimePath, err)

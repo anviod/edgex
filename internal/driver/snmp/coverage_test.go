@@ -2,6 +2,8 @@ package snmp
 
 import (
 	"context"
+	"encoding/binary"
+	"math"
 	"testing"
 	"time"
 
@@ -201,4 +203,77 @@ func TestParseDeviceConfigCoverage(t *testing.T) {
 	assert.Equal(t, "10.0.0.5", cfg.TargetIP)
 	assert.Equal(t, 25, cfg.MaxBulkSize)
 	assert.False(t, cfg.isV3())
+}
+
+func TestCoverage_ParseAddress(t *testing.T) {
+	dec := NewSNMPDecoder()
+	v2cfg := parseDeviceConfig(map[string]any{"snmpVersion": "v2c"})
+
+	addr, err := dec.ParseAddress("public|1.3.6.1.2.1.1.1.0", v2cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "public", addr.Community)
+	assert.Equal(t, "1.3.6.1.2.1.1.1.0", addr.OID)
+
+	v3cfg := parseDeviceConfig(map[string]any{"snmpVersion": "v3"})
+	addr, err = dec.ParseAddress("admin|1.3.6.1.4.1.1.0", v3cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "admin", addr.SecurityName)
+
+	invalid := []string{"", "only-oid", "public|", "public|not.oid"}
+	for _, raw := range invalid {
+		_, err = dec.ParseAddress(raw, v2cfg)
+		require.Error(t, err, raw)
+	}
+}
+
+func TestCoverage_ConfigHelperFunctions(t *testing.T) {
+	assert.Equal(t, 42, intFromAny(float64(42), 0))
+	assert.Equal(t, 7, intFromAny("7", 0))
+	assert.Equal(t, 99, intFromAny(nil, 99))
+	assert.Equal(t, "hello", stringFromAny(" hello "))
+	assert.Equal(t, "10.0.0.1", firstNonEmpty("", "10.0.0.1"))
+	assert.Equal(t, 200*time.Millisecond, millisFromAny(200, time.Second))
+	assert.Equal(t, "127.0.0.1:161", parseDeviceConfig(nil).remoteAddr())
+}
+
+func TestCoverage_DecoderFloatAndCounter(t *testing.T) {
+	dec := NewSNMPDecoder()
+
+	buf := make([]byte, 4)
+	binary.BigEndian.PutUint32(buf, math.Float32bits(3.14))
+	val, quality := dec.DecodePDU(gosnmp.SnmpPDU{Type: gosnmp.OctetString, Value: buf}, "FLOAT")
+	assert.Equal(t, "Good", quality)
+	assert.InDelta(t, 3.14, val.(float64), 0.01)
+
+	val, quality = dec.DecodePDU(gosnmp.SnmpPDU{Type: gosnmp.Counter64, Value: uint64(999)}, "UINT64")
+	assert.Equal(t, "Good", quality)
+	assert.Equal(t, uint64(999), val)
+
+	modelVal := dec.ToModelValue(model.Point{ID: "p1", DataType: "INT32"},
+		gosnmp.SnmpPDU{Type: gosnmp.Integer, Value: 5})
+	assert.Equal(t, "p1", modelVal.PointID)
+	assert.Equal(t, "Good", modelVal.Quality)
+}
+
+func TestCoverage_SchedulerStatsAfterRead(t *testing.T) {
+	d := NewSNMPDriver().(*SNMPDriver)
+	require.NoError(t, d.Init(model.DriverConfig{
+		Config: map[string]any{"ip": "127.0.0.1", "community": "public"},
+	}))
+	d.transport.getHook = func(oids []string, _ string) ([]gosnmp.SnmpPDU, error) {
+		return []gosnmp.SnmpPDU{{Name: oids[0], Type: gosnmp.Integer, Value: 1}}, nil
+	}
+	d.transport.connected.Store(true)
+	d.transport.client = &gosnmp.GoSNMP{}
+
+	ctx := context.Background()
+	_, err := d.ReadPoints(ctx, []model.Point{
+		{ID: "p1", Address: "public|1.3.6.1.2.1.1.1.0", DataType: "INT32"},
+	})
+	require.NoError(t, err)
+
+	total, success, failure := d.scheduler.GetStats()
+	assert.Equal(t, int64(1), total)
+	assert.Equal(t, int64(1), success)
+	assert.Equal(t, int64(0), failure)
 }

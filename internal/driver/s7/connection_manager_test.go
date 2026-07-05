@@ -94,7 +94,7 @@ func TestCanRetry(t *testing.T) {
 	cm.SetState(StateConnecting)
 	canRetry, wait = cm.CanRetry()
 	assert.True(t, canRetry)
-	assert.Equal(t, 0*time.Millisecond, wait)
+	assert.Equal(t, 200*time.Millisecond, wait)
 
 	cm.RecordSuccess()
 	canRetry, wait = cm.CanRetry()

@@ -33,7 +33,7 @@ func TestAdaptiveThrottle_RTTDrivenInterval(t *testing.T) {
 	}
 }
 
-func TestAdaptiveThrottle_CappedAtEight(t *testing.T) {
+func TestAdaptiveThrottle_CappedAtFour(t *testing.T) {
 	at := NewAdaptiveThrottle(nil)
 
 	factor := at.Refresh(1000, 1000, 0.8, 1000)
@@ -77,5 +77,78 @@ func TestAdaptiveThrottle_FailRateSlowdown(t *testing.T) {
 	factor := at.Refresh(100, 1000, 0.25, 50)
 	if factor < 1.5 {
 		t.Fatalf("expected fail-rate slowdown >= 1.5, got %v", factor)
+	}
+}
+
+func TestAdaptiveThrottle_DeviceRTTSpike(t *testing.T) {
+	at := NewAdaptiveThrottle(nil)
+	at.UpdateDeviceRTT("dev-slow", 100)
+	at.UpdateDeviceRTT("dev-slow", 500)
+
+	factor := at.DeviceFactor("dev-slow")
+	if factor < deviceRTTMinFactor {
+		t.Fatalf("device factor = %v, want >= %v", factor, deviceRTTMinFactor)
+	}
+
+	eff := at.effectiveIntervalForDevice("dev-slow", 100*time.Millisecond)
+	if eff <= 100*time.Millisecond {
+		t.Fatalf("effective interval = %v, want > base", eff)
+	}
+}
+
+func TestAdaptiveThrottle_ApplyIntervalNoChange(t *testing.T) {
+	at := NewAdaptiveThrottle(nil)
+	task := &ScanTask{
+		DeviceKey:    "dev-flat",
+		BaseInterval: time.Second,
+		Interval:     time.Second,
+	}
+	if at.ApplyInterval(task) {
+		t.Fatal("ApplyInterval should not change when factor is 1")
+	}
+}
+
+func TestAdaptiveThrottle_ApplyIntervalLocked(t *testing.T) {
+	metrics := &ScanEngineMetrics{}
+	at := NewAdaptiveThrottle(metrics)
+	at.Refresh(900, 1000, 0, 0)
+
+	task := &ScanTask{
+		DeviceKey:    "dev-lock",
+		BaseInterval: 100 * time.Millisecond,
+		Interval:     100 * time.Millisecond,
+	}
+	task.mu.Lock()
+	changed := at.applyIntervalLocked(task)
+	task.mu.Unlock()
+	if !changed {
+		t.Fatal("applyIntervalLocked should adjust interval under pressure")
+	}
+}
+
+func TestAdaptiveThrottle_NilSafeApplyInterval(t *testing.T) {
+	var at *AdaptiveThrottle
+	if at.ApplyInterval(&ScanTask{BaseInterval: time.Second, Interval: time.Second}) {
+		t.Fatal("nil ApplyInterval should return false")
+	}
+	at.UpdateDeviceRTT("dev", 100)
+}
+
+func TestAdaptiveThrottle_QueuePressureTiers(t *testing.T) {
+	at := NewAdaptiveThrottle(nil)
+
+	cases := []struct {
+		depth, limit int
+		minFactor    float64
+	}{
+		{300, 1000, 1.4},
+		{600, 1000, 1.9},
+		{800, 1000, 2.4},
+	}
+	for _, tc := range cases {
+		f := at.Refresh(tc.depth, tc.limit, 0, 0)
+		if f < tc.minFactor {
+			t.Fatalf("depth %d: factor %v < %v", tc.depth, f, tc.minFactor)
+		}
 	}
 }

@@ -11,6 +11,7 @@ func TestEdgeComputeManager_StateLogic(t *testing.T) {
 	// Setup
 	pipeline := NewDataPipeline(10)
 	em := NewEdgeComputeManager(pipeline, nil, func(rules []model.EdgeRule) error { return nil })
+	em.SetBatchWindow(0)
 	em.Start()
 	defer em.Stop()
 
@@ -108,4 +109,75 @@ func TestEdgeComputeManager_StateLogic(t *testing.T) {
 	if states["rule-state-test"].ConditionCount != 1 {
 		t.Fatalf("ConditionCount should be 1, got %d", states["rule-state-test"].ConditionCount)
 	}
+}
+
+func TestEdgeComputeManager_ExecutionPhase(t *testing.T) {
+	pipeline := NewDataPipeline(10)
+	em := NewEdgeComputeManager(pipeline, nil, func(rules []model.EdgeRule) error { return nil })
+	em.SetBatchWindow(0)
+	em.Start()
+	defer em.Stop()
+
+	rule := model.EdgeRule{
+		ID:          "rule-phase-test",
+		Name:        "Phase Rule",
+		Type:        "state",
+		Enable:      true,
+		TriggerMode: "always",
+		Sources: []model.RuleSource{
+			{Alias: "t1", ChannelID: "ch1", DeviceID: "dev1", PointID: "p1"},
+		},
+		Condition: "t1 > 10",
+		State: &model.StateConfig{
+			Duration: "50ms",
+			Count:    1,
+		},
+		Actions: []model.RuleAction{
+			{Type: "log", Config: map[string]any{"message": "ok"}},
+		},
+	}
+	em.LoadRules([]model.EdgeRule{rule})
+
+	feed := func(val float64) {
+		em.handleValue(model.Value{
+			ChannelID: "ch1",
+			DeviceID:  "dev1",
+			PointID:   "p1",
+			Value:     val,
+			TS:        time.Now(),
+		})
+		time.Sleep(15 * time.Millisecond)
+	}
+
+	feed(20.0)
+	states := em.GetRuleStates()
+	state := states["rule-phase-test"]
+	if state == nil {
+		t.Fatal("expected rule state")
+	}
+	if state.ExecutionPhase != "state_hold" {
+		t.Fatalf("expected state_hold phase during WARNING, got %q", state.ExecutionPhase)
+	}
+	if state.CurrentStatus != "WARNING" {
+		t.Fatalf("expected WARNING, got %q", state.CurrentStatus)
+	}
+
+	time.Sleep(60 * time.Millisecond)
+	feed(20.0)
+	states = em.GetRuleStates()
+	state = states["rule-phase-test"]
+	if state.CurrentStatus != "ALARM" {
+		t.Fatalf("expected ALARM, got %q", state.CurrentStatus)
+	}
+
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		states = em.GetRuleStates()
+		state = states["rule-phase-test"]
+		if state.ExecutionPhase == "completed" && len(state.ActionLastRuns) > 0 {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("expected completed phase with action_last_runs, got phase=%q runs=%v", state.ExecutionPhase, state.ActionLastRuns)
 }

@@ -2,6 +2,8 @@ package core
 
 import (
 	"testing"
+
+	"github.com/anviod/edgex/internal/model"
 )
 
 func TestDeviceAdapterManager(t *testing.T) {
@@ -60,5 +62,24 @@ func TestDeviceAdapterManager(t *testing.T) {
 	}
 	if score < 0 || score > 100 {
 		t.Errorf("Expected stability score to be between 0 and 100, got %f", score)
+	}
+}
+
+func TestDeviceAdapterManager_RegisterAdapter(t *testing.T) {
+	manager := NewDeviceAdapterManager()
+	custom := manager.GetAdapter("custom-dev")
+	manager.RegisterAdapter("custom-dev", custom)
+
+	if manager.GetAdapter("custom-dev") == nil {
+		t.Fatal("registered adapter should be retrievable")
+	}
+
+	profile := &model.DeviceCommunicationProfile{DeviceID: "custom-dev", StabilityScore: 88}
+	if err := manager.UpdateDeviceProfile(profile); err != nil {
+		t.Fatalf("UpdateDeviceProfile: %v", err)
+	}
+	got, err := manager.GetDeviceProfile("custom-dev")
+	if err != nil || got.StabilityScore != 88 {
+		t.Fatalf("GetDeviceProfile = %+v, err=%v", got, err)
 	}
 }

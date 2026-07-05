@@ -191,3 +191,81 @@ func TestMockPLCBuildResponseInvalid(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, byte(0xD4), resp[0])
 }
+
+func TestMockPLCBatchReadMultiplePoints(t *testing.T) {
+	mock := NewMockPLC()
+	mock.SetWord("D", 100, 111)
+	mock.SetWord("D", 101, 222)
+	mock.SetWord("D", 102, 333)
+	mock.SetBit("M", 10, true)
+	addr, err := mock.Start()
+	require.NoError(t, err)
+	defer mock.Close()
+
+	host, portStr, _ := net.SplitHostPort(addr)
+	port, _ := strconv.Atoi(portStr)
+
+	d := NewMitsubishiDriver().(*MitsubishiDriver)
+	require.NoError(t, d.Init(model.DriverConfig{
+		ChannelID: "batch",
+		Config: map[string]any{
+			"ip": host, "port": port, "timeout": 2000, "batch_read_max": 2,
+		},
+	}))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, d.Connect(ctx))
+	defer d.Disconnect()
+
+	results, err := d.ReadPoints(ctx, []model.Point{
+		{ID: "d100", Address: "D100", DataType: "UINT16"},
+		{ID: "d101", Address: "D101", DataType: "UINT16"},
+		{ID: "d102", Address: "D102", DataType: "UINT16"},
+		{ID: "m10", Address: "M10", DataType: "BOOL"},
+		{ID: "bad", Address: "INVALID", DataType: "INT16"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, uint16(111), results["d100"].Value)
+	assert.Equal(t, uint16(222), results["d101"].Value)
+	assert.Equal(t, uint16(333), results["d102"].Value)
+	assert.True(t, results["m10"].Value.(bool))
+	assert.Equal(t, "Bad", results["bad"].Quality)
+
+	total, success, failure := d.scheduler.GetStats()
+	assert.Greater(t, total, int64(0))
+	assert.Greater(t, success, int64(0))
+	assert.Equal(t, int64(1), failure)
+}
+
+func TestSchedulerWriteMultipleTypes(t *testing.T) {
+	mock := NewMockPLC()
+	addr, err := mock.Start()
+	require.NoError(t, err)
+	defer mock.Close()
+
+	host, portStr, _ := net.SplitHostPort(addr)
+	port, _ := strconv.Atoi(portStr)
+
+	d := NewMitsubishiDriver().(*MitsubishiDriver)
+	require.NoError(t, d.Init(model.DriverConfig{
+		ChannelID: "write-types",
+		Config:    map[string]any{"ip": host, "port": port, "timeout": 2000},
+	}))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, d.Connect(ctx))
+	defer d.Disconnect()
+
+	require.NoError(t, d.WritePoint(ctx, model.Point{Address: "D200", DataType: "INT32"}, int32(12345)))
+	require.NoError(t, d.WritePoint(ctx, model.Point{Address: "D210", DataType: "FLOAT"}, float32(2.5)))
+
+	results, err := d.ReadPoints(ctx, []model.Point{
+		{ID: "i32", Address: "D200", DataType: "INT32"},
+		{ID: "f32", Address: "D210", DataType: "FLOAT"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int32(12345), results["i32"].Value)
+	assert.InDelta(t, float32(2.5), results["f32"].Value.(float32), 0.01)
+}

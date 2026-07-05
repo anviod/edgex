@@ -176,6 +176,27 @@ func TestCountOpenCircuits(t *testing.T) {
 	}
 }
 
+func TestSoakMonitor_StartStop(t *testing.T) {
+	se := NewScanEngine(ScanEngineConfig{MaxQueueSize: 100})
+	cm := &ChannelManager{scanEngineAdapter: NewScanEngineAdapter(se)}
+	sm := NewSoakMonitor(cm)
+
+	sm.Start()
+	sm.Start() // idempotent
+	time.Sleep(20 * time.Millisecond)
+	sm.Stop()
+	sm.Stop() // idempotent
+}
+
+func TestSoakMonitor_NilChannelManager(t *testing.T) {
+	sm := NewSoakMonitor(nil)
+	sm.recordSample()
+	snap := sm.Snapshot()
+	if snap["session"] == nil {
+		t.Fatal("expected session block in snapshot")
+	}
+}
+
 func TestSoakMonitor_TrendSamplesTrimmed(t *testing.T) {
 	se := NewScanEngine(ScanEngineConfig{MaxQueueSize: 100})
 	cm := &ChannelManager{scanEngineAdapter: NewScanEngineAdapter(se)}

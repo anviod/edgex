@@ -1,3 +1,9 @@
+// ConnectionController is a read-only observability module for connection health.
+// It classifies errors, records read/connection metrics, and exposes health signals.
+//
+// Reconnect/dial MUST NOT be triggered through ConnectionController. All reconnect
+// behavior goes exclusively through driver.ConnectionManager (EnsureConnected /
+// ScheduleReconnect).
 package core
 
 import (
@@ -7,46 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	globalReconnectMu     sync.Mutex
-	globalReconnectCount  int
-	globalReconnectLastTime time.Time
-	MaxGlobalReconnectRate = 10
-)
-
-func tryAcquireGlobalReconnectSlot() bool {
-	globalReconnectMu.Lock()
-	defer globalReconnectMu.Unlock()
-
-	now := time.Now()
-	if now.Sub(globalReconnectLastTime) > time.Second {
-		globalReconnectCount = 0
-		globalReconnectLastTime = now
-	}
-
-	if globalReconnectCount >= MaxGlobalReconnectRate {
-		return false
-	}
-
-	globalReconnectCount++
-	return true
-}
-
-func calculateBackOffInterval(failCount int) time.Duration {
-	switch {
-	case failCount <= 2:
-		return 5 * time.Second
-	case failCount <= 5:
-		return 15 * time.Second
-	case failCount <= 10:
-		return 30 * time.Second
-	case failCount <= 15:
-		return 60 * time.Second
-	default:
-		return 120 * time.Second
-	}
-}
-
 type ConnectionController struct {
 	mu                  sync.Mutex
 	state               ConnState
@@ -55,12 +21,6 @@ type ConnectionController struct {
 	lastRetryTime       time.Time
 	lastSuccessTime     time.Time
 	coolDownUntil       time.Time
-	coolDownDuration    time.Duration
-	coolDownAttempts    int
-	coolDownBase        time.Duration
-	baseDelay           time.Duration
-	maxDelay            time.Duration
-	backoffFactor       float64
 	maxFailCount        int
 	driverName          string
 	deviceID            string
@@ -105,21 +65,14 @@ func (s ConnState) String() string {
 }
 
 func NewConnectionController(driverName, deviceID, protocol string) *ConnectionController {
-	cc := &ConnectionController{
-		state:            ConnStateDisconnected,
-		baseDelay:        100 * time.Millisecond,
-		maxDelay:         30 * time.Second,
-		backoffFactor:    2.0,
-		coolDownBase:     1 * time.Minute,
-		coolDownDuration: 1 * time.Minute,
-		maxRetries:       64,
-		maxFailCount:     5,
-		driverName:       driverName,
-		deviceID:         deviceID,
-		protocol:         protocol,
+	return &ConnectionController{
+		state:        ConnStateDisconnected,
+		maxRetries:   64,
+		maxFailCount: 5,
+		driverName:   driverName,
+		deviceID:     deviceID,
+		protocol:     protocol,
 	}
-
-	return cc
 }
 
 func (cc *ConnectionController) SetState(state ConnState) {
@@ -185,8 +138,6 @@ func (cc *ConnectionController) RecordConnectionSuccess() {
 	cc.connectionFailCount = 0
 	cc.lastSuccessTime = time.Now()
 	cc.lastConnectionTime = time.Now()
-	cc.coolDownAttempts = 0
-	cc.coolDownDuration = 1 * time.Minute
 
 	if cc.state != ConnStateConnected && cc.state != ConnStateHealthy {
 		cc.state = ConnStateConnected
@@ -197,6 +148,8 @@ func (cc *ConnectionController) RecordConnectionSuccess() {
 	}
 }
 
+// RecordConnectionFailure increments observability counters only.
+// It does not authorize reconnect; use driver.ConnectionManager for that.
 func (cc *ConnectionController) RecordConnectionFailure() (shouldRetry bool, backoff time.Duration) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
@@ -204,27 +157,15 @@ func (cc *ConnectionController) RecordConnectionFailure() (shouldRetry bool, bac
 	cc.connectionFailCount++
 	cc.retryCount++
 	cc.lastRetryTime = time.Now()
+	cc.lastConnectionTime = time.Now()
 
-	if cc.state == ConnStateConnected || cc.state == ConnStateHealthy || cc.state == ConnStateDegraded {
-		cc.state = ConnStateRetrying
-	}
+	zap.L().Warn("[ConnController] 连接失败（观测）",
+		zap.String("driver", cc.driverName),
+		zap.String("deviceID", cc.deviceID),
+		zap.Int("connectionFailCount", cc.connectionFailCount),
+	)
 
-	if cc.retryCount >= cc.maxRetries {
-		cc.state = ConnStateDead
-		cc.enterCoolDown()
-		return false, 0
-	}
-
-	if !tryAcquireGlobalReconnectSlot() {
-		zap.L().Warn("[ConnController] 全局重连限流，推迟重连",
-			zap.String("driver", cc.driverName),
-			zap.String("deviceID", cc.deviceID),
-		)
-		return true, 1 * time.Second
-	}
-
-	backoff = cc.calculateBackoff(cc.retryCount)
-	return true, backoff
+	return false, 0
 }
 
 func (cc *ConnectionController) IsConnectionFailure(err error) bool {
@@ -265,6 +206,32 @@ func (cc *ConnectionController) IsReadFailure(err error) bool {
 	return false
 }
 
+// HealthScore returns a 0–1 health signal derived from read/connection failure counts.
+func (cc *ConnectionController) HealthScore() float64 {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+
+	score := 1.0
+	if cc.maxFailCount > 0 {
+		readPenalty := float64(cc.readFailCount) / float64(cc.maxFailCount)
+		if readPenalty > 1 {
+			readPenalty = 1
+		}
+		score -= readPenalty * 0.5
+	}
+	if cc.maxRetries > 0 {
+		connPenalty := float64(cc.connectionFailCount) / float64(cc.maxRetries)
+		if connPenalty > 1 {
+			connPenalty = 1
+		}
+		score -= connPenalty * 0.5
+	}
+	if score < 0 {
+		return 0
+	}
+	return score
+}
+
 func containsIgnoreCase(s, substr string) bool {
 	if len(s) < len(substr) {
 		return false
@@ -298,135 +265,6 @@ func toLower(c byte) byte {
 	return c
 }
 
-func (cc *ConnectionController) calculateBackoff(attempt int) time.Duration {
-	backoff := cc.baseDelay * time.Duration(float64(1) * pow(cc.backoffFactor, float64(attempt)))
-	if backoff > cc.maxDelay {
-		backoff = cc.maxDelay
-	}
-
-	return backoff
-}
-
-func pow(base, exp float64) float64 {
-	result := 1.0
-	for i := 0; i < int(exp); i++ {
-		result *= base
-	}
-	return result
-}
-
-func (cc *ConnectionController) enterCoolDown() {
-	cc.coolDownAttempts++
-
-	if cc.coolDownAttempts >= 5 {
-		cc.coolDownDuration = 1 * time.Hour
-	} else {
-		cc.coolDownDuration = cc.coolDownBase * time.Duration(1<<(cc.coolDownAttempts-1))
-	}
-
-	cc.coolDownUntil = time.Now().Add(cc.coolDownDuration)
-
-	zap.L().Error("[ConnController] 进入冷却期",
-		zap.String("driver", cc.driverName),
-		zap.String("deviceID", cc.deviceID),
-		zap.Int("retryCount", cc.retryCount),
-		zap.Int("maxRetries", cc.maxRetries),
-		zap.Duration("coolDownDuration", cc.coolDownDuration),
-		zap.Int("coolDownAttempts", cc.coolDownAttempts),
-	)
-}
-
-func (cc *ConnectionController) CanRetry() (canRetry bool, waitTime time.Duration) {
-	cc.mu.Lock()
-	defer cc.mu.Unlock()
-
-	switch cc.state {
-	case ConnStateDisconnected:
-		if !tryAcquireGlobalReconnectSlot() {
-			return true, 1 * time.Second
-		}
-		return true, 0
-	case ConnStateConnecting:
-		if cc.retryCount > 0 {
-			if !tryAcquireGlobalReconnectSlot() {
-				return true, 1 * time.Second
-			}
-			return true, cc.calculateBackoff(cc.retryCount)
-		}
-		if !tryAcquireGlobalReconnectSlot() {
-			return true, 1 * time.Second
-		}
-		return true, 0
-	case ConnStateConnected, ConnStateHealthy:
-		return false, 0
-	case ConnStateDegraded:
-		if !tryAcquireGlobalReconnectSlot() {
-			return true, 1 * time.Second
-		}
-		backoff := cc.calculateBackoff(cc.readFailCount)
-		return true, backoff
-	case ConnStateRetrying:
-		if cc.retryCount >= cc.maxRetries {
-			cc.state = ConnStateDead
-			cc.enterCoolDown()
-			remaining := cc.coolDownUntil.Sub(time.Now())
-			return true, remaining
-		}
-		if !tryAcquireGlobalReconnectSlot() {
-			return true, 1 * time.Second
-		}
-		backoff := cc.calculateBackoff(cc.retryCount)
-		return true, backoff
-	case ConnStateDead:
-		remaining := cc.coolDownUntil.Sub(time.Now())
-		if remaining <= 0 {
-			cc.state = ConnStateRetrying
-			if cc.retryCount >= cc.maxRetries {
-				cc.state = ConnStateDead
-				cc.enterCoolDown()
-				remaining = cc.coolDownUntil.Sub(time.Now())
-				return true, remaining
-			}
-			if !tryAcquireGlobalReconnectSlot() {
-				return true, 1 * time.Second
-			}
-			backoff := cc.calculateBackoff(cc.retryCount)
-			return true, backoff
-		}
-		return true, remaining
-	default:
-		return false, 0
-	}
-}
-
-func (cc *ConnectionController) AttemptHalfOpen(success bool) {
-	cc.mu.Lock()
-	defer cc.mu.Unlock()
-
-	if success {
-		cc.state = ConnStateConnected
-		cc.retryCount = 0
-		cc.coolDownAttempts = 0
-		cc.coolDownDuration = 1 * time.Minute
-		cc.lastSuccessTime = time.Now()
-
-		zap.L().Info("[ConnController] Half-Open探测成功",
-			zap.String("driver", cc.driverName),
-			zap.String("deviceID", cc.deviceID),
-			zap.Int("coolDownAttempts", cc.coolDownAttempts),
-		)
-	} else {
-		cc.enterCoolDown()
-
-		zap.L().Warn("[ConnController] Half-Open探测失败",
-			zap.String("driver", cc.driverName),
-			zap.String("deviceID", cc.deviceID),
-			zap.Int("coolDownAttempts", cc.coolDownAttempts),
-			zap.Duration("coolDownDuration", cc.coolDownDuration),
-		)
-	}
-}
-
 func (cc *ConnectionController) GetStatus() (state ConnState, retryCount int, maxRetries int, coolDownRemaining time.Duration, lastSuccess time.Time, readFailCount int, connectionFailCount int) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
@@ -451,14 +289,6 @@ func (cc *ConnectionController) SetMaxFailCount(max int) {
 	cc.maxFailCount = max
 }
 
-func (cc *ConnectionController) SetBackoffParams(base, max time.Duration, factor float64) {
-	cc.mu.Lock()
-	defer cc.mu.Unlock()
-	cc.baseDelay = base
-	cc.maxDelay = max
-	cc.backoffFactor = factor
-}
-
 func (cc *ConnectionController) Reset() {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
@@ -466,8 +296,6 @@ func (cc *ConnectionController) Reset() {
 	cc.retryCount = 0
 	cc.readFailCount = 0
 	cc.connectionFailCount = 0
-	cc.coolDownAttempts = 0
-	cc.coolDownDuration = 1 * time.Minute
 	cc.state = ConnStateDisconnected
 
 	zap.L().Info("[ConnController] 连接控制器已重置",

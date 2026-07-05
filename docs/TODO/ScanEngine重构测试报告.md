@@ -172,6 +172,65 @@
 | 南向驱动 `-short` 全包 | ✅ PASS |
 | A–G 联机 / 12h / 72h | ⚠️ 待执行（运维级，见回归方案 §八） |
 
+### 2.8 单元测试覆盖率验收（2026-07-05）
+
+| 项 | 准入标准 | 基线（补测前） | 补测后 | 结果 |
+|----|----------|----------------|--------|------|
+| **`internal/core` 语句覆盖率** | **≥ 80%** | **60.3%** | **80.5%** | ✅ **达标** |
+| **`internal/core` + `internal/driver` 汇总** | **≥ 80%** | **57.7%** | **71.7%** | ⚠️ **未达**（driver 真实 TCP/会话路径上限） |
+| 命令 | `CGO_ENABLED=0 go test ./internal/core/... ./internal/driver/... -short -count=1 -coverprofile=coverage.out` | — | — | — |
+| `go tool cover -func=coverage.out \| tail -1` | 汇总 | 57.7% | **71.7%** | — |
+
+**分包仍低于 80%（`-short`，诚实披露）**
+
+| 包 | 覆盖率 | 说明 |
+|----|--------|------|
+| `internal/core` | **80.5%** | ✅ 达标 |
+| `internal/driver`（ConnectionManager） | **84.8%** | ✅ |
+| `internal/driver/bacnet`（含子包） | 66.4% | Mock Client + network 注入已大幅补测 |
+| `internal/driver/modbus` | 65.1% | transport hook / ProbeConnection hook |
+| `internal/driver/opcua` | 58.8% | variant/订阅缓存；`readDirect` 需 mock server |
+| `internal/driver/ethernetip` | 60.6% | tcpFactory 快速失败；Tag 读写需 ENIP mock |
+| `internal/driver/s7` | 62.3% | mock gos7 |
+| `internal/driver/omron` | 62.9% | mock UDP |
+| `internal/driver/snmp` | 66.5% | hook 读写 |
+| `internal/driver/ice104` | 61.2% | net.Pipe transport |
+| `internal/driver/profinetio` | 65.9% | simulation + RPC pipe |
+| `internal/driver/dlt645` | 76.5% | 帧/mock 链路 |
+| `internal/driver/mitsubishi` | 72.3% | Mock PLC |
+| `internal/driver/knxnetip` | 77.1% | 模拟器 |
+
+**新增 / 扩展测试清单（core，节选）**
+
+| 文件 | 覆盖重点 |
+|------|----------|
+| `store_forward_test.go` | StoreForwardManager 南向/北向缓存 |
+| `tag_registry_test.go` | TagRegistry 注册/解析/缩放 |
+| `coverage_helpers_test.go` | ScanEngine 聚合反馈、Adapter、校验、Shadow 池 |
+| `backpressure_controller_test.go` | TokenBucket、AllowWithReason 全拒绝路径 |
+| `system_manager_test.go` | 用户/路由/hostname 配置 |
+| `channel_manager_crud_test.go` | ChannelManager CRUD / shadow |
+| `channel_manager_io_test.go` | WritePoint / ReadPoint / pipeline 推送 |
+| `execution_layer_coverage_test.go` | Serial/Parallel/Limited Execute |
+| `northbound_manager_coverage_test.go` | 北向统计、EdgeOS CRUD、校验 |
+| `edge_compute_manager_hooks_test.go` | actionHook、规则 sanitize |
+| `core_coverage_boost*.go` | ScanEngine、Northbound、Pipeline 补测 |
+| `execution_context_test.go` | SerialWorker 驱动读取 |
+
+**新增 / 扩展测试清单（driver，节选）**
+
+| 文件 | 覆盖重点 |
+|------|----------|
+| `modbus/transport_coverage_test.go` | hook 读写、ProbeConnection、批量读 |
+| `bacnet/network/coverage_test.go` | mock Client 网络路径 |
+| `ethernetip/transport_scheduler_coverage_test.go` | tcpFactory 注入、scheduler |
+| `opcua/variant_coverage_test.go` | variant / parseWriteValue |
+| `profinetio/rpc_coverage_test.go` | net.Pipe PNIO RPC |
+| `ice104/transport_coverage_test.go` | net.Pipe 总召唤/命令 |
+| 各驱动 `coverage_test.go`（扩展） | omron / s7 / snmp / knxnetip / mitsubishi 等 |
+
+**未达 80% 汇总说明**：core 已达 **80.5%**；合并 scope 受 OPC UA / Modbus 真实连接、EtherNet/IP Tag I/O、BACnet TSM 响应链等 `-short` 不可达路径制约，需 mock server 或接口抽象方可继续推高。详见 [南向驱动测试报告 §八](../testing/南向驱动测试报告.html)。
+
 ## 三、重构交付物
 
 ### 3.1 核心代码变更
@@ -362,6 +421,146 @@ case "s7", "ethernet-ip", "profinet-io", "iec60870-5-104":
 | 驱动连接泄漏 | 低 | 资源耗尽 | 连接池 + soak memory gate |
 | OPC UA 重连风暴 | ✅ 已缓解 | — | ScheduleReconnect single-flight |
 | 运维长跑未确认 | 中 | 长期稳定性未知 | 72h soak + 30 天 MTBF 监控 |
+
+---
+
+## 九、v5.2 稳定版补丁交付
+
+> **补丁规格**：[ScanEngine重构方案-v5.2-稳定版补丁.md](./ScanEngine重构方案-v5.2-稳定版补丁.md)  
+> **交付日期**：2026-07-05  
+> **范围**：Top 3 最小变更（P0）+ P1 自适应 Tick / FeedbackAggregator 骨架
+
+### 9.1 代码变更清单
+
+| 文件 | 变更摘要 |
+|------|----------|
+| `internal/core/connection_controller.go` | 降级为纯观测层：删除 `CanRetry` / `AttemptHalfOpen` / core 包全局限流；`RecordConnectionFailure` 仅计数+日志；新增 `HealthScore()` |
+| `internal/core/connection_controller_test.go` | 移除 CanRetry/全局限流/HalfOpen 用例；新增观测层断言 |
+| `internal/core/backpressure_controller.go` | 统一限流：`AllowWithReason` 顺序 Global→Device→Protocol；`RejectReason` + `RejectByReason()` |
+| `internal/core/protocol_congestion.go` | 协议分桶 helper 保留；独立 Execute 前置调用已移除 |
+| `internal/core/execution_layer.go` | Parallel/Limited 单次 `allowThrottled()`；channelMu 注释强化 |
+| `internal/core/scan_engine.go` | 负载>70% fallback Tick 50ms；`throttle_reject_by_reason`；FeedbackAggregator 接入 `updateTaskStateAggregated` |
+| `internal/core/feedback_aggregator.go` | **新增** — 2s 窗口聚合骨架 |
+| `internal/core/feedback_aggregator_test.go` | **新增** |
+| `internal/core/protocol_congestion_test.go` | 迁移至 Backpressure 统一 Allow 测试 |
+| `internal/driver/modbus/transport.go` | I/O 路径去 `t.mu`；`getClient()` 快照 |
+| `internal/driver/mitsubishi/transport.go` | `transact` 无锁 I/O |
+
+### 9.2 测试命令与结果
+
+| 命令 | 结果 | 耗时 | 说明 |
+|------|------|------|------|
+| `go test ./internal/core/... -run 'ConnectionController\|SerialQueue\|Backpressure\|ProtocolCongestion\|ScanEngine\|ChannelSlave\|FeedbackAggregator' -count=1` | ✅ PASS | ~24s | v5.2 专项 |
+| `go test ./internal/driver/... -run 'Reconnect\|EnsureConnected\|Connecting' -count=1` | ✅ PASS | ~25s | 统一重连 |
+| `go test ./internal/core/... -short -count=1` | ✅ PASS | ~47s | core 全包 |
+| `go build ./internal/core/... ./internal/driver/modbus/... ./internal/driver/mitsubishi/...` | ✅ PASS | ~4s | 编译 |
+
+### 9.3 v5.2 验收标准对照
+
+| 评审项 | 关键验收 | 状态 |
+|--------|----------|------|
+| 1 ConnectionController | 无 dial 副作用；driver 无 `connController.CanRetry` | ✅ |
+| 2 channelMu | Modbus I/O 无 Transport.mu；channel 隔离测试 PASS | ✅（p99 基准未量化） |
+| 3 统一 Throttling | 单次 Allow；`reject_reason` metrics | ✅ |
+| 4 自适应 Tick | load>70% → 50ms | ✅（CPU benchmark 未跑） |
+| 7 FeedbackAggregator | 2s 窗口骨架；Shadow 仍实时 | ✅（`updateTaskStateAggregated` 已接入；成功/CB fast-path 仍同步） |
+
+### 9.4 遗留项
+
+- ~~FeedbackAggregator 尚未驱动 `updateTaskState` 聚合~~ → ✅ **2026-07-05 已接入**（失败路径 2s 窗口聚合；成功 / `ErrCircuitOpen` fast-path 同步）
+- ~~主方案文档 §4.4.4 准入顺序未改写~~ → ✅ **2026-07-05 已更新**（Global→Device→Protocol 单次 `AllowWithReason`）
+- DLT645/S7/KNX/Profinet Transport.mu I/O 审计 → ✅ **已对齐 Modbus 快照模式**（I/O 无锁；Connect/Disconnect 保留 mu）
+- OpcUa / Bacnet 驱动 goroutine 违规（S3 迁移）→ ✅ **2026-07-05 S3 已落地**：BACnet `ClientRun`→`StartBackgroundLoop`；`checkRecovery`→`ScheduleAsyncTask`；KNX heartbeat 同步迁移
+- 10k dispatch CPU ↓30% 基准未执行 → ✅ **2026-07-05 已执行**：`make bench-q3`（71s PASS）、`make bench-g007`（41s PASS）
+
+**南向回归交叉引用**：[南向驱动测试报告 §6](../testing/南向驱动测试报告.html)（2026-07-05 v5.2 补丁后 gate 全绿）；[压力测试报告 §2026-07-05](../testing/压力测试报告.html)；联机 A–G 仍按 [回归方案 §八](../testing/南向采集通道回归验证测试方案.html) 排期。
+
+### 9.5 小结
+
+P0 三项已落地并通过回归；P1 自适应 Tick 与 FeedbackAggregator **完整接入**（失败反馈 2s 窗口聚合）。**S3 Full ScanEngine Ownership 代码层于 2026-07-05 完成**（见 §十）。**未创建 git commit**。综合判定：**v5.2 + S3 代码层验收通过**。
+
+---
+
+## 十、S3 Full ScanEngine Ownership 交付（2026-07-05）
+
+### 10.1 变更文件
+
+| 文件 | 变更 |
+|------|------|
+| `internal/driver/connection_manager.go` | 新增 `StartBackgroundLoop` / `StopBackgroundLoop` / `ScheduleAsyncTask` |
+| `internal/driver/connection_manager_test.go` | `TestConnectionManager_BackgroundLoop` |
+| `internal/driver/bacnet/bacnet.go` | `connMgr`；Connect/Disconnect 重构；`scheduleDeviceRecovery`；`startEphemeralClient`（Scan API 有界会话） |
+| `internal/driver/knxnetip/transport.go` | heartbeat 迁入 `StartBackgroundLoop` |
+
+### 10.2 S3 验收对照
+
+| 检查项 | 状态 |
+|--------|------|
+| 无 `CollectionScheduler` / `deviceLoop` / 灰度 flag | ✅ |
+| BACnet 生产路径无独立 `go ClientRun` / `go checkRecovery` | ✅ |
+| OpcUa `scheduleReconnect` 经 ConnectionManager | ✅（S2 已合规，S3 复核） |
+| ENIP/Modbus `scheduleReconnect` 经 ConnectionManager | ✅ |
+| KNX `time.NewTicker` heartbeat 不在 Transport 独立 goroutine | ✅ |
+| FeedbackAggregator 驱动 `updateTaskState` | ✅ |
+| ShadowCore 实时写入 | ✅ |
+
+### 10.3 测试命令与结果
+
+| 命令 | 结果 | 耗时 |
+|------|------|------|
+| `go test ./internal/core/... -short -count=1 -cover` | ✅ PASS（**80.5%**） | ~48s |
+| `go test ./internal/driver/... -short -count=1` | ✅ PASS | ~160s |
+| `go test ./internal/integration/... -short -count=1` | ✅ PASS | ~6s |
+| `make test-soak-short` | ✅ PASS | ~78s |
+| `make bench-g007` | ✅ PASS | ~41s |
+| `make bench-q3` | ✅ PASS | ~71s |
+
+### 10.4 遗留（运维 / 硬件）
+
+| 项 | 说明 |
+|----|------|
+| 30 天 MTBF | S3 退出条件；需生产长跑 |
+| 72h 一致性 / A–G 联机 | 见 [南向驱动测试报告 §6](../testing/南向驱动测试报告.html) |
+| DRY_RUN 双跑 | S1 运维替代项；可用 Shadow 对比 |
+
+---
+
+## 十一、80% 覆盖率专项验收（2026-07-05）
+
+> 在 §2.8 基础上，将 core 门禁由 60% 提升至 **80%**，并测量 `internal/core` + `internal/driver` 合并 scope。
+
+### 11.1 基线与结果
+
+| 指标 | 基线 | 最终 | 门禁 | 结果 |
+|------|------|------|------|------|
+| `internal/core` | 60.3% | **80.5%** | ≥80% | ✅ |
+| `internal/core` + `internal/driver` | 57.7% | **71.7%** | ≥80% | ⚠️ |
+| 语句总数（合并 scope） | 18 946 | 18 963 | — | +17（生产小改：modbus Probe hook） |
+| 已覆盖语句（合并） | 10 931 | **13 591** | — | +2 660 |
+
+### 11.2 执行命令
+
+```bash
+# 合并 scope（与 CI 友好 Week1 gate 一致）
+CGO_ENABLED=0 go test ./internal/core/... ./internal/driver/... -short -count=1 -coverprofile=coverage.out
+go tool cover -func=coverage.out | tail -1
+
+# core 专项
+CGO_ENABLED=0 go test ./internal/core/... -short -count=1 -coverprofile=core_cov.out
+go tool cover -func=core_cov.out | tail -1
+
+# 功能回归
+CGO_ENABLED=0 go test ./internal/core/... -short -count=1
+CGO_ENABLED=0 go test ./internal/driver/... -short -count=1
+CGO_ENABLED=0 go test ./internal/integration/... -short -count=1
+make test-soak-short
+```
+
+### 11.3 验收结论
+
+- **ScanEngine / 管道 / 适配器（core）**：语句覆盖率 **80.5%**，**满足 ≥80% 门禁**。
+- **合并 scope**：**71.7%**，未达 80%；主要缺口在 driver 真实 I/O（OPC UA Client、Modbus TCP dial、ENIP Tag、BACnet TSM）。
+- **功能回归**：core / driver / integration `-short` 与 `make test-soak-short` **全部 PASS**。
 
 ---
 

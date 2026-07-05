@@ -92,3 +92,50 @@ func TestWorkerPool_StopDrainsRunningTasks(t *testing.T) {
 
 	wp.Stop()
 }
+
+func TestWorkerPool_StartAndMetrics(t *testing.T) {
+	wp := NewWorkerPool(2)
+	wp.Start()
+
+	done := make(chan struct{})
+	wp.Submit(func() {
+		time.Sleep(20 * time.Millisecond)
+		close(done)
+	})
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("task did not complete")
+	}
+
+	if wp.PendingCount() < 0 {
+		t.Fatal("PendingCount should be non-negative")
+	}
+	if active := wp.ActiveCount(); active < 0 {
+		t.Fatalf("ActiveCount = %d, want ≥ 0", active)
+	}
+
+	wp.SetWorkerCount(4)
+	if len(wp.workers) != 4 {
+		t.Fatalf("SetWorkerCount(4) workers = %d", len(wp.workers))
+	}
+	wp.SetWorkerCount(2)
+	wp.Stop()
+}
+
+func TestWorkerPool_ZeroWorkersDefaultsToFour(t *testing.T) {
+	wp := NewWorkerPool(0)
+	if len(wp.workers) != 4 {
+		t.Fatalf("zero worker count should default to 4, got %d", len(wp.workers))
+	}
+	wp.Stop()
+}
+
+func TestWorkerPool_WaitForIdleEmpty(t *testing.T) {
+	wp := NewWorkerPool(1)
+	if !wp.WaitForIdle(time.Second) {
+		t.Fatal("empty pool should report idle")
+	}
+	wp.Stop()
+}

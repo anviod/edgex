@@ -23,6 +23,7 @@ func TestEdgeRulePersistence(t *testing.T) {
 	ecm := NewEdgeComputeManager(pipeline, store, func(rules []model.EdgeRule) error {
 		return nil // Mock save config
 	})
+	ecm.SetBatchWindow(0)
 
 	pipeline.Start()
 	ecm.Start()
@@ -87,6 +88,7 @@ func TestEdgeRulePersistence(t *testing.T) {
 	ecm2 := NewEdgeComputeManager(pipeline, store, func(rules []model.EdgeRule) error {
 		return nil
 	})
+	ecm2.SetBatchWindow(0)
 	// Load same rules
 	ecm2.LoadRules([]model.EdgeRule{rule})
 
