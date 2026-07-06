@@ -23,6 +23,35 @@ const (
 
 var edgeLogBuckets = []string{edgeEventsBucket, edgeFailuresBucket, edgeBblotBucket}
 
+func hasEdgeErrorMessage(msg string) bool {
+	return strings.TrimSpace(msg) != ""
+}
+
+func shouldPersistEdgeEvent(status, errMsg string) bool {
+	if !hasEdgeErrorMessage(errMsg) {
+		return false
+	}
+	return status == "error" || status == "dropped"
+}
+
+// ClassifyEdgeErrorType maps phase and message to a stable error category.
+func ClassifyEdgeErrorType(phase, errMsg string) string {
+	lower := strings.ToLower(errMsg)
+	if strings.Contains(lower, "timeout") || strings.Contains(errMsg, "超时") {
+		return model.EdgeErrorTypeTimeout
+	}
+	switch phase {
+	case "evaluate":
+		return model.EdgeErrorTypeFormula
+	case "action":
+		return model.EdgeErrorTypeExecution
+	case "dispatch":
+		return model.EdgeErrorTypeDispatch
+	default:
+		return model.EdgeErrorTypeOther
+	}
+}
+
 // EdgeLogsClearResult summarizes what was cleared by ClearEdgeLogs.
 type EdgeLogsClearResult struct {
 	EventsMemory   int      `json:"events_memory"`
@@ -146,7 +175,7 @@ func (r *edgeEventRecorder) startEvent(rule model.EdgeRule, val model.Value) *ed
 }
 
 func (r *edgeEventRecorder) recordEvent(evt *model.EdgeRuleEvent) {
-	if evt == nil {
+	if evt == nil || !hasEdgeErrorMessage(evt.ErrorMessage) {
 		return
 	}
 	r.mu.Lock()
@@ -163,15 +192,21 @@ func (r *edgeEventRecorder) recordEvent(evt *model.EdgeRuleEvent) {
 }
 
 func (r *edgeEventRecorder) recordFailure(rec model.EdgeFailureRecord) {
+	if !hasEdgeErrorMessage(rec.Error) {
+		return
+	}
 	if rec.ID == "" {
 		rec.ID = fmt.Sprintf("fail-%d", time.Now().UnixNano())
 	}
 	if rec.Timestamp.IsZero() {
 		rec.Timestamp = time.Now()
 	}
+	if rec.ErrorType == "" {
+		rec.ErrorType = ClassifyEdgeErrorType(rec.Phase, rec.Error)
+	}
 
-	log.Printf("[EdgeCompute][FAILURE] rule_id=%s phase=%s error=%q action=%s idx=%d",
-		rec.RuleID, rec.Phase, rec.Error, rec.ActionType, rec.ActionIndex)
+	log.Printf("[EdgeCompute][FAILURE] rule_id=%s type=%s phase=%s error=%q action=%s idx=%d",
+		rec.RuleID, rec.ErrorType, rec.Phase, rec.Error, rec.ActionType, rec.ActionIndex)
 
 	r.mu.Lock()
 	r.failures = appendRing(r.failures, rec, defaultEdgeFailureRingSize)
@@ -194,10 +229,14 @@ func (r *edgeEventRecorder) getEvents(ruleID string, limit int) []model.EdgeRule
 	defer r.mu.RUnlock()
 	out := make([]model.EdgeRuleEvent, 0, limit)
 	for i := len(r.events) - 1; i >= 0 && len(out) < limit; i-- {
-		if ruleID != "" && r.events[i].RuleID != ruleID {
+		evt := r.events[i]
+		if !shouldPersistEdgeEvent(evt.Status, evt.ErrorMessage) {
 			continue
 		}
-		out = append(out, r.events[i])
+		if ruleID != "" && evt.RuleID != ruleID {
+			continue
+		}
+		out = append(out, evt)
 	}
 	return out
 }
@@ -211,6 +250,9 @@ func (r *edgeEventRecorder) getFailures(ruleID string, limit int) []model.EdgeFa
 	out := make([]model.EdgeFailureRecord, 0, limit)
 	for i := len(r.failures) - 1; i >= 0 && len(out) < limit; i-- {
 		if ruleID != "" && r.failures[i].RuleID != ruleID {
+			continue
+		}
+		if !hasEdgeErrorMessage(r.failures[i].Error) {
 			continue
 		}
 		out = append(out, r.failures[i])
@@ -274,7 +316,9 @@ func (em *EdgeComputeManager) recordFinishedEvent(tracker *edgeEventTracker, sta
 		return nil
 	}
 	evt := tracker.finish(status, errMsg)
-	em.events.recordEvent(evt)
+	if shouldPersistEdgeEvent(status, errMsg) {
+		em.events.recordEvent(evt)
+	}
 	return evt
 }
 
@@ -300,11 +344,55 @@ func (em *EdgeComputeManager) finishEventWithStats(tracker *edgeEventTracker, st
 	em.stateMu.Unlock()
 }
 
-func (em *EdgeComputeManager) recordFailure(rec model.EdgeFailureRecord) {
-	if em.events == nil {
+func (em *EdgeComputeManager) recordFailure(rec model.EdgeFailureRecord, val model.Value) {
+	if em.events == nil || !hasEdgeErrorMessage(rec.Error) {
 		return
 	}
+	populateEdgeFailureScope(&rec, val)
 	em.events.recordFailure(rec)
+	em.recordFailureMinuteSnapshot(rec)
+}
+
+func (em *EdgeComputeManager) recordFailureMinuteSnapshot(rec model.EdgeFailureRecord) {
+	if em.store == nil || !hasEdgeErrorMessage(rec.Error) {
+		return
+	}
+	if rec.ErrorType == "" {
+		rec.ErrorType = ClassifyEdgeErrorType(rec.Phase, rec.Error)
+	}
+
+	minuteKey := rec.Timestamp.Format("2006-01-02 15:04")
+	if minuteKey == "" || minuteKey == "0001-01-01 00:00" {
+		minuteKey = time.Now().Format("2006-01-02 15:04")
+	}
+	cacheKey := fmt.Sprintf("%s_%s", rec.RuleID, minuteKey)
+
+	em.bblotMu.Lock()
+	snap, exists := em.minuteCache[cacheKey]
+	if !exists {
+		snap = &model.RuleMinuteSnapshot{
+			RuleID:    rec.RuleID,
+			RuleName:  rec.RuleName,
+			Minute:    minuteKey,
+			UpdatedAt: time.Now(),
+		}
+		em.minuteCache[cacheKey] = snap
+	}
+	snap.ErrorType = rec.ErrorType
+	snap.ErrorMessage = rec.Error
+	snap.Category = rec.Category
+	snap.ChannelID = rec.ChannelID
+	snap.DeviceID = rec.DeviceID
+	snap.UpdatedAt = time.Now()
+	snapCopy := *snap
+	em.bblotMu.Unlock()
+
+	go func(snapshot model.RuleMinuteSnapshot) {
+		key := fmt.Sprintf("%s_%s", snapshot.RuleID, snapshot.Minute)
+		if err := em.store.SaveData("bblot", key, snapshot); err != nil {
+			log.Printf("Failed to save bblot error snapshot: %v", err)
+		}
+	}(snapCopy)
 }
 
 func (em *EdgeComputeManager) GetEvents(ruleID string, limit int) []model.EdgeRuleEvent {
@@ -359,7 +447,9 @@ func (em *EdgeComputeManager) loadPersistedEvents() {
 		if err := json.Unmarshal(v, &evt); err != nil {
 			return nil
 		}
-		loaded = append(loaded, evt)
+		if shouldPersistEdgeEvent(evt.Status, evt.ErrorMessage) {
+			loaded = append(loaded, evt)
+		}
 		return nil
 	})
 	if len(loaded) == 0 {
@@ -387,7 +477,9 @@ func (em *EdgeComputeManager) loadPersistedFailures() {
 		if err := json.Unmarshal(v, &rec); err != nil {
 			return nil
 		}
-		loaded = append(loaded, rec)
+		if hasEdgeErrorMessage(rec.Error) {
+			loaded = append(loaded, rec)
+		}
 		return nil
 	})
 	if len(loaded) == 0 {

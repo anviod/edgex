@@ -747,6 +747,21 @@
   background: rgba(0, 180, 42, 0.05);
 }
 
+.rule-flow-node--eval-satisfied {
+  border-color: rgba(0, 180, 42, 0.35);
+  background: rgba(0, 180, 42, 0.05);
+}
+
+.rule-flow-node--eval-unsatisfied {
+  border-color: rgba(255, 193, 7, 0.45);
+  background: rgba(255, 193, 7, 0.08);
+}
+
+.rule-flow-node--eval-error {
+  border-color: rgba(var(--red-6), 0.35);
+  background: rgba(var(--red-6), 0.05);
+}
+
 .rule-flow-node--stopped {
   border-color: rgba(var(--red-6), 0.35);
   background: rgba(var(--red-6), 0.05);
@@ -834,6 +849,18 @@
 
 .dark-theme .rule-flow-node--completed {
   background: rgba(0, 180, 42, 0.08);
+}
+
+.dark-theme .rule-flow-node--eval-satisfied {
+  background: rgba(0, 180, 42, 0.08);
+}
+
+.dark-theme .rule-flow-node--eval-unsatisfied {
+  background: rgba(255, 193, 7, 0.1);
+}
+
+.dark-theme .rule-flow-node--eval-error {
+  background: rgba(var(--red-6), 0.08);
 }
 
 .dark-theme .rule-flow-node--stopped {

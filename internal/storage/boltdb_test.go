@@ -1,6 +1,9 @@
 package storage
 
 import (
+	"fmt"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/anviod/edgex/internal/model"
@@ -60,6 +63,10 @@ func TestClassifyBucket(t *testing.T) {
 		{"RuleState", "RuleState", "cache", true},
 		{"WAL", "WAL", "cache", true},
 		{"values", "values", "runtime", true},
+		{"shadow_values", "shadow_values", "runtime", true},
+		{"edge_events", "edge_events", "edge_log", true},
+		{"edge_failures", "edge_failures", "edge_log", true},
+		{"bblot", "bblot", "edge_log", true},
 		{"device_history_device1", "device_history_device1", "history", true},
 		{"shadow_wal legacy", legacyShadowWALBucket, "legacy", true},
 		{"unknown", "unknown", "unknown", false},
@@ -212,6 +219,62 @@ func TestClearAllRuntimeBuckets(t *testing.T) {
 		if st.RecordCount != 0 {
 			t.Errorf("runtime bucket %s should have 0 records after clear, got %d", st.Name, st.RecordCount)
 		}
+	}
+}
+
+func runtimeDBFileSize(t *testing.T, s *Storage) int64 {
+	t.Helper()
+	info, err := os.Stat(s.runtimeDB.Path())
+	if err != nil {
+		t.Fatalf("stat runtime db: %v", err)
+	}
+	return info.Size()
+}
+
+func TestClearAllRuntimeBucketsShrinksFileAfterCompact(t *testing.T) {
+	tmpDir := testOutputDir(t)
+
+	s, err := NewStorage(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	payload := strings.Repeat("x", 8192)
+	for i := 0; i < 256; i++ {
+		key := fmt.Sprintf("key-%04d", i)
+		if err := s.SaveData(BucketDataCache, key, map[string]string{"data": payload}); err != nil {
+			t.Fatalf("SaveData(%s): %v", key, err)
+		}
+	}
+	if err := s.SaveValue(model.Value{PointID: "p1", Value: 42}); err != nil {
+		t.Fatal(err)
+	}
+
+	beforeSize := runtimeDBFileSize(t, s)
+	if beforeSize < 512*1024 {
+		t.Fatalf("expected seeded runtime db to be at least 512KB, got %d", beforeSize)
+	}
+
+	if _, err := s.ClearAllRuntimeBuckets(); err != nil {
+		t.Fatalf("ClearAllRuntimeBuckets: %v", err)
+	}
+
+	afterClearSize := runtimeDBFileSize(t, s)
+	if afterClearSize < beforeSize/2 {
+		t.Fatalf("expected bbolt file to remain bloated after delete-only clear: before=%d afterClear=%d", beforeSize, afterClearSize)
+	}
+
+	if err := s.CompactRuntimeDB(); err != nil {
+		t.Fatalf("CompactRuntimeDB: %v", err)
+	}
+
+	afterCompactSize := runtimeDBFileSize(t, s)
+	if afterCompactSize >= afterClearSize {
+		t.Fatalf("expected compact to shrink runtime db: afterClear=%d afterCompact=%d", afterClearSize, afterCompactSize)
+	}
+	if afterCompactSize >= beforeSize/4 {
+		t.Fatalf("expected compact to reclaim most disk space: before=%d afterCompact=%d", beforeSize, afterCompactSize)
 	}
 }
 

@@ -127,10 +127,10 @@
                 <div class="edge-compute-toolbar edge-compute-toolbar--records">
                     <div class="edge-compute-toolbar__left edge-compute-records-heading">
                         <a-radio-group v-model="recordType" type="button" size="small" class="edge-compute-record-type-toggle">
-                            <a-radio value="events">事件记录</a-radio>
-                            <a-radio value="logs">分钟日志</a-radio>
+                            <a-radio value="events">错误事件</a-radio>
+                            <a-radio value="logs">错误日志</a-radio>
                         </a-radio-group>
-                        <a-tooltip v-if="recordType === 'events'" content="仅记录条件满足后的完整触发周期；日常校验与窗口等待不产生记录。">
+                        <a-tooltip v-if="recordType === 'events'" content="仅记录公式匹配、执行、调度等异常事件；正常触发与校验不产生日志。">
                             <IconInfoCircle class="edge-compute-records-info" />
                         </a-tooltip>
                         <span v-if="recordCount > 0" class="edge-compute-panel-meta">{{ recordCount }} 条</span>
@@ -148,7 +148,7 @@
                             刷新
                         </a-button>
                         <a-popconfirm
-                            content="确定清空所有边缘计算日志（事件、失败记录、分钟级日志）？规则与实时状态不会受影响。"
+                            content="确定清空所有边缘计算错误日志（错误事件、失败记录、分钟级错误日志）？规则与实时状态不会受影响。"
                             @ok="clearEdgeLogs"
                         >
                             <a-button type="outline" status="danger" size="small">
@@ -185,8 +185,8 @@
                 <template v-if="recordType === 'events'">
                     <a-empty v-if="edgeEvents.length === 0" class="empty-wrap">
                         <template #image><IconHistory :size="48" class="empty-icon-muted" /></template>
-                        <div class="empty-title">暂无运行记录</div>
-                        <div class="empty-desc">规则触发后将在此显示完整执行周期</div>
+                        <div class="empty-title">暂无错误事件</div>
+                        <div class="empty-desc">规则发生公式匹配、执行或调度异常时将在此显示</div>
                     </a-empty>
                     <div v-else class="edge-compute-tertiary-block">
                     <div class="table-container saas-table edge-compute-records-table">
@@ -224,8 +224,8 @@
                 <template v-else>
                     <a-empty v-if="logs.length === 0" class="empty-wrap">
                         <template #image><IconClockCircle :size="48" class="empty-icon-muted" /></template>
-                        <div class="empty-title">暂无分钟日志</div>
-                        <div class="empty-desc">规则运行后将按分钟汇总状态与触发次数</div>
+                        <div class="empty-title">暂无错误日志</div>
+                        <div class="empty-desc">规则运行出错后将按分钟汇总错误信息</div>
                     </a-empty>
                     <div v-else class="edge-compute-tertiary-block">
                         <div class="table-container saas-table">
@@ -237,21 +237,12 @@
                                 :scroll="{ x: 1200 }"
                                 :pagination="{ pageSize: 20, showTotal: true }"
                             >
-                                <template #status="{ record }">
-                                    <span class="table-cell-semantic">
-                                    <a-tag :color="getStatusColor(record.status)" size="small">
-                                        {{ record.status }}
-                                    </a-tag>
-                                    </span>
-                                </template>
-                                <template #last_value="{ record }">
-                                    <span class="single-line-cell" @click="showDetails('完整值', record.last_value)" title="点击查看详情">
-                                        {{ record.last_value }}
-                                    </span>
+                                <template #error_type="{ record }">
+                                    <a-tag color="red" size="small">{{ formatErrorType(record.error_type) }}</a-tag>
                                 </template>
                                 <template #error_message="{ record }">
                                     <span class="single-line-cell text-error" @click="showDetails('错误详情', record.error_message)" title="点击查看详情">
-                                        {{ record.error_message }}
+                                        {{ record.error_message || '—' }}
                                     </span>
                                 </template>
                             </a-table>
@@ -778,6 +769,7 @@ import {
   describeFilterChips,
   filterEventsClient,
   filterLogsClient,
+  LOG_ERROR_TYPE_LABELS,
 } from '@/composables/useEdgeRecordFilters'
 
 // 表格列定义
@@ -794,10 +786,8 @@ const logColumns = [
   { title: '时间', dataIndex: 'minute', width: 160 },
   { title: '规则ID', dataIndex: 'rule_id', width: 120 },
   { title: '规则名称', dataIndex: 'rule_name', width: 160 },
-  { title: '状态', dataIndex: 'status', slotName: 'status', width: 100 },
-  { title: '触发次数', dataIndex: 'trigger_count', width: 100 },
-  { title: '值', dataIndex: 'last_value', slotName: 'last_value', width: 400 },
-  { title: '错误信息', dataIndex: 'error_message', slotName: 'error_message', width: 400 }
+  { title: '错误类型', dataIndex: 'error_type', slotName: 'error_type', width: 140 },
+  { title: '错误信息', dataIndex: 'error_message', slotName: 'error_message', width: 480 }
 ]
 
 const eventColumns = [
@@ -1318,12 +1308,12 @@ const refreshRuntimeRecords = async () => {
     await Promise.all([fetchRuleStates(), refreshRecords()])
 }
 
+const formatErrorType = (errorType) => LOG_ERROR_TYPE_LABELS[errorType] || errorType || '其他错误'
+
 const getEventStatusColor = (status) => {
     switch (status) {
-        case 'completed': return 'green'
         case 'error': return 'red'
         case 'dropped': return 'orange'
-        case 'running': return 'blue'
         default: return 'gray'
     }
 }
@@ -1358,6 +1348,8 @@ const removeFilterChip = async (key) => {
     const filters = currentRecordFilters.value
     if (key === 'limit') {
         filters.limit = 100
+    } else if (key === 'categories') {
+        filters.categories = []
     } else {
         filters[key] = ''
     }
@@ -1371,10 +1363,16 @@ const resetRecordFilters = async () => {
 
 const clearEdgeLogs = async () => {
     try {
-        await request.post('/api/edge/logs/clear')
+        const res = await request.post('/api/edge/logs/clear')
         rawEdgeEvents.value = []
         rawLogs.value = []
-        showMessage('日志已清空', 'success')
+        let msg = '日志已清空'
+        if (res.compact?.saved_size && res.compact.saved_size !== '0 MB') {
+            msg += `，runtime.db 已压缩（节省 ${res.compact.saved_size}）`
+        } else if (res.compact) {
+            msg += '，runtime.db 已压缩'
+        }
+        showMessage(msg, 'success')
     } catch (e) {
         showMessage('清空失败: ' + (e.message || e), 'error')
     }
@@ -1383,16 +1381,14 @@ const clearEdgeLogs = async () => {
 const exportLogs = async () => {
     if (!logs.value || logs.value.length === 0) return
 
-    const headers = ['Time', 'Rule ID', 'Rule Name', 'Status', 'Trigger Count', 'Value', 'Error']
+    const headers = ['Time', 'Rule ID', 'Rule Name', 'Error Type', 'Error Message']
     const csvContent = [
         headers.join(','),
         ...logs.value.map(log => [
             log.minute,
             log.rule_id,
             log.rule_name,
-            log.status,
-            log.trigger_count,
-            log.last_value,
+            log.error_type,
             `"${(log.error_message || '').replace(/"/g, '""')}"`
         ].join(','))
     ].join('\n')

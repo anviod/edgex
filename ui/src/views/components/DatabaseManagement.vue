@@ -147,8 +147,8 @@
         <a-tag color="orange" size="small">可清理 · 可压缩 · 可重建</a-tag>
       </template>
       <a-alert type="warning" show-icon :closable="false" class="mb-block">
-        运行时库包含实时值、缓存、历史数据、WAL 等。清理运行时数据
-        <strong>不影响采集配置</strong>，但会丢失历史记录和缓存。
+        运行时库包含实时值、缓存、历史数据、边缘计算日志、WAL 等。清理运行时数据
+        <strong>不影响采集配置</strong>，但会丢失历史记录、边缘规则日志与缓存。
       </a-alert>
 
       <div class="table-wrap">
@@ -204,7 +204,7 @@
       </div>
       <div class="action-desc">
         <a-alert type="info" show-icon :closable="false">
-          <strong>压缩运行时库</strong>：回收已删除数据占用的磁盘空间，配置库不受影响。建议在维护窗口执行。
+          <strong>压缩运行时库</strong>：回收已删除数据占用的磁盘空间，配置库不受影响。清空运行缓存/历史/实时值等操作会自动压缩 runtime.db；也可在此手动执行。
         </a-alert>
       </div>
 
@@ -358,11 +358,7 @@ const remotePullForm = ref({
   useHttps: false,
 })
 
-const pagination = {
-  pageSize: 10,
-  showPageSize: true,
-  showTotal: true,
-}
+const pagination = false
 
 const columns = [
   { title: '名称', dataIndex: 'name', width: 200, ellipsis: true, tooltip: true },
@@ -392,7 +388,7 @@ const clearableSize = computed(() => {
 })
 
 const hasRuntime = computed(() => {
-  return (stats.value.buckets || []).some(b => b.name === 'values')
+  return (stats.value.buckets || []).some(b => b.name === 'values' || b.name === 'shadow_values')
 })
 
 const hasHistory = computed(() => {
@@ -414,6 +410,7 @@ const getCategoryColor = (category) => {
     runtime: 'orange',
     history: 'purple',
     legacy: 'gray',
+    edge_log: 'cyan',
     unknown: 'gray',
   }
   return colors[category] || 'gray'
@@ -426,6 +423,7 @@ const getCategoryLabel = (category) => {
     runtime: '运行时',
     history: '历史',
     legacy: '遗留',
+    edge_log: '边缘日志',
     unknown: '未知',
   }
   return labels[category] || category
@@ -602,8 +600,8 @@ const handlePullRemoteConfig = async () => {
 
 const handleClearCache = () => {
   confirmTitle.value = '确认清空运行缓存'
-  confirmMessage.value = '将清理 runtime.db 中的全部运行时数据（含 values、各类缓存、历史 bucket、遗留 WAL 等），并清空内存中的影子设备与边缘规则运行时状态。采集配置不受影响；实时值将在下一轮采集后恢复。'
-  confirmBuckets.value = ['runtime.db 全部 bucket']
+  confirmMessage.value = '将清理 runtime.db 中的全部运行时数据（含 values、各类缓存、历史 bucket、边缘计算日志 edge_events/edge_failures/bblot、遗留 WAL 等），并清空内存中的影子设备、边缘规则运行时状态与日志缓冲。采集配置不受影响；实时值将在下一轮采集后恢复。'
+  confirmBuckets.value = ['runtime.db 全部 bucket（含边缘计算日志）']
   confirmMode.value = 'all_runtime'
   confirmChecked.value = false
   confirmVisible.value = true
@@ -643,7 +641,13 @@ const handleConfirm = async () => {
       res = await request.post('/api/data/clear-cache', { mode: confirmMode.value })
     }
     if (res.status === 'success') {
-      showMessage(`成功清理 ${res.cleared?.length || 0} 个 bucket`, 'success')
+      let msg = `成功清理 ${res.cleared?.length || 0} 个 bucket`
+      if (res.compact?.saved_size && res.compact.saved_size !== '0 MB') {
+        msg += `，runtime.db 已压缩（节省 ${res.compact.saved_size}）`
+      } else if (res.compact) {
+        msg += '，runtime.db 已压缩'
+      }
+      showMessage(msg, 'success')
       await fetchStats()
     } else {
       showMessage('清理失败', 'error')

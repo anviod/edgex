@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 	"sync"
 	"time"
 
@@ -239,6 +240,21 @@ func (m *DeviceStorageManager) ClearAllHistory() {
 		bucket := fmt.Sprintf("device_history_%s", deviceID)
 		m.storage.ClearBucket(bucket)
 	}
+}
+
+// HistoryBucketNames returns device_history_* bucket names for enabled storage configs.
+func (m *DeviceStorageManager) HistoryBucketNames() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	names := make([]string, 0, len(m.deviceCfgs))
+	for deviceID, cfg := range m.deviceCfgs {
+		if cfg.Enable {
+			names = append(names, fmt.Sprintf("device_history_%s", deviceID))
+		}
+	}
+	sort.Strings(names)
+	return names
 }
 
 func (m *DeviceStorageManager) GetHistory(deviceID string, limit int) ([]map[string]any, error) {

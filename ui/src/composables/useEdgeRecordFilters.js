@@ -1,17 +1,23 @@
+import { LOG_CATEGORY_LABELS } from '@/utils/logFormat'
+
 export const EVENT_STATUS_OPTIONS = [
   { label: '全部', value: '' },
-  { label: '已完成', value: 'completed' },
-  { label: '运行中', value: 'running' },
   { label: '错误', value: 'error' },
   { label: '已丢弃', value: 'dropped' },
 ]
 
-export const LOG_STATUS_OPTIONS = [
+export const LOG_ERROR_TYPE_OPTIONS = [
   { label: '全部', value: '' },
-  { label: '告警', value: 'ALARM' },
-  { label: '警告', value: 'WARNING' },
-  { label: '正常', value: 'NORMAL' },
+  { label: '公式匹配异常', value: 'formula_error' },
+  { label: '执行异常', value: 'execution_error' },
+  { label: '超时', value: 'timeout' },
+  { label: '调度异常', value: 'dispatch_error' },
+  { label: '其他错误', value: 'other' },
 ]
+
+export const LOG_ERROR_TYPE_LABELS = Object.fromEntries(
+  LOG_ERROR_TYPE_OPTIONS.filter((item) => item.value).map((item) => [item.value, item.label])
+)
 
 export function createDefaultFilters(mode) {
   const base = {
@@ -19,6 +25,9 @@ export function createDefaultFilters(mode) {
     start: '',
     end: '',
     status: '',
+    categories: [],
+    channelId: '',
+    deviceId: '',
   }
   if (mode === 'events') {
     return { ...base, limit: 100 }
@@ -33,6 +42,9 @@ export function countActiveFilters(filters, mode) {
   if (filters.start) count++
   if (filters.end) count++
   if (filters.status) count++
+  if (filters.categories?.length) count++
+  if (filters.channelId) count++
+  if (filters.deviceId) count++
   if (mode === 'events' && filters.limit && filters.limit !== 100) count++
   return count
 }
@@ -42,6 +54,12 @@ export function buildLogApiParams(filters) {
   if (filters.start) params.append('start_date', filters.start.replace('T', ' '))
   if (filters.end) params.append('end_date', filters.end.replace('T', ' '))
   if (filters.ruleId) params.append('rule_id', filters.ruleId)
+  const categories = filters.categories || []
+  if (categories.length === 1) {
+    params.append('category', categories[0])
+  }
+  if (filters.channelId) params.append('channel_id', filters.channelId)
+  if (filters.deviceId) params.append('device_id', filters.deviceId)
   return params
 }
 
@@ -63,8 +81,12 @@ export function formatFilterDatetime(value) {
   return value.replace('T', ' ')
 }
 
+export function hasEdgeErrorMessage(message) {
+  return typeof message === 'string' && message.trim().length > 0
+}
+
 export function filterEventsClient(events, filters) {
-  let result = events || []
+  let result = (events || []).filter((event) => hasEdgeErrorMessage(event.error_message))
   if (filters.status) {
     result = result.filter((event) => event.status === filters.status)
   }
@@ -80,8 +102,21 @@ export function filterEventsClient(events, filters) {
 }
 
 export function filterLogsClient(logs, filters) {
-  if (!filters?.status) return logs || []
-  return (logs || []).filter((log) => log.status === filters.status)
+  let result = (logs || []).filter((log) => hasEdgeErrorMessage(log.error_message))
+  if (filters?.status) {
+    result = result.filter((log) => log.error_type === filters.status)
+  }
+  const categories = filters?.categories || []
+  if (categories.length > 0) {
+    result = result.filter((log) => categories.includes(log.category || 'edge_compute'))
+  }
+  if (filters?.channelId) {
+    result = result.filter((log) => log.channel_id === filters.channelId)
+  }
+  if (filters?.deviceId) {
+    result = result.filter((log) => log.device_id === filters.deviceId)
+  }
+  return result
 }
 
 export function describeFilterChips(filters, mode, rules = []) {
@@ -100,12 +135,22 @@ export function describeFilterChips(filters, mode, rules = []) {
     chips.push({ key: 'end', label: `止: ${formatFilterDatetime(filters.end)}` })
   }
   if (filters.status) {
-    const options = mode === 'events' ? EVENT_STATUS_OPTIONS : LOG_STATUS_OPTIONS
+    const options = mode === 'events' ? EVENT_STATUS_OPTIONS : LOG_ERROR_TYPE_OPTIONS
     const match = options.find((item) => item.value === filters.status)
-    chips.push({ key: 'status', label: `状态: ${match?.label || filters.status}` })
+    chips.push({ key: 'status', label: `${mode === 'events' ? '状态' : '错误类型'}: ${match?.label || filters.status}` })
   }
   if (mode === 'events' && filters.limit && filters.limit !== 100) {
     chips.push({ key: 'limit', label: `上限: ${filters.limit}` })
+  }
+  if (mode === 'logs' && filters.categories?.length) {
+    const labels = filters.categories.map((item) => LOG_CATEGORY_LABELS[item] || item)
+    chips.push({ key: 'categories', label: `分类: ${labels.join('、')}` })
+  }
+  if (mode === 'logs' && filters.channelId) {
+    chips.push({ key: 'channelId', label: `通道: ${filters.channelId}` })
+  }
+  if (mode === 'logs' && filters.deviceId) {
+    chips.push({ key: 'deviceId', label: `设备: ${filters.deviceId}` })
   }
   return chips
 }

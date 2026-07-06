@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { buildRulePipeline, getPipelineSummary, applyExecutionPhase } from './ruleFlow'
+import {
+  buildRulePipeline,
+  getPipelineSummary,
+  applyExecutionPhase,
+  inferEvalOutcome,
+} from './ruleFlow'
 
 describe('buildRulePipeline', () => {
   const baseRule = {
@@ -21,6 +26,8 @@ describe('buildRulePipeline', () => {
       condition_count: 2,
       execution_phase: 'state_hold',
     })
+    const evaluate = steps.find(s => s.id === 'evaluate')
+    expect(evaluate?.evalOutcome).toBe('satisfied')
     const hold = steps.find(s => s.id === 'state-hold')
     expect(hold?.status).toBe('active')
     expect(hold?.meta).toContain('2')
@@ -37,6 +44,7 @@ describe('buildRulePipeline', () => {
     const evaluate = steps.find(s => s.id === 'evaluate')
     const trigger = steps.find(s => s.id === 'trigger')
     expect(evaluate?.status).toBe('completed')
+    expect(evaluate?.evalOutcome).toBe('unsatisfied')
     expect(trigger?.status).toBe('idle')
     const summary = getPipelineSummary(steps, { current_status: 'NORMAL', execution_phase: 'idle' })
     expect(summary.phase).toBe('idle')
@@ -121,8 +129,28 @@ describe('buildRulePipeline', () => {
     })
     const evaluate = steps.find(s => s.id === 'evaluate')
     expect(evaluate?.status).toBe('stopped')
+    expect(evaluate?.evalOutcome).toBe('error')
     const summary = getPipelineSummary(steps, { error_message: 'eval failed', execution_phase: 'error' })
     expect(summary.phase).toBe('stopped')
+  })
+})
+
+describe('inferEvalOutcome', () => {
+  it('returns null while evaluate step is active', () => {
+    expect(inferEvalOutcome({ current_status: 'NORMAL' }, true, 'active')).toBeNull()
+  })
+
+  it('maps NORMAL completed evaluate to unsatisfied', () => {
+    expect(inferEvalOutcome({ current_status: 'NORMAL' }, true, 'completed')).toBe('unsatisfied')
+  })
+
+  it('maps WARNING/ALARM to satisfied', () => {
+    expect(inferEvalOutcome({ current_status: 'WARNING' }, true, 'completed')).toBe('satisfied')
+    expect(inferEvalOutcome({ current_status: 'ALARM' }, true, 'completed')).toBe('satisfied')
+  })
+
+  it('maps stopped evaluate to error', () => {
+    expect(inferEvalOutcome({ error_message: 'bad expr' }, true, 'stopped')).toBe('error')
   })
 })
 

@@ -23,30 +23,15 @@ func TestEdgeEventRecorder_CompleteLifecycle(t *testing.T) {
 		ChannelID: "ch1", DeviceID: "dev1", PointID: "p1", Value: 1.0, TS: time.Now(),
 	})
 
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		events := em.GetEvents("", 10)
-		if len(events) > 0 && events[0].Status == "completed" {
-			evt := events[0]
-			if len(evt.Phases) == 0 {
-				t.Fatal("expected trigger phase in event")
-			}
-			if evt.Phases[0].Phase != "trigger" {
-				t.Fatalf("expected trigger phase, got %q", evt.Phases[0].Phase)
-			}
-			if !evt.Triggered {
-				t.Fatal("expected triggered event")
-			}
-			states := em.GetRuleStates()
-			state := states["evt-rule"]
-			if state == nil || state.SuccessCount != 1 {
-				t.Fatalf("expected success_count=1, got state=%v", state)
-			}
-			return
-		}
-		time.Sleep(20 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
+	if events := em.GetEvents("", 10); len(events) > 0 {
+		t.Fatalf("successful trigger must not create event logs, got %d", len(events))
 	}
-	t.Fatal("expected completed event record")
+	states := em.GetRuleStates()
+	state := states["evt-rule"]
+	if state == nil || state.SuccessCount != 1 {
+		t.Fatalf("expected success_count=1, got state=%v", state)
+	}
 }
 
 func TestEdgeEventRecorder_NoEventOnIdleEvaluate(t *testing.T) {

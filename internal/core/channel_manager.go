@@ -171,6 +171,54 @@ func (cm *ChannelManager) GetScanEngineMetricsSnapshot() map[string]any {
 	return snap
 }
 
+func (cm *ChannelManager) GetChannelScanEngineMetricsSnapshot(channelID string) map[string]any {
+	se := cm.scanEngineAdapter.scanEngine
+	if se == nil || se.GetMetrics() == nil || channelID == "" {
+		return map[string]any{}
+	}
+	metrics := se.GetMetrics()
+	snap := metrics.ChannelSnapshot(channelID)
+
+	ch := cm.GetChannel(channelID)
+	deviceKeys := make([]string, 0)
+	openCount := 0
+	cb := se.GetCircuitBreaker()
+	if ch != nil {
+		for _, dev := range ch.Devices {
+			deviceKeys = append(deviceKeys, dev.ID)
+			if cb != nil && cb.State(dev.ID) == CircuitOpen {
+				openCount++
+			}
+		}
+	}
+	snap["circuit_breaker_open"] = openCount
+
+	maxLag := float64(0)
+	if p95, ok := snap["scan_lag_p95_ms"].(float64); ok {
+		maxLag = p95
+	}
+	now := time.Now()
+	for _, dev := range deviceKeys {
+		for _, task := range se.GetTasksByDeviceKey(dev) {
+			task.mu.RLock()
+			lagMs := float64(0)
+			if !task.NextRun.IsZero() && now.After(task.NextRun) {
+				lagMs = float64(now.Sub(task.NextRun).Milliseconds())
+			}
+			task.mu.RUnlock()
+			if lagMs > maxLag {
+				maxLag = lagMs
+			}
+		}
+	}
+	if maxLag > 0 {
+		snap["scan_lag_p95_ms"] = maxLag
+	}
+
+	snap["sla_warnings"] = metrics.ChannelSLAWarnings(channelID, cb, deviceKeys)
+	return snap
+}
+
 func (cm *ChannelManager) GetDeviceDiagnostics(deviceID string) map[string]any {
 	out := map[string]any{
 		"device_id": deviceID,
@@ -286,7 +334,7 @@ func (cm *ChannelManager) finalizeScanCollect(deviceID string, result *ExecuteRe
 	}
 
 	cm.stateManager.FinalizeCollect(node, collectContextFromExecuteResult(result, pointCount))
-	recordCollectCycle(result != nil && result.Success)
+	recordCollectCycle(collectSucceededFromResult(result, pointCount))
 }
 
 func (cm *ChannelManager) SetStatusHandler(h func(deviceID string, status int)) {
@@ -945,7 +993,7 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 		points = append(points, pd)
 	}
 
-	// 根据读点结果立即修正设备状态：传输成功即可恢复 Online（点位 Bad 不计入链路失败）
+	// 根据读点结果立即修正设备状态（Good 点位计成功，全 Bad 计失败）
 	if node != nil {
 		execResult := &ExecuteResult{Success: err == nil, Values: results, Error: err}
 		cm.stateManager.FinalizeCollect(node, collectContextFromExecuteResult(execResult, len(pointsCopy)))

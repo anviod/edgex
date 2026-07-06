@@ -263,7 +263,25 @@ func (c *CommunicationManageTemplate) FinalizeCollect(node *DeviceNodeTemplate, 
 	// 规则3/4: 根据成功率决定最终结果
 	if successRatio >= MinSuccessRatio {
 		c.onCollectSuccess(node) // 成功率达标，判定为成功
+	} else if ctx.SuccessCmd == 0 && ctx.FailCmd > 0 {
+		c.onCollectUnreachable(node) // 全部失败：设备不可达，立即离线
 	} else {
-		c.onCollectFail(node) // 成功率不达标，判定为失败
+		c.onCollectFail(node) // 部分失败：降级为不稳定
+	}
+}
+
+// onCollectUnreachable handles a collect where no points succeeded (transport error
+// or all Bad quality). Marks the device offline immediately instead of waiting for
+// repeated unstable cycles.
+func (c *CommunicationManageTemplate) onCollectUnreachable(node *DeviceNodeTemplate) {
+	oldState := node.Runtime.State
+
+	node.Runtime.FailCount++
+	node.Runtime.SuccessCount = 0
+	node.Runtime.LastFailTime = time.Now()
+	node.Runtime.State = NodeStateOffline
+
+	if oldState != node.Runtime.State && c.OnStateChange != nil {
+		c.OnStateChange(node.DeviceID, oldState, node.Runtime.State)
 	}
 }

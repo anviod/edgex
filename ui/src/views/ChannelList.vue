@@ -139,24 +139,21 @@
                   </div>
 
                   <div class="channel-stats">
-                    <div class="stat-item">
-                      <div class="stat-item-label">设备</div>
-                      <div class="stat-item-value">{{ item.deviceCount || 0 }}</div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-item-label">运行</div>
-                      <div class="stat-item-value" :class="item.runtimeArcoStatus === 'success' ? 'online' : (item.runtimeArcoStatus === 'danger' ? 'offline' : '')">
-                        {{ item.runtimeText }}
-                      </div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-item-label">成功率</div>
-                      <div class="stat-item-value" :class="getSuccessRateClass(item.successRate)">{{ formatPercent(item.successRate) }}</div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-item-label">通道 ID</div>
-                      <div class="stat-item-value channel-id-value">{{ item.id }}</div>
-                    </div>
+                    <span class="channel-stat">
+                      <span class="channel-stat-label">设备</span>
+                      <span class="channel-stat-value">{{ item.deviceCount || 0 }}</span>
+                    </span>
+                    <span class="channel-stat-divider" aria-hidden="true">·</span>
+                    <span class="channel-stat">
+                      <span class="channel-stat-value" :class="item.runtimeArcoStatus === 'success' ? 'online' : (item.runtimeArcoStatus === 'danger' ? 'offline' : '')">
+                        {{ formatCardRuntimeText(item.runtimeText) }}
+                      </span>
+                    </span>
+                    <span class="channel-stat-divider" aria-hidden="true">·</span>
+                    <span class="channel-stat">
+                      <span class="channel-stat-label">成功率</span>
+                      <span class="channel-stat-value" :class="getSuccessRateClass(item.successRate)">{{ formatPercent(item.successRate) }}</span>
+                    </span>
                   </div>
 
                   <div v-if="item.metrics" class="channel-metrics">
@@ -1183,7 +1180,6 @@
         :loading="metricsDialog.loading"
         :error="metricsDialog.error"
         :metrics="metricsDialog.metrics"
-        :scan-diagnostics="metricsDialog.scanDiagnostics"
       />
 
       <template #footer>
@@ -1256,7 +1252,6 @@ const metricsDialog = reactive({
   error: null,
   channel: null,
   metrics: null,
-  scanDiagnostics: null,
 })
 
 const channelHelpVisible = ref(false)
@@ -1355,6 +1350,12 @@ const getSuccessRateClass = (rate) => {
 const formatPercent = (val) => {
   if (val === undefined || val === null) return '-'
   return (val * 100).toFixed(0) + '%'
+}
+
+const formatCardRuntimeText = (text) => {
+  if (!text) return '-'
+  const idx = text.indexOf(' (')
+  return idx >= 0 ? text.slice(0, idx) : text
 }
 
 const formatDuration = (ms) => {
@@ -1495,7 +1496,6 @@ const openMetricsDialog = async (channel) => {
   metricsDialog.channel = channel
   metricsDialog.error = null
   metricsDialog.metrics = null
-  metricsDialog.scanDiagnostics = null
   metricsDialog.loading = true
   metricsDialog.show = true
 
@@ -1504,21 +1504,14 @@ const openMetricsDialog = async (channel) => {
       setTimeout(() => reject(new Error('加载超时')), 3000)
     )
 
-    const metricsResPromise = request({
-      url: `/api/channels/${channel.id}/metrics`,
-      method: 'get'
-    })
-    const scanDiagPromise = request({
-      url: '/api/diagnostics/scan-engine',
-      method: 'get'
-    }).catch(() => null)
-
-    const [metricsRes, scanDiag] = await Promise.all([
-      Promise.race([metricsResPromise, timeoutPromise]),
-      scanDiagPromise,
+    const metricsRes = await Promise.race([
+      request({
+        url: `/api/channels/${channel.id}/metrics`,
+        method: 'get',
+      }),
+      timeoutPromise,
     ])
     metricsDialog.metrics = metricsRes
-    metricsDialog.scanDiagnostics = scanDiag
   } catch (error) {
     metricsDialog.error = `获取监控指标失败: ${error.message}`
     console.error('Failed to get channel metrics:', error)
@@ -1658,11 +1651,4 @@ onMounted(() => {
 
 <style scoped>
 /* v3.0 — styles in src/styles/channel-list.css */
-.channel-id-value {
-  font-size: 12px;
-  font-family: var(--font-mono);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 </style>

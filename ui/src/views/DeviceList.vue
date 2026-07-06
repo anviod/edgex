@@ -114,8 +114,8 @@
       </a-spin>
 
       <div class="list-detail-meta">
-        <span class="list-detail-meta__dot"></span>
-        <span class="list-detail-meta__text">通道 {{ channelId }} · {{ devices.length }} 台设备</span>
+        <span class="list-detail-meta__dot" :class="listDetailMetaDotClass"></span>
+        <span class="list-detail-meta__text">{{ listDetailMetaText }}</span>
       </div>
     </div>
 
@@ -622,6 +622,10 @@ import request from '@/utils/request'
 import { devicePointsRoutePath, channelDeviceApiPath } from '@/utils/deviceRoute'
 import { generateShortId } from '@/utils/shortId'
 import { formatProtocolTag } from '@/utils/protocolLabel'
+import {
+  formatListDetailMetaText,
+  getListDetailMetaDotClass,
+} from '@/utils/channelMetrics'
 import { base64ToUint8Array, uint8ArrayToHex, detectFileType, downloadBytes } from '@/utils/decode'
 import HistoryModal from '@/components/HistoryModal.vue'
 
@@ -629,9 +633,16 @@ const route = useRoute()
 const router = useRouter()
 const devices = ref([])
 const channelInfo = ref(null)
+const channelMetrics = ref(null)
 const loading = ref(false)
 const channelId = route.params.channelId
 const channelProtocol = computed(() => channelInfo.value?.protocol || '')
+const listDetailMetaText = computed(() => formatListDetailMetaText({
+  channelId,
+  deviceCount: devices.value.length,
+  metrics: channelMetrics.value,
+}))
+const listDetailMetaDotClass = computed(() => getListDetailMetaDotClass(channelMetrics.value))
 const channelOpcUaEndpoint = computed(() => {
   const cfg = channelInfo.value?.config || {}
   return cfg.url || cfg.endpoint || ''
@@ -912,12 +923,15 @@ const parseAutoPointsRange = (config) => {
 const fetchDevices = async () => {
   loading.value = true
   try {
-    const chanData = await request.get(`/api/channels/${channelId}`)
+    const [chanData, devData, metricsData] = await Promise.all([
+      request.get(`/api/channels/${channelId}`),
+      request.get(`/api/channels/${channelId}/devices`),
+      request.get(`/api/channels/${channelId}/metrics`).catch(() => null),
+    ])
     channelInfo.value = chanData
-
-    const devData = await request.get(`/api/channels/${channelId}/devices`)
     devices.value = devData
-    
+    channelMetrics.value = metricsData
+
     selected.value = []
     selectAll.value = false
   } catch (e) {

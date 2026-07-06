@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -20,6 +21,11 @@ type Storage struct {
 }
 
 func (s *Storage) GetPath() string {
+	return s.GetRuntimePath()
+}
+
+// GetRuntimePath returns the on-disk path of runtime.db.
+func (s *Storage) GetRuntimePath() string {
 	return s.runtimeDB.Path()
 }
 
@@ -158,6 +164,14 @@ var runtimeBucketNames = []string{
 	BucketWindow,
 	BucketNorthboundCache,
 }
+
+var edgeLogBucketNames = []string{
+	"edge_events",
+	"edge_failures",
+	"bblot",
+}
+
+var knownRuntimeBucketNames = append(append([]string(nil), runtimeBucketNames...), edgeLogBucketNames...)
 
 func NewStorage(dataDir string) (*Storage, error) {
 	if dataDir == "" {
@@ -434,9 +448,20 @@ var (
 	}
 
 	runtimeBucketMap = map[string]bool{
-		"values": true,
+		"values":        true,
+		"shadow_values": true,
+	}
+
+	edgeLogBucketMap = map[string]bool{
+		"edge_events":   true,
+		"edge_failures": true,
+		"bblot":         true,
 	}
 )
+
+func ClassifyBucket(name string) (category string, clearable bool) {
+	return classifyBucket(name)
+}
 
 func classifyBucket(name string) (category string, clearable bool) {
 	if configBucketMap[name] {
@@ -447,6 +472,9 @@ func classifyBucket(name string) (category string, clearable bool) {
 	}
 	if runtimeBucketMap[name] {
 		return "runtime", true
+	}
+	if edgeLogBucketMap[name] {
+		return "edge_log", true
 	}
 	if strings.HasPrefix(name, "device_history_") {
 		return "history", true
@@ -541,7 +569,43 @@ func (s *Storage) GetBucketStats() ([]BucketStats, int64, error) {
 		return nil, 0, err
 	}
 
+	stats = ensureKnownRuntimeBuckets(stats)
+	sortBucketStats(stats)
+
 	return stats, totalSize, err
+}
+
+func ensureKnownRuntimeBuckets(stats []BucketStats) []BucketStats {
+	existing := make(map[string]struct{}, len(stats))
+	for _, st := range stats {
+		if st.Database == "runtime" {
+			existing[st.Name] = struct{}{}
+		}
+	}
+	for _, name := range knownRuntimeBucketNames {
+		if _, ok := existing[name]; ok {
+			continue
+		}
+		category, clearable := classifyBucket(name)
+		stats = append(stats, BucketStats{
+			Name:        name,
+			RecordCount: 0,
+			TotalSize:   0,
+			Category:    category,
+			Clearable:   clearable,
+			Database:    "runtime",
+		})
+	}
+	return stats
+}
+
+func sortBucketStats(stats []BucketStats) {
+	sort.SliceStable(stats, func(i, j int) bool {
+		if stats[i].Database != stats[j].Database {
+			return stats[i].Database == "config"
+		}
+		return stats[i].Name < stats[j].Name
+	})
 }
 
 func (s *Storage) ClearBucket(bucketName string) error {
@@ -609,100 +673,124 @@ func (s *Storage) ClearAllRuntimeBuckets() ([]string, error) {
 	return cleared, err
 }
 
+const compactTxMaxSize = 65536 // matches bbolt CLI default; avoids OOM during large compacts
+
 // CompactRuntimeDB 压缩运行时数据库文件，回收已删除数据的空间。
-// 使用 bbolt 的 tx.WriteTo 创建紧凑副本，然后替换原文件。
+// 使用 bbolt.Compact 仅复制仍存活的数据，替换原文件。
 func (s *Storage) CompactRuntimeDB() error {
 	runtimePath := s.runtimeDB.Path()
 
-	// 检查剩余空间
-	fileInfo, err := os.Stat(runtimePath)
-	if err != nil {
-		return fmt.Errorf("failed to stat runtime db: %w", err)
+	if err := s.runtimeDB.Close(); err != nil {
+		return fmt.Errorf("failed to close runtime db: %w", err)
 	}
-	requiredSpace := int64(float64(fileInfo.Size()) * 1.2)
 
-	// 创建临时紧凑副本
 	tmpPath := runtimePath + ".compact.tmp"
-	compactFile, err := os.Create(tmpPath)
-	if err != nil {
-		return fmt.Errorf("failed to create compact temp file: %w", err)
-	}
-	defer compactFile.Close()
+	_ = os.Remove(tmpPath)
 
-	// 使用只读事务写入紧凑副本
-	if err := s.runtimeDB.View(func(tx *bbolt.Tx) error {
-		_, err := tx.WriteTo(compactFile)
-		return err
-	}); err != nil {
-		os.Remove(tmpPath)
+	src, err := bbolt.Open(runtimePath, 0600, &bbolt.Options{
+		Timeout:  boltOpenTimeout,
+		ReadOnly: true,
+	})
+	if err != nil {
+		if reopenErr := s.reopenRuntimeDB(runtimePath); reopenErr != nil {
+			return fmt.Errorf("failed to open runtime db for compact: %w (reopen: %v)", err, reopenErr)
+		}
+		return fmt.Errorf("failed to open runtime db for compact: %w", err)
+	}
+
+	dst, err := openBoltDB(tmpPath, true)
+	if err != nil {
+		_ = src.Close()
+		if reopenErr := s.reopenRuntimeDB(runtimePath); reopenErr != nil {
+			return fmt.Errorf("failed to create compact temp db: %w (reopen: %v)", err, reopenErr)
+		}
+		return fmt.Errorf("failed to create compact temp db: %w", err)
+	}
+
+	if err := bbolt.Compact(dst, src, compactTxMaxSize); err != nil {
+		_ = dst.Close()
+		_ = src.Close()
+		_ = os.Remove(tmpPath)
+		if reopenErr := s.reopenRuntimeDB(runtimePath); reopenErr != nil {
+			return fmt.Errorf("failed to compact runtime db: %w (reopen: %v)", err, reopenErr)
+		}
 		return fmt.Errorf("failed to compact runtime db: %w", err)
 	}
-	compactFile.Close()
 
-	// 检查紧凑副本大小
-	tmpInfo, err := os.Stat(tmpPath)
-	if err != nil {
-		os.Remove(tmpPath)
-		return fmt.Errorf("failed to stat compacted file: %w", err)
+	if err := dst.Close(); err != nil {
+		_ = src.Close()
+		_ = os.Remove(tmpPath)
+		if reopenErr := s.reopenRuntimeDB(runtimePath); reopenErr != nil {
+			return fmt.Errorf("failed to close compact temp db: %w (reopen: %v)", err, reopenErr)
+		}
+		return fmt.Errorf("failed to close compact temp db: %w", err)
+	}
+	if err := src.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		if reopenErr := s.reopenRuntimeDB(runtimePath); reopenErr != nil {
+			return fmt.Errorf("failed to close runtime db source: %w (reopen: %v)", err, reopenErr)
+		}
+		return fmt.Errorf("failed to close runtime db source: %w", err)
 	}
 
+	tmpInfo, err := os.Stat(tmpPath)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		if reopenErr := s.reopenRuntimeDB(runtimePath); reopenErr != nil {
+			return fmt.Errorf("failed to stat compacted file: %w (reopen: %v)", err, reopenErr)
+		}
+		return fmt.Errorf("failed to stat compacted file: %w", err)
+	}
 	if tmpInfo.Size() == 0 {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
+		if reopenErr := s.reopenRuntimeDB(runtimePath); reopenErr != nil {
+			return fmt.Errorf("compacted file is empty, aborting (reopen: %v)", reopenErr)
+		}
 		return fmt.Errorf("compacted file is empty, aborting")
 	}
 
-	// 关闭当前 runtimeDB 以替换文件
-	s.runtimeDB.Close()
-
-	// 备份原文件
 	backupPath := runtimePath + ".pre-compact.bak"
 	if err := os.Rename(runtimePath, backupPath); err != nil {
-		// 重新打开数据库
-		s.runtimeDB, _ = bbolt.Open(runtimePath, 0600, &bbolt.Options{
-			Timeout:    30 * time.Second,
-			NoGrowSync: true,
-		})
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
+		if reopenErr := s.reopenRuntimeDB(runtimePath); reopenErr != nil {
+			return fmt.Errorf("failed to backup original runtime db: %w (reopen: %v)", err, reopenErr)
+		}
 		return fmt.Errorf("failed to backup original runtime db: %w", err)
 	}
 
-	// 替换为紧凑副本
 	if err := os.Rename(tmpPath, runtimePath); err != nil {
-		// 恢复原文件
-		os.Rename(backupPath, runtimePath)
-		s.runtimeDB, _ = bbolt.Open(runtimePath, 0600, &bbolt.Options{
-			Timeout:    30 * time.Second,
-			NoGrowSync: true,
-		})
+		_ = os.Rename(backupPath, runtimePath)
+		if reopenErr := s.reopenRuntimeDB(runtimePath); reopenErr != nil {
+			return fmt.Errorf("failed to replace runtime db with compacted file: %w (reopen: %v)", err, reopenErr)
+		}
 		return fmt.Errorf("failed to replace runtime db with compacted file: %w", err)
 	}
 
-	// 重新打开 runtimeDB
-	s.runtimeDB, err = bbolt.Open(runtimePath, 0600, &bbolt.Options{
-		Timeout:    30 * time.Second,
-		NoGrowSync: true,
-	})
-	if err != nil {
+	if err := s.reopenRuntimeDB(runtimePath); err != nil {
 		return fmt.Errorf("failed to reopen compacted runtime db: %w", err)
 	}
 
-	// 重新初始化运行时 bucket
-	err = s.runtimeDB.Update(func(tx *bbolt.Tx) error {
+	if err := s.runtimeDB.Update(func(tx *bbolt.Tx) error {
 		for _, bucket := range runtimeBucketNames {
 			if _, err := tx.CreateBucketIfNotExists([]byte(bucket)); err != nil {
 				return err
 			}
 		}
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return fmt.Errorf("failed to reinit runtime buckets after compact: %w", err)
 	}
 
-	// 清理备份文件
-	os.Remove(backupPath)
+	_ = os.Remove(backupPath)
+	return nil
+}
 
-	_ = requiredSpace // 空间检查已通过文件操作隐含验证
+func (s *Storage) reopenRuntimeDB(path string) error {
+	db, err := openBoltDB(path, true)
+	if err != nil {
+		return err
+	}
+	s.runtimeDB = db
 	return nil
 }
 

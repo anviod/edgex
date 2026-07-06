@@ -498,7 +498,7 @@ func (se *ScanEngine) enforceHardJitterClamp(now time.Time) {
 		if task.GetStatus() != ScanTaskStatusIdle {
 			continue
 		}
-		se.metrics.RecordMissDeadline()
+		se.metrics.RecordMissDeadlineForChannel(taskShadowChannelID(task))
 		se.boostPriorityOnMiss(task)
 		task.NextRun = now
 		task.LastScheduledAt = now
@@ -582,7 +582,7 @@ func (se *ScanEngine) executeTaskAsync(task *ScanTask) {
 			se.adaptiveThrottle.UpdateDeviceRTT(task.DeviceKey, float64(rttMicros)/1000.0)
 		}
 	}
-	se.metrics.RecordExecute(result != nil && result.Success, lagMicros)
+	se.metrics.RecordExecuteForChannel(taskShadowChannelID(task), result != nil && result.Success, lagMicros)
 
 	se.applyCollectToShadow(task, result)
 
@@ -651,14 +651,15 @@ func (se *ScanEngine) rescheduleTask(task *ScanTask, completedAt time.Time) {
 	next := anchor.Add(interval)
 	jitterBound := taskJitterBound(se.config.JitterBound)
 
+	channelID := taskShadowChannelID(task)
 	for next.Before(completedAt) {
 		if !task.DeadlineAt.IsZero() && completedAt.After(task.DeadlineAt) {
-			se.metrics.RecordMissDeadline()
+			se.metrics.RecordMissDeadlineForChannel(channelID)
 			se.boostPriorityOnMiss(task)
 		}
 		drift := completedAt.Sub(next)
 		if drift > 0 {
-			se.metrics.RecordDrift(drift.Microseconds())
+			se.metrics.RecordDriftForChannel(channelID, drift.Microseconds())
 		}
 		next = next.Add(interval)
 	}
