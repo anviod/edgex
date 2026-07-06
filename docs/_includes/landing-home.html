@@ -1,43 +1,52 @@
 <style>
   /* ==========================================================================
-     EdgeX Landing — 工业轻奢版（scoped under .landing-main）
+     EdgeX Landing — 明亮工业轻奢版（scoped under .landing-main）
      ========================================================================== */
   .page-home {
-    background-color: #0a0d14;
-    color: #9da5b4;
+    background-color: #f8f9fa;
+    color: #495057;
+  }
+
+  .page-home .site-header {
+    background: rgba(248, 249, 250, 0.92);
+    border-bottom: 1px solid #e9ecef;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 
   .page-home .site-brand {
-    color: #f5f6f9;
+    color: #343a40;
   }
 
   .page-home .site-nav a {
-    color: #9da5b4;
+    color: #495057;
   }
 
   .page-home .site-nav a:hover {
-    color: #e5c17b;
+    background: rgba(197, 160, 89, 0.08);
+    color: #b38f43;
   }
 
   .landing-main {
-    background: radial-gradient(circle at 50% 0%, #141923 0%, #0a0d14 42%, #0a0d14 100%);
+    background: radial-gradient(circle at 50% 0%, #ffffff 0%, #f1f3f5 42%, #f8f9fa 100%);
     padding-bottom: 88px;
   }
 
   .landing-main a {
-    color: #e5c17b;
+    color: #b38f43;
   }
 
   .landing-main a:hover {
-    color: #f5f6f9;
+    color: #c5a059;
   }
 
-  /* Hero — 琉金栅格主视区 */
+  /* Hero — 琉金栅格主视区（明亮版） */
   .landing-main .hero-section {
     position: relative;
     overflow: hidden;
     padding: clamp(56px, 8vw, 100px) 0 clamp(40px, 5vw, 64px);
-    border-bottom: 1px solid rgba(229, 193, 123, 0.12);
+    border-bottom: 1px solid rgba(197, 160, 89, 0.18);
+    background: radial-gradient(ellipse at 50% 0%, #ffffff 0%, #f1f3f5 55%, transparent 100%);
   }
 
   .landing-main .hero-section::before {
@@ -47,13 +56,13 @@
     z-index: 1;
     pointer-events: none;
     background-image:
-      linear-gradient(rgba(229, 193, 123, 0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(229, 193, 123, 0.04) 1px, transparent 1px),
-      linear-gradient(rgba(255, 255, 255, 0.01) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
+      linear-gradient(rgba(197, 160, 89, 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(197, 160, 89, 0.07) 1px, transparent 1px),
+      linear-gradient(rgba(223, 195, 138, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(223, 195, 138, 0.04) 1px, transparent 1px);
     background-size: 56px 56px, 56px 56px, 14px 14px, 14px 14px;
-    -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.3) 70%, transparent 100%);
-    mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.3) 70%, transparent 100%);
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.45) 70%, transparent 100%);
+    mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.45) 70%, transparent 100%);
   }
 
   .landing-main .hero-section .hero-banner__glow {
@@ -74,45 +83,45 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      rgba(184, 151, 83, 0.02) 20%,
-      rgba(229, 193, 123, 0.14) 50%,
-      rgba(184, 151, 83, 0.02) 80%,
+      rgba(223, 195, 138, 0.08) 20%,
+      rgba(197, 160, 89, 0.14) 50%,
+      rgba(223, 195, 138, 0.08) 80%,
       transparent 100%
     );
     transform: rotate(-20deg);
-    filter: blur(50px);
+    filter: blur(60px);
   }
 
   .landing-main .hero-section .hero-banner__glow::before {
     left: -30%;
-    animation: luxury-flow-a 12s ease-in-out infinite;
+    animation: light-luxury-flow-a 14s ease-in-out infinite;
   }
 
   .landing-main .hero-section .hero-banner__glow::after {
     right: -30%;
     opacity: 0.5;
-    animation: luxury-flow-b 16s ease-in-out infinite;
+    animation: light-luxury-flow-b 18s ease-in-out infinite;
   }
 
-  @keyframes luxury-flow-a {
+  @keyframes light-luxury-flow-a {
     0%, 100% {
       transform: rotate(-20deg) translateX(-20%);
-      opacity: 0.4;
+      opacity: 0.25;
     }
     50% {
       transform: rotate(-20deg) translateX(130%);
-      opacity: 1;
+      opacity: 0.55;
     }
   }
 
-  @keyframes luxury-flow-b {
+  @keyframes light-luxury-flow-b {
     0%, 100% {
       transform: rotate(-20deg) translateX(120%);
-      opacity: 0.3;
+      opacity: 0.2;
     }
     50% {
       transform: rotate(-20deg) translateX(-30%);
-      opacity: 0.8;
+      opacity: 0.45;
     }
   }
 
@@ -169,7 +178,7 @@
     border: none;
     border-radius: 0;
     background: none;
-    color: #b89753;
+    color: #b38f43;
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 3px;
@@ -188,8 +197,8 @@
     font-weight: 800;
     line-height: 1.08;
     letter-spacing: -0.5px;
-    color: #f5f6f9;
-    background: linear-gradient(135deg, #ffffff 30%, #e5c17b 100%);
+    color: #343a40;
+    background: linear-gradient(135deg, #343a40 25%, #c5a059 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -199,7 +208,7 @@
   .landing-main .hero-tagline {
     max-width: none;
     margin: 0 0 20px;
-    color: #8a92a3;
+    color: #6c757d;
     font-size: clamp(0.95rem, 1.35vw, 16px);
     line-height: 1.7;
     text-align: left;
@@ -209,11 +218,11 @@
     display: inline-block;
     margin: 0 0 36px;
     padding: 6px 16px;
-    border: 1px solid rgba(229, 193, 123, 0.15);
-    border-left: 1px solid rgba(229, 193, 123, 0.15);
+    border: 1px solid rgba(197, 160, 89, 0.28);
+    border-left: 1px solid rgba(197, 160, 89, 0.28);
     border-radius: 4px;
-    background: rgba(229, 193, 123, 0.05);
-    color: #e5c17b;
+    background: rgba(197, 160, 89, 0.06);
+    color: #b38f43;
     font-family: "JetBrains Mono", ui-monospace, monospace;
     font-size: 12px;
     letter-spacing: 0.5px;
@@ -236,29 +245,30 @@
   }
 
   .landing-main .button-link--primary {
-    background: linear-gradient(135deg, #e5c17b 0%, #b89753 100%);
-    color: #0a0d14;
+    background: linear-gradient(135deg, #dfc38a 0%, #c5a059 50%, #b38f43 100%);
+    color: #ffffff;
     border: none;
-    box-shadow: 0 4px 20px rgba(184, 151, 83, 0.2);
+    box-shadow: 0 4px 16px rgba(197, 160, 89, 0.25);
   }
 
   .landing-main .button-link--primary:hover {
     transform: translateY(-2px);
-    background: linear-gradient(135deg, #edd08a 0%, #c4a05e 100%);
-    color: #0a0d14;
-    box-shadow: 0 6px 24px rgba(229, 193, 123, 0.3);
+    background: linear-gradient(135deg, #e8d09a 0%, #c5a059 50%, #b38f43 100%);
+    color: #ffffff;
+    box-shadow: 0 6px 22px rgba(197, 160, 89, 0.32);
   }
 
   .landing-main .button-link--secondary {
-    background: rgba(255, 255, 255, 0.02);
-    color: #cbd1dc;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #ffffff;
+    color: #495057;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   }
 
   .landing-main .button-link--secondary:hover {
-    background: rgba(229, 193, 123, 0.05);
-    border-color: #e5c17b;
-    color: #f5f6f9;
+    background: rgba(197, 160, 89, 0.06);
+    border-color: #c5a059;
+    color: #b38f43;
     transform: translateY(-2px);
   }
 
@@ -268,11 +278,11 @@
     align-self: auto;
     padding: 32px;
     border-radius: 8px;
-    background: rgba(16, 20, 32, 0.6);
-    border: 1px solid rgba(229, 193, 123, 0.18);
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(197, 160, 89, 0.22);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06), 0 1px 0 rgba(255, 255, 255, 0.8) inset;
   }
 
   .landing-main .hero-stack {
@@ -288,13 +298,13 @@
   .landing-main .hero-stack__item:not(:last-child) {
     margin-bottom: 24px;
     padding-bottom: 18px;
-    border-bottom: 1px solid rgba(229, 193, 123, 0.08);
+    border-bottom: 1px solid rgba(197, 160, 89, 0.14);
   }
 
   .landing-main .hero-stack__item strong {
     display: block;
     margin-bottom: 8px;
-    color: #e5c17b;
+    color: #b38f43;
     font-size: 14px;
     font-weight: 700;
     letter-spacing: 0.5px;
@@ -302,7 +312,7 @@
 
   .landing-main .hero-stack__item span {
     display: block;
-    color: #8a92a3;
+    color: #6c757d;
     font-size: 13px;
     line-height: 1.5;
     text-align: left;
@@ -311,7 +321,7 @@
   /* 通用内容板块 */
   .landing-main .landing-section {
     padding: clamp(48px, 6vw, 80px) 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid #e9ecef;
   }
 
   .landing-main .section-heading {
@@ -320,7 +330,7 @@
   }
 
   .landing-main .section-kicker {
-    color: #e5c17b;
+    color: #c5a059;
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 2px;
@@ -329,7 +339,7 @@
 
   .landing-main .section-heading h2 {
     margin: 8px 0 12px;
-    color: #f5f6f9;
+    color: #343a40;
     font-family: "Outfit", "Noto Sans SC", sans-serif;
     font-size: clamp(1.5rem, 2.5vw, 28px);
     font-weight: 700;
@@ -338,7 +348,7 @@
   .landing-main .section-heading p {
     margin: 0;
     max-width: none;
-    color: #717885;
+    color: #6c757d;
     font-size: 14px;
   }
 
@@ -351,25 +361,25 @@
     gap: 0;
     padding: 28px;
     border-radius: 4px;
-    background: #101420;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: none;
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
     transition: all 0.3s ease;
   }
 
   .landing-main .feature-card:hover {
-    border-color: rgba(229, 193, 123, 0.4);
-    background: #141926;
+    border-color: rgba(197, 160, 89, 0.45);
+    background: #ffffff;
     transform: translateY(-4px);
-    box-shadow: none;
+    box-shadow: 0 8px 24px rgba(197, 160, 89, 0.12);
   }
 
   .landing-main .feature-card__tag {
     margin-bottom: 18px;
     padding: 3px 10px;
     border-radius: 2px;
-    background: rgba(229, 193, 123, 0.08);
-    color: #e5c17b;
+    background: rgba(197, 160, 89, 0.10);
+    color: #b38f43;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.5px;
@@ -377,7 +387,7 @@
 
   .landing-main .feature-card h3 {
     margin: 0 0 12px;
-    color: #f5f6f9;
+    color: #343a40;
     font-size: 18px;
     font-weight: 600;
   }
@@ -385,7 +395,7 @@
   .landing-main .feature-card p {
     margin: 0 0 24px;
     flex-grow: 1;
-    color: #8a92a3;
+    color: #6c757d;
     font-size: 13.5px;
     line-height: 1.6;
   }
@@ -400,14 +410,14 @@
     padding: 0;
     border-radius: 0;
     background: none;
-    color: #e5c17b;
+    color: #b38f43;
     font-size: 13px;
     font-weight: 500;
   }
 
   .landing-main .mini-link:hover {
     background: none;
-    color: #f5f6f9;
+    color: #c5a059;
     text-decoration: underline;
   }
 
@@ -421,16 +431,16 @@
   .landing-main .doc-zone {
     padding: 28px;
     border-radius: 4px;
-    background: #101420;
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    box-shadow: none;
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
   }
 
   .landing-main .doc-zone h3 {
     margin: 0 0 18px;
     padding-bottom: 10px;
-    border-bottom: 1px solid rgba(229, 193, 123, 0.12);
-    color: #e5c17b;
+    border-bottom: 1px solid rgba(197, 160, 89, 0.18);
+    color: #b38f43;
     font-size: 15px;
     font-weight: 700;
     letter-spacing: 0.5px;
@@ -441,35 +451,39 @@
   }
 
   .landing-main .doc-zone a {
-    color: #9da5b4;
+    color: #495057;
     font-size: 14px;
     font-weight: 500;
     transition: color 0.2s ease;
   }
 
   .landing-main .doc-zone a:hover {
-    color: #e5c17b;
+    color: #c5a059;
   }
 
   /* 路线图 */
   .landing-main .roadmap-intro {
     margin-bottom: 40px;
     padding: 20px 24px;
-    border-left: 3px solid #e5c17b;
+    border-left: 3px solid #c5a059;
     border-radius: 0 4px 4px 0;
-    background: rgba(16, 20, 32, 0.6);
+    background: rgba(255, 255, 255, 0.75);
+    border-top: 1px solid #e9ecef;
+    border-right: 1px solid #e9ecef;
+    border-bottom: 1px solid #e9ecef;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
   }
 
   .landing-main .roadmap-intro h4 {
     margin: 0 0 8px;
-    color: #f5f6f9;
+    color: #343a40;
     font-size: 15px;
     font-weight: 600;
   }
 
   .landing-main .roadmap-intro p {
     margin: 0;
-    color: #8a92a3;
+    color: #6c757d;
     font-size: 13px;
     line-height: 1.7;
   }
@@ -485,14 +499,14 @@
 
   .landing-main .quarter-header h3 {
     margin: 0;
-    color: #f5f6f9;
+    color: #343a40;
     font-size: 19px;
     font-weight: 600;
   }
 
   .landing-main .quarter-header--q4 h3,
   .landing-main .quarter-header--done h3 {
-    color: #f5f6f9;
+    color: #343a40;
   }
 
   .landing-main .quarter-badge {
@@ -505,60 +519,62 @@
   }
 
   .landing-main .quarter-badge--active {
-    background: rgba(76, 175, 80, 0.1);
-    color: #66bb6a;
-    border: 1px solid rgba(76, 175, 80, 0.2);
+    background: rgba(46, 125, 50, 0.08);
+    color: #2e7d32;
+    border: 1px solid rgba(46, 125, 50, 0.22);
   }
 
   .landing-main .quarter-badge--planned {
-    background: rgba(229, 193, 123, 0.1);
-    color: #e5c17b;
-    border: 1px solid rgba(229, 193, 123, 0.2);
+    background: rgba(197, 160, 89, 0.10);
+    color: #b38f43;
+    border: 1px solid rgba(197, 160, 89, 0.28);
   }
 
   .landing-main .roadmap-table {
     margin-bottom: 40px;
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    border: 1px solid #e9ecef;
     border-radius: 4px;
     overflow: hidden;
     font-size: 13.5px;
+    background: #ffffff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
   }
 
   .landing-main .roadmap-table thead tr,
   .landing-main .roadmap-table--q4 thead tr {
-    background: #141926;
+    background: #f1f3f5;
   }
 
   .landing-main .roadmap-table th {
     padding: 14px;
-    border-bottom: 2px solid rgba(229, 193, 123, 0.15);
-    color: #e5c17b;
+    border-bottom: 2px solid rgba(197, 160, 89, 0.22);
+    color: #b38f43;
     font-weight: 600;
     letter-spacing: 0.5px;
   }
 
   .landing-main .roadmap-table td {
     padding: 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-    color: #9da5b4;
+    border-bottom: 1px solid #e9ecef;
+    color: #495057;
   }
 
   .landing-main .roadmap-table tr:nth-child(even) td {
-    background: transparent;
+    background: rgba(248, 249, 250, 0.6);
   }
 
   .landing-main .roadmap-table tr:hover td {
-    background: rgba(255, 255, 255, 0.01);
+    background: rgba(197, 160, 89, 0.05);
   }
 
   .landing-main .roadmap-table td:first-child,
   .landing-main .roadmap-table--q4 td:first-child {
-    color: #f5f6f9;
+    color: #343a40;
     font-weight: 600;
   }
 
   .landing-main .roadmap-table td:nth-child(3) {
-    color: #e5c17b;
+    color: #b38f43;
     font-weight: 500;
   }
 
@@ -570,15 +586,15 @@
   }
 
   .landing-main .priority-badge--high {
-    color: #ef5350;
+    color: #c62828;
   }
 
   .landing-main .priority-badge--medium {
-    color: #ffa726;
+    color: #e65100;
   }
 
   .landing-main .priority-badge--low {
-    color: #78909c;
+    color: #546e7a;
   }
 
   .landing-main .status-badge {
@@ -587,33 +603,33 @@
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.02em;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #9da5b4;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    color: #6c757d;
   }
 
   .landing-main .status-badge--progress {
-    background: rgba(229, 193, 123, 0.08);
-    border-color: rgba(229, 193, 123, 0.2);
-    color: #e5c17b;
+    background: rgba(197, 160, 89, 0.10);
+    border-color: rgba(197, 160, 89, 0.28);
+    color: #b38f43;
   }
 
   .landing-main .status-badge--research {
-    background: rgba(100, 181, 246, 0.08);
-    border-color: rgba(100, 181, 246, 0.2);
-    color: #64b5f6;
+    background: rgba(21, 101, 192, 0.08);
+    border-color: rgba(21, 101, 192, 0.22);
+    color: #1565c0;
   }
 
   .landing-main .status-badge--pending {
-    background: rgba(255, 255, 255, 0.03);
-    border-color: rgba(255, 255, 255, 0.06);
-    color: #717885;
+    background: #f8f9fa;
+    border-color: #dee2e6;
+    color: #868e96;
   }
 
   .landing-main .status-badge--done {
-    background: rgba(76, 175, 80, 0.08);
-    border-color: rgba(76, 175, 80, 0.2);
-    color: #66bb6a;
+    background: rgba(46, 125, 50, 0.08);
+    border-color: rgba(46, 125, 50, 0.22);
+    color: #2e7d32;
   }
 
   /* 里程碑 */
@@ -627,61 +643,61 @@
   .landing-main .milestone-item {
     padding: 16px;
     border-radius: 4px;
-    background: #101420;
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    box-shadow: none;
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.03);
   }
 
   .landing-main .milestone-item--new {
-    background: rgba(229, 193, 123, 0.02);
-    border-color: rgba(229, 193, 123, 0.25);
+    background: rgba(197, 160, 89, 0.05);
+    border-color: rgba(197, 160, 89, 0.32);
   }
 
   .landing-main .milestone-dot {
     width: 6px;
     height: 6px;
-    background: #545b66;
+    background: #adb5bd;
   }
 
   .landing-main .milestone-dot--new {
-    background: #e5c17b;
-    box-shadow: 0 0 10px #e5c17b;
+    background: #c5a059;
+    box-shadow: 0 0 8px rgba(197, 160, 89, 0.45);
   }
 
   .landing-main .milestone-title {
-    color: #f5f6f9;
+    color: #343a40;
     font-size: 13.5px;
     font-weight: 600;
   }
 
   .landing-main .milestone-item--new .milestone-title {
-    color: #f5f6f9;
+    color: #343a40;
   }
 
   .landing-main .milestone-date {
     margin-top: 3px;
-    color: #717885;
+    color: #868e96;
     font-size: 11px;
   }
 
   .landing-main .milestone-item--new .milestone-date {
-    color: #b89753;
+    color: #b38f43;
   }
 
   .landing-main .roadmap-footer {
     padding-top: 24px;
-    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    border-top: 1px solid #e9ecef;
     text-align: center;
   }
 
   .landing-main .roadmap-footer p {
     margin: 0;
-    color: #717885;
+    color: #6c757d;
     font-size: 13px;
   }
 
   .landing-main .roadmap-footer a {
-    color: #e5c17b;
+    color: #b38f43;
     font-weight: 500;
   }
 
@@ -689,20 +705,20 @@
   .landing-main .wide-panel {
     padding: 40px;
     border-radius: 6px;
-    background: #101420;
-    border: 1px solid rgba(229, 193, 123, 0.15);
-    box-shadow: none;
+    background: #ffffff;
+    border: 1px solid rgba(197, 160, 89, 0.22);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   }
 
   .landing-main .wide-panel h2 {
     margin: 8px 0;
-    color: #f5f6f9;
+    color: #343a40;
     font-family: "Outfit", "Noto Sans SC", sans-serif;
     font-size: clamp(1.4rem, 2vw, 1.8rem);
   }
 
   .landing-main .wide-panel > p {
-    color: #717885;
+    color: #6c757d;
   }
 
   .landing-main .quick-links {
@@ -713,18 +729,18 @@
   .landing-main .quick-links a {
     padding: 8px 16px;
     border-radius: 4px;
-    background: #141926;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    color: #9da5b4;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    color: #495057;
     font-size: 13px;
     font-weight: 500;
     transition: all 0.2s ease;
   }
 
   .landing-main .quick-links a:hover {
-    border-color: #e5c17b;
-    background: rgba(229, 193, 123, 0.04);
-    color: #e5c17b;
+    border-color: #c5a059;
+    background: rgba(197, 160, 89, 0.06);
+    color: #b38f43;
   }
 
   @media (max-width: 1180px) {
@@ -747,7 +763,7 @@
     .landing-main .hero-section .hero-banner__glow::before,
     .landing-main .hero-section .hero-banner__glow::after {
       animation: none;
-      opacity: 0.35;
+      opacity: 0.2;
     }
 
     .landing-main .feature-card:hover,
