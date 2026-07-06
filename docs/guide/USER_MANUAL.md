@@ -85,27 +85,94 @@ description: EdgeX 用户手册
 
 ### 安装方式
 
-#### 方式一：二进制包安装（推荐）
+从 [GitHub Releases](https://github.com/anviod/edgex/releases) 下载对应架构的安装包（`amd64` / `arm64` / `arm`）。生产环境 Linux 推荐使用 **deb / rpm 系统包**（自动注册 systemd、升级时保留配置）。
+
+#### 方式一：系统包安装（Linux，推荐）
+
+包内安装路径为 `/usr/local/bin/edgex/`，注册 systemd 服务 `edgex`；升级时 `preinstall` / `postinstall` 脚本会自动备份并恢复 `config/` 与 `data/`。
+
+文件名形如 `edgex-v{version}-{arch}.deb` 或 `edgex-v{version}-{arch}.rpm`。
+
+**Debian / Ubuntu（`.deb`）**
+
+首次安装：
+
+```bash
+sudo dpkg -i edgex-v{version}-amd64.deb
+sudo apt-get install -f -y    # 若提示依赖缺失
+```
+
+升级（覆盖安装，保留配置，服务自动重启）：
+
+```bash
+sudo dpkg -i edgex-v{new-version}-amd64.deb
+# 或
+sudo apt install ./edgex-v{new-version}-amd64.deb
+```
+
+卸载：
+
+```bash
+sudo apt remove -y edgex
+```
+
+**RHEL / CentOS / Fedora（`.rpm`）**
+
+首次安装：
+
+```bash
+sudo rpm -ivh edgex-v{version}-amd64.rpm
+# 或（Fedora / RHEL 8+）
+sudo dnf install ./edgex-v{version}-amd64.rpm
+```
+
+升级：
+
+```bash
+sudo rpm -Uvh edgex-v{new-version}-amd64.rpm
+# 或
+sudo dnf upgrade ./edgex-v{new-version}-amd64.rpm
+```
+
+卸载：
+
+```bash
+sudo rpm -e edgex
+# 或
+sudo dnf remove edgex
+```
+
+安装后验证：
+
+```bash
+sudo systemctl status edgex
+sudo systemctl enable --now edgex   # 若未自动启动
+```
+
+浏览器访问 `http://<主机>:<port>` 进入管理界面；首次启动若 `data/config.db` 不存在，将进入 Web 安装向导。
+
+#### 方式二：tar.gz 二进制包
 
 1. **下载安装包**
-   - 从官方发布页下载对应平台的二进制包
-   - 文件名格式：`edgex_<version>_<os>_<arch>.tar.gz`
+   - 文件名格式：`edgex-{version}-linux-{arch}.tar.gz`（含二进制、`conf/`、`edgex.service`、`ui/dist/` 等）
 
 2. **解压安装**
    ```bash
-   # 解压到 /opt 目录
-   sudo tar -xzf edgex_<version>_linux_amd64.tar.gz -C /opt/
+   sudo mkdir -p /usr/local/bin/edgex
+   sudo tar -xzf edgex-{version}-linux-amd64.tar.gz -C /usr/local/bin/edgex
 
-   # 创建软链接
-   sudo ln -s /opt/edgex_<version> /opt/edgex
+   # 可选：配置 systemd（包内附带 edgex.service 示例）
+   sudo cp edgex.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now edgex
    ```
 
 3. **验证安装**
    ```bash
-   /opt/edgex/edgex --version
+   sudo systemctl status edgex
    ```
 
-#### 方式二：源码编译安装
+#### 方式三：源码编译安装
 
 1. **前置条件**
    - Go 1.21+

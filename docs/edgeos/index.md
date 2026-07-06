@@ -8,8 +8,8 @@ hero_buttons:
   - text: 通信协议规范
     url: EdgeX通信协议规范%28MQTT-NATS%29.html
     style: primary
-  - text: 部署指南
-    url: ../deployment/index.html
+  - text: 用户手册
+    url: ../guide/USER_MANUAL.html#安装指南
     style: secondary
   - text: 样式规范
     url: 样式规范.html

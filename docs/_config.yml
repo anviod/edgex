@@ -31,8 +31,6 @@ nav:
     url: /drivers/
   - title: 测试验证
     url: /testing/
-  - title: 部署运维
-    url: /deployment/
   - title: 边缘计算
     url: /edge/
   - title: 开发计划
@@ -56,3 +54,4 @@ exclude:
   - scripts/
   - done/
   - man/
+  - deployment/index.md

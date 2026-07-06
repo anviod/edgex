@@ -11,8 +11,8 @@ hero_buttons:
   - text: 样式参考
     url: 样式参考.html
     style: secondary
-  - text: 部署指南
-    url: ../deployment/index.html
+  - text: 用户手册
+    url: ../guide/USER_MANUAL.html#安装指南
     style: secondary
   - text: 返回首页
     url: ../index.html
