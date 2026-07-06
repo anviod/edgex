@@ -53,7 +53,7 @@ Detailed SLA, protocols, and virtual shadow: [Product Guide (中文)](../guide/�
 | [Southbound Driver Matrix (EN)](../drivers/index_en.html) | 12 protocol drivers and development standards |
 | [Testing & Verification](../testing/index.html) | SLA benchmarks, Soak, regression, and driver test reports |
 | [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) | **2026-07-04** retest — 21/21 PASS, coverage matrix |
-| [Deployment](../deployment/index.html) | bare-metal / systemd deployment guides |
+| [User Manual — Installation (中文)](../guide/USER_MANUAL.html#安装指南) | deb / rpm / tar.gz install and upgrade |
 
 ## Implemented Southbound Drivers
 

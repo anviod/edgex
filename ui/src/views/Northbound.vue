@@ -40,6 +40,7 @@
               :meta="meta"
               :item="item"
               :connection-status="config.status"
+              :sync-loading="syncingOpcuaId === item.id"
               @help="onHelp(meta.key, item)"
               @settings="onSettings(meta.key, item)"
               @stats="onStats(meta.key, item)"
@@ -68,6 +69,7 @@
               :meta="meta"
               :item="item"
               :connection-status="config.status"
+              :sync-loading="syncingOpcuaId === item.id"
               @help="onHelp(meta.key, item)"
               @settings="onSettings(meta.key, item)"
               @stats="onStats(meta.key, item)"
@@ -276,6 +278,15 @@ const onStats = (type, item) => {
 }
 
 const deleteDialog = reactive({ visible: false, type: '', id: '' })
+const syncingOpcuaId = ref('')
+
+const closeArcoLoading = (handle) => {
+  if (handle && typeof handle.close === 'function') {
+    handle.close()
+    return true
+  }
+  return false
+}
 
 const deleteProtocol = (type, id) => {
   deleteDialog.type = type
@@ -298,15 +309,27 @@ const executeDeleteProtocol = async () => {
 }
 
 const syncOpcuaServer = async (item) => {
-  if (!item?.id) return
-  const closeLoading = Message.loading({ content: '正在同步 OPC UA 点位映射...', duration: 0 })
+  if (!item?.id || syncingOpcuaId.value === item.id) return
+
+  syncingOpcuaId.value = item.id
+  let stopMessage = Message.loading({
+    content: '正在同步 OPC UA 点位映射...',
+    duration: 0,
+    id: `opcua-sync-${item.id}`
+  })
+
   try {
     await request.post(`/api/northbound/opcua/${item.id}/sync`, null, northboundSaveRequestConfig)
+    closeArcoLoading(stopMessage)
+    stopMessage = null
     Message.success('点位映射已同步，读写权限已更新')
   } catch (e) {
+    closeArcoLoading(stopMessage)
+    stopMessage = null
     Message.error('同步失败：' + resolveNorthboundSaveError(e))
   } finally {
-    closeLoading()
+    closeArcoLoading(stopMessage)
+    syncingOpcuaId.value = ''
   }
 }
 

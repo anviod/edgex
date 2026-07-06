@@ -62,6 +62,8 @@ EdgeX SLA 验证闭环：运行时监测 → 可观测 → CI/Soak 验证
 | **部署方式** | 裸机 / systemd · 嵌入式设备                 |
 
 
+
+
 ### 功能索引
 
 
@@ -75,6 +77,8 @@ EdgeX SLA 验证闭环：运行时监测 → 可观测 → CI/Soak 验证
 | **质量保障** | [工业级 SLA](#工业级-sla-与稳定性验证) · [轻量部署](#轻量灵活部署)                                                                                                                                                                                                                                                          |
 
 
+
+
 ## 文档导航
 
 架构图、组件职责与数据路径等运行时细节见 [文档站点](https://anviod.github.io/edgex/)（本地源码见 `docs/`）：
@@ -86,18 +90,24 @@ EdgeX SLA 验证闭环：运行时监测 → 可观测 → CI/Soak 验证
 | [产品说明](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html) · [源码](docs/guide/产品说明.md)                                                                 | 能力详解、SLA 指标与功能说明                 |
 | [边缘网关架构设计总览](https://anviod.github.io/edgex/edge/%E8%BE%B9%E7%BC%98%E7%BD%91%E5%85%B3%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E6%80%BB%E8%A7%88.html) · [源码](docs/edge/边缘网关架构设计总览.md) | 边缘网关组件划分与数据流                     |
 | [南向驱动矩阵](https://anviod.github.io/edgex/drivers/index.html) · [源码](docs/drivers/index.md)                                                                                         | 12 种协议驱动与开发规范                    |
-| [测试验证](https://anviod.github.io/edgex/testing/index.html) · [源码](docs/testing/index.md) · [test/ 维护](test/README.md)                                                                 | SLA 压测、Soak 与 `go test` 维护原则      |
+| [测试验证](https://anviod.github.io/edgex/testing/index.html) · [源码](docs/testing/index.md) · [test/ 维护](test/README.md)                                                              | SLA 压测、Soak 与 `go test` 维护原则     |
 
 
 ---
 
+
+
 ## 部署流程
+
+
 
 ### 1. 编译方式
 
+
+
 #### 一键多平台打包（推荐）
 
-项目使用 [GoReleaser](https://goreleaser.com/)（`.goreleaser.yml`）统一构建前端与后端，并生成分平台安装包。GoReleaser 内置 nfpm，用于生成 `.deb` 包，无需单独安装 nfpm。
+项目使用 [GoReleaser](https://goreleaser.com/)（`.goreleaser.yml`）统一构建前端与后端，并生成分平台安装包。GoReleaser 内置 nfpm，用于生成 `.deb` / `.rpm` 包，无需单独安装 nfpm。
 
 ```bash
 # 安装 GoReleaser（任选其一）
@@ -129,7 +139,10 @@ goreleaser release --snapshot --clean
 | -------------- | ---------------------------------------------------------------------------------------------------- |
 | **tar.gz**     | `edgex-{version}-{os}-{arch}.tar.gz`，含二进制、`conf/`、`scripts/`、`edgex.service`、`edgex.sh`、`ui/dist/` 等 |
 | **deb**        | `edgex-v{version}-{arch}.deb`，安装至 `/usr/local/bin/edgex`，含 systemd 单元与前端静态资源                         |
+| **rpm**        | `edgex-v{version}-{arch}.rpm`，安装路径与 deb 相同，适用于 RHEL / CentOS / Fedora 等                              |
 | **SHA256SUMS** | 各产物校验和                                                                                               |
+
+
 
 
 #### 手动编译（开发 / 单平台）
@@ -146,7 +159,84 @@ CGO_ENABLED=0 go build -o edgex ./cmd/main.go
 cd ui && npm install && npm run build && cd ..
 ```
 
-### 2. 目录与配置
+
+
+### 2. 系统包安装与升级（Linux）
+
+从 [GitHub Releases](https://github.com/anviod/edgex/releases) 或本地 `dist/` 目录获取对应架构的安装包（`amd64` / `arm64` / `arm`），文件名形如 `edgex-v{version}-{arch}.deb` 或 `.rpm`。
+
+包内会安装二进制至 `/usr/local/bin/edgex/`，注册 systemd 服务 `edgex`；升级时 `preinstall` / `postinstall` 脚本会自动备份并恢复 `config/` 与 `data/`，无需手工迁移配置。
+
+#### Debian / Ubuntu（`.deb`）
+
+**首次安装**
+
+```bash
+sudo dpkg -i edgex-v{version}-amd64.deb
+sudo apt-get install -f -y    # 若提示依赖缺失
+```
+
+**升级**（覆盖安装，保留配置，服务自动重启）
+
+```bash
+sudo dpkg -i edgex-v{new-version}-amd64.deb
+# 或
+sudo apt install ./edgex-v{new-version}-amd64.deb
+```
+
+**卸载**
+
+```bash
+sudo apt remove -y edgex
+# 或者
+dpkg --remove --force-remove-reinstreq edgex
+dpkg -r  edgex
+```
+
+
+
+#### RHEL / CentOS / Fedora（`.rpm`）
+
+**首次安装**
+
+```bash
+sudo rpm -ivh edgex-v{version}-amd64.rpm
+# 或（Fedora / RHEL 8+）
+sudo dnf install ./edgex-v{version}-amd64.rpm
+```
+
+**升级**
+
+```bash
+sudo rpm -Uvh edgex-v{new-version}-amd64.rpm
+# 或
+sudo dnf upgrade ./edgex-v{new-version}-amd64.rpm
+```
+
+**卸载**
+
+```bash
+sudo rpm -e edgex
+# 或
+sudo dnf remove edgex
+```
+
+
+
+#### 安装后验证
+
+```bash
+sudo systemctl status edgex
+sudo systemctl enable --now edgex   # 若未自动启动
+```
+
+浏览器访问 `http://<主机>:<port>` 进入管理界面；首次启动若 `data/config.db` 不存在，将进入 Web 安装向导。
+
+> **tar.gz 裸机部署**：若使用 `edgex-{version}-linux-{arch}.tar.gz`，解压后参考下方「目录与配置」与「启动服务」，或自行配置 systemd（包内附带 `edgex.service` 示例）。
+
+
+
+### 3. 目录与配置
 
 
 | 路径      | 说明                                           |
@@ -158,7 +248,7 @@ cd ui && npm install && npm run build && cd ..
 
 首次启动若 `data/config.db` 不存在，网关以安装模式启动，通过 Web UI 完成初始化。
 
-### 3. 启动服务
+### 4. 启动服务
 
 ```bash
 # 默认配置目录 ./conf，HTTP 端口见 server 配置（常见 8080/8082）
@@ -170,34 +260,38 @@ cd ui && npm install && npm run build && cd ..
 
 访问 `http://localhost:<port>` 进入管理界面。默认账号见安装向导或 `conf/users.yaml`。
 
-### 4. 生产部署参考
+### 5. 生产部署参考
 
 - **systemd 服务、防火墙端口、配置初始化**：见 [用户手册 — 部署流程](https://anviod.github.io/edgex/guide/USER_MANUAL.html#部署流程)（[源码](docs/guide/USER_MANUAL.md#部署流程)）
+- **系统包安装与升级（deb / rpm）**：见 [用户手册 — 安装指南](https://anviod.github.io/edgex/guide/USER_MANUAL.html#安装指南)（[源码](docs/guide/USER_MANUAL.md#安装指南)）
 - **EdgeOS 集成与北向通道**：见 [EdgeOS 快速入门](https://anviod.github.io/edgex/deployment/edgeos-quickstart.html)（[源码](docs/deployment/edgeos-quickstart.md)）
 - **多从站 Modbus 配置**：见 [多从站快速入门](https://anviod.github.io/edgex/deployment/QUICK_START_MULTI_SLAVE.html)（[源码](docs/deployment/QUICK_START_MULTI_SLAVE.md)）
-- **完整部署文档索引**：[GitHub Pages 部署指南](https://anviod.github.io/edgex/deployment/) · [源码](docs/deployment/index.md)
 
 ---
+
+
 
 ## 文档索引
 
 
-| 类别                 | 链接                                                                                                        |
-| ------------------ | --------------------------------------------------------------------------------------------------------- |
-| 文档站点（GitHub Pages） | [https://anviod.github.io/edgex/](https://anviod.github.io/edgex/)                                        |
-| **开发原则与验收标准**      | [在线阅读](https://anviod.github.io/edgex/DEVELOPMENT_PRINCIPLES.html) · [源码](docs/DEVELOPMENT_PRINCIPLES.md) |
-| **分阶段路线图**         | [在线阅读](https://anviod.github.io/edgex/ROADMAP.html) · [源码](docs/ROADMAP.md)                               |
-| **版本发布门禁**         | [在线阅读](https://anviod.github.io/edgex/RELEASE_GATE.html) · [源码](docs/RELEASE_GATE.md)                     |
-| 驱动文档               | [在线阅读](https://anviod.github.io/edgex/drivers/index.html) · [源码](docs/drivers/index.md)                   |
-| 部署指南               | [在线阅读](https://anviod.github.io/edgex/deployment/) · [源码](docs/deployment/index.md)                       |
-| 架构设计               | [在线阅读](https://anviod.github.io/edgex/architecture/index.html) · [源码](docs/architecture/index.md)         |
-| 开发计划 / TODO        | [docs/TODO/](docs/TODO/index.md)（未发布至 Pages）                                                              |
-| Q3 南向采集优化方案        | [docs/[TODO]边缘计算南向采集优化方案2026第三季度.md](docs/[TODO]边缘计算南向采集优化方案2026第三季度.md)（未发布至 Pages）                      |
+| 类别                 | 链接                                                                                                                   |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| 文档站点（GitHub Pages） | [https://anviod.github.io/edgex/](https://anviod.github.io/edgex/)                                                   |
+| **开发原则与验收标准**      | [在线阅读](https://anviod.github.io/edgex/DEVELOPMENT_PRINCIPLES.html) · [源码](docs/DEVELOPMENT_PRINCIPLES.md)            |
+| **分阶段路线图**         | [在线阅读](https://anviod.github.io/edgex/ROADMAP.html) · [源码](docs/ROADMAP.md)                                          |
+| **版本发布门禁**         | [在线阅读](https://anviod.github.io/edgex/RELEASE_GATE.html) · [源码](docs/RELEASE_GATE.md)                                |
+| 驱动文档               | [在线阅读](https://anviod.github.io/edgex/drivers/index.html) · [源码](docs/drivers/index.md)                              |
+| 用户手册（安装部署）         | [在线阅读](https://anviod.github.io/edgex/guide/USER_MANUAL.html#安装指南) · [源码](docs/guide/USER_MANUAL.md#安装指南)            |
+| 架构设计               | [在线阅读](https://anviod.github.io/edgex/architecture/index.html) · [源码](docs/architecture/index.md)                    |
+| 开发计划 / TODO        | [docs/TODO/](docs/TODO/index.md)（未发布至 Pages）                                                                         |
+| Q3 南向采集优化方案        | [docs/[TODO]边缘计算南向采集优化方案2026第三季度.md](docs/[TODO]边缘计算南向采集优化方案2026第三季度.md)（未发布至 Pages）                                 |
 | 测试验证               | [在线阅读](https://anviod.github.io/edgex/testing/index.html) · [源码](docs/testing/index.md) · [test/ 维护](test/README.md) |
-| 运维参考               | [在线阅读](https://anviod.github.io/edgex/operations/index.html) · [源码](docs/operations/index.md)             |
+| 运维参考               | [在线阅读](https://anviod.github.io/edgex/operations/index.html) · [源码](docs/operations/index.md)                        |
 
 
 ---
+
+
 
 ## 分支与协作
 
@@ -217,6 +311,8 @@ make test-short
 默认管理端口取决于 `server` 配置；BACnet 需开放 UDP 47808。
 
 ---
+
+
 
 ## 相关文档
 

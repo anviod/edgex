@@ -204,3 +204,20 @@ func TestCoreStructsMemory(t *testing.T) {
 	t.Logf("1000 MTUNegotiationRecord instances: %d bytes", recordSize*1000)
 	t.Logf("1000 BatchReadSnapshot instances: %d bytes", snapshotSize*1000)
 }
+
+func TestDevice_WithPointsSummary(t *testing.T) {
+	dev := Device{
+		ID: "dev-1",
+		Points: []Point{
+			{ID: "p1", Name: "P1"},
+			{ID: "p2", Name: "P2"},
+		},
+	}
+	summary := dev.WithPointsSummary()
+	if len(summary.Points) != 0 {
+		t.Fatalf("expected points stripped, got %d", len(summary.Points))
+	}
+	if summary.PointsCount != 2 {
+		t.Fatalf("points_count = %d, want 2", summary.PointsCount)
+	}
+}

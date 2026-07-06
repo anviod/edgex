@@ -4,22 +4,24 @@
 
 .channel-metrics-modal.arco-modal {
   border-radius: var(--radius-xl);
+  max-height: calc(100vh - 32px);
 }
 
 .channel-metrics-modal .arco-modal-header {
-  padding: var(--space-5) var(--space-6);
+  padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--border);
 }
 
 .channel-metrics-modal .arco-modal-body {
-  padding: var(--space-6);
+  padding: var(--space-4) var(--space-5);
   background: var(--surface);
+  overflow: visible;
 }
 
 .channel-metrics-modal .arco-modal-footer {
   display: flex;
   justify-content: flex-end;
-  padding: var(--space-4) var(--space-6) var(--space-5);
+  padding: var(--space-3) var(--space-5);
   border-top: 1px solid var(--border);
 }
 
@@ -59,15 +61,15 @@
 .channel-metrics-panel__body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-3);
 }
 
 /* ── Hero: 评分 + 元信息 ── */
 .channel-metrics-hero {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-6);
-  padding: var(--space-5) var(--space-6);
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -79,12 +81,83 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
+  --score-accent: #64748b;
+  --score-accent-soft: rgba(100, 116, 139, 0.12);
+  --score-glow: rgba(100, 116, 139, 0.18);
+  --score-track: rgba(148, 163, 184, 0.22);
+  --score-inner: rgba(248, 250, 252, 0.9);
+}
+
+.channel-metrics-score.is-excellent {
+  --score-accent: #16a34a;
+  --score-accent-soft: rgba(22, 163, 74, 0.12);
+  --score-glow: rgba(34, 197, 94, 0.28);
+  --score-track: rgba(22, 163, 74, 0.14);
+  --score-inner: rgba(240, 253, 244, 0.95);
+}
+
+.channel-metrics-score.is-good {
+  --score-accent: #0284c7;
+  --score-accent-soft: rgba(14, 165, 233, 0.12);
+  --score-glow: rgba(56, 189, 248, 0.28);
+  --score-track: rgba(14, 165, 233, 0.14);
+  --score-inner: rgba(240, 249, 255, 0.95);
+}
+
+.channel-metrics-score.is-fair {
+  --score-accent: #d97706;
+  --score-accent-soft: rgba(217, 119, 6, 0.12);
+  --score-glow: rgba(251, 191, 36, 0.28);
+  --score-track: rgba(217, 119, 6, 0.14);
+  --score-inner: rgba(255, 251, 235, 0.95);
+}
+
+.channel-metrics-score.is-poor {
+  --score-accent: #dc2626;
+  --score-accent-soft: rgba(220, 38, 38, 0.12);
+  --score-glow: rgba(248, 113, 113, 0.28);
+  --score-track: rgba(220, 38, 38, 0.14);
+  --score-inner: rgba(254, 242, 242, 0.95);
+}
+
+.channel-metrics-score.is-offline,
+.channel-metrics-score.is-idle {
+  --score-accent: #64748b;
+  --score-accent-soft: rgba(100, 116, 139, 0.1);
+  --score-glow: rgba(148, 163, 184, 0.2);
+  --score-track: rgba(148, 163, 184, 0.18);
+  --score-inner: rgba(248, 250, 252, 0.92);
 }
 
 .channel-metrics-score__ring {
   position: relative;
-  width: 112px;
-  height: 112px;
+  width: 96px;
+  height: 96px;
+  filter: drop-shadow(0 6px 14px var(--score-glow));
+}
+
+.channel-metrics-score__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.channel-metrics-score__inner {
+  fill: var(--score-inner);
+  stroke: rgba(255, 255, 255, 0.65);
+  stroke-width: 1;
+}
+
+.channel-metrics-score__track {
+  stroke: var(--score-track);
+  stroke-width: 6;
+}
+
+.channel-metrics-score__bar {
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.65s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .channel-metrics-score__center {
@@ -98,23 +171,36 @@
 }
 
 .channel-metrics-score__value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   line-height: 1;
-  color: var(--text-primary);
+  color: var(--score-accent);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 .channel-metrics-score__label {
-  margin-top: var(--space-1);
-  font-size: 11px;
-  font-weight: 500;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   color: var(--text-tertiary);
   white-space: nowrap;
 }
 
 .channel-metrics-score__badge {
-  margin-top: var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--score-accent);
+  background: var(--score-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--score-accent) 22%, transparent);
 }
 
 .channel-metrics-meta {
@@ -122,14 +208,14 @@
   min-width: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-4) var(--space-6);
-  align-content: start;
+  gap: var(--space-2) var(--space-4);
+  align-content: center;
 }
 
 .channel-metrics-meta__item {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   min-width: 0;
 }
 
@@ -147,7 +233,7 @@
 }
 
 .channel-metrics-meta__value {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
   white-space: nowrap;
@@ -155,12 +241,12 @@
 
 .channel-metrics-meta__mono {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 4px 8px;
+  padding: 2px 6px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -176,11 +262,11 @@
 .channel-metric-stat {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-5) var(--space-6);
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   text-align: center;
   transition: border-color var(--transition-fast);
 }
@@ -197,7 +283,7 @@
 }
 
 .channel-metric-stat__value {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
@@ -221,7 +307,7 @@
 
 /* ── 详细指标 ── */
 .channel-metrics-detail__title {
-  margin: 0 0 var(--space-4);
+  margin: 0 0 var(--space-2);
   font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
@@ -230,15 +316,15 @@
 
 .channel-metrics-detail__grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-3);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
 }
 
 .channel-metrics-detail__cell {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-4) var(--space-5);
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -253,11 +339,44 @@
 }
 
 .channel-metrics-detail__val {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.channel-metrics-detail__hint {
+  margin: 0 0 var(--space-2);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary, #64748b);
+}
+
+.channel-metrics-kpis--inline {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.channel-metrics-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.channel-metrics-transport,
+.channel-metrics-sla {
+  margin-top: 0;
+}
+
+.channel-metrics-sla__warnings {
+  margin-top: var(--space-2);
+}
+
+.channel-metrics-sla__warning-list {
+  margin: 0;
+  padding-left: 1.2em;
 }
 
 /* ── Dark ── */
@@ -269,6 +388,31 @@
 
 .dark-theme .channel-metrics-meta__mono {
   background: var(--surface-2);
+}
+
+.dark-theme .channel-metrics-score.is-excellent {
+  --score-inner: rgba(22, 163, 74, 0.12);
+}
+
+.dark-theme .channel-metrics-score.is-good {
+  --score-inner: rgba(14, 165, 233, 0.12);
+}
+
+.dark-theme .channel-metrics-score.is-fair {
+  --score-inner: rgba(217, 119, 6, 0.12);
+}
+
+.dark-theme .channel-metrics-score.is-poor {
+  --score-inner: rgba(220, 38, 38, 0.12);
+}
+
+.dark-theme .channel-metrics-score.is-offline,
+.dark-theme .channel-metrics-score.is-idle {
+  --score-inner: rgba(148, 163, 184, 0.1);
+}
+
+.dark-theme .channel-metrics-score__inner {
+  stroke: rgba(255, 255, 255, 0.08);
 }
 
 /* ── Responsive ── */
@@ -284,7 +428,8 @@
   }
 
   .channel-metrics-kpis,
+  .channel-metrics-metrics-grid,
   .channel-metrics-detail__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

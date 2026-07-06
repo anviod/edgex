@@ -25,6 +25,7 @@ require (
 	github.com/shirou/gopsutil/v4 v4.26.3
 	github.com/simonvetter/modbus v1.6.4
 	github.com/stretchr/testify v1.11.1
+	github.com/thinkgos/go-iecp5 v1.0.0
 	go.etcd.io/bbolt v1.5.0-rc.0
 	go.uber.org/zap v1.27.1
 	golang.org/x/net v0.50.0
@@ -122,7 +123,6 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/savsgio/gotils v0.0.0-20230208104028-c358bd845dee // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	github.com/thinkgos/go-iecp5 v1.0.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect

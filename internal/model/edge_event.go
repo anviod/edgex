@@ -42,11 +42,24 @@ type EdgeRuleEvent struct {
 	ErrorMessage  string                `json:"error_message,omitempty"`
 }
 
+// Edge error log categories exposed to API and UI.
+const (
+	EdgeErrorTypeFormula   = "formula_error"
+	EdgeErrorTypeExecution = "execution_error"
+	EdgeErrorTypeTimeout   = "timeout"
+	EdgeErrorTypeDispatch  = "dispatch_error"
+	EdgeErrorTypeOther     = "other"
+)
+
 // EdgeFailureRecord is a structured failure log entry accessible via API.
 type EdgeFailureRecord struct {
 	ID           string         `json:"id"`
 	RuleID       string         `json:"rule_id"`
 	RuleName     string         `json:"rule_name,omitempty"`
+	Category     string         `json:"category,omitempty"`
+	ChannelID    string         `json:"channel_id,omitempty"`
+	DeviceID     string         `json:"device_id,omitempty"`
+	ErrorType    string         `json:"error_type,omitempty"`
 	Phase        string         `json:"phase"`
 	Error        string         `json:"error"`
 	Timestamp    time.Time      `json:"timestamp"`

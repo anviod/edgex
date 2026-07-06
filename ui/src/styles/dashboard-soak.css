@@ -209,6 +209,11 @@
   color: #ef4444;
 }
 
+.soak-gate-item__body {
+  min-width: 0;
+  flex: 1;
+}
+
 .soak-gate-item__label {
   font-size: 13px;
   font-weight: 600;
@@ -219,6 +224,9 @@
   font-size: 12px;
   color: var(--text-secondary);
   margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── metric cards ── */

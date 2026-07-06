@@ -72,24 +72,73 @@ export function computeQualityScore(metrics) {
 
 export function getQualityTier(score, metrics = null) {
   if (metrics && !isChannelLinkUp(metrics)) {
-    return { label: '离线', className: 'is-offline', status: 'normal', color: '#6b7280' }
+    return {
+      label: '离线',
+      className: 'is-offline',
+      status: 'normal',
+      color: '#6b7280',
+      gradientStart: '#94a3b8',
+      gradientEnd: '#64748b',
+    }
   }
   if (metrics && isChannelLinkUp(metrics) && !hasObservedTraffic(metrics)) {
-    return { label: '待采样', className: 'is-idle', status: 'processing', color: '#64748b' }
+    return {
+      label: '待采样',
+      className: 'is-idle',
+      status: 'processing',
+      color: '#64748b',
+      gradientStart: '#94a3b8',
+      gradientEnd: '#64748b',
+    }
   }
   if (score <= 0) {
-    return { label: '离线', className: 'is-offline', status: 'normal', color: '#6b7280' }
+    return {
+      label: '离线',
+      className: 'is-offline',
+      status: 'normal',
+      color: '#6b7280',
+      gradientStart: '#94a3b8',
+      gradientEnd: '#64748b',
+    }
   }
   if (score >= 90) {
-    return { label: '优秀', className: 'is-excellent', status: 'success', color: '#16a34a' }
+    return {
+      label: '优秀',
+      className: 'is-excellent',
+      status: 'success',
+      color: '#16a34a',
+      gradientStart: '#4ade80',
+      gradientEnd: '#16a34a',
+    }
   }
   if (score >= 75) {
-    return { label: '良好', className: 'is-good', status: 'processing', color: '#0ea5e9' }
+    return {
+      label: '良好',
+      className: 'is-good',
+      status: 'processing',
+      color: '#0ea5e9',
+      gradientStart: '#38bdf8',
+      gradientEnd: '#0284c7',
+    }
   }
   if (score >= 60) {
-    return { label: '一般', className: 'is-fair', status: 'warning', color: '#d97706' }
+    return {
+      label: '一般',
+      className: 'is-fair',
+      status: 'warning',
+      color: '#d97706',
+      gradientStart: '#fbbf24',
+      gradientEnd: '#d97706',
+    }
   }
-  return { label: '较差', className: 'is-poor', status: 'danger', color: '#dc2626' }
+  return {
+    label: '较差',
+    className: 'is-poor',
+    status: 'danger',
+    color: '#dc2626',
+    gradientStart: '#f87171',
+    gradientEnd: '#dc2626',
+  }
 }
 
 export function getQualityScoreDisplay(score, metrics = null) {
@@ -237,4 +286,74 @@ export function runtimeFromQualityScore(qualityScore, metrics = null) {
   if (qualityScore >= 60) return { text: '运行中 (一般)', status: 'warning' }
   if (qualityScore > 0) return { text: '运行中 (较差)', status: 'danger' }
   return { text: '离线', status: 'normal' }
+}
+
+/** 从通道 metrics 响应中提取通道级调度 SLA（优先 scanSla 嵌套对象）。 */
+/** 列表详情页底部 meta 行 — 紧凑单行摘要（设备/点位列表共用）。 */
+export function formatListDetailMetaText({ channelId, deviceCount, metrics }) {
+  const parts = [`通道 ${channelId}`, `${deviceCount} 台设备`]
+  if (!metrics) {
+    return parts.join(' · ')
+  }
+
+  if (!isChannelLinkUp(metrics)) {
+    parts.push('未连接')
+    return parts.join(' · ')
+  }
+
+  const connSec = metrics.connectionSeconds ?? metrics.connection_seconds
+  const linkText = formatConnectionDuration(connSec, metrics)
+  if (linkText === '刚建立连接') {
+    parts.push('链接 刚建')
+  } else if (linkText === '暂无连接信息') {
+    parts.push('链接 —')
+  } else {
+    parts.push(`链接 ${linkText}`)
+  }
+
+  if (!hasObservedTraffic(metrics)) {
+    parts.push('待采样')
+    return parts.join(' · ')
+  }
+
+  parts.push(`成功 ${getSuccessCount(metrics)}`)
+  parts.push(`失败 ${getFailureCount(metrics)}`)
+
+  const rate = metrics.successRate ?? metrics.success_rate
+  if (rate != null) {
+    parts.push(`成功率 ${(rate * 100).toFixed(1)}%`)
+  }
+
+  return parts.join(' · ')
+}
+
+export function getListDetailMetaDotClass(metrics) {
+  if (!metrics) return ''
+  if (!isChannelLinkUp(metrics)) return 'is-offline'
+  if (!hasObservedTraffic(metrics)) return 'is-idle'
+  return 'is-online'
+}
+
+export function getChannelScanSLA(metrics) {
+  if (!metrics) return null
+  if (metrics.scanSla && typeof metrics.scanSla === 'object') {
+    return metrics.scanSla
+  }
+  const hasSLAData =
+    metrics.scanLagP95Ms != null ||
+    metrics.scan_lag_p95_ms != null ||
+    metrics.scanDriftAvgMsWindow != null ||
+    metrics.scan_drift_avg_ms_window != null ||
+    metrics.slaWarnings != null ||
+    metrics.sla_warnings != null
+  if (!hasSLAData) return null
+  return {
+    scanLagP95Ms: metrics.scanLagP95Ms ?? metrics.scan_lag_p95_ms,
+    scanDriftAvgMs: metrics.scanDriftAvgMs ?? metrics.scan_drift_avg_ms,
+    scanDriftAvgMsWindow: metrics.scanDriftAvgMsWindow ?? metrics.scan_drift_avg_ms_window,
+    scanMissDeadlineTotal: metrics.scanMissDeadlineTotal ?? metrics.scan_miss_deadline_total,
+    scanMissDeadlineWindow: metrics.scanMissDeadlineWindow ?? metrics.scan_miss_deadline_window,
+    circuitBreakerOpen: metrics.circuitBreakerOpen ?? metrics.circuit_breaker_open ?? 0,
+    slaWarnings: metrics.slaWarnings ?? metrics.sla_warnings ?? [],
+  }
 }

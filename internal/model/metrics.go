@@ -49,11 +49,30 @@ type ChannelMetrics struct {
 	RecentErrors []ErrorRecord `json:"recentErrors,omitempty"`
 
 	// ScanEngine SLA 联动（Phase C）
-	ScanLagP95Ms       float64 `json:"scanLagP95Ms,omitempty"`
-	CircuitBreakerOpen int     `json:"circuitBreakerOpen,omitempty"`
+	ScanLagP95Ms           float64 `json:"scanLagP95Ms,omitempty"`
+	ScanDriftAvgMs         float64 `json:"scanDriftAvgMs,omitempty"`
+	ScanDriftAvgMsWindow   float64 `json:"scanDriftAvgMsWindow,omitempty"`
+	ScanMissDeadlineTotal  uint64  `json:"scanMissDeadlineTotal,omitempty"`
+	ScanMissDeadlineWindow uint64  `json:"scanMissDeadlineWindow,omitempty"`
+	CircuitBreakerOpen     int     `json:"circuitBreakerOpen,omitempty"`
+	SLAWarnings            []map[string]any `json:"slaWarnings,omitempty"`
+
+	// ScanSLA 调度 SLA 明细（通道级，与通信质量分离）
+	ScanSLA *ChannelScanSLA `json:"scanSla,omitempty"`
 
 	// 时间戳
 	Timestamp time.Time `json:"timestamp"`
+}
+
+// ChannelScanSLA 通道级调度 SLA（与通信质量指标分离）。
+type ChannelScanSLA struct {
+	ScanLagP95Ms           float64          `json:"scanLagP95Ms,omitempty"`
+	ScanDriftAvgMs         float64          `json:"scanDriftAvgMs,omitempty"`
+	ScanDriftAvgMsWindow   float64          `json:"scanDriftAvgMsWindow,omitempty"`
+	ScanMissDeadlineTotal  uint64           `json:"scanMissDeadlineTotal,omitempty"`
+	ScanMissDeadlineWindow uint64           `json:"scanMissDeadlineWindow,omitempty"`
+	CircuitBreakerOpen     int              `json:"circuitBreakerOpen,omitempty"`
+	SLAWarnings            []map[string]any `json:"slaWarnings,omitempty"`
 }
 
 // TrendPoint 趋势数据点

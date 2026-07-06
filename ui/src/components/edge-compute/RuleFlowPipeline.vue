@@ -17,8 +17,8 @@
         >
           <div class="rule-flow-node__header">
             <span class="rule-flow-node__kind">{{ kindLabel(step.kind) }}</span>
-            <a-tag :color="statusMeta(step.status).color" size="small" class="rule-flow-node__tag">
-              {{ statusShortLabel(step.status) }}
+            <a-tag :color="stepTagColor(step)" size="small" class="rule-flow-node__tag">
+              {{ stepTagLabel(step) }}
             </a-tag>
           </div>
           <div class="rule-flow-node__label">{{ step.label }}</div>
@@ -44,7 +44,12 @@
 
 <script setup>
 import { computed } from 'vue'
-import { buildRulePipeline, getPipelineSummary, STEP_STATUS } from '@/utils/ruleFlow'
+import {
+  buildRulePipeline,
+  getPipelineSummary,
+  STEP_STATUS,
+  EVAL_OUTCOME,
+} from '@/utils/ruleFlow'
 
 const props = defineProps({
   rule: { type: Object, required: true },
@@ -65,15 +70,40 @@ function statusShortLabel(status) {
   return meta.shortLabel || meta.label
 }
 
+function evalOutcomeMeta(step) {
+  if (step.id !== 'evaluate' || !step.evalOutcome) return null
+  return EVAL_OUTCOME[step.evalOutcome] || null
+}
+
+function stepTagLabel(step) {
+  const outcome = evalOutcomeMeta(step)
+  if (outcome) return outcome.shortLabel
+  return statusShortLabel(step.status)
+}
+
+function stepTagColor(step) {
+  const outcome = evalOutcomeMeta(step)
+  if (outcome) return outcome.color
+  return statusMeta(step.status).color
+}
+
 function nodeClass(step) {
+  const outcome = evalOutcomeMeta(step)
+  const pipelineActive = step.status === 'active' || step.status === 'pending'
+  let statusClass = statusMeta(step.status).className
+  if (outcome && !pipelineActive) {
+    statusClass = outcome.className
+  }
   return [
-    statusMeta(step.status).className,
+    statusClass,
     props.compact ? 'rule-flow-node--compact' : '',
   ].filter(Boolean)
 }
 
 function nodeTitle(step) {
-  const parts = [step.label, step.sublabel, statusMeta(step.status).label]
+  const outcome = evalOutcomeMeta(step)
+  const statusLabel = outcome?.label || statusMeta(step.status).label
+  const parts = [step.label, step.sublabel, statusLabel]
   if (step.meta) parts.push(step.meta)
   return parts.filter(Boolean).join(' · ')
 }

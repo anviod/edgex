@@ -10,7 +10,9 @@ import (
 	"log"
 	"math/rand/v2"
 	"os"
+	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -305,17 +307,14 @@ func (s *Server) exportEdgeComputeLogsToCSV(c *fiber.Ctx) error {
 	b := &bytes.Buffer{}
 	w := csv.NewWriter(b)
 	// Write Header
-	w.Write([]string{"RuleID", "RuleName", "Minute", "Status", "TriggerCount", "LastValue", "ErrorMessage"})
+	w.Write([]string{"RuleID", "RuleName", "Minute", "ErrorType", "ErrorMessage"})
 
 	for _, log := range logs {
-		valStr := fmt.Sprintf("%v", log.LastValue)
 		w.Write([]string{
 			log.RuleID,
 			log.RuleName,
 			log.Minute,
-			log.Status,
-			fmt.Sprintf("%d", log.TriggerCount),
-			valStr,
+			log.ErrorType,
 			log.ErrorMessage,
 		})
 	}
@@ -592,13 +591,27 @@ func (s *Server) setupRoutes() {
 	api.Get("/ws/logs", websocket.New(s.handleLogWebSocket))
 	api.Get("/logs/download", s.handleLogDownload)
 
-	// 静态资源
-	s.app.Static("/", "./ui/dist")
+	// 静态资源（优先相对可执行文件目录，兼容未设置 WorkingDirectory 的部署）
+	uiDist := uiDistDir()
+	s.app.Static("/", uiDist)
 
 	// SPA Fallback: 所有未匹配的路由都返回 index.html
 	s.app.Get("*", func(c *fiber.Ctx) error {
-		return c.SendFile("./ui/dist/index.html")
+		return c.SendFile(filepath.Join(uiDist, "index.html"))
 	})
+}
+
+func uiDistDir() string {
+	candidates := []string{"./ui/dist"}
+	if exe, err := os.Executable(); err == nil {
+		candidates = append([]string{filepath.Join(filepath.Dir(exe), "ui", "dist")}, candidates...)
+	}
+	for _, dir := range candidates {
+		if info, err := os.Stat(filepath.Join(dir, "index.html")); err == nil && !info.IsDir() {
+			return dir
+		}
+	}
+	return "./ui/dist"
 }
 
 func (s *Server) getDeviceHistory(c *fiber.Ctx) error {
@@ -947,6 +960,13 @@ func (s *Server) getChannelDevices(c *fiber.Ctx) error {
 	if devices == nil {
 		return c.JSON([]model.Device{})
 	}
+	if c.Query("include_points") == "false" {
+		out := make([]model.Device, len(devices))
+		for i, d := range devices {
+			out[i] = d.WithPointsSummary()
+		}
+		return c.JSON(out)
+	}
 	return c.JSON(devices)
 }
 
@@ -988,18 +1008,46 @@ func (s *Server) addDevice(c *fiber.Ctx) error {
 			if err := model.EnsureDeviceID(&devices[i]); err != nil {
 				return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 			}
-			if err := s.cm.AddDevice(channelId, &devices[i]); err != nil {
-				return c.Status(deviceAddErrorStatus(err)).JSON(fiber.Map{"error": fmt.Sprintf("Failed to add device %s: %v", devices[i].Name, err)})
+		}
+
+		created, err := s.cm.AddDevices(channelId, devices)
+		if err != nil {
+			status := deviceAddErrorStatus(err)
+			if len(created) == 0 {
+				return c.Status(status).JSON(fiber.Map{"error": err.Error()})
 			}
+			// partial success: return created devices with warning
+			for i := range created {
+				if s.dsm != nil {
+					s.dsm.UpdateDeviceConfig(created[i].ID, created[i].Storage)
+				}
+			}
+			if s.nbm != nil {
+				s.nbm.PublishPointsMetadata()
+			}
+			summaries := make([]model.Device, len(created))
+			for i, d := range created {
+				summaries[i] = d.WithPointsSummary()
+			}
+			return c.Status(status).JSON(fiber.Map{
+				"devices": summaries,
+				"error":   err.Error(),
+			})
+		}
+
+		for i := range created {
 			if s.dsm != nil {
-				s.dsm.UpdateDeviceConfig(devices[i].ID, devices[i].Storage)
+				s.dsm.UpdateDeviceConfig(created[i].ID, created[i].Storage)
 			}
 		}
-		// 触发点位元数据同步到 edgeOS
 		if s.nbm != nil {
 			s.nbm.PublishPointsMetadata()
 		}
-		return c.JSON(devices)
+		summaries := make([]model.Device, len(created))
+		for i, d := range created {
+			summaries[i] = d.WithPointsSummary()
+		}
+		return c.JSON(summaries)
 
 	case map[string]interface{}:
 		// 单个添加
@@ -3046,6 +3094,8 @@ func (s *Server) getDataStats(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
+	stats = s.enrichRuntimeBucketStats(stats)
+
 	result := fiber.Map{
 		"config_db": fiber.Map{
 			"path": s.storage.GetConfigPath(),
@@ -3058,6 +3108,84 @@ func (s *Server) getDataStats(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(result)
+}
+
+func (s *Server) enrichRuntimeBucketStats(stats []storage.BucketStats) []storage.BucketStats {
+	runtimeIndex := make(map[string]int, len(stats))
+	for i, st := range stats {
+		if st.Database == "runtime" {
+			runtimeIndex[st.Name] = i
+		}
+	}
+
+	addRuntimeCount := func(name string, extra int) {
+		if extra <= 0 {
+			return
+		}
+		if idx, ok := runtimeIndex[name]; ok {
+			stats[idx].RecordCount += extra
+			return
+		}
+		category, clearable := storage.ClassifyBucket(name)
+		stats = append(stats, storage.BucketStats{
+			Name:        name,
+			RecordCount: extra,
+			Category:    category,
+			Clearable:   clearable,
+			Database:    "runtime",
+		})
+		runtimeIndex[name] = len(stats) - 1
+	}
+
+	if s.ecm != nil {
+		eventsMem, failuresMem, minuteCache := s.ecm.RuntimeLogStats()
+		addRuntimeCount("edge_events", eventsMem)
+		addRuntimeCount("edge_failures", failuresMem)
+		addRuntimeCount("bblot", minuteCache)
+	}
+
+	if s.shadowCore != nil {
+		_, pointCount := s.shadowCore.RuntimePointStats()
+		if pointCount > 0 {
+			if idx, ok := runtimeIndex["shadow_values"]; ok {
+				stats[idx].RecordCount = pointCount
+			} else {
+				stats = append(stats, storage.BucketStats{
+					Name:        "shadow_values",
+					RecordCount: pointCount,
+					Category:    "runtime",
+					Clearable:   true,
+					Database:    "runtime",
+				})
+				runtimeIndex["shadow_values"] = len(stats) - 1
+			}
+		}
+	}
+
+	if s.dsm != nil {
+		for _, name := range s.dsm.HistoryBucketNames() {
+			if _, ok := runtimeIndex[name]; ok {
+				continue
+			}
+			stats = append(stats, storage.BucketStats{
+				Name:        name,
+				RecordCount: 0,
+				Category:    "history",
+				Clearable:   true,
+				Database:    "runtime",
+			})
+			runtimeIndex[name] = len(stats) - 1
+		}
+	}
+
+	sort.SliceStable(stats, func(i, j int) bool {
+		if stats[i].Database != stats[j].Database {
+			return stats[i].Database == "config"
+		}
+		return stats[i].Name < stats[j].Name
+	})
+
+	return stats
 }
 
 func (s *Server) clearCache(c *fiber.Ctx) error {
@@ -3123,6 +3251,14 @@ func (s *Server) clearCache(c *fiber.Ctx) error {
 		}
 	}
 
+	compactInfo, compactErr := s.compactRuntimeWithStats()
+	if compactErr != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error":   "cleared but failed to compact runtime db: " + compactErr.Error(),
+			"cleared": bucketsToClear,
+		})
+	}
+
 	stats, totalSize, err := s.storage.GetBucketStats()
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -3131,6 +3267,7 @@ func (s *Server) clearCache(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"cleared": bucketsToClear,
+		"compact": compactInfo,
 		"config_db": fiber.Map{
 			"path": s.storage.GetConfigPath(),
 		},
@@ -3157,18 +3294,34 @@ func (s *Server) clearAllRuntime(c *fiber.Ctx) error {
 	if s.shadowCore != nil {
 		s.shadowCore.ClearAllShadowDevices()
 	}
+
+	var edgeLogsCleared any
 	if s.ecm != nil {
+		edgeResult, edgeErr := s.ecm.ClearEdgeLogs()
+		if edgeErr != nil {
+			return c.Status(500).JSON(fiber.Map{"error": edgeErr.Error(), "cleared": cleared})
+		}
+		edgeLogsCleared = edgeResult
 		s.ecm.ClearRuntimeState()
 	}
 	if s.dsm != nil {
 		s.dsm.ClearAllHistory()
 	}
 
+	compactInfo, compactErr := s.compactRuntimeWithStats()
+	if compactErr != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error":   "cleared but failed to compact runtime db: " + compactErr.Error(),
+			"cleared": cleared,
+		})
+	}
+
 	stats, totalSize, _ := s.storage.GetBucketStats()
 
-	return c.JSON(fiber.Map{
+	response := fiber.Map{
 		"status":  "success",
 		"cleared": cleared,
+		"compact": compactInfo,
 		"config_db": fiber.Map{
 			"path": s.storage.GetConfigPath(),
 		},
@@ -3177,7 +3330,11 @@ func (s *Server) clearAllRuntime(c *fiber.Ctx) error {
 		},
 		"total_size": totalSize,
 		"buckets":    stats,
-	})
+	}
+	if edgeLogsCleared != nil {
+		response["edge_logs"] = edgeLogsCleared
+	}
+	return c.JSON(response)
 }
 
 // backupConfigDB 备份配置数据库（优先备份，不包含运行时数据）
@@ -3345,26 +3502,24 @@ func (s *Server) pullRemoteConfig(c *fiber.Ctx) error {
 	})
 }
 
-// compactRuntimeDB 压缩运行时数据库，回收已删除数据的空间
-// POST /api/data/compact-runtime
-func (s *Server) compactRuntimeDB(c *fiber.Ctx) error {
+// compactRuntimeWithStats 压缩 runtime.db 并返回压缩前后文件大小。
+func (s *Server) compactRuntimeWithStats() (fiber.Map, error) {
 	if s.storage == nil {
-		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
+		return nil, fmt.Errorf("storage not available")
 	}
 
-	// 获取压缩前大小
-	beforeInfo, _ := os.Stat(s.storage.GetPath())
+	runtimePath := s.storage.GetRuntimePath()
+	beforeInfo, _ := os.Stat(runtimePath)
 	beforeSize := int64(0)
 	if beforeInfo != nil {
 		beforeSize = beforeInfo.Size()
 	}
 
 	if err := s.storage.CompactRuntimeDB(); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "failed to compact runtime db: " + err.Error()})
+		return nil, err
 	}
 
-	// 获取压缩后大小
-	afterInfo, _ := os.Stat(s.storage.GetPath())
+	afterInfo, _ := os.Stat(runtimePath)
 	afterSize := int64(0)
 	if afterInfo != nil {
 		afterSize = afterInfo.Size()
@@ -3375,16 +3530,31 @@ func (s *Server) compactRuntimeDB(c *fiber.Ctx) error {
 		saved = 0
 	}
 
-	return c.JSON(fiber.Map{
-		"status":       "success",
+	return fiber.Map{
 		"before_bytes": beforeSize,
 		"after_bytes":  afterSize,
 		"saved_bytes":  saved,
 		"before_size":  formatBytes(beforeSize),
 		"after_size":   formatBytes(afterSize),
 		"saved_size":   formatBytes(saved),
-		"message":      "运行时数据库已压缩，配置库不受影响",
-	})
+	}, nil
+}
+
+// compactRuntimeDB 压缩运行时数据库，回收已删除数据的空间
+// POST /api/data/compact-runtime
+func (s *Server) compactRuntimeDB(c *fiber.Ctx) error {
+	if s.storage == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
+	}
+
+	compactInfo, err := s.compactRuntimeWithStats()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to compact runtime db: " + err.Error()})
+	}
+
+	compactInfo["status"] = "success"
+	compactInfo["message"] = "运行时数据库已压缩，配置库不受影响"
+	return c.JSON(compactInfo)
 }
 
 // formatBytes 格式化字节数为 MB 显示

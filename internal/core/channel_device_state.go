@@ -46,16 +46,17 @@ func isChannelLinkUp(d drv.Driver) bool {
 	return d.Health() != drv.HealthStatusBad
 }
 
+func isCollectQualityGood(v model.Value) bool {
+	return strings.EqualFold(resolveCollectQuality(v), "Good")
+}
+
 // collectContextFromExecuteResult builds device communication state from a driver
-// read outcome. Transport success (err == nil) counts as communication success even
-// when individual points report Bad quality; point quality is tracked separately.
+// read outcome. Transport success is necessary but not sufficient: Good points count
+// as success and Bad/Uncertain (or missing) points count as failure. Modbus drivers
+// often return err == nil with all Bad points after a slave timeout.
 func collectContextFromExecuteResult(result *ExecuteResult, pointCount int) *CollectContext {
 	ctx := &CollectContext{}
-	if result != nil && result.Success {
-		if len(result.Values) > 0 {
-			ctx.SuccessCmd = len(result.Values)
-			return ctx
-		}
+	if result == nil || !result.Success {
 		if pointCount > 0 {
 			ctx.FailCmd = pointCount
 		} else {
@@ -64,12 +65,39 @@ func collectContextFromExecuteResult(result *ExecuteResult, pointCount int) *Col
 		return ctx
 	}
 
-	if pointCount > 0 {
-		ctx.FailCmd = pointCount
-	} else {
-		ctx.FailCmd = 1
+	if len(result.Values) == 0 {
+		if pointCount > 0 {
+			ctx.FailCmd = pointCount
+		} else {
+			ctx.FailCmd = 1
+		}
+		return ctx
+	}
+
+	for _, v := range result.Values {
+		if isCollectQualityGood(v) {
+			ctx.SuccessCmd++
+		} else {
+			ctx.FailCmd++
+		}
+	}
+	if pointCount > len(result.Values) {
+		ctx.FailCmd += pointCount - len(result.Values)
 	}
 	return ctx
+}
+
+func collectSucceededFromResult(result *ExecuteResult, pointCount int) bool {
+	if result == nil || !result.Success {
+		return false
+	}
+	ctx := collectContextFromExecuteResult(result, pointCount)
+	total := ctx.SuccessCmd + ctx.FailCmd
+	if total == 0 {
+		return false
+	}
+	const minSuccessRatio = 0.3
+	return float64(ctx.SuccessCmd)/float64(total) >= minSuccessRatio
 }
 
 func resolveEffectiveDeviceState(ch *model.Channel, d drv.Driver, dev *model.Device, rawState int) int {

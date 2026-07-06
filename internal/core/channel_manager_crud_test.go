@@ -306,3 +306,43 @@ func TestChannelManager_AutoGenerateModbusPointsFromConfig(t *testing.T) {
 		t.Fatalf("auto generated points = %d, want 3", len(dev.Points))
 	}
 }
+
+func TestChannelManager_AddDevices_SinglePersist(t *testing.T) {
+	cm := newTestChannelManager()
+	channelID := "ch-batch-dev"
+	if err := cm.AddChannel(&model.Channel{
+		ID:       channelID,
+		Name:     "Batch Devices",
+		Protocol: addChannelMockProtocol,
+		Enable:   false,
+		Config:   map[string]any{},
+	}); err != nil {
+		t.Fatalf("AddChannel: %v", err)
+	}
+
+	saves := 0
+	cm.saveFunc = func(channels []model.Channel) error {
+		saves++
+		return nil
+	}
+
+	devices := []model.Device{
+		{ID: "dev-a", Name: "A", Enable: true, Interval: model.Duration(time.Second), Config: map[string]any{"slave_id": 1}},
+		{ID: "dev-b", Name: "B", Enable: true, Interval: model.Duration(time.Second), Config: map[string]any{"slave_id": 2}},
+	}
+
+	created, err := cm.AddDevices(channelID, devices)
+	if err != nil {
+		t.Fatalf("AddDevices: %v", err)
+	}
+	if len(created) != 2 {
+		t.Fatalf("created = %d, want 2", len(created))
+	}
+	if saves != 1 {
+		t.Fatalf("saveChannels calls = %d, want 1", saves)
+	}
+	stored := cm.GetChannelDevices(channelID)
+	if len(stored) != 2 {
+		t.Fatalf("stored devices = %d, want 2", len(stored))
+	}
+}

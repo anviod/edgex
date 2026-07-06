@@ -243,6 +243,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { IconPlus, IconDelete, IconCheck, IconSync } from '@arco-design/web-vue/es/icon'
+import { Message } from '@arco-design/web-vue'
 import { showMessage } from '@/composables/useGlobalState'
 import request from '@/utils/request'
 import {
@@ -252,6 +253,7 @@ import {
   notifyNorthboundSaveError,
   notifyNorthboundSaveSuccess,
   notifyNorthboundValidationError,
+  resolveNorthboundSaveError,
   validateNorthboundChannelName
 } from '@/utils/northboundSave'
 import { buildNorthboundVirtualDeviceRows, syncNorthboundVirtualDevicesFromRows } from '@/utils/southboundDevices'
@@ -477,12 +479,18 @@ const syncPointMapping = async () => {
     showMessage('请先保存通道配置', 'warning')
     return
   }
+  if (syncing.value) return
+
   syncing.value = true
   try {
-    await request.post(`/api/northbound/opcua/${form.value.id}/sync`)
-    showMessage('点位映射已同步，读写权限已更新', 'success')
+    await request.post(
+      `/api/northbound/opcua/${form.value.id}/sync`,
+      null,
+      northboundSaveRequestConfig
+    )
+    Message.success('点位映射已同步，读写权限已更新')
   } catch (e) {
-    showMessage('同步失败: ' + e.message, 'error')
+    Message.error('同步失败：' + resolveNorthboundSaveError(e))
   } finally {
     syncing.value = false
   }

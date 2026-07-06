@@ -14,7 +14,13 @@
           </a-button>
         </a-tooltip>
         <a-tooltip v-if="meta.hasSync" content="同步点位映射">
-          <a-button type="text" size="mini" @click="$emit('sync', item)">
+          <a-button
+            type="text"
+            size="mini"
+            :loading="syncLoading"
+            :disabled="syncLoading"
+            @click="$emit('sync', item)"
+          >
             <template #icon><icon-sync :size="14" /></template>
           </a-button>
         </a-tooltip>
@@ -77,7 +83,8 @@ import { showMessage } from '@/composables/useGlobalState'
 const props = defineProps({
   meta: { type: Object, required: true },
   item: { type: Object, required: true },
-  connectionStatus: { type: Object, default: () => ({}) }
+  connectionStatus: { type: Object, default: () => ({}) },
+  syncLoading: { type: Boolean, default: false }
 })
 
 defineEmits(['help', 'settings', 'stats', 'delete', 'sync'])

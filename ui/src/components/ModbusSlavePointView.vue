@@ -126,6 +126,14 @@ const emit = defineEmits([
 
 const grouped = computed(() => groupPointsByRegisterType(props.points))
 
+const pointIdsByGroup = computed(() => {
+  const map = {}
+  for (const g of MODBUS_REGISTER_GROUPS) {
+    map[g.key] = new Set((grouped.value[g.key] || []).map((p) => p.id))
+  }
+  return map
+})
+
 const visibleGroups = computed(() => {
   const list = MODBUS_REGISTER_GROUPS.map(g => ({
     ...g,
@@ -175,8 +183,8 @@ const rowSelectionConfig = {
 
 const syncGroupSelectionsFromProps = () => {
   for (const g of MODBUS_REGISTER_GROUPS) {
-    const pts = grouped.value[g.key] || []
-    groupSelectedKeys[g.key] = props.selectedIds.filter((id) => pts.some((p) => p.id === id))
+    const ids = pointIdsByGroup.value[g.key] || new Set()
+    groupSelectedKeys[g.key] = props.selectedIds.filter((id) => ids.has(id))
   }
 }
 
@@ -185,8 +193,8 @@ const emitConsolidatedSelection = () => {
   emit('selection-change', allKeys)
 }
 
-watch(() => props.selectedIds, syncGroupSelectionsFromProps, { deep: true })
-watch(grouped, syncGroupSelectionsFromProps, { deep: true })
+watch(() => props.selectedIds, syncGroupSelectionsFromProps)
+watch(() => props.points.length, syncGroupSelectionsFromProps)
 syncGroupSelectionsFromProps()
 
 const formatValue = (val) => {

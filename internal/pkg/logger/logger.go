@@ -313,8 +313,8 @@ func InitLogger(logLevel string, logFile string, broadcaster *LogBroadcaster) (*
 		))
 	}
 
-	// Combine all cores
-	core := zapcore.NewTee(cores...)
+	// Combine all cores and enrich JSON logs with category/channel/device metadata.
+	core := wrapMetadataCore(zapcore.NewTee(cores...))
 
 	// Create logger
 	logger := zap.New(core, zap.AddCaller())

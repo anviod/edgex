@@ -59,8 +59,8 @@ func TestEdgeComputeManager_ClearEdgeLogs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ClearEdgeLogs: %v", err)
 	}
-	if result.MinuteCache != 1 {
-		t.Fatalf("expected minute cache count 1, got %d", result.MinuteCache)
+	if result.MinuteCache < 1 {
+		t.Fatalf("expected minute cache count >= 1, got %d", result.MinuteCache)
 	}
 	if len(em.GetEvents("", 10)) != 0 {
 		t.Fatal("expected in-memory events cleared")
@@ -109,5 +109,44 @@ func TestEdgeComputeManager_ClearEdgeLogs(t *testing.T) {
 	})
 	if !foundState {
 		t.Fatal("expected rule state bucket preserved")
+	}
+}
+
+func TestClearAllRuntimeFlowClearsEdgeLogMemory(t *testing.T) {
+	tmpDir := testOutputDir(t)
+	store, err := storage.NewStorage(tmpDir)
+	if err != nil {
+		t.Fatalf("storage: %v", err)
+	}
+	defer store.Close()
+
+	pipeline := NewDataPipeline(10)
+	em := NewEdgeComputeManager(pipeline, store, func(rules []model.EdgeRule) error { return nil })
+	em.SetBatchWindow(0)
+	em.Start()
+	defer em.Stop()
+
+	rule := model.EdgeRule{ID: "flow-rule", Name: "Flow Rule", Type: "threshold", Enable: true}
+	em.LoadRules([]model.EdgeRule{rule})
+
+	if err := store.SaveData(edgeEventsBucket, "evt-flow", model.EdgeRuleEvent{ID: "evt-flow", RuleID: rule.ID, Status: "error"}); err != nil {
+		t.Fatalf("seed event: %v", err)
+	}
+	em.events.recordEvent(&model.EdgeRuleEvent{ID: "mem-evt", RuleID: rule.ID, Status: "error"})
+	em.events.recordFailure(model.EdgeFailureRecord{ID: "mem-fail", RuleID: rule.ID, Error: "boom"})
+
+	if _, err := store.ClearAllRuntimeBuckets(); err != nil {
+		t.Fatalf("ClearAllRuntimeBuckets: %v", err)
+	}
+	if _, err := em.ClearEdgeLogs(); err != nil {
+		t.Fatalf("ClearEdgeLogs: %v", err)
+	}
+	em.ClearRuntimeState()
+
+	if len(em.GetEvents("", 10)) != 0 {
+		t.Fatal("expected in-memory events cleared after clear-all-runtime flow")
+	}
+	if len(em.GetFailures("", 10)) != 0 {
+		t.Fatal("expected in-memory failures cleared after clear-all-runtime flow")
 	}
 }

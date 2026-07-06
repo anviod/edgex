@@ -114,8 +114,8 @@
       </a-spin>
 
       <div class="list-detail-meta">
-        <span class="list-detail-meta__dot"></span>
-        <span class="list-detail-meta__text">通道 {{ channelId }} · {{ devices.length }} 台设备</span>
+        <span class="list-detail-meta__dot" :class="listDetailMetaDotClass"></span>
+        <span class="list-detail-meta__text">{{ listDetailMetaText }}</span>
       </div>
     </div>
 
@@ -622,6 +622,10 @@ import request from '@/utils/request'
 import { devicePointsRoutePath, channelDeviceApiPath } from '@/utils/deviceRoute'
 import { generateShortId } from '@/utils/shortId'
 import { formatProtocolTag } from '@/utils/protocolLabel'
+import {
+  formatListDetailMetaText,
+  getListDetailMetaDotClass,
+} from '@/utils/channelMetrics'
 import { base64ToUint8Array, uint8ArrayToHex, detectFileType, downloadBytes } from '@/utils/decode'
 import HistoryModal from '@/components/HistoryModal.vue'
 
@@ -629,9 +633,16 @@ const route = useRoute()
 const router = useRouter()
 const devices = ref([])
 const channelInfo = ref(null)
+const channelMetrics = ref(null)
 const loading = ref(false)
 const channelId = route.params.channelId
 const channelProtocol = computed(() => channelInfo.value?.protocol || '')
+const listDetailMetaText = computed(() => formatListDetailMetaText({
+  channelId,
+  deviceCount: devices.value.length,
+  metrics: channelMetrics.value,
+}))
+const listDetailMetaDotClass = computed(() => getListDetailMetaDotClass(channelMetrics.value))
 const channelOpcUaEndpoint = computed(() => {
   const cfg = channelInfo.value?.config || {}
   return cfg.url || cfg.endpoint || ''
@@ -912,12 +923,15 @@ const parseAutoPointsRange = (config) => {
 const fetchDevices = async () => {
   loading.value = true
   try {
-    const chanData = await request.get(`/api/channels/${channelId}`)
+    const [chanData, devData, metricsData] = await Promise.all([
+      request.get(`/api/channels/${channelId}`),
+      request.get(`/api/channels/${channelId}/devices`, { params: { include_points: 'false' } }),
+      request.get(`/api/channels/${channelId}/metrics`).catch(() => null),
+    ])
     channelInfo.value = chanData
-
-    const devData = await request.get(`/api/channels/${channelId}/devices`)
     devices.value = devData
-    
+    channelMetrics.value = metricsData
+
     selected.value = []
     selectAll.value = false
   } catch (e) {
@@ -935,10 +949,19 @@ const toggleSelectAll = (val) => {
   }
 }
 
-const openDialog = (item = null) => {
+const openDialog = async (item = null) => {
   if (item) {
+    let source = item
+    if (!Array.isArray(item.points)) {
+      try {
+        source = await request.get(channelDeviceApiPath(channelId, item.id))
+      } catch (e) {
+        Message.error('获取设备详情失败: ' + e.message)
+        return
+      }
+    }
     isEdit.value = true
-    let config = item.config || {}
+    let config = source.config || {}
     if (typeof config === 'string') {
       try {
         config = JSON.parse(config)
@@ -948,7 +971,7 @@ const openDialog = (item = null) => {
     }
     const storage = item.storage || {}
     form.value = {
-      ...item,
+      ...source,
       config: config,
       configStr: JSON.stringify(config, null, 2),
       dlt645Address: config.station_address || config.address || '',
@@ -1086,8 +1109,16 @@ const saveDevice = async () => {
   
   if (isEdit.value) {
     const original = devices.value.find(d => d.id === form.value.id)
-    if (original) {
+    if (original?.points?.length) {
       payload.points = original.points
+    } else {
+      try {
+        const full = await request.get(channelDeviceApiPath(channelId, form.value.id))
+        payload.points = full.points || []
+      } catch (e) {
+        Message.error('获取设备点位失败: ' + e.message)
+        return
+      }
     }
   }
 

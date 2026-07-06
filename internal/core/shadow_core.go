@@ -405,6 +405,29 @@ func (sc *ShadowCore) GetAllShadowDevices() []*model.ShadowDevice {
 	return result
 }
 
+// RuntimePointStats returns in-memory shadow device and point counts for database stats.
+func (sc *ShadowCore) RuntimePointStats() (deviceCount, pointCount int) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	for _, entry := range sc.realShadows {
+		snap := entry.load()
+		if snap == nil {
+			continue
+		}
+		deviceCount++
+		pointCount += len(snap.Points)
+	}
+	for _, vd := range sc.virtualShadows {
+		if vd == nil {
+			continue
+		}
+		deviceCount++
+		pointCount += len(vd.Points)
+	}
+	return deviceCount, pointCount
+}
+
 func (sc *ShadowCore) GetShadowPoint(deviceID, pointID string) (*model.ShadowPoint, error) {
 	sc.mu.RLock()
 	entry, exists := sc.realShadows[deviceID]

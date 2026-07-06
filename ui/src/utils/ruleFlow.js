@@ -27,6 +27,28 @@ export const STEP_STATUS = {
   skipped: { label: '已跳过', shortLabel: '跳', color: 'gray', className: 'rule-flow-node--skipped' },
 }
 
+/** Condition evaluation visual outcome (evaluate step only) */
+export const EVAL_OUTCOME = {
+  satisfied: {
+    label: '条件满足',
+    shortLabel: '满足',
+    color: 'green',
+    className: 'rule-flow-node--eval-satisfied',
+  },
+  unsatisfied: {
+    label: '条件不满足',
+    shortLabel: '不满足',
+    color: 'gold',
+    className: 'rule-flow-node--eval-unsatisfied',
+  },
+  error: {
+    label: '逻辑错误',
+    shortLabel: '错误',
+    color: 'red',
+    className: 'rule-flow-node--eval-error',
+  },
+}
+
 function truncate(text, max = 18) {
   if (!text) return ''
   const s = String(text)
@@ -226,6 +248,31 @@ function markCompletedOrSkipped(step, status) {
   return 'completed'
 }
 
+/**
+ * Infer condition/formula evaluation outcome for the evaluate pipeline node.
+ * Maps backend RuleRuntimeState to satisfied / unsatisfied / error colors.
+ */
+export function inferEvalOutcome(state, enabled, evalStepStatus) {
+  if (!enabled) return null
+  if (evalStepStatus === 'active' || evalStepStatus === 'pending') return null
+  if (evalStepStatus === 'stopped') return 'error'
+  if (evalStepStatus === 'idle') return null
+
+  const status = state?.current_status || 'NORMAL'
+  if (status === 'WARNING' || status === 'ALARM') return 'satisfied'
+  if (status === 'NORMAL') return 'unsatisfied'
+  return null
+}
+
+export function attachEvalOutcome(steps, state, enabled) {
+  const evalStep = steps.find(s => s.id === 'evaluate')
+  if (!evalStep) return steps
+  const outcome = inferEvalOutcome(state, enabled, evalStep.status)
+  return steps.map(step =>
+    step.id === 'evaluate' ? { ...step, evalOutcome: outcome } : step,
+  )
+}
+
 function inferIdleStepStatus(step, status, hasError) {
   if (hasError) {
     if (step.id === 'evaluate' || step.id === 'window') return 'stopped'
@@ -379,10 +426,10 @@ export function buildRulePipeline(rule, state) {
   }
 
   if (state?.execution_phase) {
-    return applyExecutionPhase(steps, state)
+    return attachEvalOutcome(applyExecutionPhase(steps, state), state, enabled)
   }
 
-  return steps
+  return attachEvalOutcome(steps, state, enabled)
 }
 
 export function getPipelineSummary(steps, state) {

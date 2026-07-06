@@ -277,7 +277,7 @@ func soakBacklogGateDetail(instant soakInstantMetrics, sessionMaxExcess int) str
 		maxExcess = excess
 	}
 	return fmt.Sprintf(
-		"超出基线 %d / 会话最大 %d（阈值 ≤%d），串行队列 %d",
+		"超基线 %d/峰 %d ≤%d · 串行 %d",
 		excess, maxExcess, SoakBacklogExcessThreshold, instant.SerialQueueDepth,
 	)
 }
@@ -326,7 +326,7 @@ func (sm *SoakMonitor) buildReleaseGateItems(instant soakInstantMetrics) []soakR
 			ID:     "circuit_breaker_closed",
 			Label:  "断路器关闭",
 			Passed: instant.CircuitBreakerOpen == 0 && maxCBOpen == 0,
-			Detail: fmt.Sprintf("当前 %d / 会话最大 %d", instant.CircuitBreakerOpen, maxCBOpen),
+			Detail: fmt.Sprintf("当前 %d/峰 %d", instant.CircuitBreakerOpen, maxCBOpen),
 			Value:  instant.CircuitBreakerOpen,
 			Limit:  0,
 		},

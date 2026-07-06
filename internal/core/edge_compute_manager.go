@@ -258,7 +258,7 @@ func (em *EdgeComputeManager) onSchedulerDrop(task *ruleTask, reason string) {
 			"device_id":  task.val.DeviceID,
 			"point_id":   task.val.PointID,
 		},
-	})
+	}, task.val)
 }
 
 func (em *EdgeComputeManager) SetBatchWindow(d time.Duration) {
@@ -651,7 +651,7 @@ func (em *EdgeComputeManager) executeRule(rule model.EdgeRule, val model.Value) 
 			Error:        err.Error(),
 			TriggerValue: val.Value,
 			Condition:    rule.Condition,
-		})
+		}, val)
 		return
 	}
 
@@ -743,12 +743,19 @@ func (em *EdgeComputeManager) executeRule(rule model.EdgeRule, val model.Value) 
 }
 
 func (em *EdgeComputeManager) recordMinuteSnapshot(state *model.RuleRuntimeState) {
-	if em.store == nil {
+	if em.store == nil || state == nil {
+		return
+	}
+	if !hasEdgeErrorMessage(state.ErrorMessage) {
 		return
 	}
 
 	minuteKey := time.Now().Format("2006-01-02 15:04")
 	cacheKey := fmt.Sprintf("%s_%s", state.RuleID, minuteKey)
+	errorType := ClassifyEdgeErrorType("evaluate", state.ErrorMessage)
+	if state.ExecutionPhase == "action" {
+		errorType = ClassifyEdgeErrorType("action", state.ErrorMessage)
+	}
 
 	em.bblotMu.Lock()
 	snap, exists := em.minuteCache[cacheKey]
@@ -757,21 +764,15 @@ func (em *EdgeComputeManager) recordMinuteSnapshot(state *model.RuleRuntimeState
 			RuleID:    state.RuleID,
 			RuleName:  state.RuleName,
 			Minute:    minuteKey,
-			Status:    state.CurrentStatus,
 			UpdatedAt: time.Now(),
 		}
 		em.minuteCache[cacheKey] = snap
 	}
 
-	// Update snapshot
-	snap.Status = state.CurrentStatus
-	snap.TriggerCount = state.TriggerCount
-	snap.LastValue = state.LastValue
-	snap.LastTrigger = state.LastTrigger
+	snap.ErrorType = errorType
 	snap.ErrorMessage = state.ErrorMessage
 	snap.UpdatedAt = time.Now()
 
-	// Create a copy for async saving to avoid race conditions
 	snapCopy := *snap
 	em.bblotMu.Unlock()
 
@@ -785,7 +786,16 @@ func (em *EdgeComputeManager) recordMinuteSnapshot(state *model.RuleRuntimeState
 	}(snapCopy)
 }
 
-// QueryLogs retrieves logs based on time range and optional rule ID
+func isEdgeErrorMinuteSnapshot(snap model.RuleMinuteSnapshot) bool {
+	return hasEdgeErrorMessage(snap.ErrorMessage)
+}
+
+// IsEdgeErrorMinuteSnapshot reports whether a persisted minute snapshot is an error log row.
+func IsEdgeErrorMinuteSnapshot(snap model.RuleMinuteSnapshot) bool {
+	return isEdgeErrorMinuteSnapshot(snap)
+}
+
+// QueryLogs retrieves error logs based on time range and optional rule ID.
 func (em *EdgeComputeManager) QueryLogs(start, end time.Time, ruleID string) ([]model.RuleMinuteSnapshot, error) {
 	if em.store == nil {
 		return nil, fmt.Errorf("storage not initialized")
@@ -798,14 +808,16 @@ func (em *EdgeComputeManager) QueryLogs(start, end time.Time, ruleID string) ([]
 	endStr := end.Format("2006-01-02 15:04")
 
 	if ruleID != "" {
-		// Optimized range scan
 		minKey := fmt.Sprintf("%s_%s", ruleID, startStr)
 		maxKey := fmt.Sprintf("%s_%s", ruleID, endStr)
 
 		err := em.store.LoadRange(bucket, minKey, maxKey, func(k, v []byte) error {
 			var snap model.RuleMinuteSnapshot
 			if err := json.Unmarshal(v, &snap); err != nil {
-				return nil // Skip invalid data
+				return nil
+			}
+			if !isEdgeErrorMinuteSnapshot(snap) {
+				return nil
 			}
 			logs = append(logs, snap)
 			return nil
@@ -813,14 +825,12 @@ func (em *EdgeComputeManager) QueryLogs(start, end time.Time, ruleID string) ([]
 		return logs, err
 	}
 
-	// Full scan and filter
 	err := em.store.LoadAll(bucket, func(k, v []byte) error {
 		var snap model.RuleMinuteSnapshot
 		if err := json.Unmarshal(v, &snap); err != nil {
 			return nil
 		}
-		// Filter by time range
-		if snap.Minute >= startStr && snap.Minute <= endStr {
+		if snap.Minute >= startStr && snap.Minute <= endStr && isEdgeErrorMinuteSnapshot(snap) {
 			logs = append(logs, snap)
 		}
 		return nil
@@ -1251,7 +1261,7 @@ func (em *EdgeComputeManager) executeActions(rule model.EdgeRule, actions []mode
 					Condition:    rule.Condition,
 					ActionType:   act.Type,
 					ActionIndex:  actionIndex,
-				})
+				}, val)
 			} else {
 				failMu.Lock()
 				actionSuccess++
@@ -2011,6 +2021,17 @@ func (em *EdgeComputeManager) ClearRuntimeState() {
 	em.bblotMu.Lock()
 	em.minuteCache = make(map[string]*model.RuleMinuteSnapshot)
 	em.bblotMu.Unlock()
+}
+
+// RuntimeLogStats returns in-memory edge log buffer sizes for database stats.
+func (em *EdgeComputeManager) RuntimeLogStats() (eventsMem, failuresMem, minuteCache int) {
+	if em.events != nil {
+		eventsMem, failuresMem = em.events.counts()
+	}
+	em.bblotMu.Lock()
+	minuteCache = len(em.minuteCache)
+	em.bblotMu.Unlock()
+	return eventsMem, failuresMem, minuteCache
 }
 
 func (em *EdgeComputeManager) restoreState() {

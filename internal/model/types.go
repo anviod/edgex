@@ -252,10 +252,20 @@ type Device struct {
 	Config       map[string]any `json:"config" yaml:"config"`                               // 设备特定配置（如 slave_id）
 	Storage      DeviceStorage  `json:"storage,omitempty" yaml:"storage,omitempty"`         // Data storage strategy
 	Points       []Point        `json:"points,omitempty" yaml:"points,omitempty"`             // 该设备的点位列表
+	PointsCount  int            `json:"points_count,omitempty" yaml:"-"`                      // 列表 API 省略 points 时返回点位数量
 	State        int            `json:"state" yaml:"-"`                                     // 运行时状态：0=Online, 1=Unstable, 2=Offline, 3=Quarantine
 	QualityScore int            `json:"quality_score" yaml:"-"`                             // 质量评分 (0-100)
 	// Runtime state fields
 	NodeRuntime *NodeRuntime `json:"runtime,omitempty" yaml:"-"`
+}
+
+// WithPointsSummary returns a copy with Points stripped and PointsCount populated.
+// Used by list APIs to avoid shipping large point payloads to the UI.
+func (d Device) WithPointsSummary() Device {
+	out := d
+	out.PointsCount = len(d.Points)
+	out.Points = nil
+	return out
 }
 
 // NodeRuntime defines runtime statistics for a node (device or channel)
