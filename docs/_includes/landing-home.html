@@ -1,46 +1,11 @@
 <style>
   /* ==========================================================================
-     EdgeX Landing — 明亮工业轻奢版（scoped under .landing-main）
+     Landing Hero — 琉金栅格 + 流光（仅首页主视区特效，全局样式见 assets/style.css）
      ========================================================================== */
-  .page-home {
-    background-color: #f8f9fa;
-    color: #495057;
+  .landing-main .section-heading {
+    display: block;
   }
 
-  .page-home .site-header {
-    background: rgba(248, 249, 250, 0.92);
-    border-bottom: 1px solid #e9ecef;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-
-  .page-home .site-brand {
-    color: #343a40;
-  }
-
-  .page-home .site-nav a {
-    color: #495057;
-  }
-
-  .page-home .site-nav a:hover {
-    background: rgba(197, 160, 89, 0.08);
-    color: #b38f43;
-  }
-
-  .landing-main {
-    background: radial-gradient(circle at 50% 0%, #ffffff 0%, #f1f3f5 42%, #f8f9fa 100%);
-    padding-bottom: 88px;
-  }
-
-  .landing-main a {
-    color: #b38f43;
-  }
-
-  .landing-main a:hover {
-    color: #c5a059;
-  }
-
-  /* Hero — 琉金栅格主视区（明亮版） */
   .landing-main .hero-section {
     position: relative;
     overflow: hidden;
@@ -174,120 +139,34 @@
   .landing-main .hero-copy .eyebrow {
     display: block;
     margin: 0 0 14px;
-    padding: 0;
-    border: none;
-    border-radius: 0;
-    background: none;
-    color: #b38f43;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-  }
-
-  .landing-main .hero-copy .eyebrow::before {
-    content: none;
-    display: none;
   }
 
   .landing-main .hero-copy h2 {
     margin: 0 0 24px;
-    font-family: "Outfit", "Noto Sans SC", sans-serif;
-    font-size: clamp(2rem, 4.5vw, 42px);
-    font-weight: 800;
-    line-height: 1.08;
-    letter-spacing: -0.5px;
-    color: #343a40;
-    background: linear-gradient(135deg, #343a40 25%, #c5a059 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-shadow: none;
   }
 
   .landing-main .hero-tagline {
-    max-width: none;
     margin: 0 0 20px;
-    color: #6c757d;
-    font-size: clamp(0.95rem, 1.35vw, 16px);
-    line-height: 1.7;
     text-align: left;
   }
 
   .landing-main .hero-subline {
-    display: inline-block;
     margin: 0 0 36px;
-    padding: 6px 16px;
-    border: 1px solid rgba(197, 160, 89, 0.28);
-    border-left: 1px solid rgba(197, 160, 89, 0.28);
-    border-radius: 4px;
-    background: rgba(197, 160, 89, 0.06);
-    color: #b38f43;
-    font-family: "JetBrains Mono", ui-monospace, monospace;
     font-size: 12px;
-    letter-spacing: 0.5px;
-    line-height: 1.5;
   }
 
   .landing-main .hero-actions {
-    gap: 14px;
     margin-top: 0;
-  }
-
-  .landing-main .button-link {
-    min-height: auto;
-    padding: 12px 26px;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-  }
-
-  .landing-main .button-link--primary {
-    background: linear-gradient(135deg, #dfc38a 0%, #c5a059 50%, #b38f43 100%);
-    color: #ffffff;
-    border: none;
-    box-shadow: 0 4px 16px rgba(197, 160, 89, 0.25);
-  }
-
-  .landing-main .button-link--primary:hover {
-    transform: translateY(-2px);
-    background: linear-gradient(135deg, #e8d09a 0%, #c5a059 50%, #b38f43 100%);
-    color: #ffffff;
-    box-shadow: 0 6px 22px rgba(197, 160, 89, 0.32);
-  }
-
-  .landing-main .button-link--secondary {
-    background: #ffffff;
-    color: #495057;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-  }
-
-  .landing-main .button-link--secondary:hover {
-    background: rgba(197, 160, 89, 0.06);
-    border-color: #c5a059;
-    color: #b38f43;
-    transform: translateY(-2px);
   }
 
   .landing-main .hero-aside {
     flex: none;
     min-width: 0;
     align-self: auto;
-    padding: 32px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.85);
-    border: 1px solid rgba(197, 160, 89, 0.22);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06), 0 1px 0 rgba(255, 255, 255, 0.8) inset;
   }
 
   .landing-main .hero-stack {
     height: auto;
-    gap: 0;
   }
 
   .landing-main .hero-stack__item {
@@ -304,458 +183,18 @@
   .landing-main .hero-stack__item strong {
     display: block;
     margin-bottom: 8px;
-    color: #b38f43;
     font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
   }
 
   .landing-main .hero-stack__item span {
     display: block;
-    color: #6c757d;
     font-size: 13px;
-    line-height: 1.5;
     text-align: left;
-  }
-
-  /* 通用内容板块 */
-  .landing-main .landing-section {
-    padding: clamp(48px, 6vw, 80px) 0;
-    border-bottom: 1px solid #e9ecef;
-  }
-
-  .landing-main .section-heading {
-    display: block;
-    margin-bottom: 48px;
-  }
-
-  .landing-main .section-kicker {
-    color: #c5a059;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-  }
-
-  .landing-main .section-heading h2 {
-    margin: 8px 0 12px;
-    color: #343a40;
-    font-family: "Outfit", "Noto Sans SC", sans-serif;
-    font-size: clamp(1.5rem, 2.5vw, 28px);
-    font-weight: 700;
-  }
-
-  .landing-main .section-heading p {
-    margin: 0;
-    max-width: none;
-    color: #6c757d;
-    font-size: 14px;
-  }
-
-  .landing-main .cards-grid--four {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 24px;
-  }
-
-  .landing-main .feature-card {
-    gap: 0;
-    padding: 28px;
-    border-radius: 4px;
-    background: #ffffff;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-    transition: all 0.3s ease;
-  }
-
-  .landing-main .feature-card:hover {
-    border-color: rgba(197, 160, 89, 0.45);
-    background: #ffffff;
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(197, 160, 89, 0.12);
-  }
-
-  .landing-main .feature-card__tag {
-    margin-bottom: 18px;
-    padding: 3px 10px;
-    border-radius: 2px;
-    background: rgba(197, 160, 89, 0.10);
-    color: #b38f43;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-  }
-
-  .landing-main .feature-card h3 {
-    margin: 0 0 12px;
-    color: #343a40;
-    font-size: 18px;
-    font-weight: 600;
-  }
-
-  .landing-main .feature-card p {
-    margin: 0 0 24px;
-    flex-grow: 1;
-    color: #6c757d;
-    font-size: 13.5px;
-    line-height: 1.6;
-  }
-
-  .landing-main .feature-card__links {
-    gap: 16px;
-    margin-top: auto;
-    padding-top: 0;
-  }
-
-  .landing-main .mini-link {
-    padding: 0;
-    border-radius: 0;
-    background: none;
-    color: #b38f43;
-    font-size: 13px;
-    font-weight: 500;
-  }
-
-  .landing-main .mini-link:hover {
-    background: none;
-    color: #c5a059;
-    text-decoration: underline;
-  }
-
-  /* 文档索引 */
-  .landing-main .doc-zones,
-  .landing-main .doc-zones--wide {
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 24px;
-  }
-
-  .landing-main .doc-zone {
-    padding: 28px;
-    border-radius: 4px;
-    background: #ffffff;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-  }
-
-  .landing-main .doc-zone h3 {
-    margin: 0 0 18px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid rgba(197, 160, 89, 0.18);
-    color: #b38f43;
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-  }
-
-  .landing-main .doc-zone li {
-    margin-bottom: 12px;
-  }
-
-  .landing-main .doc-zone a {
-    color: #495057;
-    font-size: 14px;
-    font-weight: 500;
-    transition: color 0.2s ease;
-  }
-
-  .landing-main .doc-zone a:hover {
-    color: #c5a059;
-  }
-
-  /* 路线图 */
-  .landing-main .roadmap-intro {
-    margin-bottom: 40px;
-    padding: 20px 24px;
-    border-left: 3px solid #c5a059;
-    border-radius: 0 4px 4px 0;
-    background: rgba(255, 255, 255, 0.75);
-    border-top: 1px solid #e9ecef;
-    border-right: 1px solid #e9ecef;
-    border-bottom: 1px solid #e9ecef;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-  }
-
-  .landing-main .roadmap-intro h4 {
-    margin: 0 0 8px;
-    color: #343a40;
-    font-size: 15px;
-    font-weight: 600;
-  }
-
-  .landing-main .roadmap-intro p {
-    margin: 0;
-    color: #6c757d;
-    font-size: 13px;
-    line-height: 1.7;
-  }
-
-  .landing-main .quarter-header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin: 40px 0 16px;
-    padding-bottom: 0;
-    border-bottom: none;
-  }
-
-  .landing-main .quarter-header h3 {
-    margin: 0;
-    color: #343a40;
-    font-size: 19px;
-    font-weight: 600;
-  }
-
-  .landing-main .quarter-header--q4 h3,
-  .landing-main .quarter-header--done h3 {
-    color: #343a40;
-  }
-
-  .landing-main .quarter-badge {
-    margin-left: 0;
-    padding: 3px 10px;
-    border-radius: 2px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-  }
-
-  .landing-main .quarter-badge--active {
-    background: rgba(46, 125, 50, 0.08);
-    color: #2e7d32;
-    border: 1px solid rgba(46, 125, 50, 0.22);
-  }
-
-  .landing-main .quarter-badge--planned {
-    background: rgba(197, 160, 89, 0.10);
-    color: #b38f43;
-    border: 1px solid rgba(197, 160, 89, 0.28);
-  }
-
-  .landing-main .roadmap-table {
-    margin-bottom: 40px;
-    border: 1px solid #e9ecef;
-    border-radius: 4px;
-    overflow: hidden;
-    font-size: 13.5px;
-    background: #ffffff;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-  }
-
-  .landing-main .roadmap-table thead tr,
-  .landing-main .roadmap-table--q4 thead tr {
-    background: #f1f3f5;
-  }
-
-  .landing-main .roadmap-table th {
-    padding: 14px;
-    border-bottom: 2px solid rgba(197, 160, 89, 0.22);
-    color: #b38f43;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-  }
-
-  .landing-main .roadmap-table td {
-    padding: 14px;
-    border-bottom: 1px solid #e9ecef;
-    color: #495057;
-  }
-
-  .landing-main .roadmap-table tr:nth-child(even) td {
-    background: rgba(248, 249, 250, 0.6);
-  }
-
-  .landing-main .roadmap-table tr:hover td {
-    background: rgba(197, 160, 89, 0.05);
-  }
-
-  .landing-main .roadmap-table td:first-child,
-  .landing-main .roadmap-table--q4 td:first-child {
-    color: #343a40;
-    font-weight: 600;
-  }
-
-  .landing-main .roadmap-table td:nth-child(3) {
-    color: #b38f43;
-    font-weight: 500;
-  }
-
-  .landing-main .priority-badge {
-    padding: 0;
-    border-radius: 0;
-    background: none;
-    font-weight: 700;
-  }
-
-  .landing-main .priority-badge--high {
-    color: #c62828;
-  }
-
-  .landing-main .priority-badge--medium {
-    color: #e65100;
-  }
-
-  .landing-main .priority-badge--low {
-    color: #546e7a;
-  }
-
-  .landing-main .status-badge {
-    padding: 3px 10px;
-    border-radius: 2px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    color: #6c757d;
-  }
-
-  .landing-main .status-badge--progress {
-    background: rgba(197, 160, 89, 0.10);
-    border-color: rgba(197, 160, 89, 0.28);
-    color: #b38f43;
-  }
-
-  .landing-main .status-badge--research {
-    background: rgba(21, 101, 192, 0.08);
-    border-color: rgba(21, 101, 192, 0.22);
-    color: #1565c0;
-  }
-
-  .landing-main .status-badge--pending {
-    background: #f8f9fa;
-    border-color: #dee2e6;
-    color: #868e96;
-  }
-
-  .landing-main .status-badge--done {
-    background: rgba(46, 125, 50, 0.08);
-    border-color: rgba(46, 125, 50, 0.22);
-    color: #2e7d32;
-  }
-
-  /* 里程碑 */
-  .landing-main .milestone-grid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 16px;
-    margin-top: 24px;
-    margin-bottom: 30px;
-  }
-
-  .landing-main .milestone-item {
-    padding: 16px;
-    border-radius: 4px;
-    background: #ffffff;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.03);
-  }
-
-  .landing-main .milestone-item--new {
-    background: rgba(197, 160, 89, 0.05);
-    border-color: rgba(197, 160, 89, 0.32);
-  }
-
-  .landing-main .milestone-dot {
-    width: 6px;
-    height: 6px;
-    background: #adb5bd;
-  }
-
-  .landing-main .milestone-dot--new {
-    background: #c5a059;
-    box-shadow: 0 0 8px rgba(197, 160, 89, 0.45);
-  }
-
-  .landing-main .milestone-title {
-    color: #343a40;
-    font-size: 13.5px;
-    font-weight: 600;
-  }
-
-  .landing-main .milestone-item--new .milestone-title {
-    color: #343a40;
-  }
-
-  .landing-main .milestone-date {
-    margin-top: 3px;
-    color: #868e96;
-    font-size: 11px;
-  }
-
-  .landing-main .milestone-item--new .milestone-date {
-    color: #b38f43;
-  }
-
-  .landing-main .roadmap-footer {
-    padding-top: 24px;
-    border-top: 1px solid #e9ecef;
-    text-align: center;
-  }
-
-  .landing-main .roadmap-footer p {
-    margin: 0;
-    color: #6c757d;
-    font-size: 13px;
-  }
-
-  .landing-main .roadmap-footer a {
-    color: #b38f43;
-    font-weight: 500;
-  }
-
-  /* 快捷搜索 */
-  .landing-main .wide-panel {
-    padding: 40px;
-    border-radius: 6px;
-    background: #ffffff;
-    border: 1px solid rgba(197, 160, 89, 0.22);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  }
-
-  .landing-main .wide-panel h2 {
-    margin: 8px 0;
-    color: #343a40;
-    font-family: "Outfit", "Noto Sans SC", sans-serif;
-    font-size: clamp(1.4rem, 2vw, 1.8rem);
-  }
-
-  .landing-main .wide-panel > p {
-    color: #6c757d;
-  }
-
-  .landing-main .quick-links {
-    gap: 12px;
-    margin-top: 24px;
-  }
-
-  .landing-main .quick-links a {
-    padding: 8px 16px;
-    border-radius: 4px;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    color: #495057;
-    font-size: 13px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-  }
-
-  .landing-main .quick-links a:hover {
-    border-color: #c5a059;
-    background: rgba(197, 160, 89, 0.06);
-    color: #b38f43;
   }
 
   @media (max-width: 1180px) {
     .landing-main .hero-grid {
       grid-template-columns: 1fr;
-    }
-
-    .landing-main .hero-stack {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .landing-main .hero-stack__item:not(:last-child) {
-      margin-bottom: 24px;
-      padding-bottom: 18px;
     }
   }
 
@@ -764,12 +203,6 @@
     .landing-main .hero-section .hero-banner__glow::after {
       animation: none;
       opacity: 0.2;
-    }
-
-    .landing-main .feature-card:hover,
-    .landing-main .button-link--primary:hover,
-    .landing-main .button-link--secondary:hover {
-      transform: none;
     }
   }
 </style>
