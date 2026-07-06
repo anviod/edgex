@@ -1383,7 +1383,7 @@ const deviceId = computed(() => decodePathSegment(route.params.deviceId))
 // Watch for route changes to refresh data
 watch([channelId, deviceId], async () => {
     await fetchChannel()
-    fetchPoints()
+    fetchPoints({ force: true })
     fetchMetrics()
 })
 
@@ -1663,19 +1663,24 @@ const toggleSelectAll = (val) => {
     }
 }
 
-// Watch filteredPoints to update selectAll state if points change
-watch(filteredPoints, (newPoints) => {
-    if (newPoints.length === 0) {
+// Watch filteredPoints length / filters only — avoid deep watch on live point values (WebSocket).
+const pruneSelectionToVisiblePoints = () => {
+    const visible = filteredPoints.value
+    if (visible.length === 0) {
         selection.selectAll = false
         selection.selectedIds = []
-    } else {
-        // Update selection to only include visible points
-        selection.selectedIds = selection.selectedIds.filter(id => 
-            newPoints.some(p => p.id === id)
-        )
-        selection.selectAll = newPoints.length > 0 && selection.selectedIds.length === newPoints.length
+        return
     }
-}, { deep: true })
+    selection.selectedIds = selection.selectedIds.filter(id =>
+        visible.some(p => p.id === id)
+    )
+    selection.selectAll = visible.length > 0 && selection.selectedIds.length === visible.length
+}
+
+watch(
+    () => [points.value.length, filters.search, filters.quality.join(','), filters.registerType],
+    pruneSelectionToVisiblePoints
+)
 
 // Watch selectedIds to update selectAll state
 watch(() => selection.selectedIds, (newIds) => {
@@ -2706,7 +2711,7 @@ const submitRegisterBlock = async () => {
         )
         Message.success(`已生成 ${res.points_count || registerBlockCount.value} 个点位`)
         registerBlockDialog.visible = false
-        await fetchPoints()
+        await fetchPoints({ force: true })
     } catch (e) {
         Message.error('批量创建失败: ' + (e.message || e))
         throw e
@@ -3052,7 +3057,11 @@ const executeClone = async () => {
     }
 }
 
-const fetchPoints = async () => {
+const fetchPoints = async (options = {}) => {
+    const { force = false } = options
+    if (force) {
+        deviceInfo.value = null
+    }
     console.log('Fetching points for channel:', channelId.value, 'device:', deviceId.value)
     loading.value = true
     try {
@@ -3086,9 +3095,11 @@ const fetchPoints = async () => {
         if (deviceInfo.value && Array.isArray(deviceInfo.value.points)) {
             const now = new Date()
             points.value = deviceInfo.value.points.map(p => mapDevicePoint({ ...p, value: null, quality: 'Bad' }, now))
+            syncPointIndex()
             console.log('Initial points list created from device info:', points.value.length)
         } else {
             points.value = []
+            syncPointIndex()
             console.warn('No points found in device info')
         }
 
@@ -3126,6 +3137,7 @@ const fetchPoints = async () => {
                     console.log('Background point fetch successful, updating points. Points:', pts.length)
                     console.log('First point data:', pts[0])
                     points.value = pts.map(p => mapDevicePoint(p))
+                    syncPointIndex()
                 } else if (Array.isArray(pts) && pts.length === 0 && points.value.length === 0) {
                     console.log('Background fetch returned empty points array')
                     if (channelProtocol.value === 'opc-ua') {
@@ -3142,6 +3154,7 @@ const fetchPoints = async () => {
                         .then(pts => {
                             if (Array.isArray(pts)) {
                                 points.value = pts.map(p => mapDevicePoint(p))
+                                syncPointIndex()
                                 if (pts.length === 0 && channelProtocol.value === 'opc-ua') {
                                     showMessage('OPC-UA 设备未发现点位，请先扫描点位', 'info')
                                 }
@@ -3363,6 +3376,16 @@ const tryDecode = (type) => {
 
 // WebSocket Logic
 let ws = null
+const pointIndexById = new Map()
+
+const syncPointIndex = () => {
+    pointIndexById.clear()
+    const list = points.value || []
+    for (let i = 0; i < list.length; i++) {
+        pointIndexById.set(list[i].id, i)
+    }
+}
+
 const connectWs = () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = window.location.host
@@ -3376,8 +3399,8 @@ const connectWs = () => {
         try {
             const data = JSON.parse(event.data)
             if (data.channel_id === channelId.value && data.device_id === deviceId.value) {
-                const idx = points.value.findIndex(p => p.id === data.point_id)
-                if (idx !== -1) {
+                const idx = pointIndexById.get(data.point_id)
+                if (idx !== undefined) {
                     points.value[idx].value = data.value
                     points.value[idx].quality = data.quality
                     if (data.collected_at) points.value[idx].collected_at = data.collected_at

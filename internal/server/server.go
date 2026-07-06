@@ -10,6 +10,7 @@ import (
 	"log"
 	"math/rand/v2"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strconv"
@@ -590,13 +591,27 @@ func (s *Server) setupRoutes() {
 	api.Get("/ws/logs", websocket.New(s.handleLogWebSocket))
 	api.Get("/logs/download", s.handleLogDownload)
 
-	// 静态资源
-	s.app.Static("/", "./ui/dist")
+	// 静态资源（优先相对可执行文件目录，兼容未设置 WorkingDirectory 的部署）
+	uiDist := uiDistDir()
+	s.app.Static("/", uiDist)
 
 	// SPA Fallback: 所有未匹配的路由都返回 index.html
 	s.app.Get("*", func(c *fiber.Ctx) error {
-		return c.SendFile("./ui/dist/index.html")
+		return c.SendFile(filepath.Join(uiDist, "index.html"))
 	})
+}
+
+func uiDistDir() string {
+	candidates := []string{"./ui/dist"}
+	if exe, err := os.Executable(); err == nil {
+		candidates = append([]string{filepath.Join(filepath.Dir(exe), "ui", "dist")}, candidates...)
+	}
+	for _, dir := range candidates {
+		if info, err := os.Stat(filepath.Join(dir, "index.html")); err == nil && !info.IsDir() {
+			return dir
+		}
+	}
+	return "./ui/dist"
 }
 
 func (s *Server) getDeviceHistory(c *fiber.Ctx) error {
@@ -945,6 +960,13 @@ func (s *Server) getChannelDevices(c *fiber.Ctx) error {
 	if devices == nil {
 		return c.JSON([]model.Device{})
 	}
+	if c.Query("include_points") == "false" {
+		out := make([]model.Device, len(devices))
+		for i, d := range devices {
+			out[i] = d.WithPointsSummary()
+		}
+		return c.JSON(out)
+	}
 	return c.JSON(devices)
 }
 
@@ -986,18 +1008,46 @@ func (s *Server) addDevice(c *fiber.Ctx) error {
 			if err := model.EnsureDeviceID(&devices[i]); err != nil {
 				return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 			}
-			if err := s.cm.AddDevice(channelId, &devices[i]); err != nil {
-				return c.Status(deviceAddErrorStatus(err)).JSON(fiber.Map{"error": fmt.Sprintf("Failed to add device %s: %v", devices[i].Name, err)})
+		}
+
+		created, err := s.cm.AddDevices(channelId, devices)
+		if err != nil {
+			status := deviceAddErrorStatus(err)
+			if len(created) == 0 {
+				return c.Status(status).JSON(fiber.Map{"error": err.Error()})
 			}
+			// partial success: return created devices with warning
+			for i := range created {
+				if s.dsm != nil {
+					s.dsm.UpdateDeviceConfig(created[i].ID, created[i].Storage)
+				}
+			}
+			if s.nbm != nil {
+				s.nbm.PublishPointsMetadata()
+			}
+			summaries := make([]model.Device, len(created))
+			for i, d := range created {
+				summaries[i] = d.WithPointsSummary()
+			}
+			return c.Status(status).JSON(fiber.Map{
+				"devices": summaries,
+				"error":   err.Error(),
+			})
+		}
+
+		for i := range created {
 			if s.dsm != nil {
-				s.dsm.UpdateDeviceConfig(devices[i].ID, devices[i].Storage)
+				s.dsm.UpdateDeviceConfig(created[i].ID, created[i].Storage)
 			}
 		}
-		// 触发点位元数据同步到 edgeOS
 		if s.nbm != nil {
 			s.nbm.PublishPointsMetadata()
 		}
-		return c.JSON(devices)
+		summaries := make([]model.Device, len(created))
+		for i, d := range created {
+			summaries[i] = d.WithPointsSummary()
+		}
+		return c.JSON(summaries)
 
 	case map[string]interface{}:
 		// 单个添加
