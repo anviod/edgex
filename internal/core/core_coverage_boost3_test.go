@@ -244,10 +244,6 @@ func TestEdgeComputeManager_LegacySourceIndex(t *testing.T) {
 	if !matchRule(em.rules["legacy"], model.Value{ChannelID: "ch1", DeviceID: "dev1", PointID: "p1", Value: 1}) {
 		t.Fatal("legacy rule should match")
 	}
-	sources := em.GetSharedSources()
-	if len(sources) != 1 {
-		t.Fatalf("shared sources = %+v", sources)
-	}
 }
 
 func TestNorthboundManager_RebuildOPCUAServersEmpty(t *testing.T) {

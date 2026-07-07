@@ -14,7 +14,7 @@ const (
 )
 
 // edgeRuleScheduler coalesces per-rule triggers within a batch window and
-// dispatches by priority (design: 边缘计算高阶功能 §7 batch_window_ms).
+// dispatches by priority within batch_window_ms.
 type edgeRuleScheduler struct {
 	em          *EdgeComputeManager
 	batchWindow time.Duration

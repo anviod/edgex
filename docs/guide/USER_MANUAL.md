@@ -502,7 +502,7 @@ sudo systemctl enable --now edgex   # 若未自动启动
 
 ## 边缘计算
 
-> 规则类型、expr 语法、场景编排与最佳实践见 [边缘计算基础功能](../edge/边缘计算基础功能.html)、[边缘计算高阶功能](../edge/边缘计算高阶功能.html)、[边缘计算最佳实践](EDGE_COMPUTING_BEST_PRACTICES.html)。
+> 规则类型、expr 语法、场景编排与最佳实践见 [边缘计算基础功能](../edge/边缘计算基础功能.html)、[边缘计算最佳实践](EDGE_COMPUTING_BEST_PRACTICES.html)。
 
 ### 配置步骤
 

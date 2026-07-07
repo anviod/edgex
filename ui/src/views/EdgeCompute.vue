@@ -10,11 +10,18 @@
         <a-tabs v-model:active-key="tab" type="rounded" size="small" class="main-tabs">
             <a-tab-pane key="metrics" title="监控面板" />
             <a-tab-pane key="rules" title="规则管理" />
+            <a-tab-pane key="templates" title="场景模版" />
             <a-tab-pane key="status" title="记录与日志" />
         </a-tabs>
 
         <div class="edge-compute-body">
-            <EdgeComputeMetrics v-if="tab === 'metrics'" />
+            <template v-if="tab === 'metrics'">
+                <EdgeComputeMetrics />
+                <EdgeComputePageFooter
+                    @switch-tab="(key) => tab = key"
+                    @open-help="helpVisible = true"
+                />
+            </template>
 
             <div v-if="tab === 'rules'" class="edge-compute-flow">
                 <section class="edge-compute-panel" aria-label="规则管理">
@@ -121,6 +128,11 @@
                 </div>
                 </section>
             </div>
+
+            <EdgeSceneTemplates
+                v-if="tab === 'templates'"
+                @apply="applyRuleTemplate"
+            />
 
             <div v-if="tab === 'status'" class="edge-compute-flow">
                 <section class="edge-compute-panel" aria-label="记录与日志">
@@ -759,6 +771,9 @@ import {
 } from '@arco-design/web-vue/es/icon'
 import ActionEditor from '@/components/ActionEditor.vue'
 import EdgeComputeHelpDrawer from '@/components/edge-compute/EdgeComputeHelpDrawer.vue'
+import EdgeComputePageFooter from '@/components/edge-compute/EdgeComputePageFooter.vue'
+import EdgeSceneTemplates from '@/components/edge-compute/EdgeSceneTemplates.vue'
+import { cloneSceneTemplateRule } from '@/utils/edgeSceneTemplates'
 import EdgeRecordFilterModal from '@/components/edge-compute/EdgeRecordFilterModal.vue'
 import RuleFlowCard from '@/components/edge-compute/RuleFlowCard.vue'
 import {
@@ -1485,27 +1500,37 @@ const isActionInvalid = (action) => {
     }
 }
 
-const openDialog = () => {
-    editingRule.value = false
-    // Reset
+const resetCurrentRule = () => {
     currentRule.id = ''
     currentRule.name = ''
     currentRule.type = 'threshold'
     currentRule.priority = 0
     currentRule.enable = true
     currentRule.trigger_mode = 'always'
-    currentRule.sources = [] // Reset sources
-    currentRule.trigger_logic = 'OR'
+    currentRule.check_interval = ''
+    currentRule.sources = []
+    currentRule.trigger_logic = 'EXPR'
     currentRule.condition = ''
     currentRule.expression = ''
     currentRule.window = { type: 'sliding', size: '10s', aggr_func: 'avg' }
     currentRule.state = { duration: '0s', count: 0 }
     currentRule.actions = []
-    
-    // Add one empty source by default
+}
+
+const openDialog = () => {
+    editingRule.value = false
+    resetCurrentRule()
     addSource()
-    
     dialog.value = true
+}
+
+const applyRuleTemplate = (template) => {
+    editingRule.value = false
+    resetCurrentRule()
+    Object.assign(currentRule, cloneSceneTemplateRule(template))
+    tab.value = 'rules'
+    dialog.value = true
+    showMessage(`已加载模版「${template.name}」，请绑定数据源与动作目标后保存`, 'info')
 }
 
 const editRule = async (rule) => {
@@ -1658,6 +1683,7 @@ watch(tab, (newTab) => {
 
 onMounted(async () => {
     await fetchRules()
+    fetchRuleStates()
     fetchChannels()
     fetchNorthboundConfig()
 
@@ -1666,6 +1692,12 @@ onMounted(async () => {
         recordType.value = 'logs'
     } else if (route.query.tab === 'status') {
         tab.value = 'status'
+    } else if (route.query.tab === 'templates') {
+        tab.value = 'templates'
+    } else if (route.query.tab === 'rules') {
+        tab.value = 'rules'
+    } else if (route.query.tab === 'metrics') {
+        tab.value = 'metrics'
     }
 
     if (route.query.rule) {

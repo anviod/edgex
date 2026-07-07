@@ -362,7 +362,7 @@
 
             </div>
 
-            <div class="edge-compute-card" @click="$router.push('/edge-compute/metrics')">
+            <div class="edge-compute-card" @click="$router.push({ path: '/edge-compute', query: { tab: 'metrics' } })">
 
               <div class="edge-stats">
 

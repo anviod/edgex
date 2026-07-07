@@ -51,7 +51,7 @@ type EdgeComputeManager struct {
 	valueCache map[string]model.Value
 	cacheMu    sync.RWMutex
 
-	// Shared Source Index
+	// Rule Index
 	ruleIndex map[string][]string // Key: "ChannelID/DeviceID/PointID", Value: []RuleID
 	indexMu   sync.RWMutex
 
@@ -97,7 +97,6 @@ type EdgeComputeMetrics struct {
 	WorkerPoolSize        int   `json:"worker_pool_size"`
 	WorkerPoolUsage       int   `json:"worker_pool_usage"`
 	RuleCount             int   `json:"rule_count"`
-	SharedSourceCount     int   `json:"shared_source_count"`
 	CacheSize             int   `json:"cache_size"`
 	WindowBufferTotal     int   `json:"window_buffer_total"`
 	PendingSchedulerTasks int   `json:"pending_scheduler_tasks"`
@@ -135,38 +134,12 @@ func NewEdgeComputeManager(pipeline *DataPipeline, store *storage.Storage, saveF
 	return em
 }
 
-type SharedSourceInfo struct {
-	SourceID        string   `json:"source_id"`
-	Subscribers     []string `json:"subscribers"`
-	SubscriberCount int      `json:"subscriber_count"`
-}
-
-func (em *EdgeComputeManager) GetSharedSources() []SharedSourceInfo {
-	em.indexMu.RLock()
-	defer em.indexMu.RUnlock()
-
-	var result []SharedSourceInfo
-	for source, rules := range em.ruleIndex {
-		info := SharedSourceInfo{
-			SourceID:        source,
-			Subscribers:     make([]string, len(rules)),
-			SubscriberCount: len(rules),
-		}
-		copy(info.Subscribers, rules)
-		result = append(result, info)
-	}
-	return result
-}
-
 func (em *EdgeComputeManager) GetMetrics() EdgeComputeMetrics {
 	em.statsMu.RLock()
 	defer em.statsMu.RUnlock()
 	em.mu.RLock()
 	ruleCount := len(em.rules)
 	em.mu.RUnlock()
-	em.indexMu.RLock()
-	sourceCount := len(em.ruleIndex)
-	em.indexMu.RUnlock()
 	em.cacheMu.RLock()
 	cacheSize := len(em.valueCache)
 	em.cacheMu.RUnlock()
@@ -192,7 +165,6 @@ func (em *EdgeComputeManager) GetMetrics() EdgeComputeMetrics {
 		WorkerPoolSize:        cap(em.workerPool),
 		WorkerPoolUsage:       len(em.workerPool),
 		RuleCount:             ruleCount,
-		SharedSourceCount:     sourceCount,
 		CacheSize:             cacheSize,
 		WindowBufferTotal:     windowTotal,
 		PendingSchedulerTasks: pending,

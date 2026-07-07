@@ -50,11 +50,6 @@ func TestEdgeComputeManager_ActionHookAndMetrics(t *testing.T) {
 		t.Fatalf("GetRules = %d, want 1", len(rules))
 	}
 
-	sources := em.GetSharedSources()
-	if len(sources) != 1 || sources[0].SubscriberCount != 1 {
-		t.Fatalf("GetSharedSources = %+v", sources)
-	}
-
 	em.Start()
 	defer em.Stop()
 

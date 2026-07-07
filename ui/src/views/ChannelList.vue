@@ -112,94 +112,111 @@
                     v-for="item in zone.items"
                     :key="item.id"
                   class="channel-card"
-                  :class="{ 'is-selected': isSelected(item.id) }"
+                  :class="[getProtocolClass(item.protocol), { 'is-selected': isSelected(item.id) }]"
                   @click="handleCardClick(item)"
                 >
-                  <div class="channel-header">
-                    <div class="channel-icon" :class="getProtocolClass(item.protocol)">
-                      <icon-link v-if="['bacnet-ip', 'modbus-rtu', 'modbus-tcp', 'modbus-rtu-over-tcp'].includes(item.protocol)" :size="20" />
-                      <icon-tool v-else-if="item.protocol === 'opc-ua'" :size="20" />
-                      <icon-settings v-else-if="item.protocol === 's7'" :size="20" />
-                      <icon-link v-else :size="20" />
+                  <div class="channel-card-inner">
+                    <div class="channel-card-top">
+                      <div class="channel-identity">
+                        <div class="channel-icon" :class="getProtocolClass(item.protocol)">
+                          <icon-link v-if="['bacnet-ip', 'modbus-rtu', 'modbus-tcp', 'modbus-rtu-over-tcp'].includes(item.protocol)" :size="16" />
+                          <icon-tool v-else-if="item.protocol === 'opc-ua'" :size="16" />
+                          <icon-settings v-else-if="item.protocol === 's7'" :size="16" />
+                          <icon-link v-else :size="16" />
+                        </div>
+                        <div class="channel-info">
+                          <div class="channel-name">{{ item.name }}</div>
+                          <div class="channel-meta">
+                            <span class="protocol-tag">{{ formatProtocolTag(item.protocol) }}</span>
+                            <span
+                              class="channel-status-chip"
+                              :class="item.enable ? 'is-enabled' : 'is-disabled'"
+                            >
+                              <span class="status-dot"></span>
+                              {{ item.enableText }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <span
+                        v-if="item.metrics"
+                        class="quality-score"
+                        :class="getQualityClass(item.qualityScore)"
+                        :title="`通信质量 ${item.qualityScore ?? '-'}`"
+                      >
+                        {{ item.qualityScore ?? '-' }}
+                      </span>
                     </div>
-                    <div class="channel-info">
-                      <div class="channel-name">
-                        {{ item.name }}
-                        <span v-if="item.metrics" class="quality-score" :class="getQualityClass(item.qualityScore)">
-                          {{ item.qualityScore ?? '-' }}
+
+                    <div class="channel-kpi-grid">
+                      <div class="channel-kpi">
+                        <span class="channel-kpi-label">设备</span>
+                        <span class="channel-kpi-value">{{ item.deviceCount || 0 }}</span>
+                      </div>
+                      <div class="channel-kpi">
+                        <span class="channel-kpi-label">状态</span>
+                        <span
+                          class="channel-kpi-value"
+                          :class="item.runtimeArcoStatus === 'success' ? 'online' : (item.runtimeArcoStatus === 'danger' ? 'offline' : '')"
+                        >
+                          {{ formatCardRuntimeText(item.runtimeText) }}
                         </span>
                       </div>
-                      <div class="channel-meta">
-                        {{ formatProtocolTag(item.protocol) }}
-                        <span class="divider">|</span>
-                        <span :class="['status-text', item.enable ? 'enabled' : 'disabled']">{{ item.enableText }}</span>
+                      <div class="channel-kpi">
+                        <span class="channel-kpi-label">成功率</span>
+                        <span class="channel-kpi-value" :class="getSuccessRateClass(item.successRate)">
+                          {{ formatPercent(item.successRate) }}
+                        </span>
                       </div>
                     </div>
-                    <icon-arrow-right :size="14" class="arrow-icon" />
-                  </div>
 
-                  <div class="channel-stats">
-                    <span class="channel-stat">
-                      <span class="channel-stat-label">设备</span>
-                      <span class="channel-stat-value">{{ item.deviceCount || 0 }}</span>
-                    </span>
-                    <span class="channel-stat-divider" aria-hidden="true">·</span>
-                    <span class="channel-stat">
-                      <span class="channel-stat-value" :class="item.runtimeArcoStatus === 'success' ? 'online' : (item.runtimeArcoStatus === 'danger' ? 'offline' : '')">
-                        {{ formatCardRuntimeText(item.runtimeText) }}
-                      </span>
-                    </span>
-                    <span class="channel-stat-divider" aria-hidden="true">·</span>
-                    <span class="channel-stat">
-                      <span class="channel-stat-label">成功率</span>
-                      <span class="channel-stat-value" :class="getSuccessRateClass(item.successRate)">{{ formatPercent(item.successRate) }}</span>
-                    </span>
-                  </div>
-
-                  <div v-if="item.metrics" class="channel-metrics">
-                    <div class="metrics-header">
-                      <span class="metrics-label">通信质量</span>
-                      <span class="metrics-rtt">RTT: {{ formatDuration(item.metrics.avgRtt) }}</span>
+                    <div v-if="item.metrics" class="channel-metrics">
+                      <div class="metrics-header">
+                        <span class="metrics-label">通信质量</span>
+                        <span class="metrics-rtt">RTT {{ formatDuration(item.metrics.avgRtt) }}</span>
+                      </div>
+                      <div class="quality-bar-container">
+                        <div class="quality-bar" :class="getQualityBarClass(item.qualityScore)" :style="{ width: (item.qualityScore || 0) + '%' }"></div>
+                      </div>
                     </div>
-                    <div class="quality-bar-container">
-                      <div class="quality-bar" :class="getQualityBarClass(item.qualityScore)" :style="{ width: (item.qualityScore || 0) + '%' }"></div>
-                    </div>
-                  </div>
 
-                  <div class="channel-card-actions">
-                    <a-tooltip content="监控指标">
-                      <a-button type="text" size="mini" @click.stop="openMetricsDialog(item)">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                          <line x1="18" y1="20" x2="18" y2="10"/>
-                          <line x1="12" y1="20" x2="12" y2="4"/>
-                          <line x1="6" y1="20" x2="6" y2="14"/>
-                        </svg>
-                      </a-button>
-                    </a-tooltip>
-                    <a-tooltip content="编辑">
-                      <a-button type="text" size="mini" @click.stop="openEditDialog(item)">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                      </a-button>
-                    </a-tooltip>
-                    <a-tooltip v-if="item.protocol === 'bacnet-ip'" content="扫描设备">
-                      <a-button type="text" size="mini" @click.stop="scanChannel(item)">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M12 2a10 10 0 1010 10 10 10 0 00-10-10z"/>
-                          <path d="M12 6v6l4 2"/>
-                        </svg>
-                      </a-button>
-                    </a-tooltip>
-                    <a-tooltip content="删除">
-                      <a-button type="text" size="mini" status="danger" @click.stop="deleteChannel(item)">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                          <polyline points="3 6 5 6 21 6"/>
-                          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-                        </svg>
-                      </a-button>
-                    </a-tooltip>
+                    <div class="channel-card-footer" @click.stop>
+                      <div class="channel-card-actions">
+                        <a-tooltip content="监控指标">
+                          <a-button type="text" size="mini" @click.stop="openMetricsDialog(item)">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                              <line x1="18" y1="20" x2="18" y2="10"/>
+                              <line x1="12" y1="20" x2="12" y2="4"/>
+                              <line x1="6" y1="20" x2="6" y2="14"/>
+                            </svg>
+                          </a-button>
+                        </a-tooltip>
+                        <a-tooltip content="编辑">
+                          <a-button type="text" size="mini" @click.stop="openEditDialog(item)">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                          </a-button>
+                        </a-tooltip>
+                        <a-tooltip v-if="item.protocol === 'bacnet-ip'" content="扫描设备">
+                          <a-button type="text" size="mini" @click.stop="scanChannel(item)">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M12 2a10 10 0 1010 10 10 10 0 00-10-10z"/>
+                              <path d="M12 6v6l4 2"/>
+                            </svg>
+                          </a-button>
+                        </a-tooltip>
+                        <a-tooltip content="删除">
+                          <a-button type="text" size="mini" status="danger" @click.stop="deleteChannel(item)">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                              <polyline points="3 6 5 6 21 6"/>
+                              <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                            </svg>
+                          </a-button>
+                        </a-tooltip>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

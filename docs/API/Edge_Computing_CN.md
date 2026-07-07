@@ -70,14 +70,6 @@ description: EdgeX 边缘计算 API 文档（中文）
 *   **Method**: `GET`
 *   **查询参数**: 同上。
 
-## 辅助 (Helper)
-
-### 1. 获取共享源
-获取被多个规则共享/使用的点位源列表。
-
-*   **URL**: `/edge/shared-sources`
-*   **Method**: `GET`
-
 ## 动作配置指南 (Action Configuration)
 
 在定义规则动作时，建议通过 ID 引用已创建的北向配置，以复用连接和缓存策略。

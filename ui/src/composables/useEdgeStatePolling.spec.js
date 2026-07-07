@@ -26,4 +26,9 @@ describe('resolveEdgeStatePollInterval', () => {
     expect(resolveEdgeStatePollInterval({ tab: 'metrics', rulesViewMode: 'flow', pageVisible: true }))
       .toBeNull()
   })
+
+  it('does not poll on templates tab', () => {
+    expect(resolveEdgeStatePollInterval({ tab: 'templates', rulesViewMode: 'flow', pageVisible: true }))
+      .toBeNull()
+  })
 })

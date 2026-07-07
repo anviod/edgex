@@ -485,7 +485,6 @@ func (s *Server) setupRoutes() {
 	api.Delete("/virtual-shadows/:id", s.deleteVirtualShadow)
 	api.Get("/edge/cache", s.getEdgeCache)
 	api.Get("/edge/metrics", s.getEdgeMetrics)
-	api.Get("/edge/shared-sources", s.getEdgeSharedSources)
 	api.Get("/edge/logs", s.handleGetEdgeLogs)
 	api.Post("/edge/logs/clear", s.clearEdgeLogs)
 	api.Get("/edge/events", s.getEdgeEvents)
@@ -1644,13 +1643,6 @@ func (s *Server) getEdgeMetrics(c *fiber.Ctx) error {
 		return c.Status(503).JSON(fiber.Map{"error": "Edge Compute Manager not initialized"})
 	}
 	return c.JSON(s.ecm.GetMetrics())
-}
-
-func (s *Server) getEdgeSharedSources(c *fiber.Ctx) error {
-	if s.ecm == nil {
-		return c.Status(503).JSON(fiber.Map{"error": "Edge Compute Manager not initialized"})
-	}
-	return c.JSON(s.ecm.GetSharedSources())
 }
 
 // handleLogWebSocket handles real-time log streaming
