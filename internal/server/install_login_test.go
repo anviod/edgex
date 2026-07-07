@@ -139,6 +139,34 @@ func TestLoginAfterInstall(t *testing.T) {
 	assert.Equal(t, "0", result["code"], "login should succeed after install, got: %s", string(respBody))
 }
 
+func TestCheckPortCurrentListenPortAvailable(t *testing.T) {
+	srv, _, _ := newInstallTestServer(t)
+	srv.listenAddr = ":8080"
+
+	app := fiber.New()
+	app.Get("/api/install/check-port", srv.checkPort)
+
+	req := httptest.NewRequest("GET", "/api/install/check-port?port=8080", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	var result struct {
+		Code string `json:"code"`
+		Data struct {
+			Available bool `json:"available"`
+			Port      int  `json:"port"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(respBody, &result))
+	assert.Equal(t, "0", result.Code)
+	assert.True(t, result.Data.Available)
+	assert.Equal(t, 8080, result.Data.Port)
+}
+
 func TestCheckInstallStatusAfterInstall(t *testing.T) {
 	srv, _, _ := newInstallTestServer(t)
 

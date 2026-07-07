@@ -558,6 +558,10 @@ func formatSoakInterval(d time.Duration) string {
 		return fmt.Sprintf("%ds", int(d/time.Second))
 	case d >= time.Millisecond && d%time.Millisecond == 0:
 		return fmt.Sprintf("%dms", int(d/time.Millisecond))
+	case d >= time.Second:
+		return fmt.Sprintf("%.2fs", d.Seconds())
+	case d >= time.Millisecond:
+		return fmt.Sprintf("%.2fms", float64(d)/float64(time.Millisecond))
 	default:
 		return d.String()
 	}

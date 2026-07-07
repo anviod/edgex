@@ -34,14 +34,29 @@
   line-height: 1.25;
 }
 
-.soak-panel__help-btn {
+.soak-panel__help-btn,
+.soak-scan-classes__help-btn {
   flex-shrink: 0;
-  color: var(--text-tertiary);
-  padding: 0 4px;
+  width: 26px;
+  height: 26px;
+  padding: 0 !important;
+  color: var(--text-secondary) !important;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 50%;
 }
 
-.soak-panel__help-btn:hover {
-  color: var(--text-secondary);
+.soak-panel__help-btn:hover,
+.soak-scan-classes__help-btn:hover {
+  color: var(--primary) !important;
+  border-color: rgba(14, 165, 233, 0.35);
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.soak-panel__help-btn .arco-btn-icon,
+.soak-scan-classes__help-btn .arco-btn-icon {
+  font-size: 16px;
+  line-height: 1;
 }
 
 .soak-panel__subtitle {
@@ -343,6 +358,12 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+.soak-scan-classes__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 .soak-scan-classes__heading .soak-card__title {

@@ -44,6 +44,31 @@ export function newVirtualDeviceForm() {
   }
 }
 
+/** 返回重复的非空 point_id -> 积木索引列表（仅 length > 1 的项） */
+export function findDuplicatePointIds(points) {
+  const byId = new Map()
+  for (let i = 0; i < (points || []).length; i++) {
+    const id = points[i]?.point_id?.trim()
+    if (!id) continue
+    if (!byId.has(id)) byId.set(id, [])
+    byId.get(id).push(i)
+  }
+  const dupes = new Map()
+  for (const [id, indices] of byId) {
+    if (indices.length > 1) dupes.set(id, indices)
+  }
+  return dupes
+}
+
+/** 所有涉及重复的积木索引（升序） */
+export function flattenDuplicatePointIndices(dupesMap) {
+  const set = new Set()
+  for (const indices of dupesMap.values()) {
+    for (const i of indices) set.add(i)
+  }
+  return [...set].sort((a, b) => a - b)
+}
+
 /** 将扁平点位源列表聚合为设备维度 */
 export function buildSourceDeviceList(sources) {
   const map = new Map()

@@ -160,6 +160,9 @@ func TestFormatSoakInterval(t *testing.T) {
 	if got := formatSoakInterval(100 * time.Millisecond); got != "100ms" {
 		t.Fatalf("got %q, want 100ms", got)
 	}
+	if got := formatSoakInterval(21912408759 * time.Nanosecond); got != "21.91s" {
+		t.Fatalf("got %q, want 21.91s", got)
+	}
 }
 
 func TestCountOpenCircuits(t *testing.T) {

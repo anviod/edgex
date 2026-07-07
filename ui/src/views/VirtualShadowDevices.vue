@@ -547,6 +547,14 @@
                   <a-doption value="scale">倍率 (a * 1.5)</a-doption>
                 </template>
               </a-dropdown>
+              <a-button
+                size="mini"
+                type="outline"
+                :status="duplicatePointIdCount ? 'warning' : undefined"
+                @click="locateDuplicatePointIds"
+              >
+                查重{{ duplicatePointIdCount ? ` (${duplicatePointIdCount})` : '' }}
+              </a-button>
             </div>
 
             <!-- 批量映射投放区 -->
@@ -581,7 +589,11 @@
                 v-for="(pt, idx) in form.points"
                 :key="`${idx}-${pt.point_id}-${pt.source_ref}`"
                 class="point-block"
-                :class="{ active: activePointIndex === idx, 'drop-hover': dropHoverIndex === idx }"
+                :class="{
+                  active: activePointIndex === idx,
+                  'drop-hover': dropHoverIndex === idx,
+                  'duplicate-id': isDuplicatePointId(idx)
+                }"
                 @click="activePointIndex = idx"
                 @dragover.prevent="onBlockDragOver(idx, $event)"
                 @dragleave="onBlockDragLeave"
@@ -603,7 +615,15 @@
 
                 <a-row :gutter="8" class="mb-2">
                   <a-col :span="8">
-                    <a-input v-model="pt.point_id" placeholder="虚拟点位 ID" @click.stop />
+                    <a-input
+                      v-model="pt.point_id"
+                      placeholder="虚拟点位 ID"
+                      :status="isDuplicatePointId(idx) ? 'error' : undefined"
+                      @click.stop
+                    />
+                    <div v-if="isDuplicatePointId(idx)" class="field-error field-error--inline">
+                      虚拟点位 ID 不得重复
+                    </div>
                   </a-col>
                   <a-col :span="8">
                     <a-input v-model="pt.name" placeholder="显示名称" @click.stop />
@@ -757,6 +777,8 @@ import {
   FORMULA_OPERATORS,
   decodeDragPayload,
   encodeDragPayload,
+  findDuplicatePointIds,
+  flattenDuplicatePointIndices,
   fuzzyMatch,
   makePointRef,
   isDeviceOnline,
@@ -1240,6 +1262,62 @@ const isDevicePointsIndeterminate = computed(() => {
 
 const mapPointCount = computed(() => form.points.filter(p => p.mode === 'map').length)
 
+const duplicatePointIdMap = computed(() => findDuplicatePointIds(form.points))
+
+const duplicatePointIdCount = computed(() => duplicatePointIdMap.value.size)
+
+const duplicateLocateCursor = ref(0)
+
+function isDuplicatePointId(idx) {
+  const id = form.points[idx]?.point_id?.trim()
+  if (!id) return false
+  const indices = duplicatePointIdMap.value.get(id)
+  return !!(indices && indices.length > 1)
+}
+
+function duplicatePointIdSummary() {
+  return [...duplicatePointIdMap.value.entries()]
+    .map(([id, indices]) => `「${id}」×${indices.length}`)
+    .join('、')
+}
+
+function scrollToPointBlock(idx) {
+  nextTick(() => {
+    const modal = document.querySelector('.virtual-shadow-builder-modal')
+    const blocks = modal?.querySelectorAll('.point-block')
+    blocks?.[idx]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+}
+
+function focusNextDuplicatePointBlock({ announce = true } = {}) {
+  const dupes = duplicatePointIdMap.value
+  if (dupes.size === 0) {
+    if (announce) {
+      Message.success('未发现重复的虚拟点位 ID')
+      duplicateLocateCursor.value = 0
+    }
+    return false
+  }
+  const indices = flattenDuplicatePointIndices(dupes)
+  const idx = indices[duplicateLocateCursor.value % indices.length]
+  duplicateLocateCursor.value = (duplicateLocateCursor.value + 1) % indices.length
+  activePointIndex.value = idx
+  scrollToPointBlock(idx)
+  if (announce) {
+    Message.warning(`虚拟点位 ID 不得重复：${duplicatePointIdSummary()}（已定位 #${idx + 1}）`)
+  }
+  return true
+}
+
+function locateDuplicatePointIds() {
+  focusNextDuplicatePointBlock({ announce: true })
+}
+
+function warnDuplicatePointIdsIfAny() {
+  if (duplicatePointIdMap.value.size === 0) return
+  Message.warning(`部分虚拟点位 ID 重复，请修改后再保存：${duplicatePointIdSummary()}`)
+}
+
 const selectedSourceDeviceOnline = computed(() => isDeviceOnline(selectedSourceDevice.value))
 
 const detailRows = computed(() => {
@@ -1537,6 +1615,7 @@ function resetBuilderPicker() {
 function resetForm(record) {
   Object.assign(form, newVirtualDeviceForm())
   activePointIndex.value = 0
+  duplicateLocateCursor.value = 0
   resetBuilderPicker()
   if (record) {
     editingId.value = record.id
@@ -1740,6 +1819,7 @@ function addMapBlocksFromRefs(refs) {
   if (added > 0 && !form.name && selectedSourceDevice.value) {
     form.name = `${selectedSourceDevice.value.device_name}-虚拟`
   }
+  if (added > 0) warnDuplicatePointIdsIfAny()
   return added
 }
 
@@ -1936,6 +2016,7 @@ function applyRefToPoint(idx, src) {
     pt.source_ref = src.ref
     if (!pt.point_id) pt.point_id = src.point_id
     if (!pt.name) pt.name = src.point_name || src.point_id
+    if (isDuplicatePointId(idx)) warnDuplicatePointIdsIfAny()
   } else {
     insertAtFormula(idx, src.ref)
   }
@@ -2010,6 +2091,12 @@ async function saveDevice() {
   }
   if (!payload.points.length) {
     Message.warning('请至少添加一个虚拟点位')
+    return false
+  }
+  if (duplicatePointIdMap.value.size > 0) {
+    Message.warning(`虚拟点位 ID 不得重复：${duplicatePointIdSummary()}`)
+    duplicateLocateCursor.value = 0
+    focusNextDuplicatePointBlock({ announce: false })
     return false
   }
   for (const p of payload.points) {

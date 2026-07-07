@@ -428,6 +428,20 @@
   margin-top: 2px;
 }
 
+.virtual-shadow-builder-modal .field-error--inline {
+  line-height: 1.3;
+}
+
+.virtual-shadow-builder-modal .point-block.duplicate-id {
+  border-color: rgba(245, 63, 63, 0.45);
+  box-shadow: 0 0 0 1px rgba(245, 63, 63, 0.12);
+}
+
+.virtual-shadow-builder-modal .point-block.duplicate-id.active {
+  border-color: rgba(245, 63, 63, 0.55);
+  box-shadow: 0 0 0 1px rgba(245, 63, 63, 0.2);
+}
+
 .virtual-shadow-builder-modal .builder-meta {
   flex-shrink: 0;
   margin-bottom: var(--space-2);

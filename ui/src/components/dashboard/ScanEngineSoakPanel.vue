@@ -9,15 +9,9 @@
             size="mini"
             class="help-trigger-btn soak-panel__help-btn"
             aria-label="Soak 监控帮助"
-            @click="helpVisible = true"
+            @click="openGeneralHelp"
           >
-            <template #icon>
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-            </template>
+            <template #icon><IconQuestionCircle /></template>
           </a-button>
         </div>
         <p class="soak-panel__subtitle">ScanEngine 运行监控 · SLA / Soak · Release Gate</p>
@@ -48,6 +42,80 @@
     </div>
 
     <template v-else>
+      <div class="soak-scan-classes soak-card">
+        <div class="soak-scan-classes__header">
+          <div class="soak-scan-classes__heading">
+            <div class="soak-scan-classes__title-row">
+              <h4 class="soak-card__title">Scan Class 明细</h4>
+              <a-button
+                type="text"
+                size="mini"
+                class="help-trigger-btn soak-scan-classes__help-btn"
+                aria-label="Scan Class 明细帮助"
+                @click="openScanClassHelp"
+              >
+                <template #icon><IconQuestionCircle /></template>
+              </a-button>
+            </div>
+            <p class="soak-scan-classes__subtitle">
+              按扫描间隔分组
+              <span v-if="scanClasses.length">· {{ scanClasses.length }} 种间隔</span>
+            </p>
+          </div>
+          <span
+            v-if="snapshot.scan_class_late > 0"
+            class="soak-scan-classes__alert"
+          >
+            {{ snapshot.scan_class_late }} 迟到
+          </span>
+        </div>
+
+        <div v-if="scanClasses.length" class="soak-scan-class-grid">
+          <div class="soak-scan-class-grid__head" aria-hidden="true">
+            <span>周期</span>
+            <span>任务</span>
+            <span>积压</span>
+            <span>队列</span>
+            <span>迟到</span>
+            <span>成功率</span>
+          </div>
+          <div
+            v-for="row in scanClasses"
+            :key="row.class"
+            class="soak-scan-class-row"
+            :class="scanClassRowClass(row)"
+          >
+            <span class="soak-scan-class-row__period">{{ formatScanClassPeriod(row.class) }}</span>
+            <span class="soak-scan-class-metric">
+              <span class="soak-scan-class-metric__value">{{ row.tasks }}</span>
+            </span>
+            <span
+              class="soak-scan-class-metric"
+              :class="{ 'is-warn': row.backlog > 0 }"
+            >
+              <span class="soak-scan-class-metric__value">{{ row.backlog }}</span>
+            </span>
+            <span class="soak-scan-class-metric">
+              <span class="soak-scan-class-metric__value">{{ row.queue }}</span>
+            </span>
+            <span
+              class="soak-scan-class-metric"
+              :class="{ 'is-fail': row.late > 0 }"
+            >
+              <span class="soak-scan-class-metric__value">{{ row.late }}</span>
+            </span>
+            <span
+              class="soak-scan-class-metric"
+              :class="successMetricClass(row.success)"
+            >
+              <span class="soak-scan-class-metric__value">{{ formatRate(row.success) }}</span>
+            </span>
+          </div>
+        </div>
+
+        <div v-else class="soak-scan-classes__empty">暂无 Scan Class 数据</div>
+      </div>
+
       <!-- Release Gate hero — scannable pass/fail -->
       <div class="soak-hero">
         <div class="soak-gate-summary" :class="gateSummaryClass">
@@ -123,76 +191,15 @@
         </div>
       </div>
 
-      <div class="soak-scan-classes soak-card">
-        <div class="soak-scan-classes__header">
-          <div class="soak-scan-classes__heading">
-            <h4 class="soak-card__title">Scan Class 明细</h4>
-            <p class="soak-scan-classes__subtitle">
-              最新快照
-              <span v-if="scanClasses.length">· {{ scanClasses.length }} 个周期</span>
-            </p>
-          </div>
-          <span
-            v-if="snapshot.scan_class_late > 0"
-            class="soak-scan-classes__alert"
-          >
-            {{ snapshot.scan_class_late }} 迟到
-          </span>
-        </div>
-
-        <div v-if="scanClasses.length" class="soak-scan-class-grid">
-          <div class="soak-scan-class-grid__head" aria-hidden="true">
-            <span>周期</span>
-            <span>任务</span>
-            <span>积压</span>
-            <span>队列</span>
-            <span>迟到</span>
-            <span>成功率</span>
-          </div>
-          <div
-            v-for="row in scanClasses"
-            :key="row.class"
-            class="soak-scan-class-row"
-            :class="scanClassRowClass(row)"
-          >
-            <span class="soak-scan-class-row__period">{{ row.class }}</span>
-            <span class="soak-scan-class-metric">
-              <span class="soak-scan-class-metric__value">{{ row.tasks }}</span>
-            </span>
-            <span
-              class="soak-scan-class-metric"
-              :class="{ 'is-warn': row.backlog > 0 }"
-            >
-              <span class="soak-scan-class-metric__value">{{ row.backlog }}</span>
-            </span>
-            <span class="soak-scan-class-metric">
-              <span class="soak-scan-class-metric__value">{{ row.queue }}</span>
-            </span>
-            <span
-              class="soak-scan-class-metric"
-              :class="{ 'is-fail': row.late > 0 }"
-            >
-              <span class="soak-scan-class-metric__value">{{ row.late }}</span>
-            </span>
-            <span
-              class="soak-scan-class-metric"
-              :class="successMetricClass(row.success)"
-            >
-              <span class="soak-scan-class-metric__value">{{ formatRate(row.success) }}</span>
-            </span>
-          </div>
-        </div>
-
-        <div v-else class="soak-scan-classes__empty">暂无 Scan Class 数据</div>
-      </div>
     </template>
 
-    <ScanEngineSoakHelpDrawer v-model:visible="helpVisible" />
+    <ScanEngineSoakHelpDrawer v-model:visible="helpVisible" :focus-section="helpFocusSection" />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { IconQuestionCircle } from '@arco-design/web-vue/es/icon'
 import request from '@/utils/request'
 import ScanEngineSoakHelpDrawer from '@/components/dashboard/ScanEngineSoakHelpDrawer.vue'
 
@@ -205,6 +212,17 @@ defineProps({
 const loading = ref(true)
 const hasData = ref(false)
 const helpVisible = ref(false)
+const helpFocusSection = ref('')
+
+const openGeneralHelp = () => {
+  helpFocusSection.value = ''
+  helpVisible.value = true
+}
+
+const openScanClassHelp = () => {
+  helpFocusSection.value = 'scan-class'
+  helpVisible.value = true
+}
 
 const releaseGate = ref({})
 const runtimeStartTime = ref(null)
@@ -297,6 +315,20 @@ const barHeight = (value, series) => {
 const formatRate = (rate) => {
   if (rate === undefined || rate === null) return '-'
   return (rate * 100).toFixed(1) + '%'
+}
+
+/** 扫描间隔标签：整秒/整毫秒保持整数，小数间隔保留两位 */
+const formatScanClassPeriod = (label) => {
+  if (label == null || label === '') return '—'
+  const text = String(label)
+  const m = text.match(/^([\d.]+)(s|ms)$/)
+  if (!m) return text
+  const num = Number(m[1])
+  if (Number.isNaN(num)) return text
+  const unit = m[2]
+  const rounded = Math.round(num * 100) / 100
+  if (Number.isInteger(rounded)) return `${rounded}${unit}`
+  return `${rounded.toFixed(2)}${unit}`
 }
 
 const fetchSoak = async () => {

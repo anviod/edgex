@@ -61,9 +61,13 @@
           <ChannelHelpParamList :items="trendItems" />
         </ChannelHelpBlock>
 
-        <ChannelHelpBlock title="Scan Class 明细">
+        <ChannelHelpBlock id="soak-help-scan-class" title="Scan Class 明细">
           <p class="help-doc-section__text">
-            按扫描周期（如 1s、5s、100ms）分组展示各周期内任务的运行状况。行背景色：绿色正常、黄色预警（积压或成功率偏低）、红色异常（有迟到）。
+            按<strong>扫描间隔</strong>（如 100ms、1s、5s）分组展示各组内任务的运行状况，并非 fast / normal / slow 三类固定行。
+            每台设备、每个 Scan Class 会注册独立扫描任务；不同设备若配置了不同采集周期，或 fast / normal / slow 映射到不同 Interval，表格就会出现多行——例如 11 种间隔表示当前共有 11 种不同的任务周期并存，属于正常现象。
+          </p>
+          <p class="help-doc-section__text">
+            行背景色：绿色正常、黄色预警（积压或成功率偏低）、红色异常（有迟到）。
           </p>
           <ChannelHelpParamList :items="scanClassItems" />
           <p class="help-doc-example">
@@ -85,16 +89,27 @@
 </template>
 
 <script setup>
+import { watch, nextTick } from 'vue'
 import ChannelHelpBlock from '@/components/channel-help/ChannelHelpBlock.vue'
 import ChannelHelpParamList from '@/components/channel-help/ChannelHelpParamList.vue'
 
-defineProps({
+const props = defineProps({
   visible: { type: Boolean, default: false },
+  focusSection: { type: String, default: '' },
 })
 
 const emit = defineEmits(['update:visible', 'cancel'])
 
 const onCancel = () => emit('update:visible', false)
+
+watch(
+  () => props.visible,
+  async (open) => {
+    if (!open || props.focusSection !== 'scan-class') return
+    await nextTick()
+    document.getElementById('soak-help-scan-class')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+)
 
 const releaseGateItems = [
   {
