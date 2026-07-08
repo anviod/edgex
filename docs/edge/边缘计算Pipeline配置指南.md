@@ -1,8 +1,14 @@
 # 边缘计算 Pipeline 配置指南
 
-> **文档定位**：面向开发/运维的 **V2.2 Pipeline Worker 技术对照**——bbolt 字段、init 编译结构与 runtime 行为。用户面向的规则说明见 **[边缘计算规则帮助](边缘计算规则帮助.md)**（与 UI 帮助抽屉文案一致）。
+> **⚠️ 已归档：** 本文描述的是 **V2.2 Pipeline Worker / embedded 编译路径**，与当前生产代码 **不一致**。现行实现为 Go `EdgeComputeManager`（`internal/core/edge_compute_manager.go`），请改用：
 >
-> **架构参考**：[边缘计算规则帮助](边缘计算规则帮助.md) · [边缘计算优化升级 2.0 §8](../TODO/边缘计算优化升级2.0.md#8-功能对齐规则配置语义--pipeline-worker-映射) · [ARMv7 参考实现 §6.3](../TODO/ARMv7工业控制内核 Go 参考实现.md) · [数据源与输出动作设计 §1.0](../architecture/数据源与输出动作设计.md)
+> - [边缘计算基础功能](边缘计算基础功能.html) — 规则引擎与数据流转
+> - [边缘计算规则帮助](边缘计算规则帮助.html) — 配置详解
+> - [边缘计算 API](../API/Edge_Computing_CN.html)
+>
+> 下文仅作历史参考，**不应**作为新部署依据。
+
+> **文档定位（历史）**：面向开发/运维的 **V2.2 Pipeline Worker 技术对照**——bbolt 字段、init 编译结构与 runtime 行为。
 
 | 项 | 内容 |
 |----|------|

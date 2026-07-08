@@ -502,7 +502,7 @@ sudo systemctl enable --now edgex   # 若未自动启动
 
 ## 边缘计算
 
-> 规则类型、expr 语法、场景编排与最佳实践见 [边缘计算基础功能](../edge/边缘计算基础功能.html)、[边缘计算最佳实践](EDGE_COMPUTING_BEST_PRACTICES.html)。
+> 规则类型、expr 语法、场景编排与 API 见 [边缘计算基础功能](../edge/边缘计算基础功能.html)、[场景手册](../edge/EDGE_COMPUTING_SCENARIO_MANUAL.html)、[边缘计算最佳实践](EDGE_COMPUTING_BEST_PRACTICES.html)、[边缘计算 API](../API/Edge_Computing_CN.html)。
 
 ### 配置步骤
 
@@ -523,10 +523,9 @@ sudo systemctl enable --now edgex   # 若未自动启动
    - 在规则列表中找到需要操作的规则
    - 点击「启用」或「禁用」按钮
 
-4. **测试规则**：
-   - 点击「测试」按钮
-   - 输入测试数据
-   - 查看规则执行结果
+4. **验证规则**：
+   - 启用规则后在「记录与日志」查看运行状态
+   - 或通过 `GET /api/edge/states` 确认 `current_status`
 
 ---
 

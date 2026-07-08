@@ -20,7 +20,7 @@ hero_buttons:
 
 - [产品说明](产品说明.html) — 产品概览、工业级 SLA、协议能力与部署指南
 - [用户手册](USER_MANUAL.html) — 安装部署、配置管理与日常运维
-- [边缘计算最佳实践](EDGE_COMPUTING_BEST_PRACTICES.html) — 场景编排与数据流转建议
+- [边缘计算最佳实践](EDGE_COMPUTING_BEST_PRACTICES.html) — 场景编排与性能建议
 - [南向驱动测试报告](../testing/南向驱动测试报告.html) — 2026-07-04 全量复测与覆盖率矩阵
 
 ## 相关文档
