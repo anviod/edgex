@@ -28,12 +28,20 @@ export const EDGE_SCENE_CATEGORIES = [
   { value: '告警联动', label: '告警联动' },
   { value: '群控策略', label: '群控策略' },
   { value: '数据聚合', label: '数据聚合' },
+  { value: '其他', label: '其他' },
 ]
+
+/** 主分类 Tab 对应的细粒度场景类型（用于 category=其他 时的交叉筛选） */
+export const EDGE_SCENE_FILTER_SCENE_TYPES = {
+  群控策略: ['多设备联动控制'],
+  数据聚合: ['跨设备数据聚合'],
+}
 
 export const EDGE_SCENE_TEMPLATES = [
   {
     id: 'alarm-temp-cooling',
     category: '告警联动',
+    sceneType: '告警联动',
     name: '温度越限联动冷却',
     description: '监测温度超过阈值时写入冷却设备控制点位，实现毫秒级本地告警联动。',
     ruleTypes: ['threshold'],
@@ -61,6 +69,7 @@ export const EDGE_SCENE_TEMPLATES = [
   {
     id: 'alarm-fault-backup',
     category: '告警联动',
+    sceneType: '告警联动',
     name: '设备故障切换备用通道',
     description: '设备故障状态位触发时记录告警并切换备用通道控制，适用于冗余产线。',
     ruleTypes: ['threshold'],
@@ -96,7 +105,8 @@ export const EDGE_SCENE_TEMPLATES = [
   },
   {
     id: 'aggregate-multi-pump-flow',
-    category: '数据聚合',
+    category: '其他',
+    sceneType: '跨设备数据聚合',
     name: '多泵流量汇总计算',
     description: '聚合多台泵的流量读数，计算总流量并输出到虚拟或计算点位，供北向上报。',
     ruleTypes: ['calculation'],
@@ -131,7 +141,8 @@ export const EDGE_SCENE_TEMPLATES = [
   },
   {
     id: 'aggregate-temp-average',
-    category: '数据聚合',
+    category: '其他',
+    sceneType: '跨设备数据聚合',
     name: '多路温度平均值',
     description: '计算多路温度传感器平均值，常用于洁净室或机房环境综合指标。',
     ruleTypes: ['calculation'],
@@ -166,7 +177,8 @@ export const EDGE_SCENE_TEMPLATES = [
   },
   {
     id: 'multi-device-sequence',
-    category: '群控策略',
+    category: '其他',
+    sceneType: '多设备联动控制',
     name: '产线启停顺序控制',
     description: '按顺序延时启动多台设备，适用于 PLC 与楼宇控制器跨协议联动编排。',
     ruleTypes: ['threshold'],
@@ -204,7 +216,8 @@ export const EDGE_SCENE_TEMPLATES = [
   },
   {
     id: 'edge-safety-interlock',
-    category: '告警联动',
+    category: '其他',
+    sceneType: '边缘实时决策',
     name: '安全联锁自动停机',
     description: '危险区域传感器触发且设备仍在运行时自动停机，减少上行延迟的安全联锁。',
     ruleTypes: ['state'],
@@ -240,7 +253,8 @@ export const EDGE_SCENE_TEMPLATES = [
   },
   {
     id: 'env-temp-humidity-alarm',
-    category: '告警联动',
+    category: '其他',
+    sceneType: '环境温湿度监控',
     name: '温湿度越限告警',
     description: '监测机房或洁净室温湿度，越限时北向 MQTT 上报并记录本地日志。',
     ruleTypes: ['threshold'],
@@ -275,7 +289,8 @@ export const EDGE_SCENE_TEMPLATES = [
   },
   {
     id: 'predictive-vibration-window',
-    category: '告警联动',
+    category: '其他',
+    sceneType: '预测性维护',
     name: '振动均值趋势检测',
     description: '滑动窗口计算振动均值，超过阈值时生成维护预警，适用于轴承寿命监测。',
     ruleTypes: ['window'],
@@ -310,7 +325,8 @@ export const EDGE_SCENE_TEMPLATES = [
   },
   {
     id: 'takt-cycle-count',
-    category: '数据聚合',
+    category: '其他',
+    sceneType: '产线节拍统计',
     name: '产线节拍计数统计',
     description: '采集 PLC 产品到位信号，窗口内统计节拍次数并计算 CT，可联动 MES 上报。',
     ruleTypes: ['window'],
@@ -345,7 +361,8 @@ export const EDGE_SCENE_TEMPLATES = [
   },
   {
     id: 'remote-monitor-publish',
-    category: '告警联动',
+    category: '其他',
+    sceneType: '设备远程监控',
     name: '关键参数北向上报',
     description: '设备关键参数变化时通过 MQTT 推送至 SCADA 或云平台，实现远程监控集成。',
     ruleTypes: ['threshold'],

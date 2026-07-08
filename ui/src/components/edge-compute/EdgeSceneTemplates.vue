@@ -45,7 +45,7 @@
             <header class="edge-scene-card__header">
               <div class="edge-scene-card__title-row">
                 <h4 class="edge-scene-card__name">{{ tpl.name }}</h4>
-                <a-tag size="small" color="arcoblue">{{ tpl.category }}</a-tag>
+                <a-tag size="small" color="arcoblue">{{ tpl.sceneType || tpl.category }}</a-tag>
               </div>
               <p class="edge-scene-card__desc">{{ tpl.description }}</p>
             </header>
@@ -90,7 +90,7 @@
     >
       <template v-if="detailTemplate">
         <a-descriptions :column="1" size="small" bordered class="edge-scene-detail">
-          <a-descriptions-item label="场景类别">{{ detailTemplate.category }}</a-descriptions-item>
+          <a-descriptions-item label="场景类别">{{ detailTemplate.sceneType || detailTemplate.category }}</a-descriptions-item>
           <a-descriptions-item label="描述">{{ detailTemplate.description }}</a-descriptions-item>
           <a-descriptions-item label="规则类型">
             {{ detailTemplate.ruleTypes.map(formatSceneRuleType).join('、') }}
@@ -153,6 +153,7 @@ import { ref, computed } from 'vue'
 import { IconPlus, IconStorage } from '@arco-design/web-vue/es/icon'
 import {
   EDGE_SCENE_CATEGORIES,
+  EDGE_SCENE_FILTER_SCENE_TYPES,
   EDGE_SCENE_TEMPLATES,
   formatSceneCondition,
   formatSceneRuleType,
@@ -168,15 +169,23 @@ const category = ref('all')
 const detailVisible = ref(false)
 const detailTemplate = ref(null)
 
+const matchesCategory = (tpl, cat) => {
+  if (cat === 'all') return true
+  if (tpl.category === cat) return true
+  const sceneTypes = EDGE_SCENE_FILTER_SCENE_TYPES[cat]
+  return sceneTypes?.includes(tpl.sceneType)
+}
+
 const filteredTemplates = computed(() => {
   const q = search.value.trim().toLowerCase()
   return EDGE_SCENE_TEMPLATES.filter(tpl => {
-    if (category.value !== 'all' && tpl.category !== category.value) return false
+    if (!matchesCategory(tpl, category.value)) return false
     if (!q) return true
     return (
       tpl.name.toLowerCase().includes(q)
       || tpl.description.toLowerCase().includes(q)
       || tpl.category.toLowerCase().includes(q)
+      || (tpl.sceneType && tpl.sceneType.toLowerCase().includes(q))
     )
   })
 })
