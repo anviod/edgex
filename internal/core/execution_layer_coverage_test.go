@@ -163,9 +163,15 @@ func TestExecutionLayer_LimitedProtocol(t *testing.T) {
 func TestExecutionLayer_UnregisterDriver(t *testing.T) {
 	el := NewExecutionLayer()
 	el.RegisterDriver("dev-rm", &execStubDriver{})
+	el.GetCircuitBreaker().Record("dev-rm", false, true)
 	el.UnregisterDriver("dev-rm")
 	if el.GetDriver("dev-rm") != nil {
 		t.Fatal("driver should be removed")
+	}
+	snap := el.GetCircuitBreaker().Snapshot()
+	devices, _ := snap["devices"].(map[string]any)
+	if _, ok := devices["dev-rm"]; ok {
+		t.Fatal("circuit breaker entry should be removed")
 	}
 }
 

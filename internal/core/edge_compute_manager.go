@@ -1385,8 +1385,14 @@ func (em *EdgeComputeManager) saveFailedAction(ruleID string, action model.RuleA
 
 func (em *EdgeComputeManager) retryLoop() {
 	ticker := time.NewTicker(30 * time.Second)
-	for range ticker.C {
-		em.processFailedActions()
+	defer ticker.Stop()
+	for {
+		select {
+		case <-em.ctx.Done():
+			return
+		case <-ticker.C:
+			em.processFailedActions()
+		}
 	}
 }
 

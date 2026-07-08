@@ -2,8 +2,17 @@ package model
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 )
+
+const (
+	pointDebugSampleRate   = 100 // 热路径 1% 采样
+	pointMetricsMaxEntries = 500
+	pointDebugMaxRawBytes  = 64
+)
+
+var pointDebugCounter atomic.Uint64
 
 // ChannelMetrics 通道级监控指标
 type ChannelMetrics struct {
@@ -505,8 +514,16 @@ func (mc *MetricsCollector) RecordError(channelID string, errType, code, message
 	}
 }
 
-// RecordPointDebug 保存点位调试信息（原始字节 + 解析后值）
+// RecordPointDebug 保存点位调试信息（原始字节 + 解析后值）。
+// 热路径按 1% 采样写入，RawValue 截断至 pointDebugMaxRawBytes，map 有上限。
 func (mc *MetricsCollector) RecordPointDebug(channelID, pointID string, raw []byte, parsed any, quality string) {
+	if mc == nil || pointID == "" {
+		return
+	}
+	if pointDebugCounter.Add(1)%pointDebugSampleRate != 0 {
+		return
+	}
+
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
 
@@ -514,9 +531,14 @@ func (mc *MetricsCollector) RecordPointDebug(channelID, pointID string, raw []by
 		PointID:        pointID,
 		LastUpdateTime: time.Now(),
 		Quality:        quality,
-		RawValue:       append([]byte(nil), raw...),
 		ParsedValue:    parsed,
 		UpdateCount:    1,
+	}
+	if n := len(raw); n > 0 {
+		if n > pointDebugMaxRawBytes {
+			n = pointDebugMaxRawBytes
+		}
+		pm.RawValue = append([]byte(nil), raw[:n]...)
 	}
 
 	if existing, ok := mc.pointMetrics[pointID]; ok {
@@ -527,6 +549,24 @@ func (mc *MetricsCollector) RecordPointDebug(channelID, pointID string, raw []by
 	}
 
 	mc.pointMetrics[pointID] = pm
+	mc.evictPointMetricsIfNeeded()
+}
+
+func (mc *MetricsCollector) evictPointMetricsIfNeeded() {
+	for len(mc.pointMetrics) > pointMetricsMaxEntries {
+		var oldestID string
+		var oldestTime time.Time
+		for id, pm := range mc.pointMetrics {
+			if oldestID == "" || pm.LastUpdateTime.Before(oldestTime) {
+				oldestID = id
+				oldestTime = pm.LastUpdateTime
+			}
+		}
+		if oldestID == "" {
+			return
+		}
+		delete(mc.pointMetrics, oldestID)
+	}
 }
 
 // GetPointMetrics 返回点位调试信息副本

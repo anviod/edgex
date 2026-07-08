@@ -83,6 +83,7 @@ func (el *ExecutionLayer) UnregisterDriver(deviceKey string) {
 	defer el.mu.Unlock()
 	delete(el.driverRegistry, deviceKey)
 	el.serialManager.RemoveContext(deviceKey)
+	el.circuitBreaker.Reset(deviceKey)
 }
 
 func (el *ExecutionLayer) GetDriver(deviceKey string) driver.Driver {

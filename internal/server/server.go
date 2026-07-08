@@ -20,6 +20,7 @@ import (
 
 	"github.com/anviod/edgex/internal/config"
 	"github.com/anviod/edgex/internal/core"
+	"github.com/anviod/edgex/internal/ai_agent"
 	"github.com/anviod/edgex/internal/model"
 	"github.com/anviod/edgex/internal/northbound/opcua"
 	"github.com/anviod/edgex/internal/pkg/logger"
@@ -74,9 +75,13 @@ type Server struct {
 	listenAddr          string
 	serverMu            sync.Mutex
 	portSwitching       bool
+	aiAgent             *ai_agent.Agent
 	storageAttachHook   func(*storage.Storage)
 	runtimeStartHook    func()
 	shadowSubscribeOnce sync.Once
+	runtimeCompactStop      chan struct{}
+	runtimeCompactOnce      sync.Once
+	runtimeCompactStopOnce  sync.Once
 }
 
 func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeline, nbm *core.NorthboundManager, ecm *core.EdgeComputeManager, sm *core.SystemManager, dsm *core.DeviceStorageManager, cfgManager *config.ConfigManager, syncManager *syncpkg.SyncManager, logBroadcaster *logger.LogBroadcaster) *Server {
@@ -176,6 +181,9 @@ func (s *Server) Start(addr string) error {
 		go s.nbm.PublishPointsMetadata()
 	}
 	go s.broadcastLoop()
+	if s.storage != nil {
+		s.startRuntimeCompactLoop()
+	}
 
 	err := s.app.Listen(addr)
 	if err == nil {
@@ -361,6 +369,20 @@ func (s *Server) setupRoutes() {
 
 	// 首页 Dashboard
 	api.Get("/dashboard/summary", s.getDashboardSummary)
+
+	// AI 助手（本地上下文助手 + Industrial Protocol Copilot 工作台）
+	api.Get("/ai/status", s.getAiStatus)
+	api.Post("/ai/chat", s.postAiChat)
+	api.Get("/ai/quota", s.getAiQuota)
+	api.Get("/ai/tasks", s.listAiTasks)
+	api.Post("/ai/tasks", s.createAiTask)
+	api.Post("/ai/tasks/upload", s.postAiTaskFromUpload)
+	api.Get("/ai/tasks/:id", s.getAiTask)
+	api.Post("/ai/tasks/:id/upload", s.uploadAiTaskFile)
+	api.Post("/ai/tasks/:id/confirm", s.confirmAiTask)
+	api.Post("/ai/validate", s.postAiValidate)
+	api.Post("/ai/edge-rule/draft", s.postAiEdgeRuleDraft)
+	api.Get("/ai/diagnostics/summary", s.getAiDiagnosticsSummary)
 
 	// 系统设置
 	api.Get("/system", s.getSystemConfig)

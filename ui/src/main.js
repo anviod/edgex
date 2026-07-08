@@ -32,6 +32,7 @@ import './styles/channel-metrics.css'
 import './styles/dashboard.css'
 import './styles/dashboard-soak.css'
 import './styles/history-modal.css'
+import './styles/ai-assistant.css'
 
 const i18n = createI18n({
   legacy: false,

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -31,6 +34,30 @@ import (
 
 	"go.uber.org/zap"
 )
+
+func startPprof() func() {
+	addr := os.Getenv("PPROF_ADDR")
+	if addr == "" {
+		addr = "127.0.0.1:6060"
+	}
+	if addr == "off" || addr == "0" {
+		return func() {}
+	}
+
+	srv := &http.Server{Addr: addr}
+	go func() {
+		zap.L().Info("pprof server starting", zap.String("addr", addr))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			zap.L().Warn("pprof server failed", zap.String("addr", addr), zap.Error(err))
+		}
+	}()
+
+	return func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+	}
+}
 
 func main() {
 	// Parse command-line flags
@@ -293,6 +320,8 @@ func main() {
 	srv.SetRuntimeStartHook(startDataPlaneOnce)
 
 	pipeline.Start()
+	stopPprof := startPprof()
+	defer stopPprof()
 
 	// 5. Start Web Server first (before any potentially blocking operations)
 	go func() {
@@ -322,5 +351,6 @@ func main() {
 
 	zap.L().Info("Shutting down...")
 
+	srv.StopBackgroundTasks()
 	cm.Shutdown()
 }
