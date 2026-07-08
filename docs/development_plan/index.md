@@ -84,6 +84,13 @@ hero_buttons:
 - [基于 go-libp2p 同步通信规划方案](../TODO/基于go-libp2p%20同步通信规划方案.html)（权威 · TODO）
 - [联机测试方案](sync/联机测试方案.html)
 
+### EdgeX Industrial Protocol Copilot（AI 协同 · 规划中）
+- [**AI 协同组件规划 / Industrial Protocol Copilot**](../TODO/AI协同组件规划.html)（权威 · **V1.3**）
+  - 工业协议工程 Copilot：厂家资料 + 报文分析 → 生产可部署 Channel/Point/Driver/Validation 配置
+  - **协议逆向工程引擎 P0+ 核心** — PCAP/监控表关联、无文档设备接入
+  - 部署：**RK3588 边缘自治 + AI Model Center 分离**（gRPC / MQTT 弱网回退）
+  - 关联：[设备点位读写升级](../TODO/设备点位读写系统升级改造计划.html) · [边缘计算 2.0](../TODO/边缘计算优化升级2.0.html)
+
 ---
 
 ## Q3 2026 重点交付（主体已完成）
