@@ -20,12 +20,12 @@
 ---
 <div align="center">
   <img src="../img/AI助手.png" width="100%" />
-  <p><small>图 1: 边缘计算数据流程图</small></p>
+  <p><small>图 1: 边缘AI 助手</small></p>
 </div>
 ---
 <div align="center">
   <img src="../img/AI助手配置.png" width="100%" />
-  <p><small>图 1: 边缘计算数据流程图</small></p>
+  <p><small>图 2: 支持本地模型和在线接口</small></p>
 </div>
 
 ## §0 背景与目标
