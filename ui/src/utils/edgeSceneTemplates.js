@@ -31,10 +31,11 @@ export const EDGE_SCENE_CATEGORIES = [
   { value: '其他', label: '其他' },
 ]
 
-/** 主分类 Tab 对应的细粒度场景类型（用于 category=其他 时的交叉筛选） */
+/** 主分类 Tab 对应的细粒度场景类型（用于 category 与 sceneType 交叉筛选） */
 export const EDGE_SCENE_FILTER_SCENE_TYPES = {
-  群控策略: ['多设备联动控制'],
-  数据聚合: ['跨设备数据聚合'],
+  告警联动: ['边缘实时决策', '环境温湿度监控', '冷链物流监控', '网络设备监控', '预测性维护'],
+  群控策略: ['多设备联动控制', '电力自动化'],
+  数据聚合: ['跨设备数据聚合', '设备联合抄表', '光伏逆变器聚合', '楼宇能耗分项计量', '产线节拍统计'],
 }
 
 export const EDGE_SCENE_TEMPLATES = [
@@ -67,45 +68,8 @@ export const EDGE_SCENE_TEMPLATES = [
     },
   },
   {
-    id: 'alarm-fault-backup',
-    category: '告警联动',
-    sceneType: '告警联动',
-    name: '设备故障切换备用通道',
-    description: '设备故障状态位触发时记录告警并切换备用通道控制，适用于冗余产线。',
-    ruleTypes: ['threshold'],
-    actions: ['sequence', 'device_control', 'log'],
-    rule: {
-      name: '设备故障切换备用通道',
-      type: 'threshold',
-      priority: 20,
-      enable: false,
-      trigger_mode: 'on_change',
-      check_interval: '500ms',
-      sources: [
-        baseSource('fault', '主设备故障状态位'),
-        baseSource('backup_ready', '备用通道就绪信号'),
-      ],
-      trigger_logic: 'EXPR',
-      condition: 'fault == 1 && backup_ready == 1',
-      state: { duration: '2s', count: 0 },
-      actions: [
-        {
-          type: 'sequence',
-          config: {
-            steps: [
-              baseControl('主通道停用工', '0'),
-              { type: 'delay', config: { duration: '1s' } },
-              baseControl('备用通道启用', '1'),
-              { type: 'log', config: { level: 'error', message: '主设备故障，已切换备用通道' } },
-            ],
-          },
-        },
-      ],
-    },
-  },
-  {
     id: 'aggregate-multi-pump-flow',
-    category: '其他',
+    category: '数据聚合',
     sceneType: '跨设备数据聚合',
     name: '多泵流量汇总计算',
     description: '聚合多台泵的流量读数，计算总流量并输出到虚拟或计算点位，供北向上报。',
@@ -140,44 +104,8 @@ export const EDGE_SCENE_TEMPLATES = [
     },
   },
   {
-    id: 'aggregate-temp-average',
-    category: '其他',
-    sceneType: '跨设备数据聚合',
-    name: '多路温度平均值',
-    description: '计算多路温度传感器平均值，常用于洁净室或机房环境综合指标。',
-    ruleTypes: ['calculation'],
-    actions: ['device_control', 'mqtt', 'log'],
-    rule: {
-      name: '多路温度平均值',
-      type: 'calculation',
-      priority: 5,
-      enable: false,
-      trigger_mode: 'always',
-      check_interval: '5s',
-      sources: [
-        baseSource('t1', '温度点 1'),
-        baseSource('t2', '温度点 2'),
-        baseSource('t3', '温度点 3'),
-      ],
-      trigger_logic: 'EXPR',
-      expression: '(t1 + t2 + t3) / 3',
-      actions: [
-        baseControl('平均温度虚拟点位', '${value}'),
-        {
-          type: 'mqtt',
-          config: {
-            mqtt_id: '',
-            topic: 'edge/metrics/temp_avg',
-            message: '{"avg_temp":${value},"samples":3}',
-          },
-        },
-        { type: 'log', config: { level: 'info', message: '平均温度: ${value}°C' } },
-      ],
-    },
-  },
-  {
     id: 'multi-device-sequence',
-    category: '其他',
+    category: '群控策略',
     sceneType: '多设备联动控制',
     name: '产线启停顺序控制',
     description: '按顺序延时启动多台设备，适用于 PLC 与楼宇控制器跨协议联动编排。',
@@ -216,7 +144,7 @@ export const EDGE_SCENE_TEMPLATES = [
   },
   {
     id: 'edge-safety-interlock',
-    category: '其他',
+    category: '告警联动',
     sceneType: '边缘实时决策',
     name: '安全联锁自动停机',
     description: '危险区域传感器触发且设备仍在运行时自动停机，减少上行延迟的安全联锁。',
@@ -253,7 +181,7 @@ export const EDGE_SCENE_TEMPLATES = [
   },
   {
     id: 'env-temp-humidity-alarm',
-    category: '其他',
+    category: '告警联动',
     sceneType: '环境温湿度监控',
     name: '温湿度越限告警',
     description: '监测机房或洁净室温湿度，越限时北向 MQTT 上报并记录本地日志。',
@@ -289,7 +217,7 @@ export const EDGE_SCENE_TEMPLATES = [
   },
   {
     id: 'predictive-vibration-window',
-    category: '其他',
+    category: '告警联动',
     sceneType: '预测性维护',
     name: '振动均值趋势检测',
     description: '滑动窗口计算振动均值，超过阈值时生成维护预警，适用于轴承寿命监测。',
@@ -325,7 +253,7 @@ export const EDGE_SCENE_TEMPLATES = [
   },
   {
     id: 'takt-cycle-count',
-    category: '其他',
+    category: '数据聚合',
     sceneType: '产线节拍统计',
     name: '产线节拍计数统计',
     description: '采集 PLC 产品到位信号，窗口内统计节拍次数并计算 CT，可联动 MES 上报。',
@@ -391,6 +319,362 @@ export const EDGE_SCENE_TEMPLATES = [
           },
         },
         { type: 'log', config: { level: 'info', message: '北向上报: ${metric}' } },
+      ],
+    },
+  },
+  {
+    id: 'cold-chain-temp-alarm',
+    category: '告警联动',
+    sceneType: '冷链物流监控',
+    name: '冷链脱冷事件检测',
+    description: '监测车载或冷库温度超温并记录 GPS 轨迹，本地缓存时序数据并在网络恢复后 MQTT 补传，满足 GSP 合规追溯。',
+    ruleTypes: ['threshold'],
+    actions: ['database', 'mqtt', 'log'],
+    rule: {
+      name: '冷链脱冷事件检测',
+      type: 'threshold',
+      priority: 25,
+      enable: false,
+      trigger_mode: 'on_change',
+      check_interval: '10s',
+      sources: [
+        baseSource('cargo_temp', '货物温度'),
+        baseSource('setpoint', '设定温度阈值'),
+        baseSource('gps_valid', 'GPS 定位有效'),
+      ],
+      trigger_logic: 'EXPR',
+      condition: 'cargo_temp > setpoint + 2 && gps_valid == 1',
+      state: { duration: '60s', count: 0 },
+      actions: [
+        {
+          type: 'database',
+          config: { bucket: 'cold_chain_events', _hint: '本地缓存脱冷记录' },
+        },
+        {
+          type: 'mqtt',
+          config: {
+            mqtt_id: '',
+            topic: 'edge/coldchain/alarm',
+            message: '{"temp":${cargo_temp},"setpoint":${setpoint},"gps_valid":${gps_valid}}',
+          },
+        },
+        { type: 'log', config: { level: 'error', message: '冷链脱冷: 温度 ${cargo_temp}°C 超设定 ${setpoint}°C' } },
+      ],
+    },
+  },
+  {
+    id: 'network-snmp-health',
+    category: '告警联动',
+    sceneType: '网络设备监控',
+    name: 'SNMP 网络设备健康预警',
+    description: '通过 SNMP 采集交换机端口流量、设备温度与电源状态，异常时本地告警并北向上报工业网络健康度。',
+    ruleTypes: ['threshold'],
+    actions: ['mqtt', 'log'],
+    rule: {
+      name: 'SNMP 网络设备健康预警',
+      type: 'threshold',
+      priority: 7,
+      enable: false,
+      trigger_mode: 'on_change',
+      check_interval: '30s',
+      sources: [
+        baseSource('port_util', '端口利用率 %'),
+        baseSource('device_temp', '设备温度'),
+        baseSource('psu_status', '电源状态'),
+      ],
+      trigger_logic: 'EXPR',
+      condition: 'port_util > 85 || device_temp > 65 || psu_status == 0',
+      state: { duration: '2m', count: 0 },
+      actions: [
+        {
+          type: 'mqtt',
+          config: {
+            mqtt_id: '',
+            topic: 'edge/network/health',
+            message: '{"port_util":${port_util},"device_temp":${device_temp},"psu_ok":${psu_status}}',
+          },
+        },
+        { type: 'log', config: { level: 'warn', message: '网络设备异常: 端口=${port_util}% 温度=${device_temp}°C' } },
+      ],
+    },
+  },
+  {
+    id: 'power-iec104-remote',
+    category: '群控策略',
+    sceneType: '电力自动化',
+    name: 'IEC104 遥控合闸操作',
+    description: '通过 IEC 60870-5-104 接入电力系统，总召唤确认就绪后执行单点遥控合闸，满足调度自动化基础需求。',
+    ruleTypes: ['threshold'],
+    actions: ['sequence', 'device_control', 'log'],
+    rule: {
+      name: 'IEC104 遥控合闸操作',
+      type: 'threshold',
+      priority: 50,
+      enable: false,
+      trigger_mode: 'on_change',
+      check_interval: '1s',
+      sources: [
+        baseSource('remote_cmd', '遥控合闸命令'),
+        baseSource('breaker_status', '断路器分位反馈'),
+        baseSource('interlock_ok', '五防联锁就绪'),
+      ],
+      trigger_logic: 'EXPR',
+      condition: 'remote_cmd == 1 && breaker_status == 0 && interlock_ok == 1',
+      state: { duration: '0s', count: 0 },
+      actions: [
+        {
+          type: 'sequence',
+          config: {
+            steps: [
+              baseControl('遥控预置', '1'),
+              { type: 'delay', config: { duration: '500ms' } },
+              baseControl('遥控执行合闸', '1'),
+              { type: 'log', config: { level: 'info', message: 'IEC104 遥控合闸命令已下发' } },
+            ],
+          },
+        },
+      ],
+    },
+  },
+  {
+    id: 'meter-batch-reading',
+    category: '数据聚合',
+    sceneType: '设备联合抄表',
+    name: '多表定时联合抄表',
+    description: '批量读取 DL/T645 或 Modbus 电表、水表读数，校验异常跳变并汇总至虚拟点位供能耗报表使用。',
+    ruleTypes: ['calculation'],
+    actions: ['device_control', 'log', 'mqtt'],
+    rule: {
+      name: '多表定时联合抄表',
+      type: 'calculation',
+      priority: 4,
+      enable: false,
+      trigger_mode: 'always',
+      check_interval: '15m',
+      sources: [
+        baseSource('meter_a', '1# 电表读数'),
+        baseSource('meter_b', '2# 电表读数'),
+        baseSource('meter_c', '3# 水表读数'),
+      ],
+      trigger_logic: 'EXPR',
+      expression: 'meter_a + meter_b + meter_c',
+      actions: [
+        baseControl('联合抄表汇总虚拟点', '${value}'),
+        {
+          type: 'mqtt',
+          config: {
+            mqtt_id: '',
+            topic: 'edge/meter/batch_read',
+            message: '{"total":${value},"meters":3,"ts":"${now}"}',
+          },
+        },
+        { type: 'log', config: { level: 'info', message: '联合抄表完成，合计: ${value}' } },
+      ],
+    },
+  },
+  {
+    id: 'pv-inverter-total',
+    category: '数据聚合',
+    sceneType: '光伏逆变器聚合',
+    name: '分布式逆变器总功率',
+    description: '批量采集多台 Modbus 逆变器有功功率，计算总功率与日发电量并 MQTT 上报能源管理平台。',
+    ruleTypes: ['calculation'],
+    actions: ['device_control', 'mqtt', 'log'],
+    rule: {
+      name: '分布式逆变器总功率',
+      type: 'calculation',
+      priority: 5,
+      enable: false,
+      trigger_mode: 'always',
+      check_interval: '5s',
+      sources: [
+        baseSource('inv1_pwr', '逆变器 1 有功功率'),
+        baseSource('inv2_pwr', '逆变器 2 有功功率'),
+        baseSource('inv3_pwr', '逆变器 3 有功功率'),
+      ],
+      trigger_logic: 'EXPR',
+      expression: 'inv1_pwr + inv2_pwr + inv3_pwr',
+      actions: [
+        baseControl('电站总功率虚拟点', '${value}'),
+        {
+          type: 'mqtt',
+          config: {
+            mqtt_id: '',
+            topic: 'edge/pv/total_power',
+            message: '{"total_kw":${value},"inverters":3}',
+          },
+        },
+        { type: 'log', config: { level: 'info', message: '光伏电站总功率: ${value} kW' } },
+      ],
+    },
+  },
+  {
+    id: 'building-energy-submeter',
+    category: '数据聚合',
+    sceneType: '楼宇能耗分项计量',
+    name: '楼宇照明空调分项汇总',
+    description: '整合 DL/T645 电表、BACnet 能耗点与 KNX 传感器，分项汇总照明、空调、电梯能耗并生成看板指标。',
+    ruleTypes: ['calculation'],
+    actions: ['device_control', 'mqtt', 'log'],
+    rule: {
+      name: '楼宇照明空调分项汇总',
+      type: 'calculation',
+      priority: 5,
+      enable: false,
+      trigger_mode: 'always',
+      check_interval: '5m',
+      sources: [
+        baseSource('lighting_kwh', '照明分项电耗'),
+        baseSource('hvac_kwh', '空调分项电耗'),
+        baseSource('elevator_kwh', '电梯分项电耗'),
+      ],
+      trigger_logic: 'EXPR',
+      expression: 'lighting_kwh + hvac_kwh + elevator_kwh',
+      actions: [
+        baseControl('楼宇总能耗虚拟点', '${value}'),
+        {
+          type: 'mqtt',
+          config: {
+            mqtt_id: '',
+            topic: 'edge/building/energy',
+            message: '{"lighting":${lighting_kwh},"hvac":${hvac_kwh},"elevator":${elevator_kwh},"total":${value}}',
+          },
+        },
+        { type: 'log', config: { level: 'info', message: '楼宇分项汇总: 照明+空调+电梯 = ${value} kWh' } },
+      ],
+    },
+  },
+  {
+    id: 'modbus-passthrough-bridge',
+    category: '其他',
+    sceneType: 'Modbus 设备透传',
+    name: 'Modbus TCP-RTU 透传桥接',
+    description: 'Modbus TCP 请求映射至 RS485 RTU 从站地址，实现上位机无改造访问 legacy 设备，转发延迟低于 5ms。',
+    ruleTypes: ['threshold'],
+    actions: ['device_control', 'log'],
+    rule: {
+      name: 'Modbus TCP-RTU 透传桥接',
+      type: 'threshold',
+      priority: 2,
+      enable: false,
+      trigger_mode: 'on_change',
+      check_interval: '100ms',
+      sources: [
+        baseSource('tcp_request', 'TCP 侧读请求触发'),
+        baseSource('rtu_online', 'RTU 从站在线状态'),
+      ],
+      trigger_logic: 'EXPR',
+      condition: 'tcp_request == 1 && rtu_online == 1',
+      state: { duration: '0s', count: 0 },
+      actions: [
+        baseControl('RTU 映射寄存器回写', '${tcp_request}'),
+        { type: 'log', config: { level: 'info', message: 'Modbus 透传: TCP→RTU 地址映射完成' } },
+      ],
+    },
+  },
+  {
+    id: 'data-buffer-resume',
+    category: '其他',
+    sceneType: '数据断点续传',
+    name: '弱网离线缓存补传',
+    description: '网络中断时持续采集并写入本地队列，恢复后按时间戳顺序批量 MQTT 补传，保障数据零丢失。',
+    ruleTypes: ['threshold'],
+    actions: ['database', 'mqtt', 'log'],
+    rule: {
+      name: '弱网离线缓存补传',
+      type: 'threshold',
+      priority: 3,
+      enable: false,
+      trigger_mode: 'on_change',
+      check_interval: '1s',
+      sources: [
+        baseSource('network_up', '北向网络连通状态'),
+        baseSource('pending_count', '待补传队列深度'),
+      ],
+      trigger_logic: 'EXPR',
+      condition: 'network_up == 1 && pending_count > 0',
+      state: { duration: '0s', count: 0 },
+      actions: [
+        {
+          type: 'mqtt',
+          config: {
+            mqtt_id: '',
+            topic: 'edge/resume/batch',
+            message: '{"pending":${pending_count},"resume":true}',
+          },
+        },
+        {
+          type: 'database',
+          config: { bucket: 'resume_queue', _hint: '标记已补传批次' },
+        },
+        { type: 'log', config: { level: 'info', message: '网络恢复，补传 ${pending_count} 条缓存数据' } },
+      ],
+    },
+  },
+  {
+    id: 'multi-protocol-gateway',
+    category: '其他',
+    sceneType: '多协议网关转换',
+    name: '南向多协议统一北向',
+    description: '南向 Modbus、BACnet、KNX 等协议点位映射至统一数据模型，变化时通过 MQTT 北向输出，实现异构设备互通。',
+    ruleTypes: ['threshold'],
+    actions: ['mqtt', 'log'],
+    rule: {
+      name: '南向多协议统一北向',
+      type: 'threshold',
+      priority: 3,
+      enable: false,
+      trigger_mode: 'on_change',
+      check_interval: '1s',
+      sources: [
+        baseSource('modbus_val', 'Modbus 映射点位'),
+        baseSource('bacnet_val', 'BACnet 映射点位'),
+        baseSource('knx_val', 'KNX 映射点位'),
+      ],
+      trigger_logic: 'EXPR',
+      condition: 'modbus_val != 0 || bacnet_val != 0 || knx_val != 0',
+      state: { duration: '0s', count: 0 },
+      actions: [
+        {
+          type: 'mqtt',
+          config: {
+            mqtt_id: '',
+            topic: 'edge/gateway/unified',
+            message: '{"modbus":${modbus_val},"bacnet":${bacnet_val},"knx":${knx_val}}',
+          },
+        },
+        { type: 'log', config: { level: 'info', message: '多协议网关北向推送完成' } },
+      ],
+    },
+  },
+  {
+    id: 'tsdb-local-store',
+    category: '其他',
+    sceneType: '时序数据本地存储',
+    name: '采集数据本地 TSDB 持久化',
+    description: '将采集数据与计算指标写入本地 TSDB，支持 REST 历史检索；弱网环境下保障边缘端可查。',
+    ruleTypes: ['threshold'],
+    actions: ['database', 'log'],
+    rule: {
+      name: '采集数据本地 TSDB 持久化',
+      type: 'threshold',
+      priority: 2,
+      enable: false,
+      trigger_mode: 'always',
+      check_interval: '1s',
+      sources: [
+        baseSource('metric', '采集指标值'),
+        baseSource('quality_ok', '数据质量有效'),
+      ],
+      trigger_logic: 'EXPR',
+      condition: 'quality_ok == 1',
+      state: { duration: '0s', count: 0 },
+      actions: [
+        {
+          type: 'database',
+          config: { bucket: 'tsdb_metrics', _hint: '本地时序库 bucket' },
+        },
+        { type: 'log', config: { level: 'info', message: 'TSDB 写入: ${metric}' } },
       ],
     },
   },
@@ -485,6 +769,8 @@ function formatActionConfigHint(action) {
       return cfg.message ? String(cfg.message).slice(0, 48) : ''
     case 'delay':
       return cfg.duration ? `等待 ${cfg.duration}` : ''
+    case 'database':
+      return cfg.bucket ? `bucket: ${cfg.bucket}` : (cfg._hint || '')
     case 'sequence':
       return `${(cfg.steps || []).length} 个步骤`
     default:

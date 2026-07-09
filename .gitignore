@@ -13,3 +13,5 @@ dist/
 *.log
 *.txt
 *.out
+.gomodcache/
+.github/
