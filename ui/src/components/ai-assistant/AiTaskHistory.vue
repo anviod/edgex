@@ -1,7 +1,10 @@
 <template>
   <div class="ai-task-history">
     <header class="ai-task-history__header">
-      <span class="ai-task-history__label">最近任务</span>
+      <span class="ai-task-history__label">
+        <icon-history :size="12" class="ai-task-history__label-icon" />
+        最近任务
+      </span>
       <button
         v-if="tasks.length"
         type="button"
@@ -10,7 +13,7 @@
         :disabled="loading"
         @click="$emit('refresh')"
       >
-        ↻
+        <icon-refresh :size="14" :spin="loading" />
       </button>
     </header>
 
@@ -20,10 +23,13 @@
 
     <AiEmptyState
       v-else-if="!tasks.length"
-      icon="📋"
       title="暂无任务"
       description="上传 PCAP 或文档开始协议分析"
-    />
+    >
+      <template #icon>
+        <icon-unordered-list :size="22" />
+      </template>
+    </AiEmptyState>
 
     <ul v-else class="ai-task-history__list" role="list">
       <li
@@ -51,6 +57,7 @@
 </template>
 
 <script setup>
+import { IconHistory, IconRefresh, IconUnorderedList } from '@arco-design/web-vue/es/icon'
 import AiEmptyState from './AiEmptyState.vue'
 import AiStatusBadge from './AiStatusBadge.vue'
 

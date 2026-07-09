@@ -438,6 +438,7 @@ var (
 		"Users":         true,
 		"Server":         true,
 		"VirtualShadows": true,
+		"ai_copilot":     true,
 	}
 
 	cacheBucketMap = map[string]bool{

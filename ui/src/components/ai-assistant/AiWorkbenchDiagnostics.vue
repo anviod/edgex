@@ -66,10 +66,13 @@
 
     <AiEmptyState
       v-if="!loading && !steps.length"
-      icon="🔧"
       title="诊断数据加载中"
       description="点击刷新获取 ScanEngine、Soak 与通道健康摘要"
-    />
+    >
+      <template #icon>
+        <icon-tool :size="22" />
+      </template>
+    </AiEmptyState>
   </div>
 </template>
 
@@ -78,7 +81,8 @@ import { ref, onMounted } from 'vue'
 import {
   IconCheckCircleFill,
   IconExclamationCircleFill,
-  IconLoading
+  IconLoading,
+  IconTool
 } from '@arco-design/web-vue/es/icon'
 import AiApi from '@/api/ai'
 import AiJsonPreview from './AiJsonPreview.vue'

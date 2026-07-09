@@ -5,6 +5,7 @@ const tasks = ref([])
 const activeTask = ref(null)
 const quota = ref(null)
 const aiStatus = ref(null)
+const aiSettings = ref(null)
 const loading = ref(false)
 const uploadProgress = ref(0)
 const polling = ref(null)
@@ -32,6 +33,26 @@ export function useAiCopilot() {
     } catch (e) {
       console.error('quota fetch failed', e)
     }
+  }
+
+  const fetchSettings = async () => {
+    try {
+      const res = await AiApi.getSettings()
+      if (res.code === '0') aiSettings.value = res.data
+      return aiSettings.value
+    } catch (e) {
+      console.error('settings fetch failed', e)
+      return null
+    }
+  }
+
+  const saveSettings = async (payload) => {
+    const res = await AiApi.updateSettings(payload)
+    if (res.code === '0') {
+      aiSettings.value = res.data
+      return res.data
+    }
+    throw new Error(res.message || '保存设置失败')
   }
 
   const fetchTasks = async () => {
@@ -191,10 +212,13 @@ export function useAiCopilot() {
     stages,
     quota,
     aiStatus,
+    aiSettings,
     loading,
     uploadProgress,
     fetchStatus,
     fetchQuota,
+    fetchSettings,
+    saveSettings,
     fetchTasks,
     uploadAndCreate,
     createTask,

@@ -42,14 +42,33 @@ type aiStatusResponse struct {
 }
 
 func (s *Server) getAiStatus(c *fiber.Ctx) error {
+	settings := s.loadAiCopilotSettings()
+	mode := settings.RuntimeMode()
+	providerLabel := settings.ProviderLabel()
+	modelName := settings.Model
+	if modelName == "" {
+		if mode == "local" {
+			modelName = "context-assistant-v1"
+		} else {
+			modelName = "copilot-service"
+		}
+	}
+
+	message := "AI助手（本地模式）。工作台支持 PCAP/文档上传、四阶段流水线、四类产出预览、Schema 校验与 Human Confirm；完整 LLM 推理需对接 AI Model Center。"
+	if mode == "remote" {
+		message = "AI助手已连接 AI Model Center（" + settings.GrpcEndpoint + "）。工作台流水线将使用远端 Rule Engine 与 LLM 推理。"
+	} else if settings.DeploymentMode == "cloud" {
+		message = "AI助手已配置云端 API（" + providerLabel + "）。协议逆向与文档解析将路由至 " + settings.BaseURL + "。"
+	}
+
 	return c.JSON(fiber.Map{
 		"code":    "0",
 		"message": "success",
 		"data": aiStatusResponse{
 			Enabled:  true,
-			Mode:     "local",
-			Provider: "edgex-local",
-			Model:    "context-assistant-v1",
+			Mode:     mode,
+			Provider: providerLabel,
+			Model:    modelName,
 			Capabilities: []string{
 				"system-overview",
 				"channel-status",
@@ -71,7 +90,7 @@ func (s *Server) getAiStatus(c *fiber.Ctx) error {
 				"human-confirm",
 			},
 			Scenarios: []string{"qa", "troubleshoot", "config", "protocol", "workbench"},
-			Message: "AI助手（本地模式）。工作台支持 PCAP/文档上传、四阶段流水线、四类产出预览、Schema 校验与 Human Confirm；完整 LLM 推理需对接 AI Model Center。",
+			Message:   message,
 		},
 	})
 }

@@ -7,10 +7,13 @@
 
     <AiEmptyState
       v-if="!cases.length"
-      icon="🔗"
       title="暂无验证用例"
       description="请先完成协议分析任务，AI助手 将生成带帧证据的验证用例"
-    />
+    >
+      <template #icon>
+        <icon-link :size="22" />
+      </template>
+    </AiEmptyState>
 
     <div v-else class="ai-case-timeline">
       <div v-for="(c, i) in cases" :key="i" class="ai-case-timeline__item">
@@ -33,23 +36,33 @@
 
           <div v-if="c.frame_evidence" class="ai-case-evidence-chain">
             <div class="ai-case-evidence-chain__step">
-              <span class="ai-case-evidence-chain__icon">📡</span>
+              <span class="ai-case-evidence-chain__icon">
+                <icon-storage :size="14" />
+              </span>
               <div>
                 <label>抓包帧</label>
                 <code>FC{{ c.frame_evidence.fc }} @{{ c.frame_evidence.start_addr }}</code>
               </div>
             </div>
-            <div class="ai-case-evidence-chain__arrow">→</div>
+            <div class="ai-case-evidence-chain__arrow">
+              <icon-arrow-right :size="12" />
+            </div>
             <div class="ai-case-evidence-chain__step">
-              <span class="ai-case-evidence-chain__icon">🔢</span>
+              <span class="ai-case-evidence-chain__icon">
+                <icon-code :size="14" />
+              </span>
               <div>
                 <label>Raw Hex</label>
                 <code>0x{{ c.frame_evidence.raw_hex }}</code>
               </div>
             </div>
-            <div class="ai-case-evidence-chain__arrow">→</div>
+            <div class="ai-case-evidence-chain__arrow">
+              <icon-arrow-right :size="12" />
+            </div>
             <div class="ai-case-evidence-chain__step">
-              <span class="ai-case-evidence-chain__icon">📊</span>
+              <span class="ai-case-evidence-chain__icon">
+                <icon-bar-chart :size="14" />
+              </span>
               <div>
                 <label>解码值</label>
                 <code>{{ c.frame_evidence.decoded }} → 期望 {{ c.expected_value }}</code>
@@ -66,6 +79,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { IconLink, IconStorage, IconCode, IconBarChart, IconArrowRight } from '@arco-design/web-vue/es/icon'
 import AiEmptyState from './AiEmptyState.vue'
 
 const props = defineProps({

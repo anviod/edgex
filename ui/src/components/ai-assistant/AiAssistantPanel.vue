@@ -51,6 +51,15 @@
             </div>
             <div class="ai-panel__actions">
               <button
+                type="button"
+                class="ai-panel__action"
+                title="AI 设置"
+                aria-label="打开 AI 设置"
+                @click.stop="openSettings"
+              >
+                <icon-settings :size="14" />
+              </button>
+              <button
                 v-if="!state.miniMode"
                 type="button"
                 class="ai-panel__action"
@@ -210,6 +219,14 @@
       </dialog>
     </template>
   </Teleport>
+
+  <AiSettingsDialog
+    v-if="!isLoginPage"
+    v-model="settingsOpen"
+    :settings="aiSettings"
+    :saving="settingsSaving"
+    @save="handleSaveSettings"
+  />
 </template>
 
 <script setup>
@@ -217,7 +234,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
 import {
-  IconShrink, IconExpand, IconMinus, IconMessage, IconMenuFold, IconMenuUnfold
+  IconShrink, IconExpand, IconMinus, IconMessage, IconMenuFold, IconMenuUnfold, IconSettings
 } from '@arco-design/web-vue/es/icon'
 import { useAiAssistant, AI_WORKSPACES } from '@/composables/useAiAssistant'
 import { useAiCopilot } from '@/composables/useAiCopilot'
@@ -230,6 +247,7 @@ import AiWorkbenchValidation from './AiWorkbenchValidation.vue'
 import AiWorkbenchCases from './AiWorkbenchCases.vue'
 import AiWorkbenchEdge from './AiWorkbenchEdge.vue'
 import AiWorkbenchDiagnostics from './AiWorkbenchDiagnostics.vue'
+import AiSettingsDialog from './AiSettingsDialog.vue'
 
 const route = useRoute()
 const isLoginPage = computed(() => route.path === '/login' || route.path === '/install')
@@ -240,11 +258,14 @@ const {
 } = useAiAssistant()
 
 const {
-  tasks, activeTask, activeDeliverables, validation, stages, quota, aiStatus,
+  tasks, activeTask, activeDeliverables, validation, stages, quota, aiStatus, aiSettings,
   loading: copilotLoading, uploadProgress,
-  fetchStatus, fetchQuota, fetchTasks, uploadAndCreate, selectTask, confirmTask, runValidation,
+  fetchStatus, fetchQuota, fetchTasks, fetchSettings, saveSettings, uploadAndCreate, selectTask, confirmTask, runValidation,
   exportDeliverable, stopPolling
 } = useAiCopilot()
+
+const settingsOpen = ref(false)
+const settingsSaving = ref(false)
 
 const dialogRef = ref(null)
 const dragging = ref(false)
@@ -253,8 +274,27 @@ const initialized = ref(false)
 const statusLabel = computed(() => {
   if (!aiStatus.value) return '连接中…'
   if (aiStatus.value.mode === 'local') return '本地 Mock 模式 · 四阶段流水线'
-  return aiStatus.value.provider || 'AI Model Center'
+  return `${aiStatus.value.provider || 'AI Model Center'} · 四阶段流水线`
 })
+
+const openSettings = async () => {
+  await fetchSettings()
+  settingsOpen.value = true
+}
+
+const handleSaveSettings = async (payload) => {
+  settingsSaving.value = true
+  try {
+    await saveSettings(payload)
+    await Promise.all([fetchStatus(), fetchQuota()])
+    settingsOpen.value = false
+    Message.success('AI 设置已保存')
+  } catch (e) {
+    Message.error(e.message || '保存失败')
+  } finally {
+    settingsSaving.value = false
+  }
+}
 
 const panelStyle = computed(() => {
   const { position, size, miniMode } = state.value

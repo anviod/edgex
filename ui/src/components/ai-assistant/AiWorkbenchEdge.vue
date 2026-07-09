@@ -41,16 +41,20 @@
 
     <AiEmptyState
       v-else
-      icon="⚡"
       title="描述你的边缘场景"
       description="支持温度阈值、MQTT 上报、持续时间等关键词，AI助手 将生成规则草案"
-    />
+    >
+      <template #icon>
+        <icon-thunderbolt :size="22" />
+      </template>
+    </AiEmptyState>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import { Message } from '@arco-design/web-vue'
+import { IconThunderbolt } from '@arco-design/web-vue/es/icon'
 import AiApi from '@/api/ai'
 import AiJsonPreview from './AiJsonPreview.vue'
 import AiEmptyState from './AiEmptyState.vue'

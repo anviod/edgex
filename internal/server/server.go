@@ -76,6 +76,7 @@ type Server struct {
 	serverMu            sync.Mutex
 	portSwitching       bool
 	aiAgent             *ai_agent.Agent
+	aiSettingsMem       *model.AICopilotSettings
 	storageAttachHook   func(*storage.Storage)
 	runtimeStartHook    func()
 	shadowSubscribeOnce sync.Once
@@ -373,6 +374,8 @@ func (s *Server) setupRoutes() {
 	// AI 助手（本地上下文助手 + Industrial Protocol Copilot 工作台）
 	api.Get("/ai/status", s.getAiStatus)
 	api.Post("/ai/chat", s.postAiChat)
+	api.Get("/ai/settings", s.getAiSettings)
+	api.Put("/ai/settings", s.putAiSettings)
 	api.Get("/ai/quota", s.getAiQuota)
 	api.Get("/ai/tasks", s.listAiTasks)
 	api.Post("/ai/tasks", s.createAiTask)
