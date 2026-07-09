@@ -30,9 +30,11 @@
             hidden
             @change="onFileSelect($event, zone.skill)"
           />
-          <div class="ai-upload-zone__icon">{{ zone.icon }}</div>
+          <div class="ai-upload-zone__icon">
+            <component :is="zone.icon" :size="22" />
+          </div>
           <span class="ai-upload-zone__label">{{ zone.label }}</span>
-          <small>{{ zone.hint }}</small>
+          <span class="ai-upload-zone__hint">{{ zone.hint }}</span>
           <div class="ai-upload-zone__badges">
             <span v-for="ext in zone.extensions" :key="ext" class="ai-file-badge">{{ ext }}</span>
           </div>
@@ -50,7 +52,9 @@
         <span class="ai-file-badge ai-file-badge--solid">{{ fileExt(pendingFile.file.name) }}</span>
         <span class="ai-upload-file-card__name">{{ pendingFile.file.name }}</span>
         <span class="ai-upload-file-card__size">{{ formatFileSize(pendingFile.file.size) }}</span>
-        <button type="button" class="ai-upload-file-card__clear" aria-label="清除文件" @click="clearPending">×</button>
+        <button type="button" class="ai-upload-file-card__clear" aria-label="清除文件" @click="clearPending">
+          <icon-close :size="14" />
+        </button>
       </div>
     </div>
 
@@ -98,10 +102,13 @@
 
     <AiEmptyState
       v-else-if="!loading && !task"
-      icon="📡"
       title="开始协议分析"
       description="上传 PCAP 抓包或厂家文档，AI助手 将生成四类生产配置"
-    />
+    >
+      <template #icon>
+        <icon-thunderbolt :size="22" />
+      </template>
+    </AiEmptyState>
 
     <!-- Human Confirm with diff -->
     <AiConfirmDiff
@@ -118,7 +125,8 @@
       class="ai-success-banner"
       role="status"
     >
-      ✓ Human Confirm 完成 · 产出已确认
+      <icon-check-circle-fill :size="14" />
+      Human Confirm 完成 · 产出已确认
     </div>
   </div>
 </template>
@@ -126,6 +134,7 @@
 <script setup>
 import { ref } from 'vue'
 import { Message } from '@arco-design/web-vue'
+import { IconClose, IconStorage, IconFile, IconThunderbolt, IconCheckCircleFill } from '@arco-design/web-vue/es/icon'
 import { validateAiUploadFile, formatFileSize, getFileExtension } from '@/utils/aiFileValidation'
 import AiPipelineStages from './AiPipelineStages.vue'
 import AiDeliverablesPanel from './AiDeliverablesPanel.vue'
@@ -158,7 +167,7 @@ const uploadZones = [
     skill: 'protocol-reverse',
     label: 'PCAP / HEX',
     hint: 'Scenario B · 无文档逆向',
-    icon: '📦',
+    icon: IconStorage,
     accept: '.pcap,.pcapng,.hex',
     extensions: ['.pcap', '.pcapng', '.hex']
   },
@@ -166,7 +175,7 @@ const uploadZones = [
     skill: 'doc-parse',
     label: 'Excel / CSV / PDF',
     hint: 'Scenario A · 厂家文档',
-    icon: '📄',
+    icon: IconFile,
     accept: '.xlsx,.xls,.csv,.pdf,.doc,.docx',
     extensions: ['.csv', '.xlsx', '.pdf']
   }

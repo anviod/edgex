@@ -23,9 +23,12 @@
 
     <AiEmptyState
       v-if="!deliverables"
-      icon="📋"
       description="完成分析任务后，四类产出将在此预览"
-    />
+    >
+      <template #icon>
+        <icon-apps :size="22" />
+      </template>
+    </AiEmptyState>
 
     <template v-else>
       <div class="ai-deliverables__header">
@@ -41,6 +44,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { IconApps } from '@arco-design/web-vue/es/icon'
 import { DELIVERABLE_TYPES } from '@/composables/useAiAssistant'
 import AiJsonPreview from './AiJsonPreview.vue'
 import AiEmptyState from './AiEmptyState.vue'

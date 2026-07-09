@@ -92,15 +92,19 @@
 
     <AiEmptyState
       v-else
-      icon="✓"
       title="等待校验"
       description="运行协议分析任务后，校验结果将自动显示；也可手动触发重新校验"
-    />
+    >
+      <template #icon>
+        <icon-check-circle :size="22" />
+      </template>
+    </AiEmptyState>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
+import { IconCheckCircle } from '@arco-design/web-vue/es/icon'
 import AiEmptyState from './AiEmptyState.vue'
 
 const props = defineProps({

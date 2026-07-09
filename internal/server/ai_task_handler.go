@@ -18,7 +18,9 @@ import (
 
 func (s *Server) ensureAiAgent() *ai_agent.Agent {
 	if s.aiAgent == nil {
-		s.aiAgent = ai_agent.NewAgent("local")
+		settings := s.loadAiCopilotSettings()
+		s.aiAgent = ai_agent.NewAgent(settings.RuntimeMode())
+		s.aiAgent.ApplySettings(settings)
 	}
 	return s.aiAgent
 }

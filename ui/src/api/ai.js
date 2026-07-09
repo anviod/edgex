@@ -49,5 +49,13 @@ export default {
 
   getDiagnosticsSummary() {
     return request({ url: '/api/ai/diagnostics/summary', method: 'get' })
+  },
+
+  getSettings() {
+    return request({ url: '/api/ai/settings', method: 'get' })
+  },
+
+  updateSettings(data) {
+    return request({ url: '/api/ai/settings', method: 'put', data })
   }
 }

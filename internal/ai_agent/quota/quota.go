@@ -69,6 +69,37 @@ func (t *Tracker) RecordTask(taskID, skill string, tokens int) {
 	}
 }
 
+func (t *Tracker) SetMode(mode string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if mode != "" {
+		t.mode = mode
+	}
+}
+
+func (t *Tracker) SetLimits(tokensLimit, tasksLimit int) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if tokensLimit > 0 {
+		t.tokensLimit = tokensLimit
+	}
+	if tasksLimit > 0 {
+		t.tasksLimit = tasksLimit
+	}
+}
+
+func (t *Tracker) TokensLimit() int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.tokensLimit
+}
+
+func (t *Tracker) TasksLimit() int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.tasksLimit
+}
+
 func (t *Tracker) Snapshot() UsageSnapshot {
 	t.mu.Lock()
 	defer t.mu.Unlock()

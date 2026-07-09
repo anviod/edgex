@@ -20,6 +20,7 @@ const (
 	BucketUsers           = "Users"
 	BucketServer          = "Server"
 	BucketVirtualShadows  = "VirtualShadows"
+	BucketAICopilot       = "ai_copilot"
 	ConfigVersionKey      = "version"
 	ConfigVersionValue    = "1.0"
 )
@@ -40,6 +41,7 @@ func NewConfigStore(db *bbolt.DB) (*ConfigStore, error) {
 			BucketUsers,
 			BucketServer,
 			BucketVirtualShadows,
+			BucketAICopilot,
 		}
 		for _, bucket := range buckets {
 			if _, err := tx.CreateBucketIfNotExists([]byte(bucket)); err != nil {
@@ -187,6 +189,19 @@ func (cs *ConfigStore) LoadSystem() (*model.SystemConfig, error) {
 		return nil, err
 	}
 	return &config, nil
+}
+
+func (cs *ConfigStore) SaveAICopilotSettings(settings model.AICopilotSettings) error {
+	return cs.saveJSON(BucketAICopilot, "settings", settings)
+}
+
+func (cs *ConfigStore) LoadAICopilotSettings() (*model.AICopilotSettings, error) {
+	var settings model.AICopilotSettings
+	err := cs.loadJSON(BucketAICopilot, "settings", &settings)
+	if err != nil {
+		return nil, err
+	}
+	return &settings, nil
 }
 
 func (cs *ConfigStore) SaveUsers(users []model.UserConfig) error {

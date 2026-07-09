@@ -9,6 +9,7 @@ import (
 	"github.com/anviod/edgex/internal/ai_agent/pipeline"
 	"github.com/anviod/edgex/internal/ai_agent/quota"
 	"github.com/anviod/edgex/internal/ai_agent/validate"
+	"github.com/anviod/edgex/internal/model"
 )
 
 type Agent struct {
@@ -34,6 +35,23 @@ func NewAgent(mode string) *Agent {
 }
 
 func (a *Agent) Mode() string { return a.mode }
+
+func (a *Agent) ApplySettings(s model.AICopilotSettings) {
+	mode := s.RuntimeMode()
+	a.mu.Lock()
+	a.mode = mode
+	a.runner = pipeline.NewMockRunner(mode)
+	a.mu.Unlock()
+	a.quota.SetMode(mode)
+	a.quota.SetLimits(s.TokensLimit, s.TasksLimit)
+}
+
+func mapModeToDeployment(mode string) string {
+	if mode == "remote" {
+		return "remote"
+	}
+	return "local"
+}
 
 func (a *Agent) Quota() *quota.Tracker { return a.quota }
 

@@ -1,11 +1,15 @@
 <template>
-  <div class="ai-quota-bar" role="status" aria-label="AI 配额使用情况">
+  <div class="ai-quota-bar" role="status" :aria-label="ariaLabel">
     <div class="ai-quota-bar__mode">
       <span class="ai-quota-bar__badge" :class="`ai-quota-bar__badge--${mode}`">{{ modeLabel }}</span>
     </div>
 
     <div v-if="quota" class="ai-quota-bar__meters">
-      <div class="ai-quota-ring" :title="`Token ${quota.tokens_used?.toLocaleString()} / ${quota.tokens_limit?.toLocaleString()}`">
+      <div
+        v-if="showTokenUsage"
+        class="ai-quota-ring"
+        :title="`Token ${quota.tokens_used?.toLocaleString()} / ${quota.tokens_limit?.toLocaleString()}`"
+      >
         <svg viewBox="0 0 36 36" class="ai-quota-ring__svg">
           <path
             class="ai-quota-ring__bg"
@@ -21,8 +25,11 @@
         <span class="ai-quota-ring__label">Token</span>
       </div>
 
-      <div class="ai-quota-bar__details">
-        <span class="ai-quota-bar__stat">
+      <div
+        class="ai-quota-bar__details"
+        :class="{ 'ai-quota-bar__details--tasks-only': !showTokenUsage }"
+      >
+        <span v-if="showTokenUsage" class="ai-quota-bar__stat">
           {{ quota.tokens_used?.toLocaleString() }} / {{ quota.tokens_limit?.toLocaleString() }}
         </span>
         <div class="ai-quota-bar__progress">
@@ -47,6 +54,10 @@ const props = defineProps({
 })
 
 const modeLabel = computed(() => (props.mode === 'remote' ? 'AI Model Center' : '本地 Mock'))
+const showTokenUsage = computed(() => props.mode === 'remote')
+const ariaLabel = computed(() =>
+  showTokenUsage.value ? 'AI 配额使用情况' : 'AI 今日任务使用情况'
+)
 
 const tokenPct = computed(() => {
   if (!props.quota?.tokens_limit) return 0

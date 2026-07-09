@@ -9,7 +9,7 @@
 | 项       | 内容                                                                                                            |
 | ------- | ------------------------------------------------------------------------------------------------------------- |
 | 版本      | **V1.4**                                                                                                      |
-| 更新      | 2026-07-08                                                                                                    |
+| 更新      | 2026-07-09                                                                                                    |
 | 状态      | **规划中**                                                                                                       |
 | 产品名     | **EdgeX Industrial Protocol Copilot**（代码路径 `internal/ai_agent/` 可保留）                                          |
 | 架构基线    | [TODO 索引 §1 新架构约束](./index.md) · [边缘网关架构设计总览](../edge/边缘网关架构设计总览.md)                                          |
@@ -18,8 +18,15 @@
 
 
 ---
-
-
+<div align="center">
+  <img src="../img/AI助手.png" width="100%" />
+  <p><small>图 1: 边缘AI 助手</small></p>
+</div>
+---
+<div align="center">
+  <img src="../img/AI助手配置.png" width="100%" />
+  <p><small>图 2: 支持本地模型和在线接口</small></p>
+</div>
 
 ## §0 背景与目标
 
@@ -47,7 +54,7 @@ EdgeX 南向已支持 Modbus / OPC UA / S7 / BACnet / EIP / SNMP / IEC104 等 12
 | G3     | 附带 Validation Case        | 每批候选含可回放验证用例（期望读数、容差、证据链）                                                   |
 | G4     | 边缘垂直场景草稿（辅助）              | 从场景描述生成 EdgeRule / 场景模版 JSON 草案                                             |
 | G5     | 联调诊断辅助（辅助）                | 结合 diagnostics + 日志给出可执行排查步骤                                                |
-| G6     | Token 成本可控                | 网关侧配额可见、可限、可审计；推理在 AI Model Center 集中管控                                     |
+| G6     | Token 成本可控                | 网关侧配额可限、可审计；**本地 Mock UI 仅展示每日任务配额**，Token 用量在 **AI Model Center（remote）** 模式下可见 |
 
 
 
@@ -339,7 +346,7 @@ LLM 最小化：仅阶段三语义推理消耗 Token
 │  │  ┌──────▼───────────────────▼─────────────────▼────────────────┐         │ │
 │  │  │ Capture + Decoder  internal/ai_agent/pcap/  （确定性 · 无 LLM）       │ │ │
 │  │  └─────────────────────────────────────────────────────────────┘         │ │
-│  │                         Token 配额计数（本地）+ Audit Log                  │ │
+│  │                         每日任务配额（UI）+ Token 计数（后端 · remote UI 可见）+ Audit Log   │ │
 │  └─────────────────────────────────────────────────────────────────────────┘ │
 │  ┌─────────────────────────────────────────────────────────────────────────┐ │
 │  │  现有配置面（不变）                                                       │ │
@@ -523,6 +530,16 @@ OOMScoreAdjust=500
 ## §6 Token 调用与配额管理
 
 （配置项、`config.db` → `ai_copilot`、`runtime.db` → `ai_task` / `ai_token_usage` / `protocol_knowledge_cache` bbolt 结构、用量统计、任务分级路由矩阵 — 与 V1.2 §3 保持一致，知识库详见 §8。）
+
+**UI 展示策略**（`AiQuotaBar.vue`）：
+
+| 部署模式 | 配额栏展示 | 设置入口 |
+| -------- | ---------- | -------- |
+| **local**（本地 Mock） | 模式徽章 + 今日任务数 / 上限 + 进度条；**不展示 Token 环与用量数字** | 面板标题栏 ⚙ → `AiSettingsDialog` |
+| **remote**（AI Model Center） | 模式徽章 + Token 环 + 用量 + 今日任务 | 同上；可配置 gRPC 端点 |
+| **cloud**（直连 LLM API） | 同 remote（Token 可见） | 同上；需 `enable_cloud=true`；支持 OpenAI / Anthropic / Azure / DeepSeek / 通义 / 文心 / 智谱等 |
+
+后端 `GET /api/ai/quota` 仍返回 `tokens_used` / `tokens_limit`（本地 Mock 用于硬限与审计）；仅 UI 在 local 模式下隐藏 Token 相关控件。
 
 
 | 任务               | 执行位置                   | Token       |
@@ -978,7 +995,7 @@ protocol_knowledge.db（AI Server 独立 bbolt 文件）
 | **点位读写**    | `ChannelManager.AddPoints`            | Confirm 后 `points/import`                           |
 | **协议解码**    | `internal/driver/modbus/decoder.go` 等 | Capture+Decoder 冷路径复用                               |
 | **PCAP 解析** | `internal/ai_agent/pcap/`             | gopacket 离线解帧                                       |
-| **UI**      | `PointList.vue` 等                     | Industrial Protocol Copilot 面板：上传 PCAP/文档、预览配置、确认导入 |
+| **UI**      | `AiAssistantPanel.vue` / `AiQuotaBar.vue` / `AiSettingsDialog.vue` | Industrial Protocol Copilot 面板：上传 PCAP/文档、预览配置、确认导入；**local 模式配额栏仅显示今日任务**；**面板标题栏齿轮按钮**打开 AI 设置（部署模式、平台、认证、配额） |
 
 
 
@@ -992,7 +1009,9 @@ protocol_knowledge.db（AI Server 独立 bbolt 文件）
 | GET  | `/api/ai-agent/tasks/:id`       | 四类产出预览 + 置信度                                                       |
 | POST | `/api/ai-agent/tasks/:id/apply` | Human Confirm → import Channel + Points                            |
 | GET  | `/api/ai-agent/usage`           | Token 用量                                                           |
-| PUT  | `/api/ai-agent/settings`        | 部署模式 / AI Server 端点                                                |
+| GET  | `/api/ai/settings`              | 读取 AI Copilot 设置（密钥脱敏）                                         |
+| PUT  | `/api/ai/settings`              | 保存部署模式 / 平台 / 端点 / 认证 / 配额                                   |
+| PUT  | `/api/ai-agent/settings`        | 部署模式 / AI Server 端点（与 `/api/ai/settings` 对齐，后续合并）              |
 
 
 ---
