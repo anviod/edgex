@@ -2,12 +2,12 @@ import { ref, watch } from 'vue'
 
 const STORAGE_KEY = 'edgex-ai-assistant'
 
+// splitMode: 'both' = 分栏, 'workspace' = 仅工作台, 'chat' = 仅对话
 const defaultState = () => ({
   expanded: false,
   miniMode: false,
   workspace: 'protocol',
-  workspaceCollapsed: false,
-  chatOpen: true,
+  splitMode: 'both',
   position: { x: null, y: null },
   size: { width: 860, height: 620 }
 })
@@ -51,8 +51,7 @@ watch(
       // Persist layout prefs only — not expanded/miniMode (avoids invisible FAB on reload)
       const toSave = {
         workspace: val.workspace,
-        workspaceCollapsed: val.workspaceCollapsed,
-        chatOpen: val.chatOpen,
+        splitMode: val.splitMode,
         position: val.position,
         size: val.size
       }
@@ -131,20 +130,14 @@ export function useAiAssistant() {
     state.value.workspace = id
   }
 
-  const setChatOpen = (value) => {
-    state.value.chatOpen = value
+  const setSplitMode = (mode) => {
+    state.value.splitMode = mode
   }
 
-  const setWorkspaceCollapsed = (value) => {
-    state.value.workspaceCollapsed = value
-    // When workspace collapses, ensure chat is visible so the panel is never empty
-    if (value && !state.value.chatOpen) {
-      state.value.chatOpen = true
-    }
-  }
-
-  const toggleWorkspaceCollapsed = () => {
-    state.value.workspaceCollapsed = !state.value.workspaceCollapsed
+  // 循环切换: both → chat → workspace → both
+  const toggleSplitMode = () => {
+    const map = { both: 'chat', chat: 'workspace', workspace: 'both' }
+    state.value.splitMode = map[state.value.splitMode] || 'both'
   }
 
   const setPosition = (x, y) => {
@@ -169,9 +162,8 @@ export function useAiAssistant() {
     setExpanded,
     setMiniMode,
     setWorkspace,
-    setChatOpen,
-    setWorkspaceCollapsed,
-    toggleWorkspaceCollapsed,
+    setSplitMode,
+    toggleSplitMode,
     setPosition,
     setSize,
     collapseToFab,
