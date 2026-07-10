@@ -36,7 +36,7 @@ description: EdgeX 用户手册
 
 ### 主要功能
 
-- **多协议数据采集**：支持 Modbus、BACnet、OPC UA、S7、EtherNet/IP、FINS、SNMP、IEC 104、DL/T645、Mitsubishi MC、Profinet IO、KNXnet/IP 等工业协议
+- **多协议数据采集**：支持 Modbus、BACnet、OPC UA、S7、EtherNet/IP、FINS、SNMP、IEC 104、DL/T645、Mitsubishi MC、Profinet IO、KNXnet/IP、EtherCAT 等工业协议
 - **边缘计算**：支持阈值告警、状态管理、窗口计算等边缘智能分析
 - **数据转发**：支持 MQTT、OPC UA 等多种北向数据转发方式
 - **设备管理**：支持设备的添加、编辑、删除和监控
@@ -317,7 +317,7 @@ sudo systemctl enable --now edgex   # 若未自动启动
 1. **添加通道**
    - 进入「南向采集」→「通道管理」
    - 点击「添加通道」
-   - 选择协议类型（Modbus、BACnet、OPC UA、S7、EtherNet/IP、FINS、SNMP、IEC 104、DL/T645、Mitsubishi MC、Profinet IO、KNXnet/IP 等）
+   - 选择协议类型（Modbus、BACnet、OPC UA、S7、EtherNet/IP、FINS、SNMP、IEC 104、DL/T645、Mitsubishi MC、Profinet IO、KNXnet/IP、EtherCAT 等）
    - 配置通道参数
 
 2. **添加设备**
@@ -459,6 +459,7 @@ sudo systemctl enable --now edgex   # 若未自动启动
 | DL/T645 | 5 次 | 可配置 |
 | Profinet IO | 5 次 | 可配置 |
 | KNXnet/IP | 5 次 | 可配置 |
+| EtherCAT | 5 次 | 周期可配置 |
 
 ### 设备管理
 

@@ -39,6 +39,7 @@ hero_buttons:
 - **Omron FINS TCP/UDP**: CIO/D/W/H/EM 区域批量读写
 - **SNMP v2c/v3**: Community / USM 认证，OID 批量采集
 - **IEC 60870-5-104 M1**: 总召唤、自发上报、单点遥控
+- **EtherCAT M1** (v0.0.8): PDO 周期数据交换、CoE SDO 邮箱、模拟模式、87.8% 覆盖率
 
 #### 核心特性
 - **ScanEngine 调度驱动内核**（2026-06 已落地）：10ms Tick + PriorityQueue + ExecutionLayer 三路分发
@@ -151,7 +152,7 @@ hero_buttons:
 - [已交付] ConnectionManager 公共组件发布
 - [已交付] 全驱动采集健康检测集成
 - [已交付] CGO-free CI 流水线稳定
-- [已交付] **ScanEngine 调度驱动内核**（10ms Tick + ExecutionLayer + 12 协议迁移）
+- [已交付] **ScanEngine 调度驱动内核**（10ms Tick + ExecutionLayer + 13 协议迁移）
 - [已交付] DL/T645、Mitsubishi SLMP、Profinet IO、KNXnet/IP 驱动
 - [预研中] 多节点同步通信方案设计
 

@@ -22,7 +22,7 @@ hero_buttons:
 
 ## Product Overview
 
-Industrial Edge Gateway runs at the industrial edge to bridge **OT devices ↔ IT systems** — unified southbound access, local edge processing, and flexible northbound integration in a single gateway. **12 southbound protocols, edge rules, and multi-channel northbound integration, backed by industrial-grade SLA and Soak long-stability verification.**
+Industrial Edge Gateway runs at the industrial edge to bridge **OT devices ↔ IT systems** — unified southbound access, local edge processing, and flexible northbound integration in a single gateway. **13 southbound protocols, edge rules, and multi-channel northbound integration, backed by industrial-grade SLA and Soak long-stability verification.**
 
 - **Unified access**: heterogeneous PLCs, meters, building and network devices — one gateway for collection
 - **Edge intelligence**: local rules and derived tags for control linkage and reduced uplink traffic
@@ -36,7 +36,7 @@ Full narrative: [README.en.md](https://github.com/anviod/edgex/blob/dev/README.e
 | Capability | Core Value | Key Metrics |
 | :--- | :--- | :--- |
 | **Quality assurance** | Metric gates + Soak + CI five-gate | lag P95 **<100ms** · miss deadline **=0** · 10k-tag benchmark |
-| **Southbound access** | 12 industrial protocols | device discovery · object scan · batch tag registration |
+| **Southbound access** | 13 industrial protocols | device discovery · object scan · batch tag registration |
 | **Collection scheduling** | 10ms-class kernel, in-memory shadow SoT | P99 lag **<150ms** (≤10k tags, statistical SLA) |
 | **Edge intelligence** | rules + virtual shadow derived computation | cross-device mapping · formula aggregation |
 | **Northbound integration** | cloud, SCADA, enterprise | MQTT · Sparkplug B · OPC UA · EdgeOS |
@@ -50,7 +50,7 @@ Detailed SLA, protocols, and virtual shadow: [Product Guide (中文)](../guide/�
 | [Architecture](../architecture/index.html) | ScanEngine scheduling kernel, ShadowCore, system diagrams |
 | [Product Guide (中文)](../guide/产品说明.html) | capabilities, SLA metrics, feature details |
 | [Edge Gateway Architecture (中文)](../edge/边缘网关架构设计总览.html) | component layout and data flow |
-| [Southbound Driver Matrix (EN)](../drivers/index_en.html) | 12 protocol drivers and development standards |
+| [Southbound Driver Matrix (EN)](../drivers/index_en.html) | 13 protocol drivers and development standards |
 | [Testing & Verification](../testing/index.html) | SLA benchmarks, Soak, regression, and driver test reports |
 | [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) | **2026-07-04** retest — 21/21 PASS, coverage matrix |
 | [User Manual — Installation (中文)](../guide/USER_MANUAL.html#安装指南) | deb / rpm / tar.gz install and upgrade |
@@ -73,6 +73,7 @@ Registered in `cmd/main.go`:
 | Mitsubishi SLMP | `mitsubishi-slmp` | Production |
 | Profinet IO | `profinet-io` | Implemented |
 | KNXnet/IP | `knxnet-ip` | Production |
+| EtherCAT | `ethercat` | M1 delivered |
 
 See [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) for **2026-07-04** coverage (21/21 main packages PASS under `-short`).
 

@@ -53,6 +53,7 @@ config.db → ChannelManager → ScanEngine → ExecutionLayer → Driver.ReadPo
 | 协议 | 文档 | 协议 ID | 后端 | 前端帮助 | 优先级 | 状态 |
 |------|------|---------|------|----------|--------|------|
 | IEC 60870-5-104 | [ICE104/采集驱动ICE104开发.md](./ICE104/采集驱动ICE104开发.html) | `iec60870-5-104` | ✅ | ✅ | P0 | **M1 已交付** |
+| EtherCAT | [EtherCAT/采集驱动EtherCAT规划.md](./EtherCAT/采集驱动EtherCAT规划.html) | `ethercat` | ✅ | ✅ | P0 | **M1 已交付 (v0.0.8)** |
 | Omron FINS | [Omron FINS TCP/采集驱动Omron FINS TCP开发.md](./Omron%20FINS%20TCP/采集驱动Omron%20FINS%20TCP开发.html) | `omron-fins` | ✅ | ✅ | — | 已完成 |
 | SNMP | [SNMP/SNMP采集驱动开发.md](./SNMP/SNMP采集驱动开发.html) | `snmp` | ✅ | ✅ | P1 | **v2c/v3 已交付** |
 | DL/T 645-2007 | [DLT-645-2007/DL-T-645-2007驱动开发.md](./DLT-645-2007/DL-T-645-2007驱动开发.html) | `dlt645` | 🟡 | ✅ | P2 | 模拟实现 |

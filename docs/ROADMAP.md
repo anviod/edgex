@@ -87,6 +87,7 @@ Phase 4  轻量化与可观测 ─────────────► HTTP/U
 | Siemens S7 | 连接生命周期、读写稳定性 |
 | DL/T645 | 表计通信、异常帧 |
 | BACnet | 多设备隔离、发现与读写 |
+| EtherCAT | PDO 周期稳定性、SDO 读写、从站状态切换 |
 
 ### 2.2 每协议必测场景
 
@@ -195,7 +196,7 @@ ScanEngine（EDF + CB + SLA metrics + adaptive throttle）
   → ShadowBridge/Pipeline 扇出 → WebSocket/REST/diagnostics
 ```
 
-**Q3 里程碑**（2026-07）：统一数据面 ✅ · Scan Class + 块读闭环 ✅ · SLA Phase A–D 核心 ✅ · Shadow COW/Worker Pool ✅ · diagnostics 三通路 ✅
+**Q3 里程碑**（2026-07）：统一数据面 ✅ · Scan Class + 块读闭环 ✅ · SLA Phase A–D 核心 ✅ · Shadow COW/Worker Pool ✅ · diagnostics 三通路 ✅ · EtherCAT M1 (v0.0.8) ✅
 
 与 [架构总览](edge/边缘网关架构设计总览.html) 一致：**工业级候选调度器（≤10k tag 中小规模生产）**。
 

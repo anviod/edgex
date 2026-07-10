@@ -9,8 +9,8 @@
 | 初版测试时间 | 2026-06-29 |
 | 终态复核时间 | **2026-07-05** |
 | 测试环境 | darwin 21.6.0 amd64, Go 1.22–1.26, CPU 8核, 内存 16GB |
-| 测试范围 | 功能测试、性能 benchmark、压力测试、12 协议兼容性、SLA 门控、回归复测 |
-| 测试目标 | 验证 ScanEngine 为唯一调度内核，12 种南向协议全量接入，执行层/背压/断路器/SLA 可观测均已落地；对照 [ScanEngine重构方案](ScanEngine重构方案.md) §七 验收 |
+| 测试范围 | 功能测试、性能 benchmark、压力测试、13 协议兼容性、SLA 门控、回归复测 |
+| 测试目标 | 验证 ScanEngine 为唯一调度内核，13 种南向协议全量接入，执行层/背压/断路器/SLA 可观测均已落地；对照 [ScanEngine重构方案](ScanEngine重构方案.md) §七 验收 |
 
 ## 二、测试用例执行结果
 
@@ -114,7 +114,7 @@
 
 **G007 结论**：✅ **达标** — 1000 设备 · 1s · modbus-tcp 场景下吞吐 **962 设备/秒**，零失败、零 deadline miss。
 
-### 2.5 协议兼容性（12 种南向协议）
+### 2.5 协议兼容性（13 种南向协议）
 
 | 协议类型 | 协议名称 | 执行模式 | 状态 |
 |----------|----------|----------|------|
@@ -131,7 +131,7 @@
 | 有限并发 | profinet-io | Limited | ✅ 已注册 |
 | 有限并发 | iec60870-5-104 | Limited | ✅ 已注册 |
 
-**兼容性结论**：12 种南向工业协议全部通过 `registerProtocolToScanEngine` 注册至 ScanEngine；BACnet 独立轮询 goroutine 已移除；旧调度路径零残留（Go 源码中 `deviceLoop` / `CollectionScheduler` / `DryRun` 均无匹配）。
+**兼容性结论**：13 种南向工业协议全部通过 `registerProtocolToScanEngine` 注册至 ScanEngine；BACnet 独立轮询 goroutine 已移除；旧调度路径零残留（Go 源码中 `deviceLoop` / `CollectionScheduler` / `DryRun` 均无匹配）。
 
 ### 2.6 SLA 与稳定性门控
 
@@ -390,7 +390,7 @@ case "s7", "ethernet-ip", "profinet-io", "iec60870-5-104":
 |------|----------|-----------|------|
 | 功能测试 | ScanEngine / ExecutionLayer / Backpressure / ShadowCore | 25+ 单测 PASS | ✅ |
 | 性能测试 | ≥950 设备/秒、单点 <100ms | G007 962/s + Q3 lag_p95=2.14ms | ✅ |
-| 兼容性测试 | 多协议大规模 | 12 协议注册 + 100 设备混合压测 | ✅ |
+| 兼容性测试 | 多协议大规模 | 13 协议注册 + 100 设备混合压测 | ✅ |
 | 稳定性测试 | 单设备故障 / 网络抖动 / 30 天 | CB E2E + short soak 30s | ⚠️ 长跑待做（R001/R002） |
 
 ## 八、测试结论
@@ -399,7 +399,7 @@ case "s7", "ethernet-ip", "profinet-io", "iec60870-5-104":
 
 | 维度 | 结论 |
 |------|------|
-| **架构重构（代码层）** | ✅ **已完成** — ScanEngine 为唯一调度内核，12 协议已注册，执行层/背压/断路器/SLA 可观测均已落地 |
+| **架构重构（代码层）** | ✅ **已完成** — ScanEngine 为唯一调度内核，13 协议已注册，执行层/背压/断路器/SLA 可观测均已落地 |
 | **自动化测试** | ✅ **全部通过** — core / driver / integration / short soak / G007 / Q3 benchmark 均 PASS |
 | **统一重连** | ✅ **已完成** — OPC UA / ENIP / Modbus / DLT645 等均已接入 ConnectionManager |
 | **SLA 可观测** | ✅ **代码与 short gate 通过** — diagnostics / soak / benchmark gate 均绿 |
@@ -567,4 +567,4 @@ make test-soak-short
 **初版测试完成时间**: 2026-06-29  
 **终态复核完成时间**: **2026-07-05**  
 **测试负责人**: System  
-**终态结论**: ScanEngine 重构代码层验收通过 — 12 协议全量接入、旧调度路径完全下线、自动化测试与 benchmark 全部 PASS；72h/30 天运维长跑为上线前建议项
+**终态结论**: ScanEngine 重构代码层验收通过 — 13 协议全量接入、旧调度路径完全下线、自动化测试与 benchmark 全部 PASS；72h/30 天运维长跑为上线前建议项

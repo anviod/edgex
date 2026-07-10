@@ -53,7 +53,7 @@ hero_buttons:
   <img src="../img/dataScanEngineCN.svg" width="100%" alt="EdgeX V2.0 架构 · ScanEngine引擎" />
 </div>
 
-> **EdgeX V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine（EDF + CB + SLA metrics）写入 ShadowIngress → ShadowCore 快照，再联通虚拟设备、边缘计算与北向接口。
+> **EdgeX V2.0 架构 · ScanEngine 统一调度**：13 种南向驱动经 ScanEngine（EDF + CB + SLA metrics）写入 ShadowIngress → ShadowCore 快照，再联通虚拟设备、边缘计算与北向接口。
 
 > 规范：`docs/TODO/ScanEngine重构方案.md` · 总览：`docs/edge/边缘网关架构设计总览.md`
 

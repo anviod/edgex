@@ -8,7 +8,7 @@ description: EdgeX southbound driver unit test and boundary scenario coverage re
 
 > **Date**: 2026-07-04  
 > **Environment**: macOS (darwin/amd64), Go toolchain, `CGO_ENABLED=0`  
-> **Scope**: `internal/driver/...` — twelve southbound drivers, `-short` CI-friendly
+> **Scope**: `internal/driver/...` — thirteen southbound drivers, `-short` CI-friendly
 
 [中文版](南向驱动测试报告.html)
 
@@ -39,9 +39,10 @@ CGO_ENABLED=0 go test ./internal/driver/... -short -count=1 -cover
 | `internal/driver/mitsubishi` | PASS | **70.7%** | SLMP + mock PLC |
 | `internal/driver/knxnetip` | PASS | **77.2%** | KNXnet/IP simulator |
 | `internal/driver/profinetio` | PASS | 55.9% | simulation + PNIO codec |
-| **`internal/driver/...` overall** | **PASS** | — | 21/21 packages (`-short`) |
+| `internal/driver/ethercat` | PASS | **87.8%** | PDO/SDO + simulator master |
+| **`internal/driver/...` overall** | **PASS** | — | 22/22 packages (`-short`) |
 
-**2026-07-04**: All southbound driver packages PASS under `-short` (retest 21/21, ~3.3min wall; log: [`_run_logs/2026-07-04_driver_retest.txt`](_run_logs/2026-07-04_driver_retest.txt)). Coverage aligned with initial run; OPC UA **47.9%** (+0.3pp) and EtherNet/IP **39.5%** (−0.9pp) are normal variance. Added/extended `coverage_test.go` across drivers; fixed flaky `modbus/reconnect_test.go` single-flight timing.
+**2026-07-04**: All southbound driver packages PASS under `-short` (retest 22/22, ~3.3min wall; log: [`_run_logs/2026-07-04_driver_retest.txt`](_run_logs/2026-07-04_driver_retest.txt)). Coverage aligned with initial run; OPC UA **47.9%** (+0.3pp) and EtherNet/IP **39.5%** (−0.9pp) are normal variance. Added/extended `coverage_test.go` across drivers; fixed flaky `modbus/reconnect_test.go` single-flight timing.
 
 ### Coverage Before → After
 
@@ -60,6 +61,7 @@ CGO_ENABLED=0 go test ./internal/driver/... -short -count=1 -cover
 | Mitsubishi | 70.7% | **70.7%** | ✅ |
 | KNXnet/IP | 77.2% | **77.2%** | ✅ |
 | Profinet IO | 55.1% | **55.9%** | ❌ |
+| **EtherCAT** | — | **87.8%** | ✅ |
 
 Drivers below 70% are limited by real TCP/session paths (OPC UA, ENIP, PNIO RPC, ICE104 `readLoop`, etc.). Mock and simulation paths are covered; see [test/manual/](../../test/manual/README.md) for live validation.
 
@@ -81,6 +83,7 @@ Drivers below 70% are limited by real TCP/session paths (OPC UA, ENIP, PNIO RPC,
 | Mitsubishi SLMP | `mitsubishi-slmp` | In-tree MC 3E |
 | Profinet IO | `profinet-io` | In-tree PNIO RPC |
 | KNXnet/IP | `knxnet-ip` | In-tree KNXnet/IP |
+| EtherCAT | `ethercat` | `github.com/anviod/EtherCAT` |
 
 ---
 

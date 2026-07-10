@@ -27,7 +27,7 @@
   <img src="../img/dataScanEngineCN.svg" width="100%" alt="EdgeX V2.0 架构 · ScanEngine引擎" />
 </div>
 
-> **EdgeX V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine 写入影子设备实时快照，再联通虚拟设备、边缘计算与北向接口。
+> **EdgeX V2.0 架构 · ScanEngine 统一调度**：13 种南向驱动经 ScanEngine 写入影子设备实时快照，再联通虚拟设备、边缘计算与北向接口。
 
 ### 1.1 当前状态 vs 目标状态
 

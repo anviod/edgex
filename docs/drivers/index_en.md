@@ -1,7 +1,7 @@
 ---
 layout: section-index
 title: Device Drivers (English)
-description: EdgeX southbound collection drivers — Modbus, BACnet, OPC UA, S7, EtherNet/IP, FINS, SNMP, IEC 104, DL/T645, Mitsubishi MC, Profinet IO, KNXnet/IP
+description: EdgeX Southbound Driver Documentation — Modbus, BACnet, OPC UA, S7, EtherNet/IP, FINS, SNMP, IEC 104, DL/T645, Mitsubishi MC, Profinet IO, KNXnet/IP, EtherCAT
 hero_eyebrow: Southbound Drivers
 hero_title: Device Drivers
 hero_lead: Design docs, test reports, and optimization notes for EdgeX southbound drivers — Modbus, BACnet, OPC UA, S7, EtherNet/IP, Omron FINS, SNMP, IEC 104, DL/T645, Mitsubishi MC, Profinet IO, KNXnet/IP, and more.
@@ -32,9 +32,10 @@ hero_buttons:
 | **DL/T645-2007** | `dlt645` | Production | Yes | Yes | — | Yes | **76.5%** ✅ |
 | **Mitsubishi SLMP** | `mitsubishi-slmp` | Production | Yes | Yes | — | Yes | **70.7%** ✅ |
 | **Profinet IO** | `profinet-io` | Production | Yes | Yes | — | Yes | **55.9%** |
-| **KNXnet/IP** | `knxnet-ip` | Production | Yes | Yes | Gateway discovery | Yes | **77.2%** ✅ |
+| **KNXnet/IP** | `knxnet-ip` | Production Ready | Yes | Yes | Gateway Discovery | Yes | **77.2%** ✅ |
+| **EtherCAT** | `ethercat` | M1 Delivered | PDO + SDO | PDO + SDO | Yes | Yes | **87.8%** ✅ |
 
-> All drivers above are registered via blank imports in `cmd/main.go`. Coverage from [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) (**2026-07-04**). ConnectionManager: **87.4%** · 21/21 main packages PASS.
+> ConnectionManager (shared component): **87.4%** · Main driver package 21/21 PASS (2026-07-04)
 
 ---
 
