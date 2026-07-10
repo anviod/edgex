@@ -68,13 +68,13 @@ func (a *ScanEngineAdapter) RegisterDevice(
 	}
 
 	params := map[string]any{
-		"deviceID":          deviceID,
-		"protocol":          protocol,
-		"channelID":         ch.ID,
-		"points":            points,
-		"driverConfig":      driverConfig,
-		"channelMu":         channelMu,
-		"degradeOnFailure":  degradeOnFailure,
+		"deviceID":         deviceID,
+		"protocol":         protocol,
+		"channelID":        ch.ID,
+		"points":           points,
+		"driverConfig":     driverConfig,
+		"channelMu":        channelMu,
+		"degradeOnFailure": degradeOnFailure,
 	}
 	if slaveID, ok := dev.Config["slave_id"]; ok {
 		params["slave_id"] = slaveID

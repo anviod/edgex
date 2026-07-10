@@ -14,15 +14,15 @@ import (
 )
 
 const (
-	prodGateMemDriftMaxPct       = 5.0
+	prodGateMemDriftMaxPct = 5.0
 	// prodGateMemDriftAbsFloorMB: sub-threshold heap growth on the ~2MB short-soak
 	// baseline is Go allocator/GC timing noise, not a leak (see CI flake at 117KB/5.47%).
-	prodGateMemDriftAbsFloorMB   = 0.125
-	prodGateSoakLagP95Ms         = 200.0
-	prodGatePLCLagP95Ms          = 200.0
-	prodGateFailRateMax          = 0.001
-	prodGateSoakFailRateMax      = 0.005
-	prodGateScanMissDeadlineMax  = core.SLAScanMissDeadlineMax
+	prodGateMemDriftAbsFloorMB  = 0.125
+	prodGateSoakLagP95Ms        = 200.0
+	prodGatePLCLagP95Ms         = 200.0
+	prodGateFailRateMax         = 0.001
+	prodGateSoakFailRateMax     = 0.005
+	prodGateScanMissDeadlineMax = core.SLAScanMissDeadlineMax
 )
 
 type productionGate struct {

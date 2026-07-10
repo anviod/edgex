@@ -21,23 +21,23 @@ type SnapshotManager struct {
 
 // Snapshot represents a saved configuration snapshot
 type Snapshot struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	NodeID      string                 `json:"node_id"`
-	NodeName    string                 `json:"node_name"`
-	CapturedAt  time.Time              `json:"captured_at"`
-	Size        int64                  `json:"size"`
-	Description string                 `json:"description"`
-	Tags        []string               `json:"tags"`
-	Data        *NodeSnapshot          `json:"data"`
-	FilePath    string                 `json:"file_path,omitempty"`
+	ID          string        `json:"id"`
+	Name        string        `json:"name"`
+	NodeID      string        `json:"node_id"`
+	NodeName    string        `json:"node_name"`
+	CapturedAt  time.Time     `json:"captured_at"`
+	Size        int64         `json:"size"`
+	Description string        `json:"description"`
+	Tags        []string      `json:"tags"`
+	Data        *NodeSnapshot `json:"data"`
+	FilePath    string        `json:"file_path,omitempty"`
 }
 
 // NewSnapshotManager creates a new SnapshotManager
 func NewSnapshotManager(syncDir string, syncMgr *SyncManager) (*SnapshotManager, error) {
 	// Ensure syncDir is a directory path
 	snapshotDir := filepath.Join(syncDir, "snapshots")
-	
+
 	mgr := &SnapshotManager{
 		syncDir:     snapshotDir,
 		snapshots:   make(map[string]*Snapshot),

@@ -96,9 +96,9 @@ func TestScanPointSlicePool(t *testing.T) {
 
 func TestCircuitStateString(t *testing.T) {
 	cases := map[CircuitState]string{
-		CircuitClosed:   "Closed",
-		CircuitOpen:     "Open",
-		CircuitHalfOpen: "HalfOpen",
+		CircuitClosed:    "Closed",
+		CircuitOpen:      "Open",
+		CircuitHalfOpen:  "HalfOpen",
 		CircuitState(99): "Unknown",
 	}
 	for state, want := range cases {
@@ -305,7 +305,7 @@ func TestScanEngineAdapter_RegisterDevice(t *testing.T) {
 			{ID: "p2", ScanClass: "slow"},
 		},
 		Config:           map[string]any{"slave_id": 1, "degrade_on_failure": false},
-		DegradeOnFailure:   &degradeFalse,
+		DegradeOnFailure: &degradeFalse,
 	}
 
 	err := adapter.RegisterDevice("dev1", "modbus-tcp", &stubChannelDriver{}, &sync.Mutex{}, ch, dev, time.Second, 5)

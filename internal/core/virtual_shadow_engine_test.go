@@ -236,11 +236,11 @@ func TestVirtualShadowEngine_MapModeOpcUaStringNodeWithDots(t *testing.T) {
 
 func TestParsePointRef(t *testing.T) {
 	tests := []struct {
-		ref         string
-		wantCh      string
-		wantDev     string
-		wantPt      string
-		wantOK      bool
+		ref     string
+		wantCh  string
+		wantDev string
+		wantPt  string
+		wantOK  bool
 	}{
 		{"mzp8f02lusxvk0da.modbus-slave-1.hr_0", "mzp8f02lusxvk0da", "modbus-slave-1", "hr_0", true},
 		{"u3rellnz1jgz0ljg.3n39qx886h1qaxst.ns=3;i=1001", "u3rellnz1jgz0ljg", "3n39qx886h1qaxst", "ns=3;i=1001", true},

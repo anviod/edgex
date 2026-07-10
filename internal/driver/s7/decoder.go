@@ -11,12 +11,12 @@ import (
 
 // S7Area S7地址区域信息
 type S7Area struct {
-	Area      int // S7AreaDB, S7AreaMK, etc.
-	DBNumber  int // 数据块号（仅DB区域有效）
-	ByteOff   int // 字节偏移
-	BitOff    int // 位偏移（仅位操作有效）
-	WordLen   int // 字长：S7WLBit, S7WLByte, S7WLWord, S7WLDWord, S7WLReal
-	IsBit     bool // 是否为位操作
+	Area     int  // S7AreaDB, S7AreaMK, etc.
+	DBNumber int  // 数据块号（仅DB区域有效）
+	ByteOff  int  // 字节偏移
+	BitOff   int  // 位偏移（仅位操作有效）
+	WordLen  int  // 字长：S7WLBit, S7WLByte, S7WLWord, S7WLDWord, S7WLReal
+	IsBit    bool // 是否为位操作
 }
 
 // S7Decoder S7地址解码器
@@ -52,20 +52,21 @@ var (
 
 // ParseAddress 解析S7地址字符串
 // 支持格式：
-//   DB1.DBD0    -> DB双字 (float32/int32/uint32)
-//   DB1.DBW2    -> DB字 (int16/uint16)
-//   DB1.DBX0.1  -> DB位 (bool)
-//   DB1.DBB4    -> DB字节 (int8/uint8)
-//   M0.0        -> M区位 (bool)
-//   MD0         -> M区双字
-//   MW0         -> M区字
-//   MB0         -> M区字节
-//   I0.0        -> 输入位 (bool)
-//   ID0         -> 输入双字
-//   Q0.0        -> 输出位 (bool)
-//   QD0         -> 输出双字
-//   T0          -> 定时器
-//   C0          -> 计数器
+//
+//	DB1.DBD0    -> DB双字 (float32/int32/uint32)
+//	DB1.DBW2    -> DB字 (int16/uint16)
+//	DB1.DBX0.1  -> DB位 (bool)
+//	DB1.DBB4    -> DB字节 (int8/uint8)
+//	M0.0        -> M区位 (bool)
+//	MD0         -> M区双字
+//	MW0         -> M区字
+//	MB0         -> M区字节
+//	I0.0        -> 输入位 (bool)
+//	ID0         -> 输入双字
+//	Q0.0        -> 输出位 (bool)
+//	QD0         -> 输出双字
+//	T0          -> 定时器
+//	C0          -> 计数器
 func (d *S7Decoder) ParseAddress(addr string) (*S7Area, error) {
 	addr = strings.TrimSpace(strings.ToUpper(addr))
 

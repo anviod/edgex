@@ -776,7 +776,7 @@ func TestWritePointDataTypes(t *testing.T) {
 	devID := 3003
 	d.mu.Lock()
 	d.deviceContexts[devID] = &DeviceContext{
-		Device: btypes.Device{DeviceID: devID, MaxApdu: 1476},
+		Device:    btypes.Device{DeviceID: devID, MaxApdu: 1476},
 		Scheduler: NewPointScheduler(d.client, btypes.Device{DeviceID: devID}, 10, 10*time.Millisecond, 1*time.Second, false),
 	}
 	d.mu.Unlock()
@@ -909,8 +909,8 @@ func TestCheckRecoveryFailurePath(t *testing.T) {
 	devID := 9001
 	d.mu.Lock()
 	d.deviceContexts[devID] = &DeviceContext{
-		State: DeviceStateIsolated,
-		Config: DeviceConfig{IP: "192.168.1.99", Port: 47808},
+		State:         DeviceStateIsolated,
+		Config:        DeviceConfig{IP: "192.168.1.99", Port: 47808},
 		LastDiscovery: time.Now().Add(-2 * time.Minute),
 	}
 	d.mu.Unlock()
@@ -1079,4 +1079,3 @@ func TestDriverHealthAndMetricsWithMock(t *testing.T) {
 		t.Fatal("invalid health")
 	}
 }
-

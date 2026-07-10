@@ -35,19 +35,19 @@ type VirtualShadowLister interface {
 
 // Server is the OPC UA Server implementation
 type Server struct {
-	config    model.OPCUAConfig
-	sb        model.SouthboundManager
-	virtualShadows VirtualShadowLister
-	srv       *server.Server
-	mu        sync.RWMutex
-	lifecycleMu sync.Mutex
-	nodeMap   map[string]*server.VariableNode
+	config           model.OPCUAConfig
+	sb               model.SouthboundManager
+	virtualShadows   VirtualShadowLister
+	srv              *server.Server
+	mu               sync.RWMutex
+	lifecycleMu      sync.Mutex
+	nodeMap          map[string]*server.VariableNode
 	virtualDeviceIDs map[string]struct{}
-	gatewayID string
-	stats     Stats
-	ctx       context.Context
-	cancel    context.CancelFunc
-	writeHistory []WriteHistoryItem
+	gatewayID        string
+	stats            Stats
+	ctx              context.Context
+	cancel           context.CancelFunc
+	writeHistory     []WriteHistoryItem
 
 	// Node ID mapping system for compact node IDs
 	idMapper *NodeIDMapper
@@ -783,33 +783,33 @@ func (s *Server) buildAddressSpace() error {
 				}
 
 				// Create variable node with STRING node ID (ns=2;s=DeviceID.PointID)
-			// Use original point name as BrowseName for readability
-			// 预加载影子设备实时快照作为初始值，避免客户端首次连接看到零值
-			initialVal := s.getZeroValue(p.DataType)
-			if sp, err := s.sb.GetShadowPoint(ch.ID, dev.ID, p.ID); err == nil && sp != nil {
-				initialVal = convertToType(sp.Value, p.DataType)
-			}
-			vNode := createVar(pointsNodeID, stringID, p.Name, initialVal, dataTypeID, accessLevel, writeHandler)
-
-			// 设置 ReadHandler：第三方客户端 Read/Subscribe 时从影子设备实时快照读取
-			cid, did, pid := ch.ID, dev.ID, p.ID
-			pType := p.DataType
-			vNode.SetReadValueHandler(func(sess *server.Session, req ua.ReadValueID) ua.DataValue {
-				if sp, err := s.sb.GetShadowPoint(cid, did, pid); err == nil && sp != nil {
-					status := uint32(0) // Good
-					if sp.Quality != "good" && sp.Quality != "Good" {
-						status = 0x80000000 // Bad
-					}
-					return ua.DataValue{
-						Value:           convertToType(sp.Value, pType),
-						StatusCode:      ua.StatusCode(status),
-						SourceTimestamp: sp.CollectedAt,
-						ServerTimestamp: time.Now(),
-					}
+				// Use original point name as BrowseName for readability
+				// 预加载影子设备实时快照作为初始值，避免客户端首次连接看到零值
+				initialVal := s.getZeroValue(p.DataType)
+				if sp, err := s.sb.GetShadowPoint(ch.ID, dev.ID, p.ID); err == nil && sp != nil {
+					initialVal = convertToType(sp.Value, p.DataType)
 				}
-				// 影子设备无数据时回退到节点存储值
-				return vNode.Value()
-			})
+				vNode := createVar(pointsNodeID, stringID, p.Name, initialVal, dataTypeID, accessLevel, writeHandler)
+
+				// 设置 ReadHandler：第三方客户端 Read/Subscribe 时从影子设备实时快照读取
+				cid, did, pid := ch.ID, dev.ID, p.ID
+				pType := p.DataType
+				vNode.SetReadValueHandler(func(sess *server.Session, req ua.ReadValueID) ua.DataValue {
+					if sp, err := s.sb.GetShadowPoint(cid, did, pid); err == nil && sp != nil {
+						status := uint32(0) // Good
+						if sp.Quality != "good" && sp.Quality != "Good" {
+							status = 0x80000000 // Bad
+						}
+						return ua.DataValue{
+							Value:           convertToType(sp.Value, pType),
+							StatusCode:      ua.StatusCode(status),
+							SourceTimestamp: sp.CollectedAt,
+							ServerTimestamp: time.Now(),
+						}
+					}
+					// 影子设备无数据时回退到节点存储值
+					return vNode.Value()
+				})
 
 				s.mu.Lock()
 				s.nodeMap[pKey] = vNode

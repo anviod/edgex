@@ -16,13 +16,13 @@ import (
 type ICE104Transport struct {
 	cfg deviceConfig
 
-	conn              net.Conn
-	connected         atomic.Bool
-	connectTime       time.Time
+	conn               net.Conn
+	connected          atomic.Bool
+	connectTime        time.Time
 	lastDisconnectTime time.Time
-	reconnectCount    atomic.Int32
-	localAddr         string
-	remoteAddr        string
+	reconnectCount     atomic.Int32
+	localAddr          string
+	remoteAddr         string
 
 	sendSeq atomic.Uint32
 	recvSeq atomic.Uint32

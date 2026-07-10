@@ -409,12 +409,12 @@ func (m *ScanEngineMetrics) ChannelSnapshot(channelID string) map[string]any {
 	if cm == nil {
 		return map[string]any{
 			"scan_lag_p95_ms":           float64(0),
-			"scan_drift_avg_ms":           float64(0),
-			"scan_drift_avg_ms_window":    float64(0),
-			"scan_miss_deadline_total":    uint64(0),
-			"scan_miss_deadline_window":   uint64(0),
-			"scan_lag_samples":            uint64(0),
-			"scan_drift_samples":          uint64(0),
+			"scan_drift_avg_ms":         float64(0),
+			"scan_drift_avg_ms_window":  float64(0),
+			"scan_miss_deadline_total":  uint64(0),
+			"scan_miss_deadline_window": uint64(0),
+			"scan_lag_samples":          uint64(0),
+			"scan_drift_samples":        uint64(0),
 		}
 	}
 	return cm.snapshotFields()

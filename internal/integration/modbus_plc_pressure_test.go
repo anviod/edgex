@@ -23,9 +23,9 @@ one hung slave, P95 lag ≤ 200ms, healthy slave isolation, metrics snapshot JSO
 */
 
 const (
-	plcPressureSlaveCount    = 12
+	plcPressureSlaveCount     = 12
 	plcPressurePointsPerSlave = 100
-	plcPressureHungSlave     = 12
+	plcPressureHungSlave      = 12
 )
 
 func makePLCHoldingPoints(deviceID string, count int) []model.Point {

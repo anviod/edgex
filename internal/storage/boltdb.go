@@ -429,13 +429,13 @@ type BucketStats struct {
 
 var (
 	configBucketMap = map[string]bool{
-		"ConfigVersion": true,
-		"Channels":      true,
-		"Devices":       true,
-		"Northbound":    true,
-		"EdgeRules":     true,
-		"System":        true,
-		"Users":         true,
+		"ConfigVersion":  true,
+		"Channels":       true,
+		"Devices":        true,
+		"Northbound":     true,
+		"EdgeRules":      true,
+		"System":         true,
+		"Users":          true,
 		"Server":         true,
 		"VirtualShadows": true,
 		"ai_copilot":     true,

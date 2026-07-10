@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/anviod/edgex/internal/model"
-	"github.com/thinkgos/go-iecp5/asdu"
-	"github.com/thinkgos/go-iecp5/cs104"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thinkgos/go-iecp5/asdu"
+	"github.com/thinkgos/go-iecp5/cs104"
 )
 
 const goIecp5CommonAddr asdu.CommonAddr = 1
@@ -45,8 +45,10 @@ func (goIecp5EdgexHandler) ClockSyncHandler(asdu.Connect, *asdu.ASDU, time.Time)
 func (goIecp5EdgexHandler) ResetProcessHandler(asdu.Connect, *asdu.ASDU, asdu.QualifierOfResetProcessCmd) error {
 	return nil
 }
-func (goIecp5EdgexHandler) DelayAcquisitionHandler(asdu.Connect, *asdu.ASDU, uint16) error { return nil }
-func (goIecp5EdgexHandler) ASDUHandler(asdu.Connect, *asdu.ASDU) error                     { return nil }
+func (goIecp5EdgexHandler) DelayAcquisitionHandler(asdu.Connect, *asdu.ASDU, uint16) error {
+	return nil
+}
+func (goIecp5EdgexHandler) ASDUHandler(asdu.Connect, *asdu.ASDU) error { return nil }
 
 func startGoIecp5Server(t *testing.T) (host string, port int, stop func()) {
 	t.Helper()

@@ -11,18 +11,18 @@ import (
 )
 
 const (
-	BucketConfigVersion   = "ConfigVersion"
-	BucketChannels        = "Channels"
-	BucketDevices         = "Devices"
-	BucketNorthbound      = "Northbound"
-	BucketEdgeRules       = "EdgeRules"
-	BucketSystem          = "System"
-	BucketUsers           = "Users"
-	BucketServer          = "Server"
-	BucketVirtualShadows  = "VirtualShadows"
-	BucketAICopilot       = "ai_copilot"
-	ConfigVersionKey      = "version"
-	ConfigVersionValue    = "1.0"
+	BucketConfigVersion  = "ConfigVersion"
+	BucketChannels       = "Channels"
+	BucketDevices        = "Devices"
+	BucketNorthbound     = "Northbound"
+	BucketEdgeRules      = "EdgeRules"
+	BucketSystem         = "System"
+	BucketUsers          = "Users"
+	BucketServer         = "Server"
+	BucketVirtualShadows = "VirtualShadows"
+	BucketAICopilot      = "ai_copilot"
+	ConfigVersionKey     = "version"
+	ConfigVersionValue   = "1.0"
 )
 
 type ConfigStore struct {
@@ -534,13 +534,13 @@ func (cs *ConfigStore) SaveAllConfig(server model.ServerConfig, channels []model
 }
 
 type ConfigExport struct {
-	Server     model.ServerConfig     `json:"server"`
-	Channels   []model.Channel        `json:"channels"`
-	Devices    map[string]model.Device `json:"devices"`
-	Northbound model.NorthboundConfig `json:"northbound"`
-	EdgeRules  []model.EdgeRule       `json:"edge_rules"`
-	System     model.SystemConfig     `json:"system"`
-	Users      []model.UserConfig     `json:"users"`
+	Server         model.ServerConfig                `json:"server"`
+	Channels       []model.Channel                   `json:"channels"`
+	Devices        map[string]model.Device           `json:"devices"`
+	Northbound     model.NorthboundConfig            `json:"northbound"`
+	EdgeRules      []model.EdgeRule                  `json:"edge_rules"`
+	System         model.SystemConfig                `json:"system"`
+	Users          []model.UserConfig                `json:"users"`
 	VirtualShadows []model.VirtualShadowDeviceConfig `json:"virtual_shadows"`
 }
 

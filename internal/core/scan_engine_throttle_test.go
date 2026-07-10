@@ -14,12 +14,12 @@ type variableLatencyDriver struct {
 	latency time.Duration
 }
 
-func (d variableLatencyDriver) Init(_ model.DriverConfig) error             { return nil }
-func (d variableLatencyDriver) Connect(_ context.Context) error           { return nil }
-func (d variableLatencyDriver) Disconnect() error                         { return nil }
-func (d variableLatencyDriver) Health() driver.HealthStatus                 { return driver.HealthStatusGood }
-func (d variableLatencyDriver) SetDeviceConfig(_ map[string]any) error      { return nil }
-func (d variableLatencyDriver) SetSlaveID(_ uint8) error                    { return nil }
+func (d variableLatencyDriver) Init(_ model.DriverConfig) error        { return nil }
+func (d variableLatencyDriver) Connect(_ context.Context) error        { return nil }
+func (d variableLatencyDriver) Disconnect() error                      { return nil }
+func (d variableLatencyDriver) Health() driver.HealthStatus            { return driver.HealthStatusGood }
+func (d variableLatencyDriver) SetDeviceConfig(_ map[string]any) error { return nil }
+func (d variableLatencyDriver) SetSlaveID(_ uint8) error               { return nil }
 func (d variableLatencyDriver) WritePoint(_ context.Context, _ model.Point, _ any) error {
 	return nil
 }

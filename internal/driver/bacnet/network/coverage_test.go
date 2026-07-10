@@ -20,11 +20,11 @@ type mockBACnetClient struct {
 	running      bool
 }
 
-func (m *mockBACnetClient) Close() error                         { return nil }
-func (m *mockBACnetClient) IsRunning() bool                      { return m.running }
-func (m *mockBACnetClient) ClientRun()                           { m.running = true }
-func (m *mockBACnetClient) WhatIsNetworkNumber() []*btypes.Address { return nil }
-func (m *mockBACnetClient) IAm(_ btypes.Address, _ btypes.IAm) error { return nil }
+func (m *mockBACnetClient) Close() error                              { return nil }
+func (m *mockBACnetClient) IsRunning() bool                           { return m.running }
+func (m *mockBACnetClient) ClientRun()                                { m.running = true }
+func (m *mockBACnetClient) WhatIsNetworkNumber() []*btypes.Address    { return nil }
+func (m *mockBACnetClient) IAm(_ btypes.Address, _ btypes.IAm) error  { return nil }
 func (m *mockBACnetClient) WhoIsRouterToNetwork() *([]btypes.Address) { return nil }
 func (m *mockBACnetClient) Objects(dev btypes.Device) (btypes.Device, error) {
 	return dev, nil

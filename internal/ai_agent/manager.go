@@ -151,7 +151,7 @@ func (a *Agent) Confirm(taskID string, req aitypes.ConfirmRequest) (*aitypes.Tas
 	t.UpdatedAt = now
 	t.AppliedResult = map[string]any{
 		"mode": req.ApplyMode, "channel_id": req.ChannelID, "device_id": req.DeviceID,
-		"message": "Human Confirm 完成（本地模式：未写入 config.db，对接 import API 后生效）",
+		"message":  "Human Confirm 完成（本地模式：未写入 config.db，对接 import API 后生效）",
 		"exported": true,
 	}
 	return cloneTask(t), nil

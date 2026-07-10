@@ -3,7 +3,7 @@ package model
 // AICopilotSettings is persisted in config.db → ai_copilot bucket (key: settings).
 type AICopilotSettings struct {
 	DeploymentMode string `json:"deployment_mode"` // local | remote | cloud
-	Provider       string `json:"provider"`      // edgex-local | edgex-center | openai | anthropic | azure-openai | deepseek | qwen | ernie | zhipu | moonshot | custom
+	Provider       string `json:"provider"`        // edgex-local | edgex-center | openai | anthropic | azure-openai | deepseek | qwen | ernie | zhipu | moonshot | custom
 
 	// AI Model Center (Mode A/B — remote)
 	GrpcEndpoint string `json:"grpc_endpoint"`
@@ -27,25 +27,25 @@ type AICopilotSettings struct {
 // AICopilotSettingsPublic masks secrets for GET /api/ai/settings.
 type AICopilotSettingsPublic struct {
 	AICopilotSettings
-	APIKeySet     bool `json:"api_key_set"`
-	PasswordSet   bool `json:"password_set"`
-	APIKey        string `json:"api_key,omitempty"`
-	Password      string `json:"password,omitempty"`
+	APIKeySet   bool   `json:"api_key_set"`
+	PasswordSet bool   `json:"password_set"`
+	APIKey      string `json:"api_key,omitempty"`
+	Password    string `json:"password,omitempty"`
 }
 
 func DefaultAICopilotSettings() AICopilotSettings {
 	return AICopilotSettings{
-		DeploymentMode: "local",
-		Provider:       "edgex-local",
-		GrpcEndpoint:   "127.0.0.1:50051",
-		BaseURL:        "",
-		AuthType:       "bearer",
-		APIKeyHeader:   "X-API-Key",
+		DeploymentMode:  "local",
+		Provider:        "edgex-local",
+		GrpcEndpoint:    "127.0.0.1:50051",
+		BaseURL:         "",
+		AuthType:        "bearer",
+		APIKeyHeader:    "X-API-Key",
 		AzureAPIVersion: "2024-02-15-preview",
-		Model:          "",
-		EnableCloud:    false,
-		TokensLimit:    50000,
-		TasksLimit:     100,
+		Model:           "",
+		EnableCloud:     false,
+		TokensLimit:     50000,
+		TasksLimit:      100,
 	}
 }
 

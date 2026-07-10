@@ -75,10 +75,10 @@ func (r *MockRunner) GenerateDeliverables(skill aitypes.Skill, protocolID string
 			ID: l.id, Name: l.name, Address: addr,
 			RegisterType: registerTypeForProtocol(protocolID),
 			FunctionCode: functionCodeForProtocol(protocolID),
-			Datatype: l.datatype, ByteOrder: byteOrderForProtocol(protocolID), Scale: l.scale,
+			Datatype:     l.datatype, ByteOrder: byteOrderForProtocol(protocolID), Scale: l.scale,
 			Unit: l.unit, ReadWrite: "R", ScanClass: "normal", SlaveID: 1,
 			Confidence: conf,
-			Evidence: evidenceLine(skill, protocolID, i, rawHexSamples[i], l),
+			Evidence:   evidenceLine(skill, protocolID, i, rawHexSamples[i], l),
 		})
 		cases = append(cases, aitypes.ValidationCaseEntry{
 			PointID: l.id, ExpectedValue: l.value, TolerancePct: 0.5,
@@ -101,9 +101,9 @@ func (r *MockRunner) GenerateDeliverables(skill aitypes.Skill, protocolID string
 
 	return &aitypes.Deliverables{
 		ProtocolModel: &aitypes.ProtocolModel{
-			ProtocolID: protocolID,
-			Confidence: protocolConfidence(isDocParse),
-			FramePattern: framePattern,
+			ProtocolID:    protocolID,
+			Confidence:    protocolConfidence(isDocParse),
+			FramePattern:  framePattern,
 			AddressModel:  addressModelForProtocol(protocolID),
 			DatatypeRules: datatypeRulesForProtocol(protocolID),
 		},
@@ -113,7 +113,7 @@ func (r *MockRunner) GenerateDeliverables(skill aitypes.Skill, protocolID string
 		},
 		DriverParameter: &aitypes.DriverParameter{
 			ProtocolID: protocolID, Name: channelName,
-			Connection: conn,
+			Connection:   conn,
 			ScanDefaults: map[string]any{"scan_class": "normal", "report_mode": "on_change"},
 		},
 		ValidationCase: &aitypes.ValidationCase{Cases: cases},

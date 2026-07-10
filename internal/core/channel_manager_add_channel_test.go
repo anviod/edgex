@@ -26,7 +26,7 @@ func (m *addChannelMockDriver) ReadPoints(_ context.Context, _ []model.Point) (m
 func (m *addChannelMockDriver) WritePoint(_ context.Context, _ model.Point, _ any) error { return nil }
 func (m *addChannelMockDriver) Health() driver.HealthStatus                              { return driver.HealthStatusGood }
 func (m *addChannelMockDriver) SetSlaveID(_ uint8) error                                 { return nil }
-func (m *addChannelMockDriver) SetDeviceConfig(_ map[string]any) error                     { return nil }
+func (m *addChannelMockDriver) SetDeviceConfig(_ map[string]any) error                   { return nil }
 func (m *addChannelMockDriver) GetConnectionMetrics() (int64, int64, string, string, time.Time) {
 	return 0, 0, "", "", time.Time{}
 }

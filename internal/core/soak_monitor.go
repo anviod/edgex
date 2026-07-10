@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	SoakSampleInterval           = 15 * time.Second
-	SoakMaxTrendSamples          = 480
-	SoakBacklogExcessThreshold   = 10 // max allowed backlog above registered task count
-	SoakPointSuccessRateGate     = 0.99
+	SoakSampleInterval         = 15 * time.Second
+	SoakMaxTrendSamples        = 480
+	SoakBacklogExcessThreshold = 10 // max allowed backlog above registered task count
+	SoakPointSuccessRateGate   = 0.99
 )
 
 type soakTrendSample struct {
@@ -24,13 +24,13 @@ type soakTrendSample struct {
 }
 
 type soakReleaseGateItem struct {
-	ID       string  `json:"id"`
-	Label    string  `json:"label"`
-	Passed   bool    `json:"passed"`
-	Detail   string  `json:"detail"`
-	Value    any     `json:"value,omitempty"`
-	Limit    any     `json:"limit,omitempty"`
-	Warning  bool    `json:"warning,omitempty"`
+	ID      string `json:"id"`
+	Label   string `json:"label"`
+	Passed  bool   `json:"passed"`
+	Detail  string `json:"detail"`
+	Value   any    `json:"value,omitempty"`
+	Limit   any    `json:"limit,omitempty"`
+	Warning bool   `json:"warning,omitempty"`
 }
 
 type soakScanClassRow struct {
@@ -68,12 +68,12 @@ type SoakMonitor struct {
 	startedAt time.Time
 	samples   []soakTrendSample
 
-	maxBacklog             int
-	maxExcessBacklog       int
-	maxCircuitBreakerOpen  int
-	everThrottled          bool
-	minPointSuccessRate    float64
-	minPointSuccessLabel   string
+	maxBacklog            int
+	maxExcessBacklog      int
+	maxCircuitBreakerOpen int
+	everThrottled         bool
+	minPointSuccessRate   float64
+	minPointSuccessLabel  string
 
 	stopCh chan struct{}
 	wg     sync.WaitGroup
@@ -81,10 +81,10 @@ type SoakMonitor struct {
 
 func NewSoakMonitor(cm *ChannelManager) *SoakMonitor {
 	return &SoakMonitor{
-		cm:                    cm,
-		minPointSuccessRate:   1.0,
-		minPointSuccessLabel:  "",
-		stopCh:                make(chan struct{}),
+		cm:                   cm,
+		minPointSuccessRate:  1.0,
+		minPointSuccessLabel: "",
+		stopCh:               make(chan struct{}),
 	}
 }
 
@@ -214,15 +214,15 @@ func (sm *SoakMonitor) Snapshot() map[string]any {
 			"items":          gates,
 		},
 		"snapshot": map[string]any{
-			"task_count":             instant.TaskCount,
-			"total_backlog":          instant.TotalBacklog,
-			"circuit_breaker_open":   instant.CircuitBreakerOpen,
-			"throttled":              instant.Throttled,
-			"throttle_status":        instant.ThrottleStatus,
-			"throttle_factor":        instant.ThrottleFactor,
-			"global_queue":           instant.GlobalQueue,
-			"global_queue_limit":     instant.GlobalQueueLimit,
-			"scan_class_late":        instant.ScanClassLate,
+			"task_count":           instant.TaskCount,
+			"total_backlog":        instant.TotalBacklog,
+			"circuit_breaker_open": instant.CircuitBreakerOpen,
+			"throttled":            instant.Throttled,
+			"throttle_status":      instant.ThrottleStatus,
+			"throttle_factor":      instant.ThrottleFactor,
+			"global_queue":         instant.GlobalQueue,
+			"global_queue_limit":   instant.GlobalQueueLimit,
+			"scan_class_late":      instant.ScanClassLate,
 		},
 		"session_summary": map[string]any{
 			"max_backlog":              sm.maxBacklog,
@@ -366,9 +366,9 @@ func (sm *SoakMonitor) buildReleaseGateItems(instant soakInstantMetrics) []soakR
 
 func (cm *ChannelManager) collectSoakInstantMetrics() soakInstantMetrics {
 	out := soakInstantMetrics{
-		ThrottleStatus:       "正常",
-		MinPointSuccessRate:  1.0,
-		GlobalQueueLimit:     10000,
+		ThrottleStatus:      "正常",
+		MinPointSuccessRate: 1.0,
+		GlobalQueueLimit:    10000,
 	}
 	if cm == nil {
 		return out

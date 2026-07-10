@@ -7,15 +7,15 @@ import (
 
 // UsageSnapshot is returned by GET /api/ai/quota.
 type UsageSnapshot struct {
-	PeriodStart   time.Time `json:"period_start"`
-	PeriodEnd     time.Time `json:"period_end"`
-	TokensUsed    int       `json:"tokens_used"`
-	TokensLimit   int       `json:"tokens_limit"`
-	TasksToday    int       `json:"tasks_today"`
-	TasksLimit    int       `json:"tasks_limit"`
-	LastTaskID    string    `json:"last_task_id,omitempty"`
-	Mode          string    `json:"mode"`
-	AuditEntries  []AuditEntry `json:"audit_entries,omitempty"`
+	PeriodStart  time.Time    `json:"period_start"`
+	PeriodEnd    time.Time    `json:"period_end"`
+	TokensUsed   int          `json:"tokens_used"`
+	TokensLimit  int          `json:"tokens_limit"`
+	TasksToday   int          `json:"tasks_today"`
+	TasksLimit   int          `json:"tasks_limit"`
+	LastTaskID   string       `json:"last_task_id,omitempty"`
+	Mode         string       `json:"mode"`
+	AuditEntries []AuditEntry `json:"audit_entries,omitempty"`
 }
 
 // AuditEntry records token consumption for G6 auditing.

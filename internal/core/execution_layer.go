@@ -39,24 +39,24 @@ type DeviceIOProfile struct {
 type IOProfileProvider func(deviceID string) DeviceIOProfile
 
 type ExecutionLayer struct {
-	serialManager *SerialQueueManager
-	backpressure  *BackpressureController
-	workerPool    *WorkerPool
-	gapOptimizer       *GapOptimizer
-	pointDegradation   *PointDegradationManager
-	ioProfileProvider  IOProfileProvider
-	protocolRegistry   map[string]ProtocolType
-	driverRegistry     map[string]driver.Driver
-	circuitBreaker     *DriverCircuitBreaker
-	mu                 sync.RWMutex
-	stopCh             chan struct{}
+	serialManager     *SerialQueueManager
+	backpressure      *BackpressureController
+	workerPool        *WorkerPool
+	gapOptimizer      *GapOptimizer
+	pointDegradation  *PointDegradationManager
+	ioProfileProvider IOProfileProvider
+	protocolRegistry  map[string]ProtocolType
+	driverRegistry    map[string]driver.Driver
+	circuitBreaker    *DriverCircuitBreaker
+	mu                sync.RWMutex
+	stopCh            chan struct{}
 }
 
 func NewExecutionLayer() *ExecutionLayer {
 	return &ExecutionLayer{
-		serialManager: NewSerialQueueManager(),
-		backpressure:  NewBackpressureController(512, 1000),
-		workerPool:    NewWorkerPool(32),
+		serialManager:    NewSerialQueueManager(),
+		backpressure:     NewBackpressureController(512, 1000),
+		workerPool:       NewWorkerPool(32),
 		gapOptimizer:     NewGapOptimizer(),
 		protocolRegistry: make(map[string]ProtocolType),
 		driverRegistry:   make(map[string]driver.Driver),

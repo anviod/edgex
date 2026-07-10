@@ -10,10 +10,10 @@ import (
 
 func TestNewConnectionManager(t *testing.T) {
 	tests := []struct {
-		name               string
-		driverName         string
-		maxRetries         int
-		maxFailCount       int
+		name         string
+		driverName   string
+		maxRetries   int
+		maxFailCount int
 	}{
 		{"S7-200Smart", "s7-200smart", 8, 3},
 		{"S7-1200", "s7-1200", 64, 5},

@@ -16,8 +16,8 @@ type execStubDriver struct {
 }
 
 func (s *execStubDriver) Init(_ model.DriverConfig) error { return nil }
-func (s *execStubDriver) Connect(_ context.Context) error   { return nil }
-func (s *execStubDriver) Disconnect() error                 { return nil }
+func (s *execStubDriver) Connect(_ context.Context) error { return nil }
+func (s *execStubDriver) Disconnect() error               { return nil }
 func (s *execStubDriver) ReadPoints(_ context.Context, pts []model.Point) (map[string]model.Value, error) {
 	if s.readErr != nil {
 		return nil, s.readErr
@@ -34,7 +34,7 @@ func (s *execStubDriver) ReadPoints(_ context.Context, pts []model.Point) (map[s
 func (s *execStubDriver) WritePoint(_ context.Context, _ model.Point, _ any) error { return nil }
 func (s *execStubDriver) Health() driver.HealthStatus                              { return driver.HealthStatusGood }
 func (s *execStubDriver) SetSlaveID(_ uint8) error                                 { return nil }
-func (s *execStubDriver) SetDeviceConfig(_ map[string]any) error                     { return nil }
+func (s *execStubDriver) SetDeviceConfig(_ map[string]any) error                   { return nil }
 func (s *execStubDriver) GetConnectionMetrics() (int64, int64, string, string, time.Time) {
 	return 0, 0, "", "", time.Time{}
 }

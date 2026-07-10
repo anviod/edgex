@@ -11,13 +11,13 @@ import (
 )
 
 type SNMPTransport struct {
-	cfg               deviceConfig
-	client            *gosnmp.GoSNMP
-	connected         atomic.Bool
-	connectTime       time.Time
+	cfg                deviceConfig
+	client             *gosnmp.GoSNMP
+	connected          atomic.Bool
+	connectTime        time.Time
 	lastDisconnectTime time.Time
-	reconnectCount    atomic.Int32
-	localAddr         string
+	reconnectCount     atomic.Int32
+	localAddr          string
 
 	getHook  func(oids []string, community string) ([]gosnmp.SnmpPDU, error)
 	setHook  func(oid string, value interface{}, asnType gosnmp.Asn1BER, community string) error

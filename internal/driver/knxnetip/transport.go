@@ -47,7 +47,7 @@ type KNXTransport struct {
 	cacheMu sync.RWMutex
 	cache   map[uint16][]byte
 
-	connMgr         *driver.ConnectionManager
+	connMgr *driver.ConnectionManager
 }
 
 func NewKNXTransport(cfg map[string]any) *KNXTransport {

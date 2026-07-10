@@ -57,7 +57,6 @@ type q3BenchmarkResult struct {
 	GCPauseMaxMs        float64
 }
 
-
 func q3BenchmarkStabilizeHeap() {
 	for i := 0; i < 3; i++ {
 		runtime.GC()

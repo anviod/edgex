@@ -18,10 +18,10 @@ import (
 // ──────────────────────────────────────────────
 
 const (
-	bktCluster       = "cluster"        // 根 bucket
-	bktNodes         = "nodes"          // cluster/nodes/<nodeID>/...
-	bktDeviceIndex    = "device_index"   // cluster/device_index/<deviceID> → 跨节点索引
-	bktMeta           = "meta"           // cluster/meta/<key> → 集群元数据
+	bktCluster     = "cluster"      // 根 bucket
+	bktNodes       = "nodes"        // cluster/nodes/<nodeID>/...
+	bktDeviceIndex = "device_index" // cluster/device_index/<deviceID> → 跨节点索引
+	bktMeta        = "meta"         // cluster/meta/<key> → 集群元数据
 )
 
 // ──────────────────────────────────────────────
@@ -63,12 +63,12 @@ type ClusterStore struct {
 
 // NodeMeta 存储节点的基础元信息
 type NodeMeta struct {
-	NodeID     string    `json:"node_id"`
-	NodeName   string    `json:"node_name"`
-	CapturedAt time.Time `json:"captured_at"`
+	NodeID     string      `json:"node_id"`
+	NodeName   string      `json:"node_name"`
+	CapturedAt time.Time   `json:"captured_at"`
 	Summary    TreeSummary `json:"summary"`
-	Status     string    `json:"status"` // online, offline, syncing
-	Version    uint64    `json:"version"`
+	Status     string      `json:"status"` // online, offline, syncing
+	Version    uint64      `json:"version"`
 }
 
 // DeviceIndexEntry 记录某个设备出现在哪些节点上
@@ -89,7 +89,7 @@ type ClusterSummary struct {
 
 // DeviceSnapshot 按设备ID检索的跨节点快照
 type DeviceSnapshot struct {
-	DeviceID string              `json:"device_id"`
+	DeviceID string                 `json:"device_id"`
 	Nodes    map[string]*TreeDevice `json:"nodes"` // nodeID → device config
 }
 

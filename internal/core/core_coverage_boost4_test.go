@@ -15,10 +15,10 @@ import (
 
 func TestProtocolAdapters_AdjustValidateDefaults(t *testing.T) {
 	cases := []struct {
-		name     string
-		adapter  ProtocolAdapter
-		wantKey  string
-		wantVal  any
+		name    string
+		adapter ProtocolAdapter
+		wantKey string
+		wantVal any
 	}{
 		{"modbus", NewModbusProtocolAdapter(), "batch_size", 100},
 		{"tcp", NewTCPProtocolAdapter(), "buffer_size", 4096},
@@ -192,7 +192,7 @@ func TestScanTask_UpdateNextRun(t *testing.T) {
 	before := time.Now()
 	task.UpdateNextRun(2 * time.Second)
 	next := task.NextRun
-	if next.Before(before.Add(1500*time.Millisecond)) {
+	if next.Before(before.Add(1500 * time.Millisecond)) {
 		t.Fatalf("NextRun too early: %v", next)
 	}
 	if task.LastScheduledAt.IsZero() {

@@ -64,10 +64,10 @@ type DriverCircuitBreaker struct {
 type CircuitBreakerEventHandler func(deviceKey, eventType, message string)
 
 type circuitBreakerEvent struct {
-	fn              CircuitBreakerEventHandler
-	deviceKey       string
-	eventType       string
-	message         string
+	fn        CircuitBreakerEventHandler
+	deviceKey string
+	eventType string
+	message   string
 }
 
 func (e circuitBreakerEvent) emit() {

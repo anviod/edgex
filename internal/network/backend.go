@@ -50,9 +50,9 @@ type PersistBackend interface {
 }
 
 var (
-	commandExistsFn     = commandExists
-	systemdActiveFn     = systemdServiceActive
-	netplanConfigExists = hasNetplanConfig
+	commandExistsFn      = commandExists
+	systemdActiveFn      = systemdServiceActive
+	netplanConfigExists  = hasNetplanConfig
 	ifupdownConfigExists = hasIfupdownConfig
 )
 

@@ -46,7 +46,7 @@ func generalSimpleDatabtypes(t *testing.T, generic bool) func(t *testing.T) {
 		var large uint32 = 0xFFFFFFF0
 
 		str := "my pizza pizza"
-		objID := btypes.ObjectID{93, 42}
+		objID := btypes.ObjectID{Type: 93, Instance: 42}
 
 		if generic {
 			values := []interface{}{real, double, boolean, !boolean, small, medium, wtf, large, str, objID}

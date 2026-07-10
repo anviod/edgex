@@ -50,7 +50,6 @@ func ensureConnectingMinBackoff(state ConnState, wait time.Duration) time.Durati
 // owned exclusively by ConnectionManager.EnsureConnected.
 type ConnectFunc func(ctx context.Context) error
 
-
 type ConnState int
 
 const (

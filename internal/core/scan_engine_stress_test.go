@@ -24,9 +24,9 @@ func (m *mockDriver) ReadPoints(ctx context.Context, points []model.Point) (map[
 	return values, nil
 }
 func (m *mockDriver) WritePoint(ctx context.Context, point model.Point, value any) error { return nil }
-func (m *mockDriver) Health() driver.HealthStatus { return driver.HealthStatusGood }
-func (m *mockDriver) SetSlaveID(slaveID uint8) error { return nil }
-func (m *mockDriver) SetDeviceConfig(config map[string]any) error { return nil }
+func (m *mockDriver) Health() driver.HealthStatus                                        { return driver.HealthStatusGood }
+func (m *mockDriver) SetSlaveID(slaveID uint8) error                                     { return nil }
+func (m *mockDriver) SetDeviceConfig(config map[string]any) error                        { return nil }
 func (m *mockDriver) GetConnectionMetrics() (connectionSeconds int64, reconnectCount int64, localAddr string, remoteAddr string, lastDisconnectTime time.Time) {
 	return 0, 0, "", "", time.Time{}
 }

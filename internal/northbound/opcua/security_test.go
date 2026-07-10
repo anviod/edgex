@@ -78,10 +78,10 @@ func TestGetEndpointsMultiplePolicies(t *testing.T) {
 	}
 
 	want := map[string]struct{}{
-		"Basic256Sha256|SignAndEncrypt": {},
-		"Basic256Sha256|Sign":          {},
+		"Basic256Sha256|SignAndEncrypt":        {},
+		"Basic256Sha256|Sign":                  {},
 		"Aes128_Sha256_RsaOaep|SignAndEncrypt": {},
-		"None|None": {},
+		"None|None":                            {},
 	}
 	for _, ep := range res.Endpoints {
 		policy := strings.TrimPrefix(ep.SecurityPolicyURI, "http://opcfoundation.org/UA/SecurityPolicy#")

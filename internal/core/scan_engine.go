@@ -27,7 +27,7 @@ type ScanEngineConfig struct {
 type ScanTaskStatus int
 
 const (
-	ScanTaskStatusIdle     ScanTaskStatus = iota
+	ScanTaskStatusIdle ScanTaskStatus = iota
 	ScanTaskStatusRunning
 	ScanTaskStatusDegraded
 	ScanTaskStatusStopped
@@ -162,28 +162,28 @@ type CollectFinalizeFunc func(deviceID string, result *ExecuteResult)
 const antiStarvationWarnInterval = 60 * time.Second
 
 type ScanEngine struct {
-	tasks           map[string]*ScanTask
-	priorityQueue   *PriorityQueue
-	executionLayer  *ExecutionLayer
-	resourceCtrl    *ResourceController
-	shadowCore      *ShadowCore
-	shadowIngress   *ShadowIngress
-	pointDegrade    *PointDegradationManager
-	collectFinalize CollectFinalizeFunc
-	metrics         *ScanEngineMetrics
-	adaptiveThrottle *AdaptiveThrottle
-	gcMonitor        *GCMonitor
-	feedbackAgg        *FeedbackAggregator
-	feedbackPending    map[string]*ScanTask
-	feedbackPendingMu  sync.Mutex
-	config             ScanEngineConfig
-	ticker          *time.Ticker
-	running         bool
-	stopCh          chan struct{}
-	wg              sync.WaitGroup
-	mu              sync.RWMutex
-	taskIDCounter   int
-	overdueWarnAt   map[string]time.Time
+	tasks             map[string]*ScanTask
+	priorityQueue     *PriorityQueue
+	executionLayer    *ExecutionLayer
+	resourceCtrl      *ResourceController
+	shadowCore        *ShadowCore
+	shadowIngress     *ShadowIngress
+	pointDegrade      *PointDegradationManager
+	collectFinalize   CollectFinalizeFunc
+	metrics           *ScanEngineMetrics
+	adaptiveThrottle  *AdaptiveThrottle
+	gcMonitor         *GCMonitor
+	feedbackAgg       *FeedbackAggregator
+	feedbackPending   map[string]*ScanTask
+	feedbackPendingMu sync.Mutex
+	config            ScanEngineConfig
+	ticker            *time.Ticker
+	running           bool
+	stopCh            chan struct{}
+	wg                sync.WaitGroup
+	mu                sync.RWMutex
+	taskIDCounter     int
+	overdueWarnAt     map[string]time.Time
 }
 
 func NewScanEngine(config ScanEngineConfig) *ScanEngine {
@@ -215,7 +215,7 @@ func NewScanEngine(config ScanEngineConfig) *ScanEngine {
 		feedbackPending: make(map[string]*ScanTask),
 		overdueWarnAt:   make(map[string]time.Time),
 		priorityQueue:   &PriorityQueue{},
-		executionLayer: NewExecutionLayer(),
+		executionLayer:  NewExecutionLayer(),
 		resourceCtrl: NewResourceController(ResourceLimits{
 			GoroutineLimit:  config.GoroutineLimit,
 			ConnectionLimit: config.ConnectionLimit,
@@ -225,8 +225,8 @@ func NewScanEngine(config ScanEngineConfig) *ScanEngine {
 		metrics: &ScanEngineMetrics{
 			lagSamples: make([]int64, 0, scanLagSampleCap),
 		},
-		config:     config,
-		stopCh:     make(chan struct{}),
+		config: config,
+		stopCh: make(chan struct{}),
 	}
 
 	se.adaptiveThrottle = NewAdaptiveThrottle(se.metrics)

@@ -34,20 +34,20 @@ type g007BenchmarkConfig struct {
 }
 
 type g007BenchmarkResult struct {
-	Config              g007BenchmarkConfig
-	Duration            time.Duration
-	WarmupDuration      time.Duration
-	TasksExecuted       uint64
-	TasksSucceeded      uint64
-	TasksFailed         uint64
-	ScanLagP95Ms        float64
-	ScanMissDeadline    uint64
-	TaskOverdueTotal    uint64
-	StarvationRescues   uint64
+	Config               g007BenchmarkConfig
+	Duration             time.Duration
+	WarmupDuration       time.Duration
+	TasksExecuted        uint64
+	TasksSucceeded       uint64
+	TasksFailed          uint64
+	ScanLagP95Ms         float64
+	ScanMissDeadline     uint64
+	TaskOverdueTotal     uint64
+	StarvationRescues    uint64
 	ThroughputDevicesSec float64
-	BackpressureRejects uint64
-	GoroutinesStart     int
-	GoroutinesEnd       int
+	BackpressureRejects  uint64
+	GoroutinesStart      int
+	GoroutinesEnd        int
 }
 
 func g007BenchmarkDuration() time.Duration {

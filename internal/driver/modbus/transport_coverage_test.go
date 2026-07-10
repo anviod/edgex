@@ -16,9 +16,9 @@ func newHookedTransport() *ModbusTransport {
 	tr := NewModbusTransport(model.DriverConfig{
 		ChannelID: "hook",
 		Config: map[string]any{
-			"url":           "127.0.0.1:502",
-			"timeout":       500,
-			"max_retries":   1,
+			"url":            "127.0.0.1:502",
+			"timeout":        500,
+			"max_retries":    1,
 			"max_fail_count": 2,
 		},
 	})
@@ -240,9 +240,9 @@ type mockMetricsRecorder struct {
 }
 
 func (m *mockMetricsRecorder) RecordRequest(string, bool, time.Duration, string) { m.requests++ }
-func (m *mockMetricsRecorder) RecordReconnect(string)                             {}
-func (m *mockMetricsRecorder) RecordConnectionStart(string)                       {}
-func (m *mockMetricsRecorder) RecordError(string, string, string, string)         {}
+func (m *mockMetricsRecorder) RecordReconnect(string)                            {}
+func (m *mockMetricsRecorder) RecordConnectionStart(string)                      {}
+func (m *mockMetricsRecorder) RecordError(string, string, string, string)        {}
 func (m *mockMetricsRecorder) RecordPointDebug(string, string, []byte, any, string) {
 }
 func (m *mockMetricsRecorder) RecordCycle(string, bool) {}

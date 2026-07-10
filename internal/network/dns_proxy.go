@@ -27,12 +27,12 @@ type DNSProxy struct {
 
 // HostnameDNSProxyStatus reports DNS proxy state for the UI/API.
 type HostnameDNSProxyStatus struct {
-	Enabled bool     `json:"enabled"`
-	Active  bool     `json:"active"`
-	Hostname string  `json:"hostname"`
-	IPs     []string `json:"ips,omitempty"`
-	Error   string   `json:"error,omitempty"`
-	Note    string   `json:"note,omitempty"`
+	Enabled  bool     `json:"enabled"`
+	Active   bool     `json:"active"`
+	Hostname string   `json:"hostname"`
+	IPs      []string `json:"ips,omitempty"`
+	Error    string   `json:"error,omitempty"`
+	Note     string   `json:"note,omitempty"`
 }
 
 // NewDNSProxy creates a new DNSProxy.

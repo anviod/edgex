@@ -70,8 +70,8 @@ func TestEdgeComputeManager_ThresholdRuleEvaluation(t *testing.T) {
 	em.LoadRules([]model.EdgeRule{{
 		ID: "rule-threshold", Name: "Threshold", Type: "threshold", Enable: true,
 		TriggerMode: "always", Condition: "t1 > 50",
-		Sources:     []model.RuleSource{{Alias: "t1", ChannelID: "ch1", DeviceID: "dev1", PointID: "p1"}},
-		Actions:     []model.RuleAction{{Type: "log", Config: map[string]any{"message": "high"}}},
+		Sources: []model.RuleSource{{Alias: "t1", ChannelID: "ch1", DeviceID: "dev1", PointID: "p1"}},
+		Actions: []model.RuleAction{{Type: "log", Config: map[string]any{"message": "high"}}},
 	}})
 
 	em.handleValue(model.Value{ChannelID: "ch1", DeviceID: "dev1", PointID: "p1", Value: 60, TS: time.Now()})
@@ -93,9 +93,9 @@ func TestEdgeComputeManager_WindowRuleEvaluation(t *testing.T) {
 	em.LoadRules([]model.EdgeRule{{
 		ID: "rule-window", Name: "Window", Type: "window", Enable: true,
 		TriggerMode: "always", Condition: "value > 5",
-		Sources:     []model.RuleSource{{Alias: "t1", ChannelID: "ch1", DeviceID: "dev1", PointID: "p1"}},
-		Window:      &model.WindowConfig{Size: "10", AggrFunc: "avg"},
-		Actions:     []model.RuleAction{{Type: "log"}},
+		Sources: []model.RuleSource{{Alias: "t1", ChannelID: "ch1", DeviceID: "dev1", PointID: "p1"}},
+		Window:  &model.WindowConfig{Size: "10", AggrFunc: "avg"},
+		Actions: []model.RuleAction{{Type: "log"}},
 	}})
 
 	for i := 0; i < 3; i++ {

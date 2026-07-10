@@ -125,14 +125,14 @@ func TestScanObjectsWithWalkHook(t *testing.T) {
 func TestBuildClientV3Coverage(t *testing.T) {
 	t.Run("valid authPriv", func(t *testing.T) {
 		tr := NewSNMPTransport(map[string]any{
-			"snmpVersion":    "v3",
-			"securityName":   "admin",
-			"authProtocol":   "SHA",
-			"authPassword":   "authpass123",
-			"privProtocol":   "AES",
-			"privPassword":   "privpass123",
-			"securityLevel":  "authPriv",
-			"ip":             "127.0.0.1",
+			"snmpVersion":   "v3",
+			"securityName":  "admin",
+			"authProtocol":  "SHA",
+			"authPassword":  "authpass123",
+			"privProtocol":  "AES",
+			"privPassword":  "privpass123",
+			"securityLevel": "authPriv",
+			"ip":            "127.0.0.1",
 		})
 		client, err := tr.buildClient()
 		require.NoError(t, err)
@@ -141,13 +141,13 @@ func TestBuildClientV3Coverage(t *testing.T) {
 
 	t.Run("invalid v3 config", func(t *testing.T) {
 		tr := NewSNMPTransport(map[string]any{
-			"snmpVersion":    "v3",
-			"securityName":   "admin",
-			"securityLevel":  "authPriv",
-			"authProtocol":   "INVALID",
-			"authPassword":   "authpass123",
-			"privPassword":   "privpass123",
-			"ip":             "127.0.0.1",
+			"snmpVersion":   "v3",
+			"securityName":  "admin",
+			"securityLevel": "authPriv",
+			"authProtocol":  "INVALID",
+			"authPassword":  "authpass123",
+			"privPassword":  "privpass123",
+			"ip":            "127.0.0.1",
 		})
 		_, err := tr.buildClient()
 		require.Error(t, err)
@@ -192,12 +192,12 @@ func TestTransportGetBulkAndNextHooks(t *testing.T) {
 
 func TestParseDeviceConfigCoverage(t *testing.T) {
 	cfg := parseDeviceConfig(map[string]any{
-		"ip":        "10.0.0.5",
-		"port":      162,
-		"timeout":   3000,
-		"retries":   2,
-		"version":   "v2c",
-		"community": "public",
+		"ip":          "10.0.0.5",
+		"port":        162,
+		"timeout":     3000,
+		"retries":     2,
+		"version":     "v2c",
+		"community":   "public",
 		"maxBulkSize": 25,
 	})
 	assert.Equal(t, "10.0.0.5", cfg.TargetIP)

@@ -57,7 +57,7 @@ func enrichLogFields(ent zapcore.Entry, fields []zapcore.Field) []zapcore.Field 
 }
 
 type logFieldState struct {
-	hasCategory bool
+	hasCategory  bool
 	hasChannelID bool
 	hasDeviceID  bool
 	channelID    string

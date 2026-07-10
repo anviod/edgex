@@ -49,10 +49,10 @@ func NewWorkerPool(workerCount int) *WorkerPool {
 
 func NewWorker(id int, taskQueue chan func(), stopCh chan struct{}, wg *sync.WaitGroup) *Worker {
 	w := &Worker{
-	 id:        id,
-	 taskQueue: taskQueue,
-	 stopCh:    stopCh,
-	 wg:        wg,
+		id:        id,
+		taskQueue: taskQueue,
+		stopCh:    stopCh,
+		wg:        wg,
 	}
 
 	w.wg.Add(1)

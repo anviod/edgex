@@ -63,13 +63,13 @@ type EdgeComputeManager struct {
 	events      *edgeEventRecorder
 
 	// Metrics
-	statsMu         sync.RWMutex
-	rulesTriggered  int64
-	rulesExecuted   int64
-	rulesDropped    int64
-	rulesCoalesced  int64
-	rulesDebounced  int64
-	batchWindow     time.Duration
+	statsMu        sync.RWMutex
+	rulesTriggered int64
+	rulesExecuted  int64
+	rulesDropped   int64
+	rulesCoalesced int64
+	rulesDebounced int64
+	batchWindow    time.Duration
 
 	stopOnce sync.Once
 

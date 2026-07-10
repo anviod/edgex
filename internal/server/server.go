@@ -18,9 +18,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/anviod/edgex/internal/ai_agent"
 	"github.com/anviod/edgex/internal/config"
 	"github.com/anviod/edgex/internal/core"
-	"github.com/anviod/edgex/internal/ai_agent"
 	"github.com/anviod/edgex/internal/model"
 	"github.com/anviod/edgex/internal/northbound/opcua"
 	"github.com/anviod/edgex/internal/pkg/logger"
@@ -52,37 +52,37 @@ type DashboardSummary struct {
 }
 
 type Server struct {
-	app                 *fiber.App
-	cm                  *core.ChannelManager
-	storage             *storage.Storage
-	shadowCore          *core.ShadowCore
-	virtualShadow       *core.VirtualShadowEngine
-	vsm                 *core.VirtualShadowManager
-	hub                 *Hub
-	pipeline            *core.DataPipeline
-	nbm                 *core.NorthboundManager
-	ecm                 *core.EdgeComputeManager
-	sm                  *core.SystemManager
-	dsm                 *core.DeviceStorageManager
-	cfgManager          *config.ConfigManager
-	syncManager         *syncpkg.SyncManager
-	logBroadcaster      *logger.LogBroadcaster
-	randomWriteMu       sync.Mutex
-	randomWriteStop     chan struct{}
-	randomWriteRunning  bool
-	startTime           time.Time
-	logger              *zap.Logger
-	listenAddr          string
-	serverMu            sync.Mutex
-	portSwitching       bool
-	aiAgent             *ai_agent.Agent
-	aiSettingsMem       *model.AICopilotSettings
-	storageAttachHook   func(*storage.Storage)
-	runtimeStartHook    func()
-	shadowSubscribeOnce sync.Once
-	runtimeCompactStop      chan struct{}
-	runtimeCompactOnce      sync.Once
-	runtimeCompactStopOnce  sync.Once
+	app                    *fiber.App
+	cm                     *core.ChannelManager
+	storage                *storage.Storage
+	shadowCore             *core.ShadowCore
+	virtualShadow          *core.VirtualShadowEngine
+	vsm                    *core.VirtualShadowManager
+	hub                    *Hub
+	pipeline               *core.DataPipeline
+	nbm                    *core.NorthboundManager
+	ecm                    *core.EdgeComputeManager
+	sm                     *core.SystemManager
+	dsm                    *core.DeviceStorageManager
+	cfgManager             *config.ConfigManager
+	syncManager            *syncpkg.SyncManager
+	logBroadcaster         *logger.LogBroadcaster
+	randomWriteMu          sync.Mutex
+	randomWriteStop        chan struct{}
+	randomWriteRunning     bool
+	startTime              time.Time
+	logger                 *zap.Logger
+	listenAddr             string
+	serverMu               sync.Mutex
+	portSwitching          bool
+	aiAgent                *ai_agent.Agent
+	aiSettingsMem          *model.AICopilotSettings
+	storageAttachHook      func(*storage.Storage)
+	runtimeStartHook       func()
+	shadowSubscribeOnce    sync.Once
+	runtimeCompactStop     chan struct{}
+	runtimeCompactOnce     sync.Once
+	runtimeCompactStopOnce sync.Once
 }
 
 func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeline, nbm *core.NorthboundManager, ecm *core.EdgeComputeManager, sm *core.SystemManager, dsm *core.DeviceStorageManager, cfgManager *config.ConfigManager, syncManager *syncpkg.SyncManager, logBroadcaster *logger.LogBroadcaster) *Server {
@@ -475,7 +475,7 @@ func (s *Server) setupRoutes() {
 	api.Post("/northbound/opcua/:id/batch-write", s.batchWriteOPCUA)
 	api.Get("/northbound/opcua/:id/write-history", s.getOPCUAWriteHistory)
 	api.Get("/northbound/mqtt/:id/stats", s.getMQTTStats)
-	api.Post("/northbound/sparkplugb", s.upsertSparkplugBConfig)         // Sparkplug B Upsert
+	api.Post("/northbound/sparkplugb", s.upsertSparkplugBConfig)        // Sparkplug B Upsert
 	api.Delete("/northbound/sparkplug_b/:id", s.deleteSparkplugBConfig) // Sparkplug B Delete
 
 	// edgeOS(MQTT)
@@ -3463,13 +3463,13 @@ func (s *Server) importConfigDBArchive(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"status":           "success",
-		"message":          message,
-		"force_overwrite":  result.ForceOverwrite,
-		"preserved_users":  result.PreservedUsers,
-		"preserved_port":   result.PreservedPort,
-		"device_count":     result.DeviceCount,
-		"channel_count":    result.ChannelCount,
+		"status":          "success",
+		"message":         message,
+		"force_overwrite": result.ForceOverwrite,
+		"preserved_users": result.PreservedUsers,
+		"preserved_port":  result.PreservedPort,
+		"device_count":    result.DeviceCount,
+		"channel_count":   result.ChannelCount,
 	})
 }
 
@@ -3481,10 +3481,10 @@ func (s *Server) pullRemoteConfig(c *fiber.Ctx) error {
 	}
 
 	var req struct {
-		Host      string `json:"host"`
-		Port      int    `json:"port"`
-		Token     string `json:"token"`
-		UseHTTPS  bool   `json:"use_https"`
+		Host     string `json:"host"`
+		Port     int    `json:"port"`
+		Token    string `json:"token"`
+		UseHTTPS bool   `json:"use_https"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid request body: " + err.Error()})

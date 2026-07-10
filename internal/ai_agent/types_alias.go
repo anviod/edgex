@@ -12,7 +12,7 @@ type (
 	DriverParameter       = aitypes.DriverParameter
 	FrameEvidence         = aitypes.FrameEvidence
 	ValidationCaseEntry   = aitypes.ValidationCaseEntry
-	ValidationCase         = aitypes.ValidationCase
+	ValidationCase        = aitypes.ValidationCase
 	Deliverables          = aitypes.Deliverables
 	StageProgress         = aitypes.StageProgress
 	ValidationFieldResult = aitypes.ValidationFieldResult

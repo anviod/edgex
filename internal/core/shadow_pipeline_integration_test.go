@@ -99,7 +99,7 @@ func (c *atomicCounter) next() float64 {
 	return float64(c.n)
 }
 
-func (d *scanPipelineMockDriver) Init(cfg model.DriverConfig) error             { return nil }
+func (d *scanPipelineMockDriver) Init(cfg model.DriverConfig) error           { return nil }
 func (d *scanPipelineMockDriver) Connect(ctx context.Context) error           { return nil }
 func (d *scanPipelineMockDriver) Disconnect() error                           { return nil }
 func (d *scanPipelineMockDriver) Health() driver.HealthStatus                 { return driver.HealthStatusGood }

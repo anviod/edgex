@@ -3,7 +3,6 @@ package storage
 import (
 	"fmt"
 	"testing"
-
 )
 
 func TestPruneOldest(t *testing.T) {
@@ -16,7 +15,7 @@ func TestPruneOldest(t *testing.T) {
 	defer s.Close()
 
 	bucket := "test_bucket"
-	
+
 	// Insert 5 items
 	for i := 0; i < 5; i++ {
 		key := fmt.Sprintf("key_%d", i)

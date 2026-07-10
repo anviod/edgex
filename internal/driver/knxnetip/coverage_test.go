@@ -210,7 +210,7 @@ func TestGetCachedAndReadFallback(t *testing.T) {
 		ChannelID: "cache-test",
 		Config: map[string]any{
 			"ip":      host,
-			"port":      mustAtoi(portStr),
+			"port":    mustAtoi(portStr),
 			"timeout": 2000,
 		},
 	}))

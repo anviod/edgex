@@ -14,19 +14,19 @@ const (
 )
 
 type transportConfig struct {
-	mode            connMode
-	ip              string
-	port            int
-	serialPort      string
-	baudRate        int
-	dataBits        int
-	stopBits        int
-	parity          string
-	timeout         time.Duration
-	sendInterval    time.Duration
-	maxRetries      int
-	maxFailCount    int32
-	preambleBytes   int
+	mode          connMode
+	ip            string
+	port          int
+	serialPort    string
+	baudRate      int
+	dataBits      int
+	stopBits      int
+	parity        string
+	timeout       time.Duration
+	sendInterval  time.Duration
+	maxRetries    int
+	maxFailCount  int32
+	preambleBytes int
 }
 
 func parseTransportConfig(cfg map[string]any) transportConfig {

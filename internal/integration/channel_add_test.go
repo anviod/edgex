@@ -100,10 +100,10 @@ func TestAddChannel_ModbusAutoPoints(t *testing.T) {
 }
 
 type protocolFixture struct {
-	protocol    string
-	config      map[string]any
-	device      model.Device
-	point       model.Point
+	protocol string
+	config   map[string]any
+	device   model.Device
+	point    model.Point
 }
 
 func protocolFixtures() []protocolFixture {

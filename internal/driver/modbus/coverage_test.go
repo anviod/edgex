@@ -112,11 +112,11 @@ func TestCoverage_DriverLifecycle(t *testing.T) {
 		ChannelID: "ch-modbus",
 		Protocol:  "modbus-tcp",
 		Config: map[string]any{
-			"url":        "127.0.0.1:502",
-			"slave_id":   1,
-			"byteOrder":  "ABCD",
-			"batchSize":  10,
-			"timeout":    500,
+			"url":         "127.0.0.1:502",
+			"slave_id":    1,
+			"byteOrder":   "ABCD",
+			"batchSize":   10,
+			"timeout":     500,
 			"max_retries": 2,
 		},
 	}
@@ -130,9 +130,9 @@ func TestCoverage_DriverLifecycle(t *testing.T) {
 
 	assert.NoError(t, d.SetSlaveID(2))
 	assert.NoError(t, d.SetDeviceConfig(map[string]any{
-		"slave_id":      3,
-		"batchSize":     20,
-		"max_gap":       5,
+		"slave_id":        3,
+		"batchSize":       20,
+		"max_gap":         5,
 		"group_threshold": 8,
 	}))
 
@@ -205,9 +205,9 @@ func TestCoverage_ParseAddressRanges(t *testing.T) {
 	dec := NewPointDecoder("ABCD", 0, 0)
 
 	cases := []struct {
-		addr     string
-		regType  model.RegisterType
-		offset   uint16
+		addr    string
+		regType model.RegisterType
+		offset  uint16
 	}{
 		{"40001", model.RegHolding, 0},
 		{"30001", model.RegInput, 0},
@@ -384,12 +384,12 @@ func TestCoverage_SetDeviceConfigPaths(t *testing.T) {
 	}))
 
 	require.NoError(t, d.SetDeviceConfig(map[string]any{
-		"slave_id":          5,
-		"start_address":     10,
-		"address_base":      1,
-		"batchSize":         30,
-		"max_gap":           4,
-		"group_threshold":   6,
+		"slave_id":            5,
+		"start_address":       10,
+		"address_base":        1,
+		"batchSize":           30,
+		"max_gap":             4,
+		"group_threshold":     6,
 		"instructionInterval": 20,
 	}))
 	assert.Equal(t, uint8(5), d.slaveID)
@@ -559,14 +559,14 @@ func TestCoverage_ModbusInitAllOptions(t *testing.T) {
 		ChannelID: "full-init",
 		Protocol:  "modbus-tcp",
 		Config: map[string]any{
-			"url":             "tcp://127.0.0.1:502",
-			"slave_id":        1,
-			"byteOrder":       "DCBA",
-			"batchSize":       20,
-			"timeout":         800,
-			"max_retries":     3,
-			"max_fail_count":  4,
-			"collect_cycle":   3000,
+			"url":                 "tcp://127.0.0.1:502",
+			"slave_id":            1,
+			"byteOrder":           "DCBA",
+			"batchSize":           20,
+			"timeout":             800,
+			"max_retries":         3,
+			"max_fail_count":      4,
+			"collect_cycle":       3000,
 			"instructionInterval": 15,
 		},
 	}))

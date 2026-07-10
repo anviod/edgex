@@ -124,7 +124,6 @@ func TestCoverage_CancelDeviceSubscription(t *testing.T) {
 	assert.Empty(t, w.Subscriptions)
 }
 
-
 func TestCoverage_CreateWriteVariantNumericIDs(t *testing.T) {
 	d := NewOpcUaDriver().(*OpcUaDriver)
 	vals := map[string]any{

@@ -74,7 +74,7 @@ const (
 type NodeRuntimeState struct {
 	FailCount     int       // 连续失败次数
 	SuccessCount  int       // 连续成功次数
-	LastSuccess	time.Time // 最后一次成功时间
+	LastSuccess   time.Time // 最后一次成功时间
 	LastFailTime  time.Time // 最后一次失败时间
 	NextRetryTime time.Time // 下一次重试时间（用于退避机制）
 	State         NodeState // 当前节点状态

@@ -95,9 +95,9 @@ func TestScenario_InvalidAddressReadPoints(t *testing.T) {
 }
 
 type responseQueueLink struct {
-	frame   []byte
-	pending []byte
-	mu      sync.Mutex
+	frame    []byte
+	pending  []byte
+	mu       sync.Mutex
 	writeBuf bytes.Buffer
 }
 

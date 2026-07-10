@@ -72,12 +72,12 @@ func TestInstallSyncsUserForLogin(t *testing.T) {
 	srv, sm, _ := newInstallTestServer(t)
 
 	cfg := &model.InstallConfig{
-		Port:             8082,
-		Username:         "admin",
-		Password:         "Admin@12345",
-		StoragePath:      "data",
-		GatewayName:      "test-gateway",
-		GatewayLocation:  "lab",
+		Port:            8082,
+		Username:        "admin",
+		Password:        "Admin@12345",
+		StoragePath:     "data",
+		GatewayName:     "test-gateway",
+		GatewayLocation: "lab",
 	}
 
 	srv.executeInstall(cfg)

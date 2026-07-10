@@ -8,11 +8,11 @@ import (
 )
 
 type channelConfig struct {
-	localInterface   string
-	timeout          time.Duration
-	maxRetries       int
+	localInterface    string
+	timeout           time.Duration
+	maxRetries        int
 	heartbeatInterval time.Duration
-	simulation       bool
+	simulation        bool
 }
 
 type deviceConfig struct {

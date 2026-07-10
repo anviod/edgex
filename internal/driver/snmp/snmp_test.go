@@ -149,12 +149,12 @@ func TestBuildV3SecurityLevels(t *testing.T) {
 
 func TestMapAuthPrivProtocols(t *testing.T) {
 	authCases := map[string]gosnmp.SnmpV3AuthProtocol{
-		"MD5":     gosnmp.MD5,
-		"SHA1":    gosnmp.SHA,
-		"SHA224":  gosnmp.SHA224,
-		"SHA256":  gosnmp.SHA256,
-		"SHA384":  gosnmp.SHA384,
-		"SHA512":  gosnmp.SHA512,
+		"MD5":    gosnmp.MD5,
+		"SHA1":   gosnmp.SHA,
+		"SHA224": gosnmp.SHA224,
+		"SHA256": gosnmp.SHA256,
+		"SHA384": gosnmp.SHA384,
+		"SHA512": gosnmp.SHA512,
 	}
 	for name, want := range authCases {
 		got, err := mapAuthProtocol(name)
@@ -167,10 +167,10 @@ func TestMapAuthPrivProtocols(t *testing.T) {
 	}
 
 	privCases := map[string]gosnmp.SnmpV3PrivProtocol{
-		"DES":     gosnmp.DES,
-		"AES128":  gosnmp.AES,
-		"AES192":  gosnmp.AES192,
-		"AES256":  gosnmp.AES256,
+		"DES":    gosnmp.DES,
+		"AES128": gosnmp.AES,
+		"AES192": gosnmp.AES192,
+		"AES256": gosnmp.AES256,
 	}
 	for name, want := range privCases {
 		got, err := mapPrivProtocol(name)

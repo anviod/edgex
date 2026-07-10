@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	gcMonitorInterval      = 5 * time.Second
+	gcMonitorInterval        = 5 * time.Second
 	gcPauseThresholdMs       = 10.0
 	gcBackpressureRateFactor = 0.5
 )
@@ -87,7 +87,7 @@ func (m *GCMonitor) loop() {
 
 func (m *GCMonitorMetrics) Snapshot() map[string]any {
 	return map[string]any{
-		"gc_pause_max_ms":        float64(m.PauseMaxMs.Load()) / 1000.0,
+		"gc_pause_max_ms":      float64(m.PauseMaxMs.Load()) / 1000.0,
 		"alloc_rate_bytes_sec": m.AllocRateBytesSec.Load(),
 	}
 }

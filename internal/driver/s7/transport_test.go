@@ -13,13 +13,13 @@ import (
 
 // mockS7ClientHandler 模拟S7客户端处理器
 type mockS7ClientHandler struct {
-	connectErr    error
-	closeErr      error
-	timeout       time.Duration
-	idleTimeout   time.Duration
-	sendFunc      func(request []byte) ([]byte, error)
-	verifyFunc    func(request []byte, response []byte) error
-	packagerFunc  func() gos7.Packager
+	connectErr      error
+	closeErr        error
+	timeout         time.Duration
+	idleTimeout     time.Duration
+	sendFunc        func(request []byte) ([]byte, error)
+	verifyFunc      func(request []byte, response []byte) error
+	packagerFunc    func() gos7.Packager
 	transporterFunc func() gos7.Transporter
 }
 
@@ -77,18 +77,18 @@ func (m *mockS7ClientHandler) Transporter() gos7.Transporter {
 
 // mockClient 模拟gos7.Client
 type mockClient struct {
-	agReadDBFunc  func(dbNumber int, start int, size int, buffer []byte) error
-	agReadMBFunc  func(start int, size int, buffer []byte) error
-	agReadEBFunc  func(start int, size int, buffer []byte) error
-	agReadABFunc  func(start int, size int, buffer []byte) error
-	agReadTMFunc  func(start int, size int, buffer []byte) error
-	agReadCTFunc  func(start int, size int, buffer []byte) error
-	agWriteDBFunc func(dbNumber int, start int, size int, buffer []byte) error
-	agWriteMBFunc func(start int, size int, buffer []byte) error
-	agWriteEBFunc func(start int, size int, buffer []byte) error
-	agWriteABFunc func(start int, size int, buffer []byte) error
-	agWriteTMFunc func(start int, size int, buffer []byte) error
-	agWriteCTFunc func(start int, size int, buffer []byte) error
+	agReadDBFunc    func(dbNumber int, start int, size int, buffer []byte) error
+	agReadMBFunc    func(start int, size int, buffer []byte) error
+	agReadEBFunc    func(start int, size int, buffer []byte) error
+	agReadABFunc    func(start int, size int, buffer []byte) error
+	agReadTMFunc    func(start int, size int, buffer []byte) error
+	agReadCTFunc    func(start int, size int, buffer []byte) error
+	agWriteDBFunc   func(dbNumber int, start int, size int, buffer []byte) error
+	agWriteMBFunc   func(start int, size int, buffer []byte) error
+	agWriteEBFunc   func(start int, size int, buffer []byte) error
+	agWriteABFunc   func(start int, size int, buffer []byte) error
+	agWriteTMFunc   func(start int, size int, buffer []byte) error
+	agWriteCTFunc   func(start int, size int, buffer []byte) error
 	agReadMultiFunc func(dataItems []gos7.S7DataItem, itemsCount int) error
 }
 
@@ -282,47 +282,47 @@ func TestParseConfig(t *testing.T) {
 			name: "default config",
 			cfg:  map[string]any{},
 			expected: &S7Transport{
-				ip:           "",
-				port:         102,
-				rack:         0,
-				slot:         1,
-				timeout:      2 * time.Second,
-				connType:     ConnTypeS7Basic,
-				pduSize:      4096,
-				maxRetries:   64,
+				ip:            "",
+				port:          102,
+				rack:          0,
+				slot:          1,
+				timeout:       2 * time.Second,
+				connType:      ConnTypeS7Basic,
+				pduSize:       4096,
+				maxRetries:    64,
 				retryInterval: 100 * time.Millisecond,
-				maxBackoff:   30 * time.Second,
-				maxFailCount: 5,
-				collectCycle: 10 * time.Second,
+				maxBackoff:    30 * time.Second,
+				maxFailCount:  5,
+				collectCycle:  10 * time.Second,
 			},
 		},
 		{
 			name: "custom config",
 			cfg: map[string]any{
-				"ip":               "192.168.1.100",
-				"port":             102,
-				"rack":             0,
-				"slot":             2,
-				"timeout":          5000,
-				"connect_type":     "pg",
-				"pdu_size":         2048,
-				"max_retries":      3,
-				"max_fail_count":   3,
-				"collect_cycle":    60000,
+				"ip":             "192.168.1.100",
+				"port":           102,
+				"rack":           0,
+				"slot":           2,
+				"timeout":        5000,
+				"connect_type":   "pg",
+				"pdu_size":       2048,
+				"max_retries":    3,
+				"max_fail_count": 3,
+				"collect_cycle":  60000,
 			},
 			expected: &S7Transport{
-				ip:           "192.168.1.100",
-				port:         102,
-				rack:         0,
-				slot:         2,
-				timeout:      5 * time.Second,
-				connType:     ConnTypePG,
-				pduSize:      2048,
-				maxRetries:   3,
+				ip:            "192.168.1.100",
+				port:          102,
+				rack:          0,
+				slot:          2,
+				timeout:       5 * time.Second,
+				connType:      ConnTypePG,
+				pduSize:       2048,
+				maxRetries:    3,
 				retryInterval: 100 * time.Millisecond,
-				maxBackoff:   30 * time.Second,
-				maxFailCount: 3,
-				collectCycle: 60 * time.Second,
+				maxBackoff:    30 * time.Second,
+				maxFailCount:  3,
+				collectCycle:  60 * time.Second,
 			},
 		},
 		{
@@ -331,18 +331,18 @@ func TestParseConfig(t *testing.T) {
 				"plcType": "S7-1200",
 			},
 			expected: &S7Transport{
-				ip:           "",
-				port:         102,
-				rack:         0,
-				slot:         1,
-				timeout:      2 * time.Second,
-				connType:     ConnTypeS7Basic,
-				pduSize:      4096,
-				maxRetries:   64,
+				ip:            "",
+				port:          102,
+				rack:          0,
+				slot:          1,
+				timeout:       2 * time.Second,
+				connType:      ConnTypeS7Basic,
+				pduSize:       4096,
+				maxRetries:    64,
 				retryInterval: 100 * time.Millisecond,
-				maxBackoff:   30 * time.Second,
-				maxFailCount: 5,
-				collectCycle: 10 * time.Second,
+				maxBackoff:    30 * time.Second,
+				maxFailCount:  5,
+				collectCycle:  10 * time.Second,
 			},
 		},
 	}

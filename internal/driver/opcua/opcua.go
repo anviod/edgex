@@ -191,12 +191,12 @@ func (d *OpcUaDriver) SetDeviceConfig(config map[string]any) error {
 	}
 
 	wrapper := &ClientWrapper{
-		Endpoint:         endpoint,
-		Config:           config,
-		Subscriptions:    make(map[string]*DeviceSubscription),
-		connMgr:          driver.NewConnectionManager("opcua"),
-		maxFailCount:     5,
-		collectCycle:     10 * time.Second,
+		Endpoint:      endpoint,
+		Config:        config,
+		Subscriptions: make(map[string]*DeviceSubscription),
+		connMgr:       driver.NewConnectionManager("opcua"),
+		maxFailCount:  5,
+		collectCycle:  10 * time.Second,
 	}
 	wrapper.lastActivityTime.Store(time.Time{})
 

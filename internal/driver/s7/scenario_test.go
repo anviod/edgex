@@ -1,10 +1,10 @@
 package s7
 
 import (
+	"github.com/anviod/edgex/internal/driver"
 	"sync"
 	"sync/atomic"
 	"testing"
-"github.com/anviod/edgex/internal/driver"
 	"time"
 
 	"github.com/stretchr/testify/assert"

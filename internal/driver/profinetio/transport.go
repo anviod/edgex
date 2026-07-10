@@ -25,8 +25,8 @@ type ProfinetTransport struct {
 
 	dialFn func(ctx context.Context, localIF, remote string, timeout time.Duration) (net.Conn, error)
 
-	conn    ioReader
-	sim     *simulationStore
+	conn ioReader
+	sim  *simulationStore
 
 	connected          atomic.Bool
 	mu                 sync.Mutex

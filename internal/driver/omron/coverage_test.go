@@ -140,7 +140,7 @@ type mockUDPClient struct {
 	words map[uint16]uint16
 }
 
-func (m *mockUDPClient) Close() {}
+func (m *mockUDPClient) Close()              {}
 func (m *mockUDPClient) SetTimeoutMs(_ uint) {}
 func (m *mockUDPClient) ReadWords(_ byte, address uint16, readCount uint16) ([]uint16, error) {
 	out := make([]uint16, readCount)

@@ -192,7 +192,7 @@ type Point struct {
 	ReadWrite    string           `json:"readwrite" yaml:"readwrite"` // R / RW
 	Group        string           `json:"group" yaml:"group"`
 	ScanClass    string           `json:"scan_class,omitempty" yaml:"scan_class,omitempty"` // fast / normal / slow
-	ReportMode   string           `json:"report_mode" yaml:"report_mode"` // cycle / cov / event
+	ReportMode   string           `json:"report_mode" yaml:"report_mode"`                   // cycle / cov / event
 	Threshold    *ThresholdConfig `json:"threshold" yaml:"threshold"`
 	DeviceID     string           `json:"-" yaml:"-"` // Runtime field, not persisted
 }
@@ -226,9 +226,9 @@ type PointData struct {
 	DataType     string    `json:"datatype"`
 	Value        any       `json:"value"`
 	Quality      string    `json:"quality"`
-	Timestamp    time.Time `json:"timestamp"`     // 采集时间（兼容旧字段）
-	CollectedAt  time.Time `json:"collected_at"`  // 采集时间
-	UpdatedAt    time.Time `json:"updated_at"`    // 影子更新时间
+	Timestamp    time.Time `json:"timestamp"`    // 采集时间（兼容旧字段）
+	CollectedAt  time.Time `json:"collected_at"` // 采集时间
+	UpdatedAt    time.Time `json:"updated_at"`   // 影子更新时间
 	Unit         string    `json:"unit,omitempty"`
 	ReadWrite    string    `json:"readwrite"` // R / RW
 }
@@ -243,18 +243,18 @@ type DeviceStorage struct {
 
 // Device represents a device configuration (within a channel)
 type Device struct {
-	ID           string         `json:"id" yaml:"id"`
-	Name         string         `json:"name" yaml:"name"`
-	Enable       bool           `json:"enable" yaml:"enable"`
-	Interval          Duration       `json:"interval" yaml:"interval"`
-	DegradeOnFailure  *bool          `json:"degrade_on_failure,omitempty" yaml:"degrade_on_failure,omitempty"` // 默认 true；设为 false 关闭失败退避
-	DeviceFile        string         `json:"device_file,omitempty" yaml:"device_file,omitempty"`               // 设备配置文件路径
-	Config       map[string]any `json:"config" yaml:"config"`                               // 设备特定配置（如 slave_id）
-	Storage      DeviceStorage  `json:"storage,omitempty" yaml:"storage,omitempty"`         // Data storage strategy
-	Points       []Point        `json:"points,omitempty" yaml:"points,omitempty"`             // 该设备的点位列表
-	PointsCount  int            `json:"points_count,omitempty" yaml:"-"`                      // 列表 API 省略 points 时返回点位数量
-	State        int            `json:"state" yaml:"-"`                                     // 运行时状态：0=Online, 1=Unstable, 2=Offline, 3=Quarantine
-	QualityScore int            `json:"quality_score" yaml:"-"`                             // 质量评分 (0-100)
+	ID               string         `json:"id" yaml:"id"`
+	Name             string         `json:"name" yaml:"name"`
+	Enable           bool           `json:"enable" yaml:"enable"`
+	Interval         Duration       `json:"interval" yaml:"interval"`
+	DegradeOnFailure *bool          `json:"degrade_on_failure,omitempty" yaml:"degrade_on_failure,omitempty"` // 默认 true；设为 false 关闭失败退避
+	DeviceFile       string         `json:"device_file,omitempty" yaml:"device_file,omitempty"`               // 设备配置文件路径
+	Config           map[string]any `json:"config" yaml:"config"`                                             // 设备特定配置（如 slave_id）
+	Storage          DeviceStorage  `json:"storage,omitempty" yaml:"storage,omitempty"`                       // Data storage strategy
+	Points           []Point        `json:"points,omitempty" yaml:"points,omitempty"`                         // 该设备的点位列表
+	PointsCount      int            `json:"points_count,omitempty" yaml:"-"`                                  // 列表 API 省略 points 时返回点位数量
+	State            int            `json:"state" yaml:"-"`                                                   // 运行时状态：0=Online, 1=Unstable, 2=Offline, 3=Quarantine
+	QualityScore     int            `json:"quality_score" yaml:"-"`                                           // 质量评分 (0-100)
 	// Runtime state fields
 	NodeRuntime *NodeRuntime `json:"runtime,omitempty" yaml:"-"`
 }
@@ -334,11 +334,11 @@ type MQTTConfig struct {
 
 	WriteResponseTopic string `json:"write_response_topic" yaml:"write_response_topic"` // Topic for write responses
 
-	Username string                         `json:"username" yaml:"username"`
-	Password string                         `json:"password" yaml:"password"`
-	Cache    DataCacheConfig                `json:"cache" yaml:"cache"`
-	Devices  map[string]DevicePublishConfig `json:"devices" yaml:"devices"`
-	VirtualDevices OpcUaDeviceMap           `json:"virtual_devices" yaml:"virtual_devices"`
+	Username       string                         `json:"username" yaml:"username"`
+	Password       string                         `json:"password" yaml:"password"`
+	Cache          DataCacheConfig                `json:"cache" yaml:"cache"`
+	Devices        map[string]DevicePublishConfig `json:"devices" yaml:"devices"`
+	VirtualDevices OpcUaDeviceMap                 `json:"virtual_devices" yaml:"virtual_devices"`
 }
 
 type HTTPConfig struct {
@@ -378,86 +378,86 @@ type OPCUAConfig struct {
 	TrustedCertPath string            `json:"trusted_cert_path" yaml:"trusted_cert_path"`
 	AuthMethods     []string          `json:"auth_methods" yaml:"auth_methods"` // "Anonymous", "UserName", "Certificate"
 	Users           map[string]string `json:"users" yaml:"users"`               // Username -> Password
-	CertFile        string            `json:"cert_file" yaml:"cert_file"` // legacy path fallback
-	KeyFile         string            `json:"key_file" yaml:"key_file"`   // legacy path fallback
+	CertFile        string            `json:"cert_file" yaml:"cert_file"`       // legacy path fallback
+	KeyFile         string            `json:"key_file" yaml:"key_file"`         // legacy path fallback
 	// ServerCertPEM / ServerKeyPEM 持久化在北向配置（edge.db），启动时物化到 data/certs/opcua/{id}/
-	ServerCertPEM   string            `json:"server_cert_pem,omitempty" yaml:"server_cert_pem,omitempty"`
-	ServerKeyPEM    string            `json:"server_key_pem,omitempty" yaml:"server_key_pem,omitempty"`
-	TrustedCertsPEM []string          `json:"trusted_certs_pem,omitempty" yaml:"trusted_certs_pem,omitempty"`
-	HasServerCert   bool              `json:"has_server_cert,omitempty" yaml:"-"`
-	HasServerKey    bool              `json:"has_server_key,omitempty" yaml:"-"`
-	Devices         OpcUaDeviceMap    `json:"devices" yaml:"devices"`                   // Key: DeviceID, Value: enable/strategy/interval
-	VirtualDevices  OpcUaDeviceMap    `json:"virtual_devices" yaml:"virtual_devices"` // Key: VirtualShadowDeviceID, Value: enable
+	ServerCertPEM   string         `json:"server_cert_pem,omitempty" yaml:"server_cert_pem,omitempty"`
+	ServerKeyPEM    string         `json:"server_key_pem,omitempty" yaml:"server_key_pem,omitempty"`
+	TrustedCertsPEM []string       `json:"trusted_certs_pem,omitempty" yaml:"trusted_certs_pem,omitempty"`
+	HasServerCert   bool           `json:"has_server_cert,omitempty" yaml:"-"`
+	HasServerKey    bool           `json:"has_server_key,omitempty" yaml:"-"`
+	Devices         OpcUaDeviceMap `json:"devices" yaml:"devices"`                 // Key: DeviceID, Value: enable/strategy/interval
+	VirtualDevices  OpcUaDeviceMap `json:"virtual_devices" yaml:"virtual_devices"` // Key: VirtualShadowDeviceID, Value: enable
 }
 
 type SparkplugBConfig struct {
-	ID             string          `json:"id" yaml:"id"`
-	Name           string          `json:"name" yaml:"name"`
-	Enable         bool            `json:"enable" yaml:"enable"`
-	ClientID       string          `json:"client_id" yaml:"client_id"`
-	GroupID        string          `json:"group_id" yaml:"group_id"`
-	NodeID         string          `json:"node_id" yaml:"node_id"`
-	EnableAlias    bool            `json:"enable_alias" yaml:"enable_alias"`
-	GroupPath      bool            `json:"group_path" yaml:"group_path"`
-	OfflineCache   bool            `json:"offline_cache" yaml:"offline_cache"`
-	CacheMemSize   int             `json:"cache_mem_size" yaml:"cache_mem_size"`
-	CacheDiskSize  int             `json:"cache_disk_size" yaml:"cache_disk_size"`
-	CacheResendInt int             `json:"cache_resend_int" yaml:"cache_resend_int"`
-	Broker         string          `json:"broker" yaml:"broker"`
-	Port           int             `json:"port" yaml:"port"`
-	Username       string          `json:"username" yaml:"username"`
-	Password       string          `json:"password" yaml:"password"`
-	SSL            bool            `json:"ssl" yaml:"ssl"`
-	CACert         string          `json:"ca_cert" yaml:"ca_cert"`
-	ClientCert     string          `json:"client_cert" yaml:"client_cert"`
-	ClientKey      string          `json:"client_key" yaml:"client_key"`
-	KeyPassword    string          `json:"key_password" yaml:"key_password"`
-	Devices        OpcUaDeviceMap  `json:"devices" yaml:"devices"` // Key: DeviceID; legacy bool or DevicePublishConfig
-	VirtualDevices OpcUaDeviceMap  `json:"virtual_devices" yaml:"virtual_devices"`
+	ID             string         `json:"id" yaml:"id"`
+	Name           string         `json:"name" yaml:"name"`
+	Enable         bool           `json:"enable" yaml:"enable"`
+	ClientID       string         `json:"client_id" yaml:"client_id"`
+	GroupID        string         `json:"group_id" yaml:"group_id"`
+	NodeID         string         `json:"node_id" yaml:"node_id"`
+	EnableAlias    bool           `json:"enable_alias" yaml:"enable_alias"`
+	GroupPath      bool           `json:"group_path" yaml:"group_path"`
+	OfflineCache   bool           `json:"offline_cache" yaml:"offline_cache"`
+	CacheMemSize   int            `json:"cache_mem_size" yaml:"cache_mem_size"`
+	CacheDiskSize  int            `json:"cache_disk_size" yaml:"cache_disk_size"`
+	CacheResendInt int            `json:"cache_resend_int" yaml:"cache_resend_int"`
+	Broker         string         `json:"broker" yaml:"broker"`
+	Port           int            `json:"port" yaml:"port"`
+	Username       string         `json:"username" yaml:"username"`
+	Password       string         `json:"password" yaml:"password"`
+	SSL            bool           `json:"ssl" yaml:"ssl"`
+	CACert         string         `json:"ca_cert" yaml:"ca_cert"`
+	ClientCert     string         `json:"client_cert" yaml:"client_cert"`
+	ClientKey      string         `json:"client_key" yaml:"client_key"`
+	KeyPassword    string         `json:"key_password" yaml:"key_password"`
+	Devices        OpcUaDeviceMap `json:"devices" yaml:"devices"` // Key: DeviceID; legacy bool or DevicePublishConfig
+	VirtualDevices OpcUaDeviceMap `json:"virtual_devices" yaml:"virtual_devices"`
 }
 
 // EdgeOSMQTTConfig defines configuration for edgeOS(MQTT) northbound channel
 type EdgeOSMQTTConfig struct {
-	ID              string                       `json:"id" yaml:"id"`
-	Name            string                       `json:"name" yaml:"name"`
-	Enable          bool                         `json:"enable" yaml:"enable"`
-	Broker          string                       `json:"broker" yaml:"broker"`
-	ClientID        string                       `json:"client_id" yaml:"client_id"`
-	NodeID          string                       `json:"node_id" yaml:"node_id"`
-	Username        string                       `json:"username" yaml:"username"`
-	Password        string                       `json:"password" yaml:"password"`
-	QoS             byte                         `json:"qos" yaml:"qos"`
-	Retain          bool                         `json:"retain" yaml:"retain"`
-	CleanSession    bool                         `json:"clean_session" yaml:"clean_session"`
-	KeepAlive       int                          `json:"keep_alive" yaml:"keep_alive"`
-	ConnectTimeout  int                          `json:"connect_timeout" yaml:"connect_timeout"`
-	AutoReconnect   bool                         `json:"auto_reconnect" yaml:"auto_reconnect"`
-	MaxReconnectInterval int                    `json:"max_reconnect_interval" yaml:"max_reconnect_interval"`
-	HeartbeatInterval string                     `json:"heartbeat_interval" yaml:"heartbeat_interval"` // e.g. "30s"
-	Devices         map[string]DevicePublishConfig `json:"devices" yaml:"devices"` // Key: DeviceID, Value: DevicePublishConfig
-	VirtualDevices  OpcUaDeviceMap                 `json:"virtual_devices" yaml:"virtual_devices"`
+	ID                   string                         `json:"id" yaml:"id"`
+	Name                 string                         `json:"name" yaml:"name"`
+	Enable               bool                           `json:"enable" yaml:"enable"`
+	Broker               string                         `json:"broker" yaml:"broker"`
+	ClientID             string                         `json:"client_id" yaml:"client_id"`
+	NodeID               string                         `json:"node_id" yaml:"node_id"`
+	Username             string                         `json:"username" yaml:"username"`
+	Password             string                         `json:"password" yaml:"password"`
+	QoS                  byte                           `json:"qos" yaml:"qos"`
+	Retain               bool                           `json:"retain" yaml:"retain"`
+	CleanSession         bool                           `json:"clean_session" yaml:"clean_session"`
+	KeepAlive            int                            `json:"keep_alive" yaml:"keep_alive"`
+	ConnectTimeout       int                            `json:"connect_timeout" yaml:"connect_timeout"`
+	AutoReconnect        bool                           `json:"auto_reconnect" yaml:"auto_reconnect"`
+	MaxReconnectInterval int                            `json:"max_reconnect_interval" yaml:"max_reconnect_interval"`
+	HeartbeatInterval    string                         `json:"heartbeat_interval" yaml:"heartbeat_interval"` // e.g. "30s"
+	Devices              map[string]DevicePublishConfig `json:"devices" yaml:"devices"`                       // Key: DeviceID, Value: DevicePublishConfig
+	VirtualDevices       OpcUaDeviceMap                 `json:"virtual_devices" yaml:"virtual_devices"`
 }
 
 // EdgeOSNATSConfig defines configuration for edgeOS(NATS) northbound channel
 type EdgeOSNATSConfig struct {
-	ID               string                       `json:"id" yaml:"id"`
-	Name             string                       `json:"name" yaml:"name"`
-	Enable           bool                         `json:"enable" yaml:"enable"`
-	URL              string                       `json:"url" yaml:"url"`
-	ClientID         string                       `json:"client_id" yaml:"client_id"`
-	NodeID           string                       `json:"node_id" yaml:"node_id"`
-	Username         string                       `json:"username" yaml:"username"`
-	Password         string                       `json:"password" yaml:"password"`
-	Token            string                       `json:"token" yaml:"token"`
-	ConnectTimeout   int                          `json:"connect_timeout" yaml:"connect_timeout"`
-	ReconnectWait    int                          `json:"reconnect_wait" yaml:"reconnect_wait"`
-	MaxReconnects    int                          `json:"max_reconnects" yaml:"max_reconnects"`
-	PingInterval     int                          `json:"ping_interval" yaml:"ping_interval"`
-	MaxPingsOutstanding int                      `json:"max_pings_outstanding" yaml:"max_pings_outstanding"`
-	JetStreamEnabled bool                         `json:"jetstream_enabled" yaml:"jetstream_enabled"`
-	HeartbeatInterval string                      `json:"heartbeat_interval" yaml:"heartbeat_interval"` // e.g. "30s"
-	Devices          map[string]DevicePublishConfig `json:"devices" yaml:"devices"` // Key: DeviceID, Value: DevicePublishConfig
-	VirtualDevices   OpcUaDeviceMap                 `json:"virtual_devices" yaml:"virtual_devices"`
+	ID                  string                         `json:"id" yaml:"id"`
+	Name                string                         `json:"name" yaml:"name"`
+	Enable              bool                           `json:"enable" yaml:"enable"`
+	URL                 string                         `json:"url" yaml:"url"`
+	ClientID            string                         `json:"client_id" yaml:"client_id"`
+	NodeID              string                         `json:"node_id" yaml:"node_id"`
+	Username            string                         `json:"username" yaml:"username"`
+	Password            string                         `json:"password" yaml:"password"`
+	Token               string                         `json:"token" yaml:"token"`
+	ConnectTimeout      int                            `json:"connect_timeout" yaml:"connect_timeout"`
+	ReconnectWait       int                            `json:"reconnect_wait" yaml:"reconnect_wait"`
+	MaxReconnects       int                            `json:"max_reconnects" yaml:"max_reconnects"`
+	PingInterval        int                            `json:"ping_interval" yaml:"ping_interval"`
+	MaxPingsOutstanding int                            `json:"max_pings_outstanding" yaml:"max_pings_outstanding"`
+	JetStreamEnabled    bool                           `json:"jetstream_enabled" yaml:"jetstream_enabled"`
+	HeartbeatInterval   string                         `json:"heartbeat_interval" yaml:"heartbeat_interval"` // e.g. "30s"
+	Devices             map[string]DevicePublishConfig `json:"devices" yaml:"devices"`                       // Key: DeviceID, Value: DevicePublishConfig
+	VirtualDevices      OpcUaDeviceMap                 `json:"virtual_devices" yaml:"virtual_devices"`
 }
 
 // EdgeRule represents an edge computing rule
@@ -506,23 +506,23 @@ type StateConfig struct {
 
 // RuleRuntimeState represents the runtime status of a rule
 type RuleRuntimeState struct {
-	RuleID         string            `json:"rule_id"`
-	RuleName       string            `json:"rule_name"`
-	Enable         bool              `json:"enable"`
-	LastCheckTime   time.Time         `json:"last_check_time,omitempty"`    // For CheckInterval
-	LastWindowEval  time.Time         `json:"last_window_eval,omitempty"`   // Window aggregation step tick
-	LastTrigger     time.Time         `json:"last_trigger"`
-	LastValue      any               `json:"last_value"`
+	RuleID               string            `json:"rule_id"`
+	RuleName             string            `json:"rule_name"`
+	Enable               bool              `json:"enable"`
+	LastCheckTime        time.Time         `json:"last_check_time,omitempty"`  // For CheckInterval
+	LastWindowEval       time.Time         `json:"last_window_eval,omitempty"` // Window aggregation step tick
+	LastTrigger          time.Time         `json:"last_trigger"`
+	LastValue            any               `json:"last_value"`
 	TriggerCount         int64             `json:"trigger_count"`
-	SuccessCount         int64             `json:"success_count"`          // completed trigger cycles without error
-	FailureCount         int64             `json:"failure_count"`          // evaluate/dispatch/action failures
-	ActionSuccessCount   int64             `json:"action_success_count"`   // individual action successes
-	ActionFailureCount   int64             `json:"action_failure_count"`   // individual action failures
-	CurrentStatus        string            `json:"current_status"` // NORMAL, WARNING, ALARM
+	SuccessCount         int64             `json:"success_count"`        // completed trigger cycles without error
+	FailureCount         int64             `json:"failure_count"`        // evaluate/dispatch/action failures
+	ActionSuccessCount   int64             `json:"action_success_count"` // individual action successes
+	ActionFailureCount   int64             `json:"action_failure_count"` // individual action failures
+	CurrentStatus        string            `json:"current_status"`       // NORMAL, WARNING, ALARM
 	ConditionStart       time.Time         `json:"condition_start,omitempty"`
 	ConditionCount       int               `json:"condition_count,omitempty"`
 	ErrorMessage         string            `json:"error_message,omitempty"`
-	ActionLastRuns       map[int]time.Time   `json:"action_last_runs,omitempty"`
+	ActionLastRuns       map[int]time.Time `json:"action_last_runs,omitempty"`
 	ExecutionPhase       string            `json:"execution_phase,omitempty"`        // idle, window, evaluate, state_hold, trigger, action, completed, error
 	ExecutionActionIndex int               `json:"execution_action_index,omitempty"` // 0-based when execution_phase=action
 }
@@ -602,7 +602,7 @@ type VirtualShadowPointDef struct {
 	Unit      string `json:"unit,omitempty"`
 	Mode      string `json:"mode"`                 // "map" 直接映射 | "formula" 公式计算
 	SourceRef string `json:"source_ref,omitempty"` // map 模式：ch1.dev1.temp
-	Formula   string `json:"formula,omitempty"`  // formula 模式
+	Formula   string `json:"formula,omitempty"`    // formula 模式
 }
 
 // VirtualShadowDeviceConfig 虚拟影子设备配置（持久化）

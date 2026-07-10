@@ -106,8 +106,8 @@ type ShadowCore struct {
 	subscribers []ShadowSubscriber
 	subMu       sync.RWMutex
 
-	optimizer   *ShadowDeviceOptimizer
-	notifyPool  *shadowNotifyPool
+	optimizer     *ShadowDeviceOptimizer
+	notifyPool    *shadowNotifyPool
 	notifyWorkers int
 }
 

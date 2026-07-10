@@ -18,12 +18,12 @@ func init() {
 
 // ProfinetIODriver implements PROFINET IO acyclic read/write as IO-Controller.
 type ProfinetIODriver struct {
-	config    model.DriverConfig
+	config     model.DriverConfig
 	channelCfg channelConfig
 	deviceCfg  deviceConfig
-	transport *ProfinetTransport
-	decoder   *ProfinetDecoder
-	scheduler *ProfinetScheduler
+	transport  *ProfinetTransport
+	decoder    *ProfinetDecoder
+	scheduler  *ProfinetScheduler
 }
 
 func NewProfinetIODriver() driver.Driver {

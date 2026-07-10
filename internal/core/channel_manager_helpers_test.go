@@ -59,9 +59,9 @@ func TestModbusGenOptionsFromDevice(t *testing.T) {
 		Config: map[string]any{
 			"auto_points_range":         "0-5",
 			"auto_points_datatype":      "float32",
-			"auto_points_readwrite":       "RW",
-			"auto_points_register_type":   "input",
-			"auto_points_function_code":   4,
+			"auto_points_readwrite":     "RW",
+			"auto_points_register_type": "input",
+			"auto_points_function_code": 4,
 		},
 	}
 	opts, ok := modbusGenOptionsFromDevice(dev)
@@ -120,11 +120,11 @@ func TestChannelManager_GetStateManager(t *testing.T) {
 
 func TestRegisterPointPrefix(t *testing.T) {
 	cases := map[model.RegisterType]string{
-		model.RegInput:          "ir",
-		model.RegCoil:           "coil",
-		model.RegDiscreteInput:  "di",
-		model.RegHolding:        "hr",
-		model.RegisterType(99):  "hr",
+		model.RegInput:         "ir",
+		model.RegCoil:          "coil",
+		model.RegDiscreteInput: "di",
+		model.RegHolding:       "hr",
+		model.RegisterType(99): "hr",
 	}
 	for reg, want := range cases {
 		if got := registerPointPrefix(reg); got != want {

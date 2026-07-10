@@ -15,40 +15,40 @@ import (
 )
 
 const (
-	walBucket       = "wal"
-	configBucket    = "config"
-	indexBucket     = "index"
-	deviceBucket    = "device_%s"
-	snapshotBucket  = "snapshot_%s"
-	syncNodeBucket  = "sync_node_%s"
-	valuesBucket    = "values"
+	walBucket      = "wal"
+	configBucket   = "config"
+	indexBucket    = "index"
+	deviceBucket   = "device_%s"
+	snapshotBucket = "snapshot_%s"
+	syncNodeBucket = "sync_node_%s"
+	valuesBucket   = "values"
 )
 
 type BucketConfig struct {
-	Pattern        string
-	Description    string
-	AccessMode     string
-	RetentionDays  int
-	MaxRecords     int
-	PartitionKey   string
+	Pattern       string
+	Description   string
+	AccessMode    string
+	RetentionDays int
+	MaxRecords    int
+	PartitionKey  string
 }
 
 type StorageConfig struct {
-	Path           string
-	PageSize       int
-	CacheSize      int
-	Timeout        time.Duration
-	NoGrowSync     bool
-	FreelistType   bolt.FreelistType
-	WriteBuffer    int
+	Path         string
+	PageSize     int
+	CacheSize    int
+	Timeout      time.Duration
+	NoGrowSync   bool
+	FreelistType bolt.FreelistType
+	WriteBuffer  int
 }
 
 type ConfigStore struct {
-	mem         map[string]*ConfigRecord
-	disk        *bolt.DB
-	index       map[string][]string
-	path        string
-	mu          sync.RWMutex
+	mem           map[string]*ConfigRecord
+	disk          *bolt.DB
+	index         map[string][]string
+	path          string
+	mu            sync.RWMutex
 	bucketConfigs map[string]*BucketConfig
 }
 
@@ -82,10 +82,10 @@ func NewConfigStoreWithConfig(cfg StorageConfig) (*ConfigStore, error) {
 
 	log.Printf("[ConfigStore] Opening bolt database...")
 	db, err := bolt.Open(dbPath, 0600, &bolt.Options{
-		Timeout:        cfg.Timeout,
-		NoGrowSync:     cfg.NoGrowSync,
-		FreelistType:   cfg.FreelistType,
-		PageSize:       cfg.PageSize,
+		Timeout:      cfg.Timeout,
+		NoGrowSync:   cfg.NoGrowSync,
+		FreelistType: cfg.FreelistType,
+		PageSize:     cfg.PageSize,
 	})
 	if err != nil {
 		log.Printf("[ConfigStore] Failed to open database: %v", err)
@@ -109,10 +109,10 @@ func NewConfigStoreWithConfig(cfg StorageConfig) (*ConfigStore, error) {
 	log.Printf("[ConfigStore] Core buckets created")
 
 	store := &ConfigStore{
-		mem:         make(map[string]*ConfigRecord),
-		disk:        db,
-		index:       make(map[string][]string),
-		path:        dbPath,
+		mem:           make(map[string]*ConfigRecord),
+		disk:          db,
+		index:         make(map[string][]string),
+		path:          dbPath,
 		bucketConfigs: make(map[string]*BucketConfig),
 	}
 

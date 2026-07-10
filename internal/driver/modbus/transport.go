@@ -11,8 +11,8 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/anviod/edgex/internal/model"
 	"github.com/anviod/edgex/internal/driver"
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/simonvetter/modbus"
 	"go.uber.org/zap"
@@ -69,13 +69,13 @@ type MetricsRecorder interface {
 
 // ModbusTransport 实现 Transport 接口
 type ModbusTransport struct {
-	cfg           model.DriverConfig
-	client        *modbus.ModbusClient
-	connected     atomic.Bool
-	mu            sync.Mutex
-	timeout       time.Duration
-	maxRetries    int
-	maxBackoff    time.Duration
+	cfg        model.DriverConfig
+	client     *modbus.ModbusClient
+	connected  atomic.Bool
+	mu         sync.Mutex
+	timeout    time.Duration
+	maxRetries int
+	maxBackoff time.Duration
 
 	connMgr *driver.ConnectionManager
 
@@ -161,12 +161,12 @@ func NewModbusTransport(cfg model.DriverConfig) *ModbusTransport {
 	}
 
 	mt := &ModbusTransport{
-		cfg:           cfg,
-		timeout:       timeout,
-		maxRetries:    maxRetries,
-		maxBackoff:    maxBackoff,
-		maxFailCount:  maxFailCount,
-		collectCycle:  collectCycle,
+		cfg:          cfg,
+		timeout:      timeout,
+		maxRetries:   maxRetries,
+		maxBackoff:   maxBackoff,
+		maxFailCount: maxFailCount,
+		collectCycle: collectCycle,
 	}
 	mt.lastActivityTime.Store(time.Now())
 	mt.connMgr = driver.NewConnectionManager("modbus")

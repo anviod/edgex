@@ -16,15 +16,15 @@ type stubChannelDriver struct {
 }
 
 func (s *stubChannelDriver) Init(_ model.DriverConfig) error { return nil }
-func (s *stubChannelDriver) Connect(_ context.Context) error   { return nil }
-func (s *stubChannelDriver) Disconnect() error                 { return nil }
+func (s *stubChannelDriver) Connect(_ context.Context) error { return nil }
+func (s *stubChannelDriver) Disconnect() error               { return nil }
 func (s *stubChannelDriver) ReadPoints(_ context.Context, _ []model.Point) (map[string]model.Value, error) {
 	return nil, nil
 }
 func (s *stubChannelDriver) WritePoint(_ context.Context, _ model.Point, _ any) error { return nil }
-func (s *stubChannelDriver) Health() drv.HealthStatus                                   { return s.health }
-func (s *stubChannelDriver) SetSlaveID(_ uint8) error                                   { return nil }
-func (s *stubChannelDriver) SetDeviceConfig(_ map[string]any) error                     { return nil }
+func (s *stubChannelDriver) Health() drv.HealthStatus                                 { return s.health }
+func (s *stubChannelDriver) SetSlaveID(_ uint8) error                                 { return nil }
+func (s *stubChannelDriver) SetDeviceConfig(_ map[string]any) error                   { return nil }
 func (s *stubChannelDriver) GetConnectionMetrics() (int64, int64, string, string, time.Time) {
 	return 0, 0, "", "", time.Time{}
 }

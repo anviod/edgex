@@ -68,7 +68,7 @@ type PointScheduler struct {
 
 	slaveID  uint8
 	rttModel *RTTModel
-	mu         sync.Mutex
+	mu       sync.Mutex
 }
 
 func NewPointScheduler(transport Transport, decoder Decoder, maxPacketSize uint16, groupThreshold uint16, instructionInterval time.Duration) *PointScheduler {

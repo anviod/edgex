@@ -15,12 +15,12 @@ import (
 
 type healthyMockDriver struct{}
 
-func (healthyMockDriver) Init(_ model.DriverConfig) error { return nil }
-func (healthyMockDriver) Connect(_ context.Context) error   { return nil }
-func (healthyMockDriver) Disconnect() error                 { return nil }
-func (healthyMockDriver) Health() driver.HealthStatus       { return driver.HealthStatusGood }
+func (healthyMockDriver) Init(_ model.DriverConfig) error        { return nil }
+func (healthyMockDriver) Connect(_ context.Context) error        { return nil }
+func (healthyMockDriver) Disconnect() error                      { return nil }
+func (healthyMockDriver) Health() driver.HealthStatus            { return driver.HealthStatusGood }
 func (healthyMockDriver) SetDeviceConfig(_ map[string]any) error { return nil }
-func (healthyMockDriver) SetSlaveID(_ uint8) error          { return nil }
+func (healthyMockDriver) SetSlaveID(_ uint8) error               { return nil }
 func (healthyMockDriver) WritePoint(_ context.Context, _ model.Point, _ any) error {
 	return nil
 }

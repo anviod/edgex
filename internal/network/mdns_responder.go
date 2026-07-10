@@ -48,9 +48,9 @@ func newMDNSServiceRecord(instance, serviceType, domain string) mdnsServiceRecor
 	}
 	serviceName := fmt.Sprintf("%s.%s.", trimMDNSDot(serviceType), domain)
 	rec := mdnsServiceRecord{
-		mdnsServiceDef: mdnsServiceDef{Instance: instance, Type: serviceType},
-		domain:         domain,
-		serviceName:    serviceName,
+		mdnsServiceDef:  mdnsServiceDef{Instance: instance, Type: serviceType},
+		domain:          domain,
+		serviceName:     serviceName,
 		serviceTypeName: fmt.Sprintf("_services._dns-sd._udp.%s.", domain),
 	}
 	if instance != "" {
@@ -305,7 +305,7 @@ func (r *mdnsResponder) serviceRecords(svc mdnsServiceRecord, ttl uint32, flush 
 	}
 	return []dns.RR{
 		&dns.SRV{
-			Hdr: dns.RR_Header{Name: svc.serviceInstanceName, Rrtype: dns.TypeSRV, Class: class, Ttl: ttl},
+			Hdr:  dns.RR_Header{Name: svc.serviceInstanceName, Rrtype: dns.TypeSRV, Class: class, Ttl: ttl},
 			Port: uint16(svc.Port), Target: r.hostName,
 		},
 		&dns.TXT{

@@ -197,12 +197,12 @@ func (s *Server) getAiDiagnosticsSummary(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"code": "0", "message": "success",
 		"data": fiber.Map{
-			"snapshot":    snapshot,
-			"steps":       steps,
-			"scan_engine": scanEngine,
-			"soak":        soak,
+			"snapshot":     snapshot,
+			"steps":        steps,
+			"scan_engine":  scanEngine,
+			"soak":         soak,
 			"generated_at": time.Now().Format(time.RFC3339),
-			"mode":        s.ensureAiAgent().Mode(),
+			"mode":         s.ensureAiAgent().Mode(),
 		},
 	})
 }
@@ -215,33 +215,33 @@ func (s *Server) buildDiagnosticsSteps(snapshot map[string]any) []map[string]any
 	steps := []map[string]any{
 		{
 			"order": 1, "title": "检查系统日志", "status": "pending",
-			"detail":  "筛选 ERROR 级别，定位最近通讯异常与驱动报错",
-			"action":  fiber.Map{"type": "navigate", "path": "/logs"},
+			"detail": "筛选 ERROR 级别，定位最近通讯异常与驱动报错",
+			"action": fiber.Map{"type": "navigate", "path": "/logs"},
 		},
 		{
 			"order": 2, "title": "查看 ScanEngine 指标", "status": "pending",
-			"detail":  "关注轮询周期、超时率、ExecutionLayer 背压",
-			"action":  fiber.Map{"type": "api", "path": "/api/diagnostics/scan-engine"},
+			"detail": "关注轮询周期、超时率、ExecutionLayer 背压",
+			"action": fiber.Map{"type": "api", "path": "/api/diagnostics/scan-engine"},
 		},
 		{
 			"order": 3, "title": "Soak 会话监控", "status": "pending",
-			"detail":  "对比 Release Gate 验收项与 soak 成功率",
-			"action":  fiber.Map{"type": "api", "path": "/api/diagnostics/soak"},
+			"detail": "对比 Release Gate 验收项与 soak 成功率",
+			"action": fiber.Map{"type": "api", "path": "/api/diagnostics/soak"},
 		},
 		{
 			"order": 4, "title": "通道与设备诊断",
-			"status":  diagStepStatus(total, offlineEnabled),
-			"detail":  "进入异常通道查看设备详情与点位采集成功率",
-			"action":  fiber.Map{"type": "navigate", "path": "/channels"},
+			"status": diagStepStatus(total, offlineEnabled),
+			"detail": "进入异常通道查看设备详情与点位采集成功率",
+			"action": fiber.Map{"type": "navigate", "path": "/channels"},
 		},
 	}
 
 	if offlineEnabled > 0 {
 		steps = append([]map[string]any{{
 			"order": 0, "title": "优先排查离线通道",
-			"detail": fmt.Sprintf("检测到 %d 个已启用通道离线：确认 IP/端口/从站参数与网络连通", offlineEnabled),
+			"detail":   fmt.Sprintf("检测到 %d 个已启用通道离线：确认 IP/端口/从站参数与网络连通", offlineEnabled),
 			"severity": "warning", "status": "running",
-			"action":   fiber.Map{"type": "navigate", "path": "/channels"},
+			"action": fiber.Map{"type": "navigate", "path": "/channels"},
 		}}, steps...)
 	} else if total > 0 {
 		steps[0]["status"] = "done"
