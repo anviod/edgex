@@ -17,6 +17,7 @@ import (
 	"github.com/anviod/edgex/internal/core"
 	_ "github.com/anviod/edgex/internal/driver/bacnet"
 	_ "github.com/anviod/edgex/internal/driver/dlt645"
+	_ "github.com/anviod/edgex/internal/driver/ethercat"
 	_ "github.com/anviod/edgex/internal/driver/ethernetip"
 	_ "github.com/anviod/edgex/internal/driver/ice104"
 	_ "github.com/anviod/edgex/internal/driver/knxnetip"

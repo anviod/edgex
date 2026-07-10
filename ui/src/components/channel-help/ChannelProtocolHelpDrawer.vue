@@ -50,6 +50,7 @@ import Ice104Help from './Ice104Help.vue'
 import SnmpHelp from './SnmpHelp.vue'
 import KnxHelp from './KnxHelp.vue'
 import ProfinetHelp from './ProfinetHelp.vue'
+import EthercatHelp from './EthercatHelp.vue'
 
 const PROTOCOL_COMPONENTS = {
   'modbus-tcp': ModbusTcpHelp,
@@ -66,6 +67,7 @@ const PROTOCOL_COMPONENTS = {
   snmp: SnmpHelp,
   'knxnet-ip': KnxHelp,
   'profinet-io': ProfinetHelp,
+  'ethercat': EthercatHelp,
 }
 
 const props = defineProps({

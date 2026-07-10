@@ -2,7 +2,7 @@
 
 EtherCAT（Ethernet for Control Automation Technology）是一种基于标准以太网物理层的实时工业现场总线协议，由 Beckhoff 提出并由 EtherCAT Technology Group（ETG）维护。EtherCAT 采用「飞读（Processing on the fly）」机制：主站发出的以太网帧依次穿过各从站，从站在帧经过时完成数据读写，从而实现微秒级周期通信。
 
-> **状态**：**规划中，尚未实现**。代码库中暂无 `internal/driver/ethercat/` 包、协议注册或前端帮助组件。`docs/guide/产品说明.md` 已将 EtherCAT 列入「统一接入」协议清单，属**产品能力规划表述**，与当前代码交付状态不一致，待本驱动落地后对齐文档。
+> **状态**：**v0.0.8 已实现 M1 里程碑**。核心驱动框架（`internal/driver/ethercat/`）、协议注册、前端通道/设备表单、帮助组件已交付。模拟模式可无硬件验证全流程。后续 M2/M3 里程碑（实时网卡绑定、DC 分布式时钟、CoE 完整对象字典）待规划。
 
 EtherCAT 系统包括几个角色：**主站（Master）** 负责网络扫描、从站配置与过程数据调度；**从站（Slave）** 为现场 IO 模块、伺服驱动器、传感器等，以菊花链或树形拓扑挂接；**配置工具**（如 TwinCAT、SOEM slaveinfo、IgH 工具链）用于导入 ESI/XML、生成 PDO 映射与对象字典。EdgeX 本驱动规划为 **EtherCAT 主站侧采集驱动**，通过过程数据对象（PDO）周期性采集、通过服务数据对象（SDO）非周期性读写参数。
 

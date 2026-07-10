@@ -1,0 +1,87 @@
+# golangci-lint configuration for EdgeX EtherCAT driver
+# Run: golangci-lint run --build-tags sim --timeout 5m ./...
+
+run:
+  timeout: 5m
+  build-tags:
+    - sim
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - revive
+    - unconvert
+    - unparam
+    - prealloc
+    - bodyclose
+    - nilerr
+    - noctx
+    - rowserrcheck
+    - sqlclosecheck
+    - tparallel
+    - wastedassign
+    - whitespace
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment  # acceptable trade-off for readability
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: increment-decrement
+      - name: var-naming
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unused-parameter
+      - name: unreachable-code
+      - name: redefines-builtin-id
+  misspell:
+    locale: US
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files.
+    - path: _test\.go
+      linters:
+        - errcheck
+        - unparam
+        - bodyclose
+        - noctx
+    # Allow unused parameters in interface implementations
+    - path: ethercat\.go
+      linters:
+        - revive
+      text: "unused-parameter"
+    # Exclude master_udp.go from test coverage requirements
+    - path: master_udp\.go
+      text: "unused"
+      linters:
+        - unused
+  max-issues-per-linter: 0
+  max-same-issues: 0

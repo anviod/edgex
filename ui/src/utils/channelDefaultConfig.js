@@ -93,6 +93,13 @@ export const CHANNEL_DEFAULT_CONFIGS = {
     heartbeat_interval: 30000,
     simulation: false,
   },
+  'ethercat': {
+    local_interface: 'eth0',
+    cycle_time_us: 1000,
+    timeout: 3000,
+    max_retries: 3,
+    simulation: false,
+  },
   'mitsubishi-slmp': {
     port: 5000,
     frame_type: '3E',

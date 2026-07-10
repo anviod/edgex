@@ -1098,7 +1098,7 @@ func (cm *ChannelManager) registerProtocolToScanEngine(protocol string) {
 		cm.scanEngineAdapter.scanEngine.RegisterProtocol(protocol, ProtocolTypeSerial)
 	case "opc-ua", "http", "rest", "mqtt", "bacnet-ip":
 		cm.scanEngineAdapter.scanEngine.RegisterProtocol(protocol, ProtocolTypeParallel)
-	case "s7", "ethernet-ip", "profinet-io", "iec60870-5-104":
+	case "s7", "ethernet-ip", "profinet-io", "iec60870-5-104", "ethercat":
 		cm.scanEngineAdapter.scanEngine.RegisterProtocol(protocol, ProtocolTypeLimited)
 	default:
 		cm.scanEngineAdapter.scanEngine.RegisterProtocol(protocol, ProtocolTypeSerial)
@@ -1126,6 +1126,8 @@ func (cm *ChannelManager) validatePoint(ch *model.Channel, point *model.Point) e
 		return cm.validateKNXnetIPPoint(point)
 	case "profinet-io":
 		return cm.validateProfinetIOPoint(point)
+	case "ethercat":
+		return cm.validateEtherCATPoint(point)
 	default:
 		return nil
 	}
@@ -1237,6 +1239,23 @@ func (cm *ChannelManager) validateProfinetIOPoint(point *model.Point) error {
 	re := regexp.MustCompile(`^\d+:\d+:\d+(?:\.\d+)?(?:#(?:BE|LE|be|le))?$`)
 	if !re.MatchString(point.Address) {
 		return fmt.Errorf("invalid profinet-io address format: expected SLOT:SUB_SLOT:INDEX[.BIT][#ENDIAN], e.g. 3:1:0")
+	}
+	return nil
+}
+
+// validateEtherCATPoint validates EtherCAT point address format.
+// Supports PDO: POSITION:Tx|Rx:OFFSET[.BIT][#ENDIAN]
+// and SDO: POSITION:SDO:0xINDEX:0xSUBINDEX[#ENDIAN]
+func (cm *ChannelManager) validateEtherCATPoint(point *model.Point) error {
+	if point.Address == "" {
+		return fmt.Errorf("ethercat address cannot be empty")
+	}
+	// PDO format: 1:Tx:0, 1:Tx:2.3, 2:Rx:4#LE
+	// SDO format: 1:SDO:0x6041:0, 1:SDO:0x6064:0#BE
+	re := regexp.MustCompile(`^\d+:(?:[Tt][Xx]|[Rr][Xx]|[01]):\d+(?:\.\d+)?(?:#(?:BE|LE|be|le))?$`)
+	reSDO := regexp.MustCompile(`^\d+:[Ss][Dd][Oo]:0[xX][0-9A-Fa-f]+:\d+(?:#(?:BE|LE|be|le))?$`)
+	if !re.MatchString(point.Address) && !reSDO.MatchString(point.Address) {
+		return fmt.Errorf("invalid ethercat address format: expected POSITION:Tx|Rx:OFFSET[.BIT][#ENDIAN] or POSITION:SDO:0xINDEX:0xSUBINDEX[#ENDIAN]")
 	}
 	return nil
 }

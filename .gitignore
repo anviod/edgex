@@ -13,3 +13,4 @@ dist/
 *.log
 *.txt
 *.out
+.golangci-lint-cache/

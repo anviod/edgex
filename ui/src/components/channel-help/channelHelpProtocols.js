@@ -13,4 +13,5 @@ export const CHANNEL_HELP_PROTOCOLS = [
   { value: 'snmp', label: 'SNMP' },
   { value: 'knxnet-ip', label: 'KNXnet/IP' },
   { value: 'profinet-io', label: 'Profinet IO' },
+  { value: 'ethercat', label: 'EtherCAT' },
 ]

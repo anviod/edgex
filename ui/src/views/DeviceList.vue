@@ -225,6 +225,53 @@
             </a-col>
           </a-row>
         </template>
+
+        <template v-if="channelProtocol === 'ethercat'">
+          <a-form-item field="ecatPosition" label="从站位置" required>
+            <a-input-number v-model="form.ecatPosition" :min="1" :max="65535" placeholder="1" />
+            <template #extra>
+              EtherCAT 总线上的从站物理位置（1-based positional addressing）
+            </template>
+          </a-form-item>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item field="ecatVendorId" label="厂商 ID">
+                <a-input v-model="form.ecatVendorId" placeholder="0x00000002" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item field="ecatProductCode" label="产品代码">
+                <a-input v-model="form.ecatProductCode" placeholder="0x07D43052" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="8">
+              <a-form-item field="ecatTxPdoSize" label="TxPDO 大小 (字节)">
+                <a-input-number v-model="form.ecatTxPdoSize" :min="0" :max="65535" placeholder="16" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="ecatRxPdoSize" label="RxPDO 大小 (字节)">
+                <a-input-number v-model="form.ecatRxPdoSize" :min="0" :max="65535" placeholder="8" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="ecatAlias" label="别名地址">
+                <a-input-number v-model="form.ecatAlias" :min="0" :max="65535" placeholder="0" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-form-item field="ecatRunMode" label="运行模式">
+            <a-select v-model="form.ecatRunMode" placeholder="pdo">
+              <a-option value="pdo">PDO (过程数据)</a-option>
+              <a-option value="sdo">SDO (邮箱数据)</a-option>
+            </a-select>
+            <template #extra>
+              PDO 模式用于高速周期性数据交换；SDO 模式用于参数配置和诊断
+            </template>
+          </a-form-item>
+        </template>
         
         <template v-if="channelProtocol && channelProtocol.includes('modbus')">
           <a-form-item field="modbusSlaveId" label="从机ID" required>
@@ -804,6 +851,13 @@ const defaultForm = {
   pnioProperties: '',
   pnioInputLength: 0,
   pnioOutputLength: 0,
+  ecatPosition: 1,
+  ecatVendorId: '',
+  ecatProductCode: '',
+  ecatTxPdoSize: 16,
+  ecatRxPdoSize: 8,
+  ecatAlias: 0,
+  ecatRunMode: 'pdo',
   config: {},
   storageEnable: false,
   storageStrategy: 'interval',
@@ -1090,6 +1144,14 @@ const saveDevice = async () => {
     if (form.value.pnioProperties) config.properties = form.value.pnioProperties
     if (form.value.pnioInputLength) config.input_length = form.value.pnioInputLength
     if (form.value.pnioOutputLength) config.output_length = form.value.pnioOutputLength
+  } else if (channelProtocol.value === 'ethercat') {
+    config.position = form.value.ecatPosition
+    if (form.value.ecatVendorId) config.vendor_id = form.value.ecatVendorId
+    if (form.value.ecatProductCode) config.product_code = form.value.ecatProductCode
+    if (form.value.ecatTxPdoSize) config.tx_pdo_size = form.value.ecatTxPdoSize
+    if (form.value.ecatRxPdoSize) config.rx_pdo_size = form.value.ecatRxPdoSize
+    if (form.value.ecatAlias) config.alias = form.value.ecatAlias
+    if (form.value.ecatRunMode) config.run_mode = form.value.ecatRunMode
   }
 
   const payload = {

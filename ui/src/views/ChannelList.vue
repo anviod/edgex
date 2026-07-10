@@ -1132,6 +1132,40 @@
           </a-row>
         </div>
 
+        <!-- EtherCAT 通道配置 -->
+        <div v-if="dialog.form.protocol === 'ethercat'" class="config-section">
+          <div class="modal-section__title modal-section__title--sub">基础连接</div>
+          <a-form-item field="config.local_interface" label="网络接口" required>
+            <a-input v-model="dialog.form.config.local_interface" placeholder="eth0 或 lo (模拟)" />
+            <template #extra>
+              物理网卡名称（如 eth0、enp2s0）或 lo（模拟模式）
+            </template>
+          </a-form-item>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.cycle_time_us" label="周期时间 (μs)">
+                <a-input-number v-model="dialog.form.config.cycle_time_us" :min="100" :max="100000" placeholder="1000" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.timeout" label="超时时间 (ms)">
+                <a-input-number v-model="dialog.form.config.timeout" :min="500" :max="60000" placeholder="3000" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.max_retries" label="重试次数">
+                <a-input-number v-model="dialog.form.config.max_retries" :min="0" :max="10" placeholder="3" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-form-item field="config.simulation" label="模拟模式">
+            <a-switch v-model="dialog.form.config.simulation" />
+            <template #extra>
+              开启后使用内置模拟器，无需真实 EtherCAT 硬件即可测试
+            </template>
+          </a-form-item>
+        </div>
+
       </a-form>
     </a-modal>
 
@@ -1293,7 +1327,8 @@ const protocols = [
   { label: 'Profinet IO', value: 'profinet-io' },
   { label: 'Mitsubishi MC', value: 'mitsubishi-slmp' },
   { label: 'IEC 60870-5-104', value: 'iec60870-5-104' },
-  { label: 'SNMP', value: 'snmp' }
+  { label: 'SNMP', value: 'snmp' },
+  { label: 'EtherCAT', value: 'ethercat' }
 ]
 
 const tableColumns = [
@@ -1336,7 +1371,8 @@ const getProtocolClass = (protocol) => {
     'profinet-io': 'protocol-profinet-io',
     'ethernet-ip': 'protocol-ip',
     'mitsubishi-slmp': 'protocol-mitsubishi',
-    'omron-fins': 'protocol-omron'
+    'omron-fins': 'protocol-omron',
+    'ethercat': 'protocol-ethercat'
   }
   return classes[protocol] || 'protocol-default'
 }
