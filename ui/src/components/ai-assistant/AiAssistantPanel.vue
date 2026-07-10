@@ -60,16 +60,6 @@
                 <icon-settings :size="14" />
               </button>
               <button
-                v-if="!state.miniMode"
-                type="button"
-                class="ai-panel__action"
-                :title="state.chatOpen ? '收起对话' : '展开对话'"
-                :aria-label="state.chatOpen ? '收起对话' : '展开对话'"
-                @click.stop="setChatOpen(!state.chatOpen)"
-              >
-                <icon-message :size="14" />
-              </button>
-              <button
                 type="button"
                 class="ai-panel__action"
                 :title="state.miniMode ? '展开' : '迷你'"
@@ -121,28 +111,18 @@
               <div
                 class="ai-split"
                 :class="{
-                  'ai-split--workspace-collapsed': state.workspaceCollapsed,
-                  'ai-split--chat-hidden': !state.chatOpen
+                  'ai-split--workspace-collapsed': state.splitMode === 'chat',
+                  'ai-split--chat-hidden': state.splitMode === 'workspace'
                 }"
               >
                 <!-- Workspace pane -->
                 <section
-                  v-show="!state.workspaceCollapsed"
+                  v-show="state.splitMode !== 'chat'"
                   class="ai-split__workspace"
                   aria-label="工作台"
                 >
                   <div class="ai-split__workspace-toolbar">
                     <span class="ai-split__workspace-label">工作台</span>
-                    <button
-                      type="button"
-                      class="ai-btn-ghost"
-                      title="收起工作台"
-                      aria-label="收起工作台"
-                      @click="setWorkspaceCollapsed(true)"
-                    >
-                      <icon-menu-fold :size="14" />
-                      <span>收起</span>
-                    </button>
                   </div>
                   <div class="ai-split__workspace-content">
                     <AiTaskHistory
@@ -180,30 +160,25 @@
                   </div>
                 </section>
 
-                <!-- Collapsed workspace rail -->
-                <div v-if="state.workspaceCollapsed" class="ai-split__rail" aria-label="工作台已收起">
-                  <button
-                    type="button"
-                    class="ai-split__rail-btn"
-                    title="展开工作台"
-                    aria-label="展开工作台"
-                    @click="setWorkspaceCollapsed(false)"
-                  >
-                    <icon-menu-unfold :size="16" />
-                  </button>
-                </div>
+                <!-- Splitter button -->
+                <button
+                  type="button"
+                  class="ai-split__divider"
+                  :title="splitterTitle"
+                  :aria-label="splitterTitle"
+                  @click="toggleSplitMode"
+                >
+                  <icon-left v-if="state.splitMode === 'both'" :size="10" />
+                  <icon-right v-else :size="10" />
+                </button>
 
                 <!-- Chat pane -->
                 <AiChatSidebar
-                  v-if="state.chatOpen"
-                  :collapsed="false"
-                  :workspace-collapsed="state.workspaceCollapsed"
+                  v-show="state.splitMode !== 'workspace'"
                   :workspace="state.workspace"
                   :task-id="activeTask?.id || ''"
                   :task-status="activeTask?.status || ''"
                   class="ai-split__chat"
-                  @toggle="setChatOpen(false)"
-                  @expand-workspace="setWorkspaceCollapsed(false)"
                 />
               </div>
             </div>
@@ -234,7 +209,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
 import {
-  IconShrink, IconExpand, IconMinus, IconMessage, IconMenuFold, IconMenuUnfold, IconSettings
+  IconShrink, IconExpand, IconMinus, IconLeft, IconRight, IconSettings
 } from '@arco-design/web-vue/es/icon'
 import { useAiAssistant, AI_WORKSPACES } from '@/composables/useAiAssistant'
 import { useAiCopilot } from '@/composables/useAiCopilot'
@@ -253,7 +228,7 @@ const route = useRoute()
 const isLoginPage = computed(() => route.path === '/login' || route.path === '/install')
 
 const {
-  state, setExpanded, setMiniMode, setWorkspace, setChatOpen, setWorkspaceCollapsed,
+  state, setExpanded, setMiniMode, setWorkspace, toggleSplitMode,
   setPosition, setSize, collapseToFab
 } = useAiAssistant()
 
@@ -275,6 +250,15 @@ const statusLabel = computed(() => {
   if (!aiStatus.value) return '连接中…'
   if (aiStatus.value.mode === 'local') return '本地 Mock 模式 · 四阶段流水线'
   return `${aiStatus.value.provider || 'AI Model Center'} · 四阶段流水线`
+})
+
+const splitterTitle = computed(() => {
+  const map = {
+    both: '收起工作台',
+    chat: '收起对话',
+    workspace: '展开分栏'
+  }
+  return map[state.value.splitMode] || '切换分栏'
 })
 
 const openSettings = async () => {

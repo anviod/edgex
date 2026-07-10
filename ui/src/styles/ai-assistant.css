@@ -527,7 +527,7 @@
   max-width: 100%;
 }
 
-/* ── 10. 双分栏布局与侧轨轨 (Body & Rail Layouts) ── */
+/* ── 10. 双分栏布局与分割线 (Body & Split Divider) ── */
 .ai-panel__body {
   flex: 1;
   min-height: 0;
@@ -550,7 +550,6 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-right: 1px solid var(--ai-glass-border-subtle);
 }
 
 .ai-split__workspace-toolbar {
@@ -580,35 +579,47 @@
   padding: 14px 16px;
 }
 
-.ai-split__rail {
-  flex: 0 0 42px;
+.ai-split__divider {
+  flex: 0 0 18px;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 12px;
-  border-right: 1px solid var(--ai-glass-border-subtle);
-  background: var(--ai-glass-bg-subtle);
-}
-
-.ai-split__rail-btn {
-  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--ai-glass-border-subtle);
-  border-radius: var(--ai-radius-sm);
-  background: var(--ai-glass-bg-card);
-  color: var(--ai-text-faint);
   cursor: pointer;
+  background: var(--ai-glass-bg-subtle);
+  border: none;
+  border-left: 1px solid var(--ai-glass-border-subtle);
+  border-right: 1px solid var(--ai-glass-border-subtle);
+  color: var(--ai-text-faint);
   transition: all var(--ai-transition-fast);
+  position: relative;
+  margin: 0;
+  padding: 0;
 }
 
-.ai-split__rail-btn:hover {
+.ai-split__divider::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--primary) 0%, transparent);
+  transition: background var(--ai-transition-fast);
+}
+
+.ai-split__divider:hover {
   color: var(--primary);
-  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
-  background: color-mix(in srgb, var(--primary) 8%, transparent);
-  transform: scale(1.05);
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
+  background: color-mix(in srgb, var(--primary) 6%, var(--ai-glass-bg-subtle));
+}
+
+.ai-split__divider:hover::after {
+  background: color-mix(in srgb, var(--primary) 4%, transparent);
+}
+
+.ai-split__divider .arco-icon {
+  transition: transform 0.2s ease;
+}
+
+.ai-split__divider:hover .arco-icon {
+  transform: scale(1.2);
 }
 
 .ai-split__chat {
@@ -623,7 +634,6 @@
 
 .ai-split--chat-hidden .ai-split__workspace {
   flex: 1 1 100%;
-  border-right: none;
 }
 
 .ai-btn-ghost {
@@ -885,16 +895,6 @@
   border-bottom: 1px solid var(--ai-glass-border-subtle);
   flex-shrink: 0;
   background: var(--ai-glass-bg-subtle);
-}
-
-.ai-chat-sidebar__header-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.ai-chat-sidebar__expand-workspace {
-  color: var(--primary);
 }
 
 .ai-chat-sidebar__context {
@@ -2421,7 +2421,7 @@
 .ai-tab:focus-visible,
 .ai-panel__action:focus-visible,
 .ai-btn-ghost:focus-visible,
-.ai-split__rail-btn:focus-visible,
+.ai-split__divider:focus-visible,
 .ai-chat-input__send:focus-visible,
 .ai-deliverable-tab:focus-visible,
 .ai-upload-zone:focus-visible,

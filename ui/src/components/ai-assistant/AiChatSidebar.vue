@@ -1,132 +1,109 @@
 <template>
   <aside
     class="ai-chat-sidebar"
-    :class="{ 'ai-chat-sidebar--collapsed': collapsed }"
     aria-label="AI助手 对话"
   >
     <header class="ai-chat-sidebar__header">
       <span>对话助手</span>
-      <div class="ai-chat-sidebar__header-actions">
-        <button
-          v-if="workspaceCollapsed"
-          type="button"
-          class="ai-panel__action ai-chat-sidebar__expand-workspace"
-          title="展开工作台"
-          aria-label="展开工作台"
-          @click="$emit('expand-workspace')"
-        >
-          <icon-menu-unfold :size="14" />
-        </button>
-        <button type="button" class="ai-panel__action" aria-label="收起对话" @click="$emit('toggle')">
-          <icon-menu-fold v-if="!collapsed" :size="14" />
-          <icon-menu-unfold v-else :size="14" />
-        </button>
-      </div>
     </header>
 
     <div v-if="contextLabel" class="ai-chat-sidebar__context">
       <span class="ai-chat-sidebar__context-badge">{{ contextLabel }}</span>
     </div>
 
-    <template v-if="!collapsed">
-      <div ref="messagesRef" class="ai-chat-sidebar__messages" role="log" aria-live="polite">
-        <div
-          v-for="(msg, index) in messages"
-          :key="index"
-          class="ai-message ai-message--compact"
-          :class="`ai-message--${msg.role}`"
-        >
-          <div v-if="msg.role === 'assistant'" class="ai-message__avatar" aria-hidden="true">
-            <AiAssistantIcon />
-          </div>
-          <div class="ai-message__bubble">
-            <div
-              v-if="msg.role === 'assistant'"
-              class="ai-message__text ai-message__text--md"
-              v-html="formatContent(msg.content)"
-            ></div>
-            <p v-else class="ai-message__text">{{ msg.content }}</p>
-          </div>
+    <div ref="messagesRef" class="ai-chat-sidebar__messages" role="log" aria-live="polite">
+      <div
+        v-for="(msg, index) in messages"
+        :key="index"
+        class="ai-message ai-message--compact"
+        :class="`ai-message--${msg.role}`"
+      >
+        <div v-if="msg.role === 'assistant'" class="ai-message__avatar" aria-hidden="true">
+          <AiAssistantIcon />
         </div>
-        <div v-if="loading" class="ai-message ai-message--assistant ai-message--compact">
-          <div class="ai-message__avatar" aria-hidden="true"><AiAssistantIcon /></div>
-          <div class="ai-message__bubble ai-message__bubble--typing">
-            <span class="ai-typing-dot"></span>
-            <span class="ai-typing-dot"></span>
-            <span class="ai-typing-dot"></span>
-          </div>
+        <div class="ai-message__bubble">
+          <div
+            v-if="msg.role === 'assistant'"
+            class="ai-message__text ai-message__text--md"
+            v-html="formatContent(msg.content)"
+          ></div>
+          <p v-else class="ai-message__text">{{ msg.content }}</p>
         </div>
       </div>
+      <div v-if="loading" class="ai-message ai-message--assistant ai-message--compact">
+        <div class="ai-message__avatar" aria-hidden="true"><AiAssistantIcon /></div>
+        <div class="ai-message__bubble ai-message__bubble--typing">
+          <span class="ai-typing-dot"></span>
+          <span class="ai-typing-dot"></span>
+          <span class="ai-typing-dot"></span>
+        </div>
+      </div>
+    </div>
 
-      <div v-if="suggestions.length" class="ai-panel__suggestions ai-panel__suggestions--compact">
-        <button
-          v-for="item in suggestions"
-          :key="item"
-          type="button"
-          class="ai-suggestion-chip"
+    <div v-if="suggestions.length" class="ai-panel__suggestions ai-panel__suggestions--compact">
+      <button
+        v-for="item in suggestions"
+        :key="item"
+        type="button"
+        class="ai-suggestion-chip"
+        :disabled="loading"
+        @click="sendMessage(item)"
+      >
+        {{ item }}
+      </button>
+    </div>
+
+    <form class="ai-chat-sidebar__input" @submit.prevent="sendMessage()">
+      <div
+        class="ai-chat-input__box"
+        :class="{ 'ai-chat-input__box--focused': inputFocused }"
+      >
+        <a-textarea
+          v-model="input"
+          class="ai-chat-input__textarea"
+          :auto-size="{ minRows: 2, maxRows: 6 }"
+          placeholder="问答 · 排障 · 配置帮助…"
           :disabled="loading"
-          @click="sendMessage(item)"
+          aria-label="对话输入"
+          @focus="inputFocused = true"
+          @blur="inputFocused = false"
+          @keydown.enter.exact.prevent="sendMessage()"
+          @keydown.enter.shift.exact.stop
+        />
+        <button
+          type="submit"
+          class="ai-chat-input__send"
+          :class="{
+            'ai-chat-input__send--active': input.trim() && !loading,
+            'ai-chat-input__send--loading': loading
+          }"
+          :disabled="!input.trim() || loading"
+          aria-label="发送消息"
+          title="发送 (Enter)"
         >
-          {{ item }}
+          <span v-if="loading" class="ai-chat-input__send-spinner" aria-hidden="true"></span>
+          <icon-send v-else :size="16" />
         </button>
       </div>
-
-      <form class="ai-chat-sidebar__input" @submit.prevent="sendMessage()">
-        <div
-          class="ai-chat-input__box"
-          :class="{ 'ai-chat-input__box--focused': inputFocused }"
-        >
-          <a-textarea
-            v-model="input"
-            class="ai-chat-input__textarea"
-            :auto-size="{ minRows: 2, maxRows: 6 }"
-            placeholder="问答 · 排障 · 配置帮助…"
-            :disabled="loading"
-            aria-label="对话输入"
-            @focus="inputFocused = true"
-            @blur="inputFocused = false"
-            @keydown.enter.exact.prevent="sendMessage()"
-            @keydown.enter.shift.exact.stop
-          />
-          <button
-            type="submit"
-            class="ai-chat-input__send"
-            :class="{
-              'ai-chat-input__send--active': input.trim() && !loading,
-              'ai-chat-input__send--loading': loading
-            }"
-            :disabled="!input.trim() || loading"
-            aria-label="发送消息"
-            title="发送 (Enter)"
-          >
-            <span v-if="loading" class="ai-chat-input__send-spinner" aria-hidden="true"></span>
-            <icon-send v-else :size="16" />
-          </button>
-        </div>
-        <p class="ai-chat-input__hint">Enter 发送 · Shift+Enter 换行</p>
-      </form>
-    </template>
+      <p class="ai-chat-input__hint">Enter 发送 · Shift+Enter 换行</p>
+    </form>
   </aside>
 </template>
 
 <script setup>
 import { ref, watch, nextTick, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { IconMenuFold, IconMenuUnfold, IconSend } from '@arco-design/web-vue/es/icon'
+import { IconSend } from '@arco-design/web-vue/es/icon'
 import { formatMarkdownLite } from '@/utils/markdownLite'
 import { AI_WORKSPACES } from '@/composables/useAiAssistant'
 import AiApi from '@/api/ai'
 import AiAssistantIcon from './AiAssistantIcon.vue'
 
 const props = defineProps({
-  collapsed: { type: Boolean, default: false },
-  workspaceCollapsed: { type: Boolean, default: false },
   workspace: { type: String, default: 'protocol' },
   taskId: { type: String, default: '' },
   taskStatus: { type: String, default: '' }
 })
-
-defineEmits(['toggle', 'expand-workspace'])
 
 const route = useRoute()
 const messagesRef = ref(null)
