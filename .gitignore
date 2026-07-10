@@ -14,3 +14,5 @@ dist/
 *.txt
 *.out
 .golangci-lint-cache/
+.gomodcache/
+.github/
