@@ -6,9 +6,9 @@ description: EdgeX southbound driver unit test and boundary scenario coverage re
 
 # Southbound Driver Test Report
 
-> **Date**: 2026-07-04  
-> **Environment**: macOS (darwin/amd64), Go toolchain, `CGO_ENABLED=0`  
-> **Scope**: `internal/driver/...` — thirteen southbound drivers, `-short` CI-friendly
+> **Date**: 2026-07-11 (regression) / 2026-07-04 (initial)  
+> **Environment**: Windows (amd64), Go toolchain  
+> **Scope**: `internal/driver/...` — 13 southbound drivers + EtherCAT stress/benchmark, `-short` CI-friendly
 
 [中文版](南向驱动测试报告.html)
 
@@ -42,7 +42,9 @@ CGO_ENABLED=0 go test ./internal/driver/... -short -count=1 -cover
 | `internal/driver/ethercat` | PASS | **87.8%** | PDO/SDO + simulator master |
 | **`internal/driver/...` overall** | **PASS** | — | 22/22 packages (`-short`) |
 
-**2026-07-04**: All southbound driver packages PASS under `-short` (retest 22/22, ~3.3min wall; log: [`_run_logs/2026-07-04_driver_retest.txt`](_run_logs/2026-07-04_driver_retest.txt)). Coverage aligned with initial run; OPC UA **47.9%** (+0.3pp) and EtherNet/IP **39.5%** (−0.9pp) are normal variance. Added/extended `coverage_test.go` across drivers; fixed flaky `modbus/reconnect_test.go` single-flight timing.
+**2026-07-11 回归**: All 22/22 packages PASS. EtherCAT verified with `-tags sim` (**87.8%** coverage, 9 stress tests, 25 benchmarks). Windows (amd64) first full-suite regression.
+
+**2026-07-04**: All southbound driver packages PASS under `-short` (retest 22/22, ~3.3min wall). Coverage aligned with initial run; OPC UA **47.9%** (+0.3pp) and EtherNet/IP **39.5%** (−0.9pp) are normal variance. Added/extended `coverage_test.go` across drivers; fixed flaky `modbus/reconnect_test.go` single-flight timing.
 
 ### Coverage Before → After
 
@@ -103,6 +105,7 @@ Drivers below 70% are limited by real TCP/session paths (OPC UA, ENIP, PNIO RPC,
 | Mitsubishi SLMP | 4 | 70.7% | Yes | Yes | PASS |
 | KNXnet/IP | 3 | 77.2% | Yes | Yes | PASS |
 | Profinet IO | 5 | 55.9% | Yes | Yes | PASS |
+| **EtherCAT** | 6 | **87.8%** | Yes | Yes | PASS |
 | ConnectionManager | 2 | 87.4% | — | — | PASS |
 
 ### 3.1 New/Updated Test Files (2026-07-04)
@@ -120,11 +123,55 @@ Drivers below 70% are limited by real TCP/session paths (OPC UA, ENIP, PNIO RPC,
 
 Non-CI: `//go:build integration`, `bacnet/manual_test.go` — see [test/manual/](../../test/manual/README.md).
 
+### 3.2 EtherCAT Stress & Benchmark (2026-07-11)
+
+**Stress tests** (`go test -tags sim -run TestStress`): 9/9 PASS
+
+| Test | Throughput | Notes |
+| :--- | :--- | :--- |
+| `TestStress_ConcurrentReadPoints` | 50 goroutines × 200 iterations | 4 PDO points/read |
+| `TestStress_ConcurrentWritePoints` | 50 goroutines × 200 iter × 3 points | PDO write |
+| `TestStress_PDOCycleStability` | ~20 updates/100ms | 5ms TxPDO cycle |
+| `TestStress_EncodeDecodeHighVolume` | 100,000 ops | int32 round-trip |
+| `TestStress_ParseAddressHighVolume` | 50,000 ops | PDO address parsing |
+| `TestStress_ConfigParseHighVolume` | 50,000 ops | channel + device config |
+| `TestStress_SimulatorConcurrent` | 300 goroutines | mixed read/write/SDO |
+| `TestStress_FloatEncodeDecode` | float32/64 edge values | NaN, Inf, ±Max |
+| `TestStress_IntBoundaryValues` | int8–uint32 boundaries | ±Max, 0, ±1 |
+
+**Benchmarks** (`go test -tags sim -bench=.`): 25/25 PASS
+
+| Benchmark | ops/sec | ns/op | allocs/op |
+| :--- | ---: | ---: | ---: |
+| ParseAddress_PDO | 9,983,593 | 137.3 | 3 |
+| ParseAddress_SDO | 8,779,456 | 147.0 | 2 |
+| DecodeValue_Int16 | 24,779,155 | 46.95 | 1 |
+| DecodeValue_Float32 | 25,779,673 | 44.47 | 1 |
+| DecodeValue_Bit | 135,816,910 | 9.75 | 0 |
+| EncodeValue_Int16 | 17,256,676 | 65.82 | 1 |
+| EncodeDecode_RoundTrip | 10,303,860 | 116.1 | 2 |
+| ByteSize | 1,000,000,000 | 0.84 | 0 |
+| ParseChannelConfig | 6,203,300 | 189.5 | 0 |
+| TransportSnapshotRead | 34,153,004 | 45.50 | 0 |
+
+> **CPU**: 13th Gen Intel Core i5-13500H. All benchmarks used `-benchtime=1s`.
+
 ---
 
 ## 4. Boundary Scenario Matrix
 
-All 104 cells covered (timeout, reconnect, Dead, invalid config, mock read/write, fault isolation, concurrency). See each package `scenario_test.go`.
+| 场景 | Modbus | BACnet | OPC UA | S7 | ENIP | FINS | SNMP | ICE104 | DLT645 | MELSEC | KNX | PNIO | ECAT |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| 超时 / 退避 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 重连 / 半开探测 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 冷却期 / Dead | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 无效配置 / 地址 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 点位读（Mock） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 点位写（Mock） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 设备故障隔离 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 并发安全 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+Matrix 112/112 cells covered; see each package `scenario_test.go`.
 
 ---
 
