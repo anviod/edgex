@@ -3,16 +3,16 @@ layout: section-index
 title: 测试验证
 description: EdgeX 测试验证文档 — 单元测试、回归验证、压力测试与验收报告
 hero_eyebrow: Testing & Verification
-hero_lead: EdgeX 测试验证文档 — 测试矩阵、回归验证、压力测试、南向驱动测试报告与 2026-07-04 自动化回归复测（core/soak/Q3 PASS；driver 1 FAIL、G007 WARN）。
+hero_lead: EdgeX 测试验证文档 — 测试矩阵、回归验证、压力测试、南向驱动测试报告、2026-07-04 自动化回归复测、2026-07-10 ARM64 vs x86 跨架构双向对比测试。
 hero_buttons:
+  - text: 跨架构对比报告
+    url: arch-cross-platform-benchmark-2026Q3/arch-cross-platform-benchmark-2026Q3.html
+    style: primary
   - text: 南向驱动测试报告
     url: 南向驱动测试报告.html
-    style: primary
+    style: secondary
   - text: Test Report (EN)
     url: southbound-driver-test-report.html
-    style: secondary
-  - text: 驱动总览
-    url: ../drivers/index.html
     style: secondary
   - text: 返回首页
     url: ../index.html
@@ -61,6 +61,7 @@ hero_buttons:
 - [SLA 完成报告 2026Q3](sla_completion_report_2026Q3.html) — Phase A–D 测试与指标（含 2026-07-04 复测）
 - [确定性 SLA 报告](deterministic_sla_report.html) — EDF + hard jitter；P99 承诺
 - [Shadow 性能优化报告 2026Q3](shadow_optimization_report_2026Q3.html) — COW / Worker Pool / Ingress
+- [ARM64 vs x86 跨架构双向对比测试 2026Q3](arch-cross-platform-benchmark-2026Q3/arch-cross-platform-benchmark-2026Q3.html) — 真实硬件双向对比：Cortex-A55 (RK3588s) vs i5-13500H (Golden Cove)
 - [ScanEngine SLA 评估](../TODO/SLA评估.html) — 工业边界 B1–B6 达标矩阵
 - [SLA 轻量化运维手册](../deployment/sla_monitoring.html) — diagnostics 巡检
 
