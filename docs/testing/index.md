@@ -3,7 +3,7 @@ layout: section-index
 title: 测试验证
 description: EdgeX 测试验证文档 — 单元测试、回归验证、压力测试与验收报告
 hero_eyebrow: Testing & Verification
-hero_lead: EdgeX 测试验证文档 — 测试矩阵、回归验证、压力测试、南向驱动测试报告、2026-07-04 自动化回归复测、2026-07-10 ARM64 vs x86 跨架构双向对比测试。
+hero_lead: EdgeX 测试验证文档 — 测试矩阵、回归验证、压力测试、南向驱动测试报告、2026-07-12 热路径单测补强与全量回归、2026-07-10 ARM64 vs x86 跨架构双向对比测试。
 hero_buttons:
   - text: 跨架构对比报告
     url: arch-cross-platform-benchmark-2026Q3/arch-cross-platform-benchmark-2026Q3.html
@@ -45,10 +45,21 @@ hero_buttons:
 
 ### 南向驱动测试
 
+> **2026-07-12 热路径补强**：`CGO_ENABLED=0 go test ./... -short` 全量 PASS。新增 AI Agent 生命周期（**91.4%**）、ChannelManager EtherCAT 校验/指标快照/RemoveDevice、Modbus `readGroup`/`markPointFailed`、EtherNet/IP `processTagValue` 等热路径单测；`internal/core` 覆盖率 **80.1%**。
+
 > **2026-07-04 复测**：`CGO_ENABLED=0 go test ./internal/driver/... -short` — 主驱动包 **21/21 PASS**；ConnectionManager **87.4%**，DL/T645 **76.5%**、KNXnet/IP **77.2%**、Mitsubishi **70.7%** 达 ≥70%；新增/扩展各驱动 `coverage_test.go`，修复 Modbus 单飞重连时序抖动。
 
-- [南向驱动测试报告](南向驱动测试报告.html) — 单元测试、性能基准、边界场景矩阵（2026-07-04）
+- [南向驱动测试报告](南向驱动测试报告.html) — 单元测试、性能基准、边界场景矩阵（2026-07-12）
 - [Southbound Driver Test Report (EN)](southbound-driver-test-report.html)
+
+### 热路径单元测试（2026-07-12）
+
+| 模块 | 新增测试文件 | 覆盖重点 |
+| :--- | :--- | :--- |
+| `internal/ai_agent` | `manager_test.go` | Create/Confirm/配额/EdgeRule/Diagnostics 全生命周期 |
+| `internal/core` | `channel_manager_hotpath_test.go` | EtherCAT 地址校验、ScanEngine 指标快照、RemoveDevice |
+| `internal/driver/modbus` | `scheduler_hotpath_test.go` | `readGroup` 批量读、`markPointFailed` 冷却策略 |
+| `internal/driver/ethernetip` | `process_tag_test.go` | `processTagValue` Good/Bad 质量映射 |
 
 ### 代码测试维护
 

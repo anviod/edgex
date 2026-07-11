@@ -213,6 +213,9 @@ func TestValidatePointProtocols(t *testing.T) {
 		{"omron-fins", model.Point{Address: "D100"}, false},
 		{"knxnet-ip", model.Point{Address: "1/2/3"}, false},
 		{"profinet-io", model.Point{Address: "3:1:0"}, false},
+		{"ethercat", model.Point{Address: "1:Tx:0"}, false},
+		{"ethercat", model.Point{Address: "1:SDO:0x6041:0"}, false},
+		{"ethercat", model.Point{Address: "invalid"}, true},
 		{"modbus-tcp", model.Point{Address: "40001", DataType: "int16"}, false},
 	}
 	for _, tc := range cases {

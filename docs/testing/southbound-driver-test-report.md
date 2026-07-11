@@ -6,9 +6,9 @@ description: EdgeX southbound driver unit test and boundary scenario coverage re
 
 # Southbound Driver Test Report
 
-> **Date**: 2026-07-11 (regression) / 2026-07-04 (initial)  
-> **Environment**: Windows (amd64), Go toolchain  
-> **Scope**: `internal/driver/...` — 13 southbound drivers + EtherCAT stress/benchmark, `-short` CI-friendly
+> **Date**: 2026-07-12 (hot-path unit tests + full regression) / 2026-07-11 (regression) / 2026-07-04 (initial)  
+> **Environment**: Windows (amd64) / macOS (darwin/amd64), Go toolchain  
+> **Scope**: `internal/driver/...` — 13 southbound drivers + EtherCAT stress/benchmark; `internal/ai_agent` & `internal/core` hot-path tests (`-short`, CI-friendly)
 
 [中文版](南向驱动测试报告.html)
 
@@ -42,7 +42,9 @@ CGO_ENABLED=0 go test ./internal/driver/... -short -count=1 -cover
 | `internal/driver/ethercat` | PASS | **87.8%** | PDO/SDO + simulator master |
 | **`internal/driver/...` overall** | **PASS** | — | 22/22 packages (`-short`) |
 
-**2026-07-11 回归**: All 22/22 packages PASS. EtherCAT verified with `-tags sim` (**87.8%** coverage, 9 stress tests, 25 benchmarks). Windows (amd64) first full-suite regression.
+**2026-07-12 hot-path boost**: `CGO_ENABLED=0 go test ./... -short` — full suite PASS. Added `manager_test.go` (AI Agent **91.4%**), `channel_manager_hotpath_test.go` (core **80.1%**), `scheduler_hotpath_test.go` (Modbus **65.8%**), `process_tag_test.go` (EtherNet/IP **61.9%**). EtherCAT dependency upgraded to `github.com/anviod/EtherCAT` **v1.0.3**.
+
+**2026-07-11 regression**: All 22/22 packages PASS. EtherCAT verified with `-tags sim` (**87.8%** coverage, 9 stress tests, 25 benchmarks). Windows (amd64) first full-suite regression.
 
 **2026-07-04**: All southbound driver packages PASS under `-short` (retest 22/22, ~3.3min wall). Coverage aligned with initial run; OPC UA **47.9%** (+0.3pp) and EtherNet/IP **39.5%** (−0.9pp) are normal variance. Added/extended `coverage_test.go` across drivers; fixed flaky `modbus/reconnect_test.go` single-flight timing.
 
@@ -108,7 +110,17 @@ Drivers below 70% are limited by real TCP/session paths (OPC UA, ENIP, PNIO RPC,
 | **EtherCAT** | 6 | **87.8%** | Yes | Yes | PASS |
 | ConnectionManager | 2 | 87.4% | — | — | PASS |
 
-### 3.1 New/Updated Test Files (2026-07-04)
+### 3.1 New/Updated Test Files
+
+| Module | File | Change |
+| :--- | :--- | :--- |
+| AI Agent | `manager_test.go` | **new** — Create/Confirm/quota/AttachFile/EdgeRule/Diagnostics lifecycle |
+| Core | `channel_manager_hotpath_test.go` | **new** — EtherCAT validation, ScanEngine channel metrics, RemoveDevice |
+| Modbus | `scheduler_hotpath_test.go` | **new** — `readGroup` batch read, `markPointFailed` cooldown |
+| EtherNet/IP | `process_tag_test.go` | **new** — `processTagValue` Good/Bad quality mapping |
+| Core | `coverage_helpers_test.go` | EtherCAT PDO/SDO cases in `validatePoint` |
+
+#### 2026-07-04 history
 
 | Module | File | Change |
 | :--- | :--- | :--- |
