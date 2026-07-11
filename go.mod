@@ -3,7 +3,7 @@ module github.com/anviod/edgex
 go 1.26.4
 
 require (
-	github.com/anviod/EtherCAT v0.0.0-20260710143256-c5cb9634e40b
+	github.com/anviod/EtherCAT v1.0.3
 	github.com/anviod/ethernet-ip v0.0.6
 	github.com/anviod/fins v0.0.0-20260623041119-337148808ff7
 	github.com/anviod/gos7 v0.0.1
