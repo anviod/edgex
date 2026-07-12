@@ -6,14 +6,15 @@ Industrial Edge Gateway is a lightweight industrial edge computing gateway for m
 
 ## Product Overview
 
-Industrial Edge Gateway runs at the industrial edge to bridge **OT devices ↔ IT systems** — unified southbound access, local edge processing, and flexible northbound integration in a single gateway from acquisition to reporting. **It covers 12 southbound protocols, edge rules, and multi-channel northbound integration, backed by industrial-grade SLA and Soak long-stability verification for reliable long-term operation in the field.**
+Industrial Edge Gateway runs at the industrial edge to bridge **OT devices ↔ IT systems** — unified southbound access, local edge processing, and flexible northbound integration in a single gateway from acquisition to reporting. **13 southbound protocols write into ShadowCore (runtime SoT), then fan out to virtual devices, edge rules, persistence, and northbound channels — backed by industrial-grade SLA and Soak long-stability verification.**
 
 - **Unified access**: heterogeneous PLCs, meters, building and network devices — one gateway for collection
+- **Shadow SoT**: in-memory ShadowCore shared by UI, edge compute, and northbound
 - **Edge intelligence**: local rules and derived tags for control linkage and reduced uplink traffic
 - **Open integration**: cloud platforms, SCADA, and enterprise apps with reverse write/control
 - **Industrial-grade stability**: built-in metric gates, Soak regression, and CI five-gate verification — SLA observable and verifiable
 
-See [Product Advantages](#product-advantages) below; full details in the [Product Guide (中文)](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html#产品优势) ([source](docs/guide/产品说明.md#产品优势)).
+See [Product Advantages](#product-advantages) below; concise guide: [PRODUCT.md](docs/guide/PRODUCT.md); full details in the [Product Guide (中文)](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html#产品优势) ([source](docs/guide/产品说明.md#产品优势)).
 
 ## Why EdgeX?
 
@@ -23,18 +24,18 @@ We call that unknown **X**.
 
 **Edge** is where they live: control panels on the line, building RIO rooms, field cabinets at the substation — the closest point to the data source and the right place to decide. **X** is the convergence point on site: multi-protocol access, edge rules, and the first real dialogue between OT and IT.
 
-If you know *X-Men*, the metaphor may land: each member has a distinct strength; together they protect a complex world. EdgeX’s twelve southbound protocols work the same way — Modbus, S7, OPC UA, and more — each doing what it does best at the edge, forming a coordinated team from acquisition through derived computation to northbound reporting.
+If you know *X-Men*, the metaphor may land: each member has a distinct strength; together they protect a complex world. EdgeX’s thirteen southbound protocols work the same way — Modbus, S7, OPC UA, and more — each doing what it does best at the edge, forming a coordinated team from acquisition through shadow snapshot and derived computation to northbound reporting.
 
 **EdgeX** is not just two letters stitched together. It is **Edge + X — the convergence of unrealized potential at the industrial edge**: the “X factor” deployed on site — giving silent equipment a voice, turning edge intelligence into reliable industrial capability, and backing it with SLA and Soak long-stability verification so that capability becomes an observable, verifiable engineering commitment.
 
 ## Product Advantages
 
-**Industrial-grade stability** is EdgeX's core differentiator: rich functionality (12 southbound protocols, rule engine, multi-channel northbound) combined with built-in metric gates, Soak long-stability regression, and CI five-gate verification to sustain SLA in production.
+**Industrial-grade stability** is EdgeX's core differentiator: rich functionality (13 southbound protocols, rule engine, multi-channel northbound) combined with built-in metric gates, Soak long-stability regression, and CI five-gate verification to sustain SLA in production.
 
 | Capability | Core Value | Key Metrics / Deliverables |
 | :--- | :--- | :--- |
 | **Quality assurance** | Built-in metric gates + Soak regression + CI five-gate | lag P95 **<100ms** · miss deadline **=0** · 10k-tag benchmark · observable diagnostics |
-| **Southbound access** | 12 industrial protocols, unified OT collection | device discovery · object scan · batch tag registration |
+| **Southbound access** | 13 industrial protocols, unified OT collection | device discovery · object scan · batch tag registration |
 | **Collection scheduling** | 10ms-class scheduling kernel, in-memory shadow as source of truth | P99 scheduling lag **<150ms** (≤10k tags, statistical SLA) |
 | **Edge intelligence** | rule engine + virtual shadow derived computation | cross-device mapping · formula aggregation · local control linkage |
 | **Northbound integration** | multi-protocol cloud, SCADA, and enterprise connectivity | MQTT · Sparkplug B · OPC UA · EdgeOS |
@@ -72,9 +73,12 @@ Runtime details — architecture, component responsibilities, data paths — see
 | Document | Description |
 | :--- | :--- |
 | [Architecture](https://anviod.github.io/edgex/architecture/index.html) · [source](docs/architecture/index.md) | ScanEngine scheduling kernel, ShadowCore, system diagrams |
+| [Architecture Overview (EN)](https://anviod.github.io/edgex/en/architecture-overview.html) · [source](docs/en/architecture-overview.md) | English hot-path architecture summary |
+| [Product Guide (EN)](docs/guide/PRODUCT.md) · [产品手册](docs/guide/PRODUCT.zh-CN.md) | Concise product positioning |
 | [Product Guide (中文)](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html) · [source](docs/guide/产品说明.md) | capabilities, SLA metrics, feature details |
-| [Edge Gateway Architecture Overview (中文)](https://anviod.github.io/edgex/edge/%E8%BE%B9%E7%BC%98%E7%BD%91%E5%85%B3%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E6%80%BB%E8%A7%88.html) · [source](docs/edge/边缘网关架构设计总览.md) | component layout and data flow |
-| [Southbound Driver Matrix](https://anviod.github.io/edgex/drivers/index.html) · [source](docs/drivers/index.md) | 12 protocol drivers and development standards |
+| [Edge Gateway Architecture Overview (中文)](https://anviod.github.io/edgex/edge/%E8%BE%B9%E7%BC%98%E7%BD%91%E5%85%B3%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E6%80%BB%E8%A7%88.html) · [source](docs/edge/边缘网关架构设计总览.md) | authoritative component layout and hot path (v3.0) |
+| [User Manual (EN)](docs/guide/USER_MANUAL.en.md) · [用户手册](docs/guide/USER_MANUAL.md) | protocols, deploy, ops, best practices |
+| [Southbound Driver Matrix](https://anviod.github.io/edgex/drivers/index.html) · [source](docs/drivers/index.md) | 13 protocol drivers and development standards |
 | [Testing & Verification](https://anviod.github.io/edgex/testing/index.html) · [source](docs/testing/index.md) | SLA benchmarks, Soak, and regression reports |
 
 English driver matrix: [online](https://anviod.github.io/edgex/drivers/index_en.html) · [source](docs/drivers/index_en.md) · English docs hub: [online](https://anviod.github.io/edgex/en/index.html) · [source](docs/en/index.md)

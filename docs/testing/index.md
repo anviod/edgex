@@ -45,7 +45,7 @@ hero_buttons:
 
 ### 南向驱动测试
 
-> **2026-07-12 热路径补强**：`CGO_ENABLED=0 go test ./... -short` 全量 PASS。新增 AI Agent 生命周期（**91.4%**）、ChannelManager EtherCAT 校验/指标快照/RemoveDevice、Modbus `readGroup`/`markPointFailed`、EtherNet/IP `processTagValue` 等热路径单测；`internal/core` 覆盖率 **80.1%**。
+> **2026-07-12 热路径补强**：`CGO_ENABLED=0 go test ./internal/{core,ai_agent,driver/modbus,driver/ethernetip}/ -short` PASS。覆盖率：`internal/core` **80.0%**、`internal/ai_agent` **91.4%**、`modbus` **65.9%**、`ethernetip` **62.2%**（均 ≥60%）。`TestScenario_RecoveryFromDead` 在 `-short` 下跳过 2 分钟冷却等待。
 
 > **2026-07-04 复测**：`CGO_ENABLED=0 go test ./internal/driver/... -short` — 主驱动包 **21/21 PASS**；ConnectionManager **87.4%**，DL/T645 **76.5%**、KNXnet/IP **77.2%**、Mitsubishi **70.7%** 达 ≥70%；新增/扩展各驱动 `coverage_test.go`，修复 Modbus 单飞重连时序抖动。
 
@@ -54,12 +54,12 @@ hero_buttons:
 
 ### 热路径单元测试（2026-07-12）
 
-| 模块 | 新增测试文件 | 覆盖重点 |
-| :--- | :--- | :--- |
-| `internal/ai_agent` | `manager_test.go` | Create/Confirm/配额/EdgeRule/Diagnostics 全生命周期 |
-| `internal/core` | `channel_manager_hotpath_test.go` | EtherCAT 地址校验、ScanEngine 指标快照、RemoveDevice |
-| `internal/driver/modbus` | `scheduler_hotpath_test.go` | `readGroup` 批量读、`markPointFailed` 冷却策略 |
-| `internal/driver/ethernetip` | `process_tag_test.go` | `processTagValue` Good/Bad 质量映射 |
+| 模块 | 新增/增强测试文件 | 覆盖重点 | `-short` 覆盖率 |
+| :--- | :--- | :--- | ---: |
+| `internal/ai_agent` | `manager_test.go` | Create/Confirm/配额/EdgeRule/Diagnostics | **91.4%** |
+| `internal/core` | `channel_manager_hotpath_test.go` | EtherCAT 地址校验、ScanEngine 指标快照、RemoveDevice | **80.0%** |
+| `internal/driver/modbus` | `scheduler_hotpath_test.go` | `Read`/`Write`/`readGroup`/`groupPoints`/`markPointFailed` | **65.9%** |
+| `internal/driver/ethernetip` | `process_tag_test.go` | `processTagValue`、Tag 解析、batch 分组 | **62.2%** |
 
 ### 代码测试维护
 

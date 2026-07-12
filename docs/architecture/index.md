@@ -29,7 +29,8 @@ hero_buttons:
 ## 目录
 
 ### 基础架构
-- [**边缘网关架构设计总览**](../edge/边缘网关架构设计总览.html) — 全生命周期架构、SLA 调度架构与 ScanEngine 内核（**权威 · v2.2**）
+- [**边缘网关架构设计总览**](../edge/边缘网关架构设计总览.html) — 全生命周期架构、南向差异、影子热路径与工业级稳定性（**权威 · v3.0**）
+- [Architecture Overview (EN)](../en/architecture-overview.html) — English summary of the hot path
 - [ScanEngine 重构方案](../TODO/ScanEngine重构方案.html) — 四阶段实施规范
 - [Q3 采集优化方案](../%5BTODO%5D边缘计算南向采集优化方案2026第三季度.html) — Q3 交付验收与进度跟踪
 - [架构 V2](ARCHITECTURE_V2.html) — 三级模型索引（权威见 [edge/边缘网关架构设计总览](../edge/边缘网关架构设计总览.html)）

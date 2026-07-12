@@ -21,11 +21,11 @@ hero_buttons:
 
 | Protocol | Registry Key | Status | Read | Write | Scan / Discover | ConnectionManager | Unit Tests (`-short` cov) |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| **Modbus TCP/RTU** | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | Production | Yes | Yes | — | Yes | **52.8%** |
+| **Modbus TCP/RTU** | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | Production | Yes | Yes | — | Yes | **65.9%** |
 | **BACnet IP** | `bacnet-ip` | Production | Yes | Yes | Scan + ScanObjects | Partial | **66.1%** |
 | **OPC UA Client** | `opc-ua` | Production | Yes | Yes | Scan + ScanObjects | Yes | **47.9%** |
 | **Siemens S7** | `s7` | Production | Yes | Yes | — | Yes | **61.3%** |
-| **EtherNet/IP** | `ethernet-ip` | Production | Yes | Yes | — | Yes | **39.5%** |
+| **EtherNet/IP** | `ethernet-ip` | Production | Yes | Yes | — | Yes | **62.2%** |
 | **Omron FINS** | `omron-fins` | Production | Yes | Yes | — | Yes | **43.3%** |
 | **SNMP v2c/v3** | `snmp` | Production | Yes | Yes | ScanObjects | Yes | **63.7%** |
 | **IEC 60870-5-104** | `iec60870-5-104` | M1 delivered | Yes | Yes (single command) | — | Yes | **60.2%** |

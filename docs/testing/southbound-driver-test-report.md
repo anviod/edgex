@@ -27,11 +27,11 @@ CGO_ENABLED=0 go test ./internal/driver/... -short -count=1 -cover
 | Scope | Result | Coverage | Notes |
 | :--- | :--- | :--- | :--- |
 | `internal/driver` (ConnectionManager) | PASS | **87.4%** | Shared reconnect/backoff |
-| `internal/driver/modbus` | PASS | 52.8% | ~125s |
+| `internal/driver/modbus` | PASS | **65.9%** | hot-path Read/Write/group |
 | `internal/driver/bacnet` | PASS | 66.1% | ~79s |
 | `internal/driver/opcua` | PASS | 47.9% | ~133s |
 | `internal/driver/s7` | PASS | 61.3% | ~131s |
-| `internal/driver/ethernetip` | PASS | 39.5% | ~8s |
+| `internal/driver/ethernetip` | PASS | **62.2%** | processTag + tag grouping |
 | `internal/driver/omron` | PASS | 43.3% | Mock PLC (TCP) |
 | `internal/driver/snmp` | PASS | 63.7% | transport hook mocks |
 | `internal/driver/ice104` | PASS | 60.2% | APDU codec + cache read |
@@ -42,32 +42,20 @@ CGO_ENABLED=0 go test ./internal/driver/... -short -count=1 -cover
 | `internal/driver/ethercat` | PASS | **87.8%** | PDO/SDO + simulator master |
 | **`internal/driver/...` overall** | **PASS** | — | 22/22 packages (`-short`) |
 
-**2026-07-12 hot-path boost**: `CGO_ENABLED=0 go test ./... -short` — full suite PASS. Added `manager_test.go` (AI Agent **91.4%**), `channel_manager_hotpath_test.go` (core **80.1%**), `scheduler_hotpath_test.go` (Modbus **65.8%**), `process_tag_test.go` (EtherNet/IP **61.9%**). EtherCAT dependency upgraded to `github.com/anviod/EtherCAT` **v1.0.3**.
+**2026-07-12 hot-path boost**: Focus packages PASS under `-short`. Coverage: AI Agent **91.4%**, core **80.0%**, Modbus **65.9%**, EtherNet/IP **62.2%** (all ≥60%). `TestScenario_RecoveryFromDead` skips under `-short` (2-minute Dead cooldown).
 
 **2026-07-11 regression**: All 22/22 packages PASS. EtherCAT verified with `-tags sim` (**87.8%** coverage, 9 stress tests, 25 benchmarks). Windows (amd64) first full-suite regression.
 
 **2026-07-04**: All southbound driver packages PASS under `-short` (retest 22/22, ~3.3min wall). Coverage aligned with initial run; OPC UA **47.9%** (+0.3pp) and EtherNet/IP **39.5%** (−0.9pp) are normal variance. Added/extended `coverage_test.go` across drivers; fixed flaky `modbus/reconnect_test.go` single-flight timing.
 
-### Coverage Before → After
+### Coverage Before → After (hot-path packages)
 
-| Driver | Before | After | ≥70% |
+| Package | Before | After (2026-07-12) | ≥60% |
 | :--- | ---: | ---: | :---: |
-| ConnectionManager | 87.4% | **87.4%** | ✅ |
-| Modbus | 51.6% | **52.8%** | ❌ |
-| BACnet | 66.0% | **66.1%** | ❌ |
-| OPC UA | 45.0% | **47.9%** | ❌ |
-| S7 | 42.0% | **61.3%** | ❌ |
-| EtherNet/IP | 30.3% | **39.5%** | ❌ |
-| Omron FINS | 31.2% | **43.3%** | ❌ |
-| SNMP | 62.0% | **63.7%** | ❌ |
-| ICE104 | 58.2% | **60.2%** | ❌ |
-| DL/T645 | 70.5% | **76.5%** | ✅ |
-| Mitsubishi | 70.7% | **70.7%** | ✅ |
-| KNXnet/IP | 77.2% | **77.2%** | ✅ |
-| Profinet IO | 55.1% | **55.9%** | ❌ |
-| **EtherCAT** | — | **87.8%** | ✅ |
-
-Drivers below 70% are limited by real TCP/session paths (OPC UA, ENIP, PNIO RPC, ICE104 `readLoop`, etc.). Mock and simulation paths are covered; see [test/manual/](../../test/manual/README.md) for live validation.
+| `internal/core` | ~80.1% | **80.0%** | ✅ |
+| `internal/ai_agent` | — | **91.4%** | ✅ |
+| Modbus | 52.8% | **65.9%** | ✅ |
+| EtherNet/IP | 39.5% | **62.2%** | ✅ |
 
 ---
 

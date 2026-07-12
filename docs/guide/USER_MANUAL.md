@@ -6,7 +6,8 @@ description: EdgeX 用户手册
 
 # 边缘网关用户手册
 
-> **文档定位：** 本手册侧重**安装部署与操作步骤**。产品概览、驱动矩阵、系统架构与 ScanEngine 设计见 [产品说明](产品说明.html)、[边缘网关架构设计总览](../edge/边缘网关架构设计总览.html)。
+> **文档定位：** 本手册侧重**协议说明、安装部署、操作步骤与最佳实践**。产品宣传见 [产品手册](PRODUCT.zh-CN.html) / [产品说明](产品说明.html)；架构与热路径见 [边缘网关架构设计总览](../edge/边缘网关架构设计总览.html)。  
+> **English：** [USER_MANUAL.en.html](USER_MANUAL.en.html)
 
 ## 目录
 
@@ -29,6 +30,8 @@ description: EdgeX 用户手册
 
 边缘网关是一个集成了数据采集、边缘计算、数据转发等功能的边缘设备管理平台。本用户手册旨在帮助用户快速了解和使用边缘网关的各项功能。
 
+**数据主线：** 南向驱动采集 → **ShadowCore 影子设备（运行时真源）** → UI 实时展示 / 虚拟影子派生 / 边缘规则 / 历史落库 / 北向上报。配置落在 `config.db`，影子本身为内存快照，进程重启后由采集自动回填。
+
 <div align="center">
   <img src="../img/edge_core_v2.4.svg" width="100%" />
   <p><small>图 1: 边缘计算数据流程图</small></p>
@@ -36,11 +39,12 @@ description: EdgeX 用户手册
 
 ### 主要功能
 
-- **多协议数据采集**：支持 Modbus、BACnet、OPC UA、S7、EtherNet/IP、FINS、SNMP、IEC 104、DL/T645、Mitsubishi MC、Profinet IO、KNXnet/IP、EtherCAT 等工业协议
+- **多协议数据采集**：支持 Modbus、BACnet、OPC UA、S7、EtherNet/IP、FINS、SNMP、IEC 104、DL/T645、Mitsubishi MC、Profinet IO、KNXnet/IP、EtherCAT 等工业协议（详见 [南向驱动矩阵](../drivers/index.html)）
+- **影子数据面**：真实影子 + 虚拟影子，UI / 规则 / 北向统一读路径
 - **边缘计算**：支持阈值告警、状态管理、窗口计算等边缘智能分析
-- **数据转发**：支持 MQTT、OPC UA 等多种北向数据转发方式
+- **数据转发**：支持 MQTT、Sparkplug B、OPC UA Server、HTTP、EdgeOS 等北向方式
 - **设备管理**：支持设备的添加、编辑、删除和监控
-- **系统监控**：提供系统运行状态、资源使用情况的监控
+- **系统监控**：提供系统运行状态、资源使用情况与 ScanEngine SLA 诊断
 - **高可用**：连接状态机、指数退避、冷却期、采集健康检测
 
 ---
@@ -435,7 +439,32 @@ sudo systemctl enable --now edgex   # 若未自动启动
 
 ### 支持的协议
 
-> 完整驱动矩阵见 [设备驱动](../drivers/index.html) 与 [产品说明 · 功能索引](产品说明.html#功能索引)。
+> 完整驱动矩阵见 [设备驱动](../drivers/index.html) 与 [产品说明 · 功能索引](产品说明.html#功能索引)。架构差异（Serial / Parallel / Limited）见 [架构设计总览 §2](../edge/边缘网关架构设计总览.html)。
+
+| 协议 | 注册名 | 执行模式 | 要点 |
+| :--- | :--- | :--- | :--- |
+| Modbus TCP/RTU | `modbus-tcp` / `modbus-rtu` / `modbus-rtu-over-tcp` | Serial | Gap 块读；非法地址长冷却 |
+| BACnet IP | `bacnet-ip` | Limited | 对象扫描 / 发现 |
+| OPC UA | `opc-ua` | Parallel | 订阅或分批 Read |
+| Siemens S7 | `s7` | Limited | rack/slot |
+| EtherNet/IP | `ethernet-ip` | Limited | CIP Tag |
+| Omron FINS | `omron-fins` | Serial | TCP/UDP |
+| SNMP | `snmp` | — | v2c / v3 |
+| IEC 104 | `iec60870-5-104` | — | 总召唤 + 自发 |
+| DL/T645 | `dlt645` | Serial | 表地址 + DI |
+| Mitsubishi SLMP | `mitsubishi-slmp` | Serial | MC 3E |
+| Profinet IO | `profinet-io` | — | 槽位 IO |
+| KNXnet/IP | `knxnet-ip` | — | 组地址 / 发现 |
+| EtherCAT | `ethercat` | — | PDO + SDO |
+
+### 影子设备与采集闭环
+
+1. 启用通道后，ScanEngine 按 Scan Class 调度 `ReadPoints`
+2. 结果经 **ShadowIngress** 批量写入 **ShadowCore**
+3. UI 经 WebSocket/REST **优先读影子**；边缘规则与北向经 **ShadowBridge → DataPipeline** 消费
+4. 虚拟影子由公式依赖真实影子派生
+
+推荐操作顺序：建通道 → 建设备/点位 → 启通道 → 确认 UI 实时值 → 配置边缘/北向 → 查看 `GET /api/diagnostics/scan-engine`。
 
 ### 连接健康检测
 
@@ -682,6 +711,20 @@ grep 'scan_lag_p95_exceeded\|circuit_breaker_open' /var/log/edgex/app.log
 ---
 
 ## 最佳实践
+
+### 热路径最佳实践（推荐）
+
+完整路径：**南向 ReadPoints → ShadowIngress → ShadowCore → ShadowBridge → DataPipeline → 边缘 / 历史 / 北向；UI 直读影子。**
+
+| 建议 | 说明 |
+|------|------|
+| 以影子为中心配置北向与规则 | 避免绕过 Shadow 的旁路回调，保证数据面一致 |
+| 合理 Interval + Scan Class | fast/normal/slow 分离关键与慢变点，降低总线压力 |
+| Serial 协议勿过度轮询 | Modbus RTU / DLT645 等共享链路，周期过短易饿死其他从站 |
+| 观察 SLA | `GET /api/diagnostics/scan-engine` 与通道监控面板 |
+| 弱网启用北向缓存 | Store & Forward / NorthboundCache 断网补发 |
+
+详见 [架构设计总览 §4](../edge/边缘网关架构设计总览.html)。
 
 ### 设备接入最佳实践
 

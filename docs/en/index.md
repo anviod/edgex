@@ -22,14 +22,15 @@ hero_buttons:
 
 ## Product Overview
 
-Industrial Edge Gateway runs at the industrial edge to bridge **OT devices ↔ IT systems** — unified southbound access, local edge processing, and flexible northbound integration in a single gateway. **13 southbound protocols, edge rules, and multi-channel northbound integration, backed by industrial-grade SLA and Soak long-stability verification.**
+Industrial Edge Gateway runs at the industrial edge to bridge **OT devices ↔ IT systems** — unified southbound access, local edge processing, and flexible northbound integration in a single gateway. **13 southbound protocols write into ShadowCore (runtime SoT), then fan out to virtual devices, edge rules, persistence, and northbound — backed by industrial-grade SLA and Soak verification.**
 
 - **Unified access**: heterogeneous PLCs, meters, building and network devices — one gateway for collection
+- **Shadow SoT**: in-memory ShadowCore shared by UI, edge compute, and northbound
 - **Edge intelligence**: local rules and derived tags for control linkage and reduced uplink traffic
 - **Open integration**: cloud platforms, SCADA, and enterprise apps with reverse write/control
 - **Industrial-grade stability**: built-in metric gates, Soak regression, and CI five-gate verification
 
-Full narrative: [README.en.md](https://github.com/anviod/edgex/blob/dev/README.en.md) on GitHub.
+Full narrative: [README.en.md](https://github.com/anviod/edgex/blob/dev/README.en.md) on GitHub. Concise product page: [PRODUCT](../guide/PRODUCT.html).
 
 ## Product Advantages
 
@@ -47,12 +48,15 @@ Detailed SLA, protocols, and virtual shadow: [Product Guide (中文)](../guide/�
 
 | Document | Description |
 | :--- | :--- |
-| [Architecture](../architecture/index.html) | ScanEngine scheduling kernel, ShadowCore, system diagrams |
-| [Product Guide (中文)](../guide/产品说明.html) | capabilities, SLA metrics, feature details |
-| [Edge Gateway Architecture (中文)](../edge/边缘网关架构设计总览.html) | component layout and data flow |
+| [Architecture Overview (EN)](architecture-overview.html) | Southbound → Shadow → edge / history / northbound hot path |
+| [Architecture (中文)](../architecture/index.html) | ScanEngine scheduling kernel, ShadowCore, system diagrams |
+| [Product Guide (EN)](../guide/PRODUCT.html) | Concise product positioning |
+| [产品手册 / 产品说明](../guide/PRODUCT.zh-CN.html) · [产品说明](../guide/产品说明.html) | Chinese product docs |
+| [User Manual (EN)](../guide/USER_MANUAL.en.html) | Protocols, deploy, ops, best practices |
+| [Edge Gateway Architecture (中文)](../edge/边缘网关架构设计总览.html) | Authoritative architecture overview (v3.0) |
 | [Southbound Driver Matrix (EN)](../drivers/index_en.html) | 13 protocol drivers and development standards |
 | [Testing & Verification](../testing/index.html) | SLA benchmarks, Soak, regression, and driver test reports |
-| [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) | **2026-07-04** retest — 21/21 PASS, coverage matrix |
+| [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) | Coverage matrix and hot-path unit tests |
 | [User Manual — Installation (中文)](../guide/USER_MANUAL.html#安装指南) | deb / rpm / tar.gz install and upgrade |
 
 ## Implemented Southbound Drivers
@@ -75,10 +79,10 @@ Registered in `cmd/main.go`:
 | KNXnet/IP | `knxnet-ip` | Production |
 | EtherCAT | `ethercat` | M1 delivered |
 
-See [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) for **2026-07-04** coverage (21/21 main packages PASS under `-short`).
+See [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) for coverage under `-short`.
 
 ## Related
 
-- **中文 README**: [README.md](https://github.com/anviod/edgex/blob/dev/README.md)
-- **English README**: [README.en.md](https://github.com/anviod/edgex/blob/dev/README.en.md)
-- **中文文档首页**: [首页](../index.html)
+- [中文首页](../index.html)
+- [README.md](https://github.com/anviod/edgex/blob/dev/README.md)
+- [README.en.md](https://github.com/anviod/edgex/blob/dev/README.en.md)
