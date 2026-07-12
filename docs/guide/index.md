@@ -18,7 +18,7 @@ hero_buttons:
 
 ## 目录
 
-- [产品手册（精简）](PRODUCT.zh-CN.html) — 对外宣传向核心能力与价值主张
+- [产品手册（精简）](PRODUCT.zh-CN.html) — 核心能力与价值主张
 - [Product Guide (EN)](PRODUCT.html) — concise English product positioning
 - [产品说明](产品说明.html) — 产品概览、工业级 SLA、协议能力与部署指南（完整版）
 - [用户手册](USER_MANUAL.html) — 协议、安装部署、配置管理与日常运维
