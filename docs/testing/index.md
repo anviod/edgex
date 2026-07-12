@@ -3,7 +3,7 @@ layout: section-index
 title: 测试验证
 description: EdgeX 测试验证文档 — 单元测试、回归验证、压力测试与验收报告
 hero_eyebrow: Testing & Verification
-hero_lead: EdgeX 测试验证文档 — 测试矩阵、回归验证、压力测试、南向驱动测试报告、2026-07-12 热路径单测补强与全量回归、2026-07-10 ARM64 vs x86 跨架构双向对比测试。
+hero_lead: EdgeX 测试验证文档 — 测试矩阵、回归验证、压力测试、南向驱动测试报告、2026-07-12 Mac 万 Tag/ScanEngine 复测与热路径单测补强、2026-07-10 ARM64 vs x86 跨架构双向对比测试。
 hero_buttons:
   - text: 跨架构对比报告
     url: arch-cross-platform-benchmark-2026Q3/arch-cross-platform-benchmark-2026Q3.html
@@ -37,7 +37,8 @@ hero_buttons:
 - [南向采集通道回归验证测试方案](南向采集通道回归验证测试方案.html) — 联机/压测步骤；§一/§八 含 2026-07-04 回归状态与排期；D 组 10ms 见 [B1 核验](b1_poll_interval_verification.html)
 
 ### 压力测试
-- [压力测试报告](压力测试报告.html)
+- [压力测试报告](压力测试报告.html) — 含 **2026-07-12 Mac** 万 Tag / G007 / Soak / EdgeCompute 复测
+- [Q3 万 Tag 压测报告](Q3_10k_tag_benchmark_2026Q3.html) — 10k tag @1s；§5 为 2026-07-12 Mac 复测
 
 ### 验证报告
 - [验证报告](VERIFICATION_REPORT.html)

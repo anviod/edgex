@@ -175,3 +175,48 @@ go test ./internal/core/ -short -count=1
 
 > 初测 fail（miss=3）：`enforceHardJitterClamp` 在 dispatch 前计数；修复后 clamp 仅作用于 dispatch 后仍滞留堆中的任务。详见 [q3_phase_abcd_verification_2026-07-04.md](q3_phase_abcd_verification_2026-07-04.html)。
 
+---
+
+## 5. Mac 复测结果（2026-07-12）
+
+**环境**：macOS 12.7.6（darwin 21.6.0），Intel Core i5 @ 2.7 GHz · 4 核 · 8 GB，Go 1.26.4 darwin/amd64，commit `8daa1224`  
+**命令**：`CGO_ENABLED=0 go test ./internal/core/ -run TestQ3_TenThousandTagBenchmark -count=1 -timeout=15m -v`（等价 `make bench-q3` + `-v`）  
+**日志**：[`_run_logs/2026-07-12_mac_bench_q3_verbose.txt`](_run_logs/2026-07-12_mac_bench_q3_verbose.txt)  
+**结论**：✅ **PASS**（`miss_deadline=0`，全部 SLA gate 达标）
+
+| 指标 | 目标 | 实测（60s + 10s warmup） | 通过 |
+|------|------|--------------------------|------|
+| 任务成功率 | 100% | 5894/5894 succeeded, 0 failed | ✅ |
+| Scan lag P95 | ≤ 100ms | **1.56 ms** | ✅ |
+| Scan lag avg | — | 0.64 ms | — |
+| Scan lag max | — | 68.35 ms | — |
+| Scan drift avg | ≤ 50ms | **0.00 ms** | ✅ |
+| Scan miss deadline | **0** | **0** | ✅ |
+| GC pause max | ≤ 20ms | **0.10 ms** | ✅ |
+| 内存漂移（heap inuse） | < 5% | **0.00%**（9.31 → 9.31 MB） | ✅ |
+| Pipeline 吞吐 | — | **9823 points/s** | — |
+| Pipeline 接收总量 | — | 687,500 values | — |
+| Shadow 设备数 | 100 | 100 | ✅ |
+| Goroutines | — | 140 → 3 | — |
+
+### 5.1 与历史基线对比
+
+| 指标 | 2026-06-28 | 2026-07-04 | **2026-07-12（本次）** |
+|------|------------|------------|------------------------|
+| lag P95 | 7.37 ms | 1.25 ms | **1.56 ms** |
+| miss_deadline | 0 | 0 | **0** |
+| heap drift | 4.17% | -4.20% | **0.00%** |
+| 吞吐 (pts/s) | 11,667 | 9,457 | **9,823** |
+| GC pause max | — | 0.05 ms | **0.10 ms** |
+
+> 吞吐与 lag 在不同跑次间随本机负载波动属正常；三次 Mac 复测均满足 P95 ≤100ms、miss=0、drift <5%。配套 ScanEngine/G007/Soak/边缘压测见 [压力测试报告 §2026-07-12](压力测试报告.html)。
+
+### 5.2 原始日志摘录
+
+```
+duration=1m0s warmup=10s interval=1s devices=100 points/device=100 total_tags=10000 pipeline=true virtual=false
+memory(heap_inuse): start=9.31MB end=9.31MB drift=0.00% heap_objs=23872->20723
+scan: executed=5894 succeeded=5894 failed=0 lag_avg=0.64ms lag_p95=1.56ms lag_max=68.35ms drift_avg=0.00ms miss_deadline=0 overdue=0 rescue=0
+pipeline_values=687500 shadow_devices=100 throughput=9823 points/s goroutines=140->3 gc_pause_max=0.10ms
+```
+

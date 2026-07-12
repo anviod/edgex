@@ -16,3 +16,7 @@ dist/
 .golangci-lint-cache/
 .gomodcache/
 .github/
+
+# Publish performance regression logs on GitHub Pages
+!docs/testing/_run_logs/
+!docs/testing/_run_logs/*.txt
