@@ -48,7 +48,7 @@ hero_buttons:
 
 > **2026-07-12 热路径补强**：`CGO_ENABLED=0 go test ./internal/{core,ai_agent,driver/modbus,driver/ethernetip}/ -short` PASS。覆盖率：`internal/core` **80.0%**、`internal/ai_agent` **91.4%**、`modbus` **65.9%**、`ethernetip` **62.2%**（均 ≥60%）。`TestScenario_RecoveryFromDead` 在 `-short` 下跳过 2 分钟冷却等待。
 
-> **2026-07-04 复测**：`CGO_ENABLED=0 go test ./internal/driver/... -short` — 主驱动包 **21/21 PASS**；ConnectionManager **87.4%**，DL/T645 **76.5%**、KNXnet/IP **77.2%**、Mitsubishi **70.7%** 达 ≥70%；新增/扩展各驱动 `coverage_test.go`，修复 Modbus 单飞重连时序抖动。
+> **2026-07-11 / 07-12 全量回归**：`CGO_ENABLED=0 go test ./internal/driver/... -short` — 主驱动包 **22/22 PASS**（含 EtherCAT **87.8%**）；ConnectionManager **87.4%**，DL/T645 **76.5%**、KNXnet/IP **77.2%**、Mitsubishi **70.7%** 达 ≥70%。
 
 - [南向驱动测试报告](南向驱动测试报告.html) — 单元测试、性能基准、边界场景矩阵（2026-07-12）
 - [Southbound Driver Test Report (EN)](southbound-driver-test-report.html)

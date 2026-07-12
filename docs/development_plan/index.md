@@ -62,6 +62,7 @@ hero_buttons:
 
 ### 2026年7月（新增已交付）
 
+- [已交付] **EtherCAT M1（v0.0.8）** — PDO/SDO、模拟主站、87.8% 覆盖；依赖 v1.0.3
 - [已交付] **Q3 南向采集闭环** — 统一数据面、Scan Class、块读、点位降级、Diagnostics API
 - [已交付] **SLA 调度达标** — Phase A–C 综合达标率 ≥95%，EDF/硬抖动钳制
 - [已交付] **ShadowCore 性能优化** — COW 快照、Worker Pool、ShadowIngress 批量写入
@@ -69,7 +70,11 @@ hero_buttons:
 - [已交付] **Dashboard v3 UI** — Linear 级 SaaS 样式改版与 Soak 监控面板
 - [已交付] **版本发布门禁** — G-Stability/Industrial/Performance/Lightweight 四道门禁
 - [已交付] **虚拟影子设备体验** — 编辑流程、帮助文档与跨页面样式统一
-- [已交付] **南向驱动测试报告（2026-07-04）** — 21/21 PASS，覆盖率矩阵见 [测试报告](../testing/南向驱动测试报告.html)
+- [已交付] **南向驱动全量回归（2026-07-11/12）** — 主驱动包 **22/22 PASS**（含 EtherCAT）；覆盖率矩阵见 [测试报告](../testing/南向驱动测试报告.html)
+- [已交付] **Mac 万 Tag / ScanEngine 复测（2026-07-12）** — lag P95 1.56ms · G007 986 设备/s · Soak 五 gate；见 [压力测试报告](../testing/压力测试报告.html)
+- [已交付] **热路径单测补强（2026-07-12）** — core 80% · ai_agent 91.4% · Modbus/ENIP ≥60%
+- [已交付] **Industrial Protocol Copilot MVP** — AI 助手面板与热路径单测；工业联调验收进行中
+- [已交付] **产品手册** — [PRODUCT.zh-CN](../guide/PRODUCT.zh-CN.html) / [PRODUCT](../guide/PRODUCT.html)
 
 ---
 
@@ -85,8 +90,8 @@ hero_buttons:
 - [基于 go-libp2p 同步通信规划方案](../TODO/基于go-libp2p%20同步通信规划方案.html)（权威 · TODO）
 - [联机测试方案](sync/联机测试方案.html)
 
-### EdgeX Industrial Protocol Copilot（AI 协同 · 规划中）
-- [**AI 协同组件规划 / Industrial Protocol Copilot**](../TODO/AI协同组件规划.html)（权威 · **V1.3**）
+### EdgeX Industrial Protocol Copilot（AI 协同 · MVP 已落地）
+- [**AI 协同组件规划 / Industrial Protocol Copilot**](../TODO/AI协同组件规划.html)（权威 · **V1.4**；**MVP 已落地**，工业联调验收进行中）
   - 工业协议工程 Copilot：厂家资料 + 报文分析 → 生产可部署 Channel/Point/Driver/Validation 配置
   - **协议逆向工程引擎 P0+ 核心** — PCAP/监控表关联、无文档设备接入
   - 部署：**RK3588 边缘自治 + AI Model Center 分离**（gRPC / MQTT 弱网回退）

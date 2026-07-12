@@ -92,8 +92,10 @@ EdgeX SLA 验证闭环：运行时监测 → 可观测 → CI/Soak 验证
 | [Architecture Overview (EN)](https://anviod.github.io/edgex/en/architecture-overview.html) · [源码](docs/en/architecture-overview.md) | English architecture summary |
 | [产品手册](docs/guide/PRODUCT.zh-CN.md) · [PRODUCT (EN)](docs/guide/PRODUCT.md) | 精简宣传向产品说明 |
 | [产品说明](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html) · [源码](docs/guide/产品说明.md)                                                                 | 能力详解、SLA 指标与功能说明                 |
+| [更新记录](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html#%E6%9B%B4%E6%96%B0%E8%AE%B0%E5%BD%95) · [源码](docs/guide/产品说明.md#更新记录) | 最近重点：EtherCAT M1、驱动 22/22、Mac 万 Tag 复测、AI Copilot MVP |
 | [用户手册](docs/guide/USER_MANUAL.md) · [User Manual (EN)](docs/guide/USER_MANUAL.en.md) | 协议、部署、操作与最佳实践 |
 | [南向驱动矩阵](https://anviod.github.io/edgex/drivers/index.html) · [源码](docs/drivers/index.md)                                                                                         | 13 种协议驱动与开发规范                    |
+| [开发计划](https://anviod.github.io/edgex/development_plan/index.html) · [源码](docs/development_plan/index.md) | Q3/Q4 交付跟踪与已交付里程碑 |
 | [测试验证](https://anviod.github.io/edgex/testing/index.html) · [源码](docs/testing/index.md) · [test/ 维护](test/README.md)                                                              | SLA 压测、Soak 与 `go test` 维护原则     |
 
 

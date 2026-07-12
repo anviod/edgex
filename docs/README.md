@@ -37,10 +37,10 @@ bash scripts/verify_site.sh
 
 ## 部署
 
-GitHub Pages 从 `docs/` 目录构建（Jekyll + Cayman 主题，`baseurl: /edgex`）。部署步骤：
+GitHub Pages 从仓库指定分支的 `docs/` 目录构建（Jekyll + Cayman 主题，`baseurl: /edgex`）。部署步骤：
 
-1. 提交更改到 GitHub 仓库
-2. 在仓库 Settings → Pages 中确认 Source 为 `docs/` 分支
+1. 将文档更改合并并推送到 Pages 源分支（通常为 `main` 或 `dev`，以仓库 Settings → Pages 为准）
+2. 在仓库 Settings → Pages 中确认 Source 为 **Branch + `/docs` folder**
 3. 等待 GitHub Pages 构建完成
 4. 访问 [https://anviod.github.io/edgex/](https://anviod.github.io/edgex/)
 

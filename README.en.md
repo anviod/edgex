@@ -76,9 +76,11 @@ Runtime details — architecture, component responsibilities, data paths — see
 | [Architecture Overview (EN)](https://anviod.github.io/edgex/en/architecture-overview.html) · [source](docs/en/architecture-overview.md) | English hot-path architecture summary |
 | [Product Guide (EN)](docs/guide/PRODUCT.md) · [产品手册](docs/guide/PRODUCT.zh-CN.md) | Concise product positioning |
 | [Product Guide (中文)](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html) · [source](docs/guide/产品说明.md) | capabilities, SLA metrics, feature details |
+| [Changelog (更新记录)](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html#%E6%9B%B4%E6%96%B0%E8%AE%B0%E5%BD%95) · [source](docs/guide/产品说明.md#更新记录) | Jul 2026 highlights: EtherCAT M1, drivers 22/22, Mac 10k-tag retest, AI Copilot MVP |
 | [Edge Gateway Architecture Overview (中文)](https://anviod.github.io/edgex/edge/%E8%BE%B9%E7%BC%98%E7%BD%91%E5%85%B3%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E6%80%BB%E8%A7%88.html) · [source](docs/edge/边缘网关架构设计总览.md) | authoritative component layout and hot path (v3.0) |
 | [User Manual (EN)](docs/guide/USER_MANUAL.en.md) · [用户手册](docs/guide/USER_MANUAL.md) | protocols, deploy, ops, best practices |
 | [Southbound Driver Matrix](https://anviod.github.io/edgex/drivers/index.html) · [source](docs/drivers/index.md) | 13 protocol drivers and development standards |
+| [Development plan](https://anviod.github.io/edgex/development_plan/index.html) · [source](docs/development_plan/index.md) | Q3/Q4 delivery tracking |
 | [Testing & Verification](https://anviod.github.io/edgex/testing/index.html) · [source](docs/testing/index.md) | SLA benchmarks, Soak, and regression reports |
 
 English driver matrix: [online](https://anviod.github.io/edgex/drivers/index_en.html) · [source](docs/drivers/index_en.md) · English docs hub: [online](https://anviod.github.io/edgex/en/index.html) · [source](docs/en/index.md)
@@ -162,7 +164,7 @@ Open `http://localhost:<port>` for the admin UI. Default credentials via install
 | Driver docs | [online](https://anviod.github.io/edgex/drivers/index.html) · [source](docs/drivers/index.md) |
 | Deployment guides | [online](https://anviod.github.io/edgex/deployment/) · [source](docs/deployment/index.md) |
 | Architecture | [online](https://anviod.github.io/edgex/architecture/index.html) · [source](docs/architecture/index.md) |
-| Development plan / TODO | [docs/TODO/](docs/TODO/index.md) (not published to Pages) |
+| Development plan / TODO | [online](https://anviod.github.io/edgex/development_plan/index.html) · [TODO index](https://anviod.github.io/edgex/TODO/index.html) · [source](docs/TODO/index.md) |
 | Testing & verification | [online](https://anviod.github.io/edgex/testing/index.html) · [source](docs/testing/index.md) |
 | Operations reference | [online](https://anviod.github.io/edgex/operations/index.html) · [source](docs/operations/index.md) |
 

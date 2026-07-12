@@ -21,11 +21,13 @@ hero_buttons:
 - [产品手册（精简）](PRODUCT.zh-CN.html) — 核心能力与价值主张
 - [Product Guide (EN)](PRODUCT.html) — concise English product positioning
 - [产品说明](产品说明.html) — 产品概览、工业级 SLA、协议能力与部署指南（完整版）
+- [更新记录](产品说明.html#更新记录) — 最近重点：EtherCAT M1、驱动 22/22、Mac 万 Tag、AI Copilot MVP
 - [用户手册](USER_MANUAL.html) — 协议、安装部署、配置管理与日常运维
 - [User Manual (EN)](USER_MANUAL.en.html) — protocols, deployment, ops, best practices
 - [边缘计算最佳实践](EDGE_COMPUTING_BEST_PRACTICES.html) — 场景编排与性能建议
-- [南向驱动测试报告](../testing/南向驱动测试报告.html) — 热路径单测与覆盖率矩阵
+- [南向驱动测试报告](../testing/南向驱动测试报告.html) — 热路径单测与覆盖率矩阵（2026-07-12）
 - [架构设计总览](../edge/边缘网关架构设计总览.html) — 影子设备热路径权威架构
+- [开发计划](../development_plan/index.html) — Q3/Q4 交付与已交付里程碑
 
 ## 相关文档
 

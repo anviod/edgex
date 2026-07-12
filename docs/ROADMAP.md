@@ -3,7 +3,7 @@ layout: default
 title: 分阶段开发路线图
 description: EdgeX 工业边缘网关分阶段路线图 — 稳定性闭环、工业验证、性能优化与轻量化可观测
 version: v1.0
-date: 2026-07-04
+date: 2026-07-12
 status: 现行
 ---
 
@@ -181,9 +181,9 @@ Phase 4  轻量化与可观测 ─────────────► HTTP/U
 
 ---
 
-## 当前状态（2026-07-04）
+## 当前状态（2026-07-12）
 
-> Q3 任务分解与验收见 [Q3 采集优化方案 §11]([TODO]边缘计算南向采集优化方案2026第三季度.html#11-q3-进度跟踪q3-末填写)；SLA 达标见 [SLA 评估](TODO/SLA评估.html)。
+> Q3 任务分解与验收见 [Q3 采集优化方案 §11]([TODO]边缘计算南向采集优化方案2026第三季度.html#11-q3-进度跟踪q3-末填写)；SLA 达标见 [SLA 评估](TODO/SLA评估.html)。最新压测见 [压力测试报告 — 2026-07-12 Mac 复测](testing/压力测试报告.html)。
 
 ### 主体交付完成
 
@@ -196,7 +196,7 @@ ScanEngine（EDF + CB + SLA metrics + adaptive throttle）
   → ShadowBridge/Pipeline 扇出 → WebSocket/REST/diagnostics
 ```
 
-**Q3 里程碑**（2026-07）：统一数据面 ✅ · Scan Class + 块读闭环 ✅ · SLA Phase A–D 核心 ✅ · Shadow COW/Worker Pool ✅ · diagnostics 三通路 ✅ · EtherCAT M1 (v0.0.8) ✅
+**Q3 里程碑**（2026-07）：统一数据面 ✅ · Scan Class + 块读闭环 ✅ · SLA Phase A–D 核心 ✅ · Shadow COW/Worker Pool ✅ · diagnostics 三通路 ✅ · EtherCAT M1 (v0.0.8) ✅ · 南向驱动 22/22 PASS ✅ · Mac 万 Tag 复测（lag P95 1.56ms / G007 986/s）✅ · Industrial Protocol Copilot MVP ✅
 
 与 [架构总览](edge/边缘网关架构设计总览.html) 一致：**工业级候选调度器（≤10k tag 中小规模生产）**。
 

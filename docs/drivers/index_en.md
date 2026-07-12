@@ -35,7 +35,7 @@ hero_buttons:
 | **KNXnet/IP** | `knxnet-ip` | Production Ready | Yes | Yes | Gateway Discovery | Yes | **77.2%** ✅ |
 | **EtherCAT** | `ethercat` | M1 Delivered | PDO + SDO | PDO + SDO | Yes | Yes | **87.8%** ✅ |
 
-> ConnectionManager (shared component): **87.4%** · Main driver package 21/21 PASS (2026-07-04)
+> ConnectionManager (shared component): **87.4%** · Main driver package **22/22 PASS** (2026-07-12)
 
 ---
 

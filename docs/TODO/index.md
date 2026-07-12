@@ -3,7 +3,7 @@
 | 项 | 内容 |
 |----|------|
 | 版本 | V1.7 |
-| 更新 | 2026-07-08 |
+| 更新 | 2026-07-12 |
 | 架构基线 | [边缘计算南向采集优化方案2026第三季度.md](../[TODO]边缘计算南向采集优化方案2026第三季度.html) |
 | 总览 | [边缘网关架构设计总览.md](../edge/边缘网关架构设计总览.html) |
 
@@ -56,12 +56,14 @@ config.db → ChannelManager → ScanEngine → ExecutionLayer → Driver.ReadPo
 | EtherCAT | [EtherCAT/采集驱动EtherCAT规划.md](./EtherCAT/采集驱动EtherCAT规划.html) | `ethercat` | ✅ | ✅ | P0 | **M1 已交付 (v0.0.8)** |
 | Omron FINS | [Omron FINS TCP/采集驱动Omron FINS TCP开发.md](./Omron%20FINS%20TCP/采集驱动Omron%20FINS%20TCP开发.html) | `omron-fins` | ✅ | ✅ | — | 已完成 |
 | SNMP | [SNMP/SNMP采集驱动开发.md](./SNMP/SNMP采集驱动开发.html) | `snmp` | ✅ | ✅ | P1 | **v2c/v3 已交付** |
-| DL/T 645-2007 | [DLT-645-2007/DL-T-645-2007驱动开发.md](./DLT-645-2007/DL-T-645-2007驱动开发.html) | `dlt645` | 🟡 | ✅ | P2 | 模拟实现 |
+| DL/T 645-2007 | [DLT-645-2007/DL-T-645-2007驱动开发.md](./DLT-645-2007/DL-T-645-2007驱动开发.html) | `dlt645` | ✅ | ✅ | P2 | **已交付**（`-short` 76.5%） |
 | Modbus / OPC UA / S7 / BACnet / EIP | — | 各现有 ID | ✅ | ✅ | — | 已完成 |
 
 **ICE104 M1 范围**（2026-06-27）：TCP 链路、TESTFR/STARTDT、总召唤读、自发上报缓存、单点遥控、decoder/transport 单测。
 
 **ICE104 M2 待办**：时钟同步、遥脉召唤、双点遥控/设定值、S 帧窗口完整实现、模拟器联调报告。
+
+**EtherCAT M1 范围**（2026-07）：PDO 周期交换、CoE SDO、模拟主站、ScanEngine 接入；`-short` **87.8%**。M2：真实网卡联机与从站长跑见 Phase 2 工业验证。
 
 ---
 
@@ -76,7 +78,7 @@ config.db → ChannelManager → ScanEngine → ExecutionLayer → Driver.ReadPo
 | 联机测试 | [联机测试方案.md](./联机测试方案.html) | 进行中 |
 | libp2p 同步 | [基于go-libp2p 同步通信规划方案.md](./基于go-libp2p%20同步通信规划方案.html) | 规划中 |
 | 点位读写升级 | [设备点位读写系统升级改造计划.md](./设备点位读写系统升级改造计划.html) | 规划中 |
-| EdgeX Industrial Protocol Copilot | [AI协同组件规划.md](./AI协同组件规划.md) | 规划中（**V1.4**：**工业协议工程 Copilot** · **协议逆向工程引擎 P0+ 核心** · 四类生产配置交付 · protocol_knowledge.db **bbolt 知识库**；V1.7 索引对齐 bbolt 存储） |
+| EdgeX Industrial Protocol Copilot | [AI协同组件规划.md](./AI协同组件规划.md) | **MVP 已落地**（UI + `internal/ai_agent` 热路径单测 91.4%）；工业联调 / 完整验收进行中（**V1.4** 规划：协议逆向引擎 P0+ · 四类生产配置 · bbolt 知识库） |
 | 双向通信测试 | [南向北向双向通信测试报告.md](./南向北向双向通信测试报告.html) | 部分完成 |
 
 ---

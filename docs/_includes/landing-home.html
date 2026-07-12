@@ -120,10 +120,10 @@
       <article class="feature-card">
         <span class="feature-card__tag">驱动</span>
         <h3>设备驱动</h3>
-        <p>南向采集驱动的设计、测试、优化与故障分析，覆盖 13 种工业协议。2026-07-04 全量 `-short` 复测 21/21 PASS。</p>
+        <p>南向采集驱动的设计、测试、优化与故障分析，覆盖 13 种工业协议。2026-07-12 全量 `-short` 复测 22/22 PASS（含 EtherCAT）。</p>
         <div class="feature-card__links">
           <a class="mini-link" href="drivers/index.html">驱动总览</a>
-          <a class="mini-link" href="testing/南向驱动测试报告.html">测试报告 (2026-07-04)</a>
+          <a class="mini-link" href="testing/南向驱动测试报告.html">测试报告 (2026-07-12)</a>
           <a class="mini-link" href="drivers/index_en.html">Drivers (EN)</a>
         </div>
       </article>
@@ -182,7 +182,9 @@
         <h3>产品与用户手册</h3>
         <ul>
           <li><a href="guide/index.html">产品指南</a></li>
+          <li><a href="guide/PRODUCT.zh-CN.html">产品手册（精简）</a></li>
           <li><a href="guide/产品说明.html">产品说明</a></li>
+          <li><a href="guide/产品说明.html#更新记录">更新记录（最近重点）</a></li>
           <li><a href="guide/USER_MANUAL.html">用户手册</a></li>
           <li><a href="guide/USER_MANUAL.html#安装指南">安装与升级（deb / rpm）</a></li>
           <li><a href="operations/index.html">运维文档</a></li>
@@ -218,6 +220,9 @@
         <h3>测试与验证</h3>
         <ul>
           <li><a href="testing/index.html">测试验证索引</a></li>
+          <li><a href="testing/南向驱动测试报告.html">南向驱动测试报告 (2026-07-12)</a></li>
+          <li><a href="testing/压力测试报告.html">压力测试报告 · Mac 万 Tag 复测</a></li>
+          <li><a href="testing/Q3_10k_tag_benchmark_2026Q3.html">Q3 万 Tag 压测</a></li>
           <li><a href="testing/southbound-driver-test-report.html">Southbound Test (EN)</a></li>
           <li><a href="testing/工业验证测试报告模板.html">工业验证报告模板</a></li>
           <li><a href="testing/sla_completion_report_2026Q3.html">SLA 完成报告 2026Q3</a></li>
@@ -536,8 +541,32 @@
       <div class="milestone-item milestone-item--new">
         <div class="milestone-dot milestone-dot--new"></div>
         <div>
-          <div class="milestone-title">AI 助手</div>
-          <div class="milestone-date">2026 Q3 工程辅助 · 协议逆向· MVP</div>
+          <div class="milestone-title">南向驱动 22/22 回归</div>
+          <div class="milestone-date">2026-07-12 · `-short` 全绿 · 含 EtherCAT</div>
+        </div>
+      </div>
+
+      <div class="milestone-item milestone-item--new">
+        <div class="milestone-dot milestone-dot--new"></div>
+        <div>
+          <div class="milestone-title">Mac 万 Tag 复测</div>
+          <div class="milestone-date">2026-07-12 · lag P95 1.56ms · G007 986/s</div>
+        </div>
+      </div>
+
+      <div class="milestone-item milestone-item--new">
+        <div class="milestone-dot milestone-dot--new"></div>
+        <div>
+          <div class="milestone-title">热路径单测补强</div>
+          <div class="milestone-date">2026-07-12 · core 80% · ai_agent 91.4%</div>
+        </div>
+      </div>
+
+      <div class="milestone-item milestone-item--new">
+        <div class="milestone-dot milestone-dot--new"></div>
+        <div>
+          <div class="milestone-title">AI 助手 Copilot</div>
+          <div class="milestone-date">2026-07 MVP · 协议逆向 · 热路径单测已补</div>
         </div>
       </div>
     </div>
