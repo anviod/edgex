@@ -1,7 +1,7 @@
 ---
 layout: section-index
 title: Device Drivers (English)
-description: EdgeX southbound collection drivers — Modbus, BACnet, OPC UA, S7, EtherNet/IP, FINS, SNMP, IEC 104, DL/T645, Mitsubishi MC, Profinet IO, KNXnet/IP
+description: EdgeX Southbound Driver Documentation — Modbus, BACnet, OPC UA, S7, EtherNet/IP, FINS, SNMP, IEC 104, DL/T645, Mitsubishi MC, Profinet IO, KNXnet/IP, EtherCAT
 hero_eyebrow: Southbound Drivers
 hero_title: Device Drivers
 hero_lead: Design docs, test reports, and optimization notes for EdgeX southbound drivers — Modbus, BACnet, OPC UA, S7, EtherNet/IP, Omron FINS, SNMP, IEC 104, DL/T645, Mitsubishi MC, Profinet IO, KNXnet/IP, and more.
@@ -19,22 +19,23 @@ hero_buttons:
 
 ## Driver Support Matrix
 
-| Protocol | Registry Key | Status | Read | Write | Scan / Discover | ConnectionManager | Unit Tests |
+| Protocol | Registry Key | Status | Read | Write | Scan / Discover | ConnectionManager | Unit Tests (`-short` cov) |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| **Modbus TCP/RTU** | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | Production | Yes | Yes | — | Yes | 33 tests, 27% cov |
-| **BACnet IP** | `bacnet-ip` | Production | Yes | Yes | Scan + ScanObjects | Partial | 80+ tests, 59% cov |
-| **OPC UA Client** | `opc-ua` | Production | Yes | Yes | Scan + ScanObjects | Yes | 25 tests, 40% cov |
-| **Siemens S7** | `s7` | Production | Yes | Yes | — | Yes | 52 tests, 42% cov |
-| **EtherNet/IP** | `ethernet-ip` | Production | Yes | Yes | — | Yes | 60 tests, 30% cov |
-| **Omron FINS** | `omron-fins` | Production | Yes | Yes | — | Yes | 12 tests, 31% cov |
-| **SNMP v2c/v3** | `snmp` | Production | Yes | Yes | ScanObjects | Yes | 22 tests, 45% cov |
-| **IEC 60870-5-104** | `iec60870-5-104` | M1 delivered | Yes | Yes (single command) | — | Yes | 16 tests, 45% cov |
-| **DL/T645-2007** | `dlt645` | Production | Yes | Yes | — | Yes | 24 tests, 71% cov |
-| **Mitsubishi SLMP** | `mitsubishi-slmp` | Production | Yes | Yes | — | Yes | 13 tests, 57% cov |
-| **Profinet IO** | `profinet-io` | Production | Yes | Yes | — | Yes | 11 tests, 49% cov |
-| **KNXnet/IP** | `knxnet-ip` | Production | Yes | Yes | Gateway discovery | Yes | 13 tests, 67% cov |
+| **Modbus TCP/RTU** | `modbus-tcp`, `modbus-rtu`, `modbus-rtu-over-tcp` | Production | Yes | Yes | — | Yes | **65.9%** |
+| **BACnet IP** | `bacnet-ip` | Production | Yes | Yes | Scan + ScanObjects | Partial | **66.1%** |
+| **OPC UA Client** | `opc-ua` | Production | Yes | Yes | Scan + ScanObjects | Yes | **47.9%** |
+| **Siemens S7** | `s7` | Production | Yes | Yes | — | Yes | **61.3%** |
+| **EtherNet/IP** | `ethernet-ip` | Production | Yes | Yes | — | Yes | **62.2%** |
+| **Omron FINS** | `omron-fins` | Production | Yes | Yes | — | Yes | **43.3%** |
+| **SNMP v2c/v3** | `snmp` | Production | Yes | Yes | ScanObjects | Yes | **63.7%** |
+| **IEC 60870-5-104** | `iec60870-5-104` | M1 delivered | Yes | Yes (single command) | — | Yes | **60.2%** |
+| **DL/T645-2007** | `dlt645` | Production | Yes | Yes | — | Yes | **76.5%** ✅ |
+| **Mitsubishi SLMP** | `mitsubishi-slmp` | Production | Yes | Yes | — | Yes | **70.7%** ✅ |
+| **Profinet IO** | `profinet-io` | Production | Yes | Yes | — | Yes | **55.9%** |
+| **KNXnet/IP** | `knxnet-ip` | Production Ready | Yes | Yes | Gateway Discovery | Yes | **77.2%** ✅ |
+| **EtherCAT** | `ethercat` | M1 Delivered | PDO + SDO | PDO + SDO | Yes | Yes | **87.8%** ✅ |
 
-> All drivers above are registered via blank imports in `cmd/main.go`. Only document drivers that exist in code.
+> ConnectionManager (shared component): **87.4%** · Main driver package **22/22 PASS** (2026-07-12)
 
 ---
 
@@ -78,7 +79,7 @@ Full report: [Southbound Driver Test Report](../testing/southbound-driver-test-r
 CGO_ENABLED=0 go test ./internal/driver/modbus ./internal/driver/bacnet ... -count=1 -cover
 ```
 
-Last run (2026-06-27): all main driver packages **PASS**; `bacnet/utsm` sub-package FAIL (known issue).
+Last run (**2026-07-04**): all 21 main driver packages **PASS** under `-short`; extended `coverage_test.go` across drivers. Integration/manual tags documented in the test report.
 
 ---
 

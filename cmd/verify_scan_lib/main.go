@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/anviod/edgex/internal/driver/bacnet"
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/bacnet"
+	"github.com/anviod/bacnet/btypes"
 )
 
 func main() {

@@ -3,7 +3,7 @@
 package bacnet
 
 import (
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/bacnet/btypes"
 )
 
 // MockClient implements Client interface for testing

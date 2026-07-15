@@ -7,9 +7,9 @@ import (
 // TestConnectionTypeCIP 测试标准 CIP 模式配置
 func TestConnectionTypeCIP(t *testing.T) {
 	cfg := map[string]any{
-		"ip":             "127.0.0.1",
-		"port":           44818,
-		"slot":           0,
+		"ip":              "127.0.0.1",
+		"port":            44818,
+		"slot":            0,
 		"connection_type": "cip",
 	}
 
@@ -25,9 +25,9 @@ func TestConnectionTypeCIP(t *testing.T) {
 // TestConnectionTypeLogix 测试 Logix 模式配置
 func TestConnectionTypeLogix(t *testing.T) {
 	cfg := map[string]any{
-		"ip":             "127.0.0.1",
-		"port":           44818,
-		"slot":           0,
+		"ip":              "127.0.0.1",
+		"port":            44818,
+		"slot":            0,
 		"connection_type": "logix",
 	}
 
@@ -75,9 +75,9 @@ func TestConnectionTypeCaseInsensitive(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := map[string]any{
-				"ip":             "127.0.0.1",
-				"port":           44818,
-				"slot":           0,
+				"ip":              "127.0.0.1",
+				"port":            44818,
+				"slot":            0,
 				"connection_type": tc.input,
 			}
 
@@ -93,9 +93,9 @@ func TestConnectionTypeCaseInsensitive(t *testing.T) {
 // TestConnectionTypeInvalidValue 测试无效连接类型值的处理
 func TestConnectionTypeInvalidValue(t *testing.T) {
 	cfg := map[string]any{
-		"ip":             "127.0.0.1",
-		"port":           44818,
-		"slot":           0,
+		"ip":              "127.0.0.1",
+		"port":            44818,
+		"slot":            0,
 		"connection_type": "invalid",
 	}
 
@@ -111,13 +111,13 @@ func TestConnectionTypeInvalidValue(t *testing.T) {
 // TestConnectionTypeWithOtherConfigs 测试连接类型与其他配置参数组合
 func TestConnectionTypeWithOtherConfigs(t *testing.T) {
 	cfg := map[string]any{
-		"ip":                "192.168.1.10",
-		"port":              44818,
-		"slot":              1,
-		"connection_type":   "logix",
-		"timeout":           5000,
-		"max_retries":       3,
-		"retry_interval":    200,
+		"ip":                 "192.168.1.10",
+		"port":               44818,
+		"slot":               1,
+		"connection_type":    "logix",
+		"timeout":            5000,
+		"max_retries":        3,
+		"retry_interval":     200,
 		"heartbeat_interval": 30000,
 	}
 

@@ -20,7 +20,7 @@ func TestNorthboundManager_UpsertMQTT_PersistViaSaveFunc(t *testing.T) {
 		Broker: "tcp://127.0.0.1:1883",
 		Topic:  "test/topic",
 	}
-	if err := nm.UpsertMQTTConfig(cfg); err != nil {
+	if _, err := nm.UpsertMQTTConfig(cfg); err != nil {
 		t.Fatalf("UpsertMQTTConfig: %v", err)
 	}
 
@@ -95,7 +95,7 @@ func TestNorthboundManager_UpsertOPCUA_PersistDeviceMapping(t *testing.T) {
 			"dev1": {Enable: true, Strategy: "periodic", Interval: model.Duration(10 * 1e9)},
 		},
 	}
-	if _, err := nm.UpsertOPCUAConfig(cfg); err != nil {
+	if _, _, err := nm.UpsertOPCUAConfig(cfg); err != nil {
 		t.Fatalf("UpsertOPCUAConfig: %v", err)
 	}
 

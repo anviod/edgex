@@ -29,7 +29,7 @@ layout: default
 
 ### 步骤 1: 更新依赖
 ```bash
-cd d:/code/edgex
+cd /path/to/edgex   # 仓库根目录
 go mod tidy
 go mod download
 ```

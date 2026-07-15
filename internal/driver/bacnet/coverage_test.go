@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/anviod/bacnet/btypes"
+	"github.com/anviod/bacnet/datalink"
 	"github.com/anviod/edgex/internal/driver"
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
-	"github.com/anviod/edgex/internal/driver/bacnet/datalink"
 	"github.com/anviod/edgex/internal/model"
 )
 
@@ -35,6 +36,13 @@ func (m *CoverageMockClient) ReadProperty(dest btypes.Device, rp btypes.Property
 		return m.ReadPropertyFunc(dest, rp)
 	}
 	return m.SmartMockClient.ReadProperty(dest, rp)
+}
+
+func (m *CoverageMockClient) ReadPropertyWithTimeout(dest btypes.Device, rp btypes.PropertyData, timeout time.Duration) (btypes.PropertyData, error) {
+	if m.ReadPropertyFunc != nil {
+		return m.ReadPropertyFunc(dest, rp)
+	}
+	return m.SmartMockClient.ReadPropertyWithTimeout(dest, rp, timeout)
 }
 
 func (m *CoverageMockClient) ReadMultiProperty(dev btypes.Device, rp btypes.MultiplePropertyData) (btypes.MultiplePropertyData, error) {
@@ -618,5 +626,463 @@ func TestClientObjectsCoverage(t *testing.T) {
 	_, err := cli.Objects(dest)
 	if err == nil {
 		t.Error("Expected error from Objects (timeout), got nil")
+	}
+}
+
+func TestGetMetricsAndConnectionMetrics(t *testing.T) {
+	mock := &CoverageMockClient{}
+	d := NewBACnetDriver().(*BACnetDriver)
+	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
+	d.Connect(context.Background())
+	defer d.Disconnect()
+
+	d.mu.Lock()
+	d.connectionStartTime = time.Now().Add(-10 * time.Second)
+	d.interfaceIP = "192.168.1.10"
+	d.interfacePort = 47808
+	d.reconnectCount = 2
+	d.deviceContexts[100] = &DeviceContext{
+		State: DeviceStateOnline,
+		LastValues: map[string]model.Value{
+			"p1": {Quality: "Good"},
+			"p2": {Quality: "Good"},
+		},
+	}
+	d.deviceContexts[200] = &DeviceContext{
+		State:               DeviceStateIsolated,
+		ConsecutiveFailures: 2,
+	}
+	d.deviceContexts[300] = &DeviceContext{
+		State: DeviceStateOffline,
+	}
+	d.mu.Unlock()
+
+	m := d.GetMetrics()
+	if m.Protocol != "BACnet" {
+		t.Errorf("expected BACnet protocol, got %s", m.Protocol)
+	}
+	if m.QualityScore <= 0 || m.QualityScore > 100 {
+		t.Errorf("unexpected quality score: %d", m.QualityScore)
+	}
+
+	connSec, recon, local, remote, _ := d.GetConnectionMetrics()
+	if connSec < 9 {
+		t.Errorf("expected connection seconds >= 9, got %d", connSec)
+	}
+	if recon != 2 {
+		t.Errorf("expected reconnect count 2, got %d", recon)
+	}
+	if local != "192.168.1.10:47808" {
+		t.Errorf("unexpected local addr: %s", local)
+	}
+	if !strings.Contains(remote, "设备在线") {
+		t.Errorf("unexpected remote addr: %s", remote)
+	}
+}
+
+func TestSetSlaveIDAndAddressNotifier(t *testing.T) {
+	d := NewBACnetDriver().(*BACnetDriver)
+	if err := d.SetSlaveID(1); err != nil {
+		t.Fatalf("SetSlaveID failed: %v", err)
+	}
+	d.SetBACnetAddressNotifier(testAddressNotifier{})
+	d.mu.Lock()
+	if d.addressNotifier == nil {
+		t.Fatal("address notifier not set")
+	}
+	d.mu.Unlock()
+}
+
+type testAddressNotifier struct{}
+
+func (testAddressNotifier) OnBACnetAddressDiscovered(deviceKey, ip string, port int) {}
+
+func TestScanObjects(t *testing.T) {
+	mock := &CoverageMockClient{}
+	mock.WhoIsFunc = func(wh *WhoIsOpts) ([]btypes.Device, error) {
+		return []btypes.Device{{
+			DeviceID: 5001,
+			Addr:     *datalink.IPPortToAddress(net.ParseIP("192.168.1.55"), 47808),
+			MaxApdu:  1476,
+		}}, nil
+	}
+	mock.ReadPropertyFunc = func(dest btypes.Device, rp btypes.PropertyData) (btypes.PropertyData, error) {
+		if rp.Object.Properties[0].Type == btypes.PropObjectList && rp.Object.Properties[0].ArrayIndex == 0 {
+			resp := rp
+			resp.Object.Properties[0].Data = uint32(1)
+			return resp, nil
+		}
+		if rp.Object.Properties[0].ArrayIndex == btypes.ArrayAll || rp.Object.Properties[0].ArrayIndex == 1 {
+			resp := rp
+			resp.Object.Properties[0].Data = []btypes.ObjectID{{Type: btypes.AnalogValue, Instance: 1}}
+			return resp, nil
+		}
+		return rp, nil
+	}
+	mock.ReadMultiPropertyFunc = func(dev btypes.Device, rp btypes.MultiplePropertyData) (btypes.MultiplePropertyData, error) {
+		resp := rp
+		for i := range resp.Objects {
+			for j, prop := range resp.Objects[i].Properties {
+				switch prop.Type {
+				case btypes.PropObjectName:
+					resp.Objects[i].Properties[j].Data = "AV1"
+				case btypes.PropDescription:
+					resp.Objects[i].Properties[j].Data = "desc"
+				case btypes.PropPresentValue:
+					resp.Objects[i].Properties[j].Data = float32(1.0)
+				}
+			}
+		}
+		return resp, nil
+	}
+
+	d := NewBACnetDriver().(*BACnetDriver)
+	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
+	d.Connect(context.Background())
+	defer d.Disconnect()
+
+	d.mu.Lock()
+	d.deviceContexts[5001] = &DeviceContext{
+		State: DeviceStateOnline,
+		Device: btypes.Device{
+			DeviceID: 5001,
+			MaxApdu:  1476,
+			Addr:     *datalink.IPPortToAddress(net.ParseIP("192.168.1.55"), 47808),
+		},
+	}
+	d.mu.Unlock()
+
+	result, err := d.ScanObjects(context.Background(), map[string]any{
+		"device_id": 5001,
+		"deep":      true,
+	})
+	if err != nil {
+		t.Fatalf("ScanObjects failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("ScanObjects returned nil")
+	}
+}
+
+func TestWritePointDataTypes(t *testing.T) {
+	mock := &CoverageMockClient{}
+	var written any
+	mock.WritePropertyFunc = func(dest btypes.Device, wp btypes.PropertyData) error {
+		written = wp.Object.Properties[0].Data
+		return nil
+	}
+
+	d := NewBACnetDriver().(*BACnetDriver)
+	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
+	d.Connect(context.Background())
+	defer d.Disconnect()
+
+	devID := 3003
+	d.mu.Lock()
+	d.deviceContexts[devID] = &DeviceContext{
+		Device:    btypes.Device{DeviceID: devID, MaxApdu: 1476},
+		Scheduler: NewPointScheduler(d.client, btypes.Device{DeviceID: devID}, 10, 10*time.Millisecond, 1*time.Second, false),
+	}
+	d.mu.Unlock()
+
+	pt := model.Point{ID: "p1", DeviceID: "3003", Address: "AnalogValue:1", DataType: "int32"}
+
+	cases := []struct {
+		name  string
+		value any
+		pt    model.Point
+	}{
+		{"int from float", float64(42), pt},
+		{"int from string", "99", pt},
+		{"bool from string", "true", model.Point{ID: "p2", DeviceID: "3003", Address: "BinaryValue:1", DataType: "bool"}},
+		{"enum", float64(3), model.Point{ID: "p3", DeviceID: "3003", Address: "MultiStateValue:1", DataType: "enum"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			written = nil
+			if err := d.WritePoint(context.Background(), tc.pt, tc.value); err != nil {
+				t.Fatalf("WritePoint failed: %v", err)
+			}
+			if written == nil {
+				t.Fatal("expected write to occur")
+			}
+		})
+	}
+
+	// Release (null) write
+	ptBool := model.Point{ID: "p2", DeviceID: "3003", Address: "BinaryValue:1", DataType: "bool"}
+	err := d.WritePoint(context.Background(), ptBool, nil)
+	if err != nil {
+		t.Fatalf("null WritePoint failed: %v", err)
+	}
+}
+
+func TestObjectCopyHelper(t *testing.T) {
+	dest := make(btypes.ObjectMap)
+	src := []btypes.Object{
+		{ID: btypes.ObjectID{Type: btypes.AnalogValue, Instance: 1}},
+		{ID: btypes.ObjectID{Type: btypes.AnalogValue, Instance: 2}},
+	}
+	objectCopy(dest, src)
+	if len(dest[btypes.AnalogValue]) != 2 {
+		t.Errorf("expected 2 objects, got %d", len(dest[btypes.AnalogValue]))
+	}
+}
+
+func TestClientIsRunning(t *testing.T) {
+	mockDL := &MockDataLink{}
+	cli, err := NewClient(&ClientBuilder{DataLink: mockDL})
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	if cli.IsRunning() {
+		t.Error("expected not running before ClientRun")
+	}
+	go cli.ClientRun()
+	time.Sleep(50 * time.Millisecond)
+	if !cli.IsRunning() {
+		t.Error("expected running after ClientRun")
+	}
+	cli.Close()
+	time.Sleep(50 * time.Millisecond)
+}
+
+func TestParseExistingDeviceIDs(t *testing.T) {
+	ids := parseExistingDeviceIDs(map[string]any{
+		"existing_device_ids": []int{100, 200},
+	})
+	if len(ids) != 2 {
+		t.Fatalf("expected 2 ids, got %d", len(ids))
+	}
+	if _, ok := ids[100]; !ok {
+		t.Fatal("expected device 100")
+	}
+	if _, ok := ids[200]; !ok {
+		t.Fatal("expected device 200")
+	}
+
+	ids = parseExistingDeviceIDs(map[string]any{
+		"existing_device_ids": []any{float64(100), 200},
+	})
+	if len(ids) != 2 {
+		t.Fatalf("expected 2 ids, got %d", len(ids))
+	}
+	if _, ok := ids[100]; !ok {
+		t.Error("missing id 100")
+	}
+
+	ids = parseExistingDeviceIDs(map[string]any{
+		"existing_device_ids": []int{1, 2, 3},
+	})
+	if len(ids) != 3 {
+		t.Fatalf("expected 3 ids, got %d", len(ids))
+	}
+}
+
+func TestCalculateQualityScoreAllStates(t *testing.T) {
+	d := NewBACnetDriver().(*BACnetDriver)
+	d.deviceContexts = map[int]*DeviceContext{
+		1: {State: DeviceStateOnline},
+		2: {State: DeviceStateOffline},
+		3: {State: DeviceStateIsolated, ConsecutiveFailures: 1},
+		4: {State: DeviceStateUnstable},
+	}
+	score := d.calculateQualityScoreLocked()
+	if score <= 0 || score >= 100 {
+		t.Errorf("expected mid-range score, got %d", score)
+	}
+
+	d.deviceContexts = map[int]*DeviceContext{}
+	if d.calculateQualityScoreLocked() != 100 {
+		t.Error("empty contexts should score 100")
+	}
+}
+
+func TestCheckRecoveryFailurePath(t *testing.T) {
+	mock := &CoverageMockClient{}
+	mock.WhoIsFunc = func(wh *WhoIsOpts) ([]btypes.Device, error) {
+		return nil, fmt.Errorf("network down")
+	}
+
+	d := NewBACnetDriver().(*BACnetDriver)
+	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
+	d.Connect(context.Background())
+	defer d.Disconnect()
+
+	devID := 9001
+	d.mu.Lock()
+	d.deviceContexts[devID] = &DeviceContext{
+		State:         DeviceStateIsolated,
+		Config:        DeviceConfig{IP: "192.168.1.99", Port: 47808},
+		LastDiscovery: time.Now().Add(-2 * time.Minute),
+	}
+	d.mu.Unlock()
+
+	d.checkRecovery(devID)
+	time.Sleep(200 * time.Millisecond)
+
+	d.mu.Lock()
+	ctx := d.deviceContexts[devID]
+	d.mu.Unlock()
+	if ctx.State != DeviceStateIsolated {
+		t.Errorf("expected still isolated after failed recovery, got %d", ctx.State)
+	}
+}
+
+func TestReadPointsEmptyAndMixedDevice(t *testing.T) {
+	d := NewBACnetDriver().(*BACnetDriver)
+	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
+
+	results, err := d.ReadPoints(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("empty ReadPoints: %v", err)
+	}
+	if len(results) != 0 {
+		t.Fatalf("expected empty results")
+	}
+
+	_, err = d.ReadPoints(context.Background(), []model.Point{
+		{ID: "p1", DeviceID: "1", Address: "AnalogValue:1"},
+		{ID: "p2", DeviceID: "2", Address: "AnalogValue:2"},
+	})
+	if err == nil {
+		t.Fatal("expected mixed device ID error")
+	}
+}
+
+func TestNormalizePresentValueCoverage(t *testing.T) {
+	if normalizePresentValue(nil) != nil {
+		t.Fatal("nil should stay nil")
+	}
+	if normalizePresentValue(float32(1.5)) != float32(1.5) {
+		t.Fatal("float32 passthrough")
+	}
+	if normalizePresentValue(btypes.Enumerated(3)) != uint32(3) {
+		t.Fatal("enumerated to uint32")
+	}
+
+	devCtx := &DeviceContext{}
+	applyFreshReadToCache(devCtx, "100", map[string]model.Value{
+		"p1": {PointID: "p1", Value: 42, Quality: "Good"},
+	})
+	devCtx.CacheMu.Lock()
+	if devCtx.LastValues["p1"].DeviceID != "100" {
+		t.Fatal("cache should set device id")
+	}
+	devCtx.CacheMu.Unlock()
+}
+
+func TestReadPointsWithSmartMockScheduler(t *testing.T) {
+	mock := &SmartMockClient{
+		Devices: map[int]btypes.Device{
+			5001: {DeviceID: 5001, MaxApdu: 1476},
+		},
+		Values: map[string]interface{}{
+			fmt.Sprintf("5001:%d:1", btypes.AnalogValue): float32(88.8),
+			fmt.Sprintf("5001:%d:2", btypes.AnalogValue): float32(99.9),
+		},
+	}
+
+	d := NewBACnetDriver().(*BACnetDriver)
+	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
+	d.Connect(context.Background())
+	defer d.Disconnect()
+
+	d.SetDeviceConfig(map[string]any{
+		"instance_id": 5001,
+		"ip":          "192.168.1.50",
+	})
+
+	time.Sleep(50 * time.Millisecond)
+
+	results, err := d.ReadPoints(context.Background(), []model.Point{
+		{ID: "p1", DeviceID: "5001", Address: "AnalogValue:1", DataType: "float32"},
+		{ID: "p2", DeviceID: "5001", Address: "AnalogValue:2", DataType: "float32"},
+	})
+	if err != nil {
+		t.Fatalf("ReadPoints: %v", err)
+	}
+	if results["p1"].Quality != "Good" || results["p2"].Quality != "Good" {
+		t.Fatalf("unexpected qualities: %+v", results)
+	}
+	if v, ok := results["p1"].Value.(float32); !ok || v != float32(88.8) {
+		t.Fatalf("p1 value: %+v", results["p1"].Value)
+	}
+}
+
+func TestPointSchedulerWriteWithMock(t *testing.T) {
+	mock := &CoverageMockClient{}
+	mock.WriteMultiPropertyFunc = func(dev btypes.Device, wp btypes.MultiplePropertyData) error {
+		return nil
+	}
+	sched := NewPointScheduler(mock, btypes.Device{DeviceID: 1, MaxApdu: 1476}, 10, 5*time.Millisecond, time.Second, false)
+	pt := model.Point{ID: "w1", Address: "AnalogValue:1", DataType: "float32"}
+	if err := sched.Write(context.Background(), []PointWriteRequest{{Point: pt, Value: float32(12.3)}}); err != nil {
+		t.Fatalf("scheduler write: %v", err)
+	}
+}
+
+func TestReadPointsPerDeviceWithMock(t *testing.T) {
+	mock := &SmartMockClient{
+		Devices: map[int]btypes.Device{
+			100: {DeviceID: 100, MaxApdu: 1476},
+			200: {DeviceID: 200, MaxApdu: 1476},
+		},
+		Values: map[string]interface{}{
+			fmt.Sprintf("100:%d:1", btypes.AnalogValue): float32(10.0),
+			fmt.Sprintf("200:%d:1", btypes.AnalogValue): float32(20.0),
+		},
+	}
+
+	d := NewBACnetDriver().(*BACnetDriver)
+	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
+	d.Connect(context.Background())
+	defer d.Disconnect()
+
+	d.SetDeviceConfig(map[string]any{"instance_id": 100, "ip": "192.168.1.10"})
+	d.SetDeviceConfig(map[string]any{"instance_id": 200, "ip": "192.168.1.20"})
+	time.Sleep(50 * time.Millisecond)
+
+	r100, err := d.ReadPoints(context.Background(), []model.Point{
+		{ID: "p100", DeviceID: "100", Address: "AnalogValue:1", DataType: "float32"},
+	})
+	if err != nil {
+		t.Fatalf("ReadPoints device 100: %v", err)
+	}
+	if r100["p100"].Quality != "Good" {
+		t.Fatalf("device 100 quality: %+v", r100)
+	}
+
+	r200, err := d.ReadPoints(context.Background(), []model.Point{
+		{ID: "p200", DeviceID: "200", Address: "AnalogValue:1", DataType: "float32"},
+	})
+	if err != nil {
+		t.Fatalf("ReadPoints device 200: %v", err)
+	}
+	if r200["p200"].Quality != "Good" {
+		t.Fatalf("device 200 quality: %+v", r200)
+	}
+}
+
+func TestDriverHealthAndMetricsWithMock(t *testing.T) {
+	mock := &CoverageMockClient{}
+	d := NewBACnetDriver().(*BACnetDriver)
+	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.Init(model.DriverConfig{ChannelID: "health", Config: map[string]any{"ip": "0.0.0.0"}})
+	d.Connect(context.Background())
+	defer d.Disconnect()
+
+	m := d.GetMetrics()
+	if m.Protocol != "BACnet" {
+		t.Fatalf("protocol: %s", m.Protocol)
+	}
+	if d.Health() == driver.HealthStatus(-1) {
+		t.Fatal("invalid health")
 	}
 }

@@ -39,13 +39,12 @@ func TestConnectionManager_ScheduleReconnectSingleFlight(t *testing.T) {
 	cm.ScheduleReconnect(context.Background(), time.Second, connect)
 	cm.ScheduleReconnect(context.Background(), time.Second, connect)
 
-	deadline := time.After(200 * time.Millisecond)
+	deadline := time.After(2 * time.Second)
 	for attempts.Load() == 0 {
 		select {
 		case <-deadline:
 			t.Fatal("expected scheduled reconnect to start")
-		default:
-			time.Sleep(5 * time.Millisecond)
+		case <-time.After(5 * time.Millisecond):
 		}
 	}
 

@@ -134,7 +134,8 @@ func startFakeENIPServer(t *testing.T) (net.Listener, string, int) {
 				specificData = []byte{}
 			case 0x6F: // SendRRData
 				if !bytes.Contains(body, []byte{0x20, 0x02, 0x24, 0x01, 0x30, 0x03}) {
-					t.Fatalf("expected Class 2 attribute path in SendRRData request, got body: %x", body)
+					t.Errorf("expected Class 2 attribute path in SendRRData request, got body: %x", body)
+					return
 				}
 
 				responseData := make([]byte, 8)
@@ -150,7 +151,8 @@ func startFakeENIPServer(t *testing.T) (net.Listener, string, int) {
 				sd := packet.SpecificData{InterfaceHandle: 0, TimeOut: 10, Packet: cpf}
 				specificData = sd.Encode()
 			default:
-				t.Fatalf("unexpected command: 0x%02x", cmd)
+				t.Errorf("unexpected command: 0x%02x", cmd)
+				return
 			}
 
 			response := make([]byte, 24+len(specificData))

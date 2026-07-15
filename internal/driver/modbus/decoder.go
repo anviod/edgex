@@ -93,12 +93,15 @@ func (d *PointDecoder) ParseAddress(addr string) (model.RegisterType, uint16, er
 		// 非标地址：默认作为Holding Register处理
 		// 用户可以通过register_type字段指定其他类型
 		regType = model.RegHolding
-		// Apply address base to all addresses
-		offset = uint16(addrInt) - d.addressBase
-		// Ensure offset is not negative
-		if int(offset) < 0 {
-			offset = 0
+		// 使用有符号运算避免 uint16 下溢（当 addrInt < addressBase 时）
+		rawOffset := addrInt - int(d.addressBase)
+		if rawOffset < 0 {
+			rawOffset = 0
 		}
+		if rawOffset > 0xFFFF {
+			return model.RegHolding, 0, fmt.Errorf("address %d out of range (base=%d)", addrInt, d.addressBase)
+		}
+		offset = uint16(rawOffset)
 	}
 
 	return regType, offset, nil

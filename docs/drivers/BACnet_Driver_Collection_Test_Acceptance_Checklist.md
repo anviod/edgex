@@ -5,9 +5,9 @@ description: EdgeX BACnet 驱动采集测试与验收标准清单
 ---
 
 # BACnet 驱动采集测试与验收标准清单
-基于配置修改 D:\code\edgex\conf\channels.yaml
-使用最新配置文件来实现设备读取bacnet点位
-比如 D:\code\edgex\conf\devices\bacnet-ip\bacnet-2228316.yaml
+基于配置修改 `conf/channels.yaml`
+使用最新配置文件来实现设备读取 BACnet 点位
+例如 `conf/devices/bacnet-ip/bacnet-2228316.yaml`（路径相对于仓库根目录）
 严格按照配置文件中的点位进行读取 配置文件不可修改的原则进行代码调整
 特别注意：
 * **DeviceID**：系统内唯一标识（Edge/平台侧）

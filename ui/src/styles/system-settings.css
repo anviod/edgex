@@ -2,6 +2,11 @@
  * EdgeX v3.0 — 系统设置页（SystemSettings + 子组件）
  */
 
+.system-settings-page.page-shell {
+  gap: var(--space-6);
+  max-width: none;
+}
+
 .system-settings-page .page-header {
   margin-bottom: 0;
 }

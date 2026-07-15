@@ -7,8 +7,6 @@
     unmount-on-close
     :footer="true"
     :mask-closable="false"
-    :ok-loading="loading"
-    @ok="saveSettings"
   >
     <div class="nb-mode-banner nb-mode-banner--passive">
       <span class="nb-mode-banner__tag">被动读取</span>
@@ -155,29 +153,72 @@
         </a-form>
       </a-tab-pane>
 
-      <a-tab-pane key="device-mapping">
-        <template #title>暴露设备</template>
+      <a-tab-pane key="real-devices">
+        <template #title>映射真实设备</template>
         <div class="table-header">
-          <span style="font-size: 12px; color: #94a3b8; flex: 1">选择在 OPC UA 地址空间中暴露的设备</span>
+          <span class="table-header__hint">选择在 OPC UA 地址空间中暴露的南向采集设备</span>
           <a-button type="outline" size="small" @click="autoFillDevices">
             <template #icon><icon-check /></template>全部启用
           </a-button>
         </div>
-        <div class="table-container">
-          <a-table 
-            :columns="deviceColumns" 
-            :data="deviceTableData" 
-            size="small" 
+        <div class="table-container saas-table nb-device-table">
+          <a-table
+            row-key="id"
+            :columns="deviceColumns"
+            :data="deviceTableData"
+            size="small"
             :pagination="false"
             class="industrial-table-inline"
           >
+            <template #empty>
+              <a-empty description="暂无南向设备，请先在通道管理中创建设备" />
+            </template>
             <template #state="{ record }">
               <a-tag v-if="record.state === 0" color="green" size="small">在线</a-tag>
               <a-tag v-else-if="record.state === 1" color="orangered" size="small">不稳定</a-tag>
               <a-tag v-else color="red" size="small">离线</a-tag>
             </template>
             <template #enable="{ record }">
-              <a-switch v-model="record._enable" size="small" @change="updateDeviceEnable(record)" />
+              <a-switch v-model="record._enable" size="small" />
+            </template>
+          </a-table>
+        </div>
+      </a-tab-pane>
+
+      <a-tab-pane key="virtual-devices">
+        <template #title>映射虚拟设备</template>
+        <div class="table-header">
+          <span class="table-header__hint">选择在 OPC UA 地址空间中暴露的虚拟影子设备</span>
+          <a-button type="outline" size="small" @click="autoFillVirtualDevices">
+            <template #icon><icon-check /></template>全部启用
+          </a-button>
+        </div>
+        <div class="table-container saas-table nb-device-table">
+          <a-table
+            row-key="id"
+            :columns="virtualDeviceColumns"
+            :data="virtualDeviceTableData"
+            size="small"
+            :pagination="false"
+            class="industrial-table-inline"
+          >
+            <template #empty>
+              <a-empty description="暂无虚拟影子设备，请先在虚拟影子页面创建" />
+            </template>
+            <template #name="{ record }">
+              <span>{{ record.name || record.id }}</span>
+            </template>
+            <template #configEnable="{ record }">
+              <a-tag :color="record.enable ? 'green' : 'gray'" size="small">
+                {{ record.enable ? '启用' : '禁用' }}
+              </a-tag>
+            </template>
+            <template #enable="{ record }">
+              <a-switch
+                v-model="record._enable"
+                size="small"
+                :disabled="!record.enable"
+              />
             </template>
           </a-table>
         </div>
@@ -202,13 +243,27 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { IconPlus, IconDelete, IconCheck, IconSync } from '@arco-design/web-vue/es/icon'
+import { Message } from '@arco-design/web-vue'
 import { showMessage } from '@/composables/useGlobalState'
 import request from '@/utils/request'
+import {
+  closeNorthboundSettingsDialog,
+  extractNorthboundSaveWarning,
+  northboundSaveRequestConfig,
+  notifyNorthboundSaveError,
+  notifyNorthboundSaveSuccess,
+  notifyNorthboundValidationError,
+  resolveNorthboundSaveError,
+  validateNorthboundChannelName
+} from '@/utils/northboundSave'
+import { buildNorthboundVirtualDeviceRows, syncNorthboundVirtualDevicesFromRows } from '@/utils/southboundDevices'
+import { listVirtualShadows } from '@/api/virtualShadow'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
   config: { type: Object, default: null },
-  allDevices: { type: Array, default: () => [] }
+  allDevices: { type: Array, default: () => [] },
+  northboundConfig: { type: Object, default: () => ({}) }
 })
 
 const emit = defineEmits(['update:visible', 'saved'])
@@ -222,7 +277,9 @@ const syncing = ref(false)
 const form = ref({})
 const userList = ref([])
 const deviceTableData = ref([])
+const virtualDeviceTableData = ref([])
 const activeTab = ref('basic')
+const isNewMode = ref(false)
 const serverCertInput = ref(null)
 const serverKeyInput = ref(null)
 const trustedCertInput = ref(null)
@@ -238,8 +295,18 @@ const deviceColumns = [
   { title: '暴露', slotName: 'enable', width: 70, align: 'center' }
 ]
 
-watch(() => props.visible, (val) => {
+const virtualDeviceColumns = [
+  { title: '设备名称', slotName: 'name', width: 180, ellipsis: true, tooltip: true },
+  { title: '归属通道', dataIndex: 'channel_id', width: 120, ellipsis: true, tooltip: true },
+  { title: '点位', dataIndex: 'pointCount', width: 70, align: 'center' },
+  { title: '配置', slotName: 'configEnable', width: 80, align: 'center' },
+  { title: '暴露', slotName: 'enable', width: 70, align: 'center' }
+]
+
+watch(() => props.visible, async (val) => {
   if (val) {
+    activeTab.value = 'basic'
+    isNewMode.value = !props.config
     if (props.config) {
       form.value = JSON.parse(JSON.stringify(props.config))
     } else {
@@ -252,6 +319,7 @@ watch(() => props.visible, (val) => {
         security_mode: 'SignAndEncrypt',
         trusted_cert_path: '',
         devices: {},
+        virtual_devices: {},
         auth_methods: ['Anonymous'],
         users: {},
         cert_file: '',
@@ -259,6 +327,7 @@ watch(() => props.visible, (val) => {
       }
     }
     if (!form.value.devices) form.value.devices = {}
+    if (!form.value.virtual_devices) form.value.virtual_devices = {}
     if (!form.value.auth_methods) form.value.auth_methods = ['Anonymous']
     if (!form.value.users) form.value.users = {}
 
@@ -270,6 +339,7 @@ watch(() => props.visible, (val) => {
     }
 
     buildDeviceTable()
+    await buildVirtualDeviceTable()
     resetCertState()
   }
 })
@@ -353,6 +423,17 @@ const buildDeviceTable = () => {
   })
 }
 
+const buildVirtualDeviceTable = async () => {
+  try {
+    const res = await listVirtualShadows()
+    const items = Array.isArray(res) ? res : (res?.data || [])
+    virtualDeviceTableData.value = buildNorthboundVirtualDeviceRows(items, form.value.virtual_devices)
+  } catch (e) {
+    console.error('[OpcuaSettings] load virtual shadows failed', e)
+    virtualDeviceTableData.value = buildNorthboundVirtualDeviceRows([], form.value.virtual_devices)
+  }
+}
+
 const syncDevicesFromTable = () => {
   if (deviceTableData.value.length === 0) {
     form.value.devices = {}
@@ -369,19 +450,28 @@ const syncDevicesFromTable = () => {
   form.value.devices = hasExplicitDisable ? devices : {}
 }
 
-const addUser = () => {
-  userList.value.push({ username: '', password: '' })
+const syncVirtualDevicesFromTable = () => {
+  form.value.virtual_devices = syncNorthboundVirtualDevicesFromRows(virtualDeviceTableData.value)
 }
 
-const updateDeviceEnable = () => {
-  // 表格状态在保存时通过 syncDevicesFromTable 统一写入
+const addUser = () => {
+  userList.value.push({ username: '', password: '' })
 }
 
 const autoFillDevices = () => {
   deviceTableData.value.forEach(record => {
     record._enable = true
   })
-  showMessage('已启用全部设备', 'success')
+  showMessage('已启用全部真实设备', 'success')
+}
+
+const autoFillVirtualDevices = () => {
+  virtualDeviceTableData.value.forEach(record => {
+    if (record.enable) {
+      record._enable = true
+    }
+  })
+  showMessage('已启用全部虚拟设备', 'success')
 }
 
 const syncPointMapping = async () => {
@@ -389,20 +479,44 @@ const syncPointMapping = async () => {
     showMessage('请先保存通道配置', 'warning')
     return
   }
+  if (syncing.value) return
+
   syncing.value = true
   try {
-    await request.post(`/api/northbound/opcua/${form.value.id}/sync`)
-    showMessage('点位映射已同步，读写权限已更新', 'success')
+    await request.post(
+      `/api/northbound/opcua/${form.value.id}/sync`,
+      null,
+      northboundSaveRequestConfig
+    )
+    Message.success('点位映射已同步，读写权限已更新')
   } catch (e) {
-    showMessage('同步失败: ' + e.message, 'error')
+    Message.error('同步失败：' + resolveNorthboundSaveError(e))
   } finally {
     syncing.value = false
   }
 }
 
 const saveSettings = async () => {
+  const missing = []
+  if (!form.value.name?.trim()) missing.push('通道名称')
+  if (!form.value.port) missing.push('端口')
+  if (!form.value.endpoint?.trim()) missing.push('Endpoint')
+  if (missing.length) {
+    notifyNorthboundValidationError('请填写必填项：' + missing.join('、'))
+    activeTab.value = 'basic'
+    return
+  }
+
+  const nameError = validateNorthboundChannelName(form.value.name, form.value.id, props.northboundConfig)
+  if (nameError) {
+    notifyNorthboundValidationError(nameError)
+    activeTab.value = 'basic'
+    return
+  }
+
   loading.value = true
   syncDevicesFromTable()
+  syncVirtualDevicesFromTable()
   form.value.users = {}
   if (userList.value) {
     userList.value.forEach(u => {
@@ -428,16 +542,18 @@ const saveSettings = async () => {
       delete dataToSave.trusted_certs_pem
     }
 
-    const res = await request.post('/api/northbound/opcua', dataToSave)
+    const res = await request.post('/api/northbound/opcua', dataToSave, northboundSaveRequestConfig)
+    const warning = extractNorthboundSaveWarning(res)
     if (res?.id) {
       form.value.id = res.id
     }
-    Object.assign(form.value, res || {})
-    showMessage('OPC UA 配置已保存', 'success')
-    visible.value = false
+    const { warning: _ignored, ...savedCfg } = res || {}
+    Object.assign(form.value, savedCfg)
+    notifyNorthboundSaveSuccess('OPC UA 服务端', isNewMode.value, warning)
+    closeNorthboundSettingsDialog(emit)
     emit('saved')
   } catch (e) {
-    showMessage('保存失败: ' + e.message, 'error')
+    notifyNorthboundSaveError(e, 'OPC UA 服务端')
   } finally {
     loading.value = false
   }

@@ -13,12 +13,12 @@ import (
 
 type instantTimeoutDriver struct{}
 
-func (instantTimeoutDriver) Init(_ model.DriverConfig) error             { return nil }
-func (instantTimeoutDriver) Connect(_ context.Context) error               { return nil }
-func (instantTimeoutDriver) Disconnect() error                             { return nil }
-func (instantTimeoutDriver) Health() driver.HealthStatus                 { return driver.HealthStatusGood }
-func (instantTimeoutDriver) SetSlaveID(_ uint8) error                      { return nil }
-func (instantTimeoutDriver) SetDeviceConfig(_ map[string]any) error        { return nil }
+func (instantTimeoutDriver) Init(_ model.DriverConfig) error        { return nil }
+func (instantTimeoutDriver) Connect(_ context.Context) error        { return nil }
+func (instantTimeoutDriver) Disconnect() error                      { return nil }
+func (instantTimeoutDriver) Health() driver.HealthStatus            { return driver.HealthStatusGood }
+func (instantTimeoutDriver) SetSlaveID(_ uint8) error               { return nil }
+func (instantTimeoutDriver) SetDeviceConfig(_ map[string]any) error { return nil }
 func (instantTimeoutDriver) WritePoint(_ context.Context, _ model.Point, _ any) error {
 	return nil
 }

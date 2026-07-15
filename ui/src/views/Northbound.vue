@@ -1,5 +1,5 @@
 <template>
-  <div class="page-shell northbound-page">
+  <div class="page-shell page-shell--wide northbound-page">
     <div class="page-header">
       <div>
         <h2 class="page-title">北向接口</h2>
@@ -11,39 +11,25 @@
       </a-button>
     </div>
 
-    <!-- 模式说明条 -->
-    <div class="mode-legend">
-      <div class="mode-legend__item mode-legend__item--push">
-        <span class="mode-legend__dot" />
-        <span><strong>主动上报</strong> — 网关连接 Broker / 云平台并推送数据</span>
-      </div>
-      <div class="mode-legend__item mode-legend__item--passive">
-        <span class="mode-legend__dot" />
-        <span><strong>被动读取</strong> — 网关暴露服务，等待上位机连接读取</span>
-      </div>
-    </div>
-
     <div v-if="loading" class="loading-wrap">
       <a-spin size="32" />
     </div>
 
     <a-empty v-else-if="hasNoChannels" class="empty-wrap">
-      <template #image><icon-upload :size="64" class="empty-icon-muted" /></template>
+      <template #image><icon-upload :size="48" class="empty-icon-muted" /></template>
       <div class="empty-title">暂无北向通道</div>
       <div class="empty-desc">点击「添加通道」选择协议并开始配置</div>
     </a-empty>
 
-    <template v-else>
-      <!-- 主动上报 -->
-      <section v-if="channelGroups.push.length" class="channel-section">
-        <div class="section-header section-header--push">
-          <div class="section-header__left">
-            <icon-send :size="18" />
-            <span class="section-header__title">主动上报</span>
-            <a-tag size="small" color="arcoblue">{{ channelGroups.push.length }}</a-tag>
-          </div>
-          <span class="section-header__desc">MQTT · Sparkplug B · HTTP · edgeOS</span>
+    <div v-else class="northbound-body">
+      <section v-if="channelGroups.push.length" class="northbound-zone" aria-label="主动上报">
+        <div class="northbound-zone-header">
+          <h3 class="northbound-zone-title">
+            主动上报
+            <span class="northbound-zone-count">{{ channelGroups.push.length }}</span>
+          </h3>
         </div>
+        <p class="northbound-zone-desc">MQTT · Sparkplug B · HTTP · edgeOS</p>
         <a-row :gutter="[24, 24]">
           <a-col
             v-for="{ meta, item } in channelGroups.push"
@@ -54,6 +40,7 @@
               :meta="meta"
               :item="item"
               :connection-status="config.status"
+              :sync-loading="syncingOpcuaId === item.id"
               @help="onHelp(meta.key, item)"
               @settings="onSettings(meta.key, item)"
               @stats="onStats(meta.key, item)"
@@ -64,16 +51,14 @@
         </a-row>
       </section>
 
-      <!-- 被动读取 -->
-      <section v-if="channelGroups.passive.length" class="channel-section">
-        <div class="section-header section-header--passive">
-          <div class="section-header__left">
-            <icon-storage :size="18" />
-            <span class="section-header__title">被动读取</span>
-            <a-tag size="small" color="purple">{{ channelGroups.passive.length }}</a-tag>
-          </div>
-          <span class="section-header__desc">OPC UA Server · 等待 SCADA / MES 连接</span>
+      <section v-if="channelGroups.passive.length" class="northbound-zone" aria-label="被动读取">
+        <div class="northbound-zone-header">
+          <h3 class="northbound-zone-title">
+            被动读取
+            <span class="northbound-zone-count">{{ channelGroups.passive.length }}</span>
+          </h3>
         </div>
+        <p class="northbound-zone-desc">OPC UA Server</p>
         <a-row :gutter="[24, 24]">
           <a-col
             v-for="{ meta, item } in channelGroups.passive"
@@ -84,6 +69,7 @@
               :meta="meta"
               :item="item"
               :connection-status="config.status"
+              :sync-loading="syncingOpcuaId === item.id"
               @help="onHelp(meta.key, item)"
               @settings="onSettings(meta.key, item)"
               @stats="onStats(meta.key, item)"
@@ -93,16 +79,16 @@
           </a-col>
         </a-row>
       </section>
-    </template>
+    </div>
 
     <NorthboundAddDialog v-model:visible="addDialogVisible" @select="addProtocol" />
 
-    <MqttSettingsDialog v-model:visible="mqttDialogVisible" :config="mqttEditConfig" :all-devices="allDevices" @saved="fetchConfig" />
-    <HttpSettingsDialog v-model:visible="httpDialogVisible" :config="httpEditConfig" :all-devices="allDevices" @saved="fetchConfig" />
-    <OpcuaSettingsDialog v-model:visible="opcuaDialogVisible" :config="opcuaEditConfig" :all-devices="allDevices" @saved="fetchConfig" />
-    <SparkplugSettingsDialog v-model:visible="sparkplugDialogVisible" :config="sparkplugEditConfig" :all-devices="allDevices" @saved="fetchConfig" />
-    <EdgeOSMQTTSettingsDialog v-model:visible="edgeosMQTTDialogVisible" :config="edgeosMQTTEditConfig" :all-devices="allDevices" @saved="fetchConfig" />
-    <EdgeOSNATSSettingsDialog v-model:visible="edgeosNATSDialogVisible" :config="edgeosNATSEditConfig" :all-devices="allDevices" @saved="fetchConfig" />
+    <MqttSettingsDialog v-model:visible="mqttDialogVisible" :config="mqttEditConfig" :all-devices="allDevices" :northbound-config="config" @saved="fetchConfig" />
+    <HttpSettingsDialog v-model:visible="httpDialogVisible" :config="httpEditConfig" :all-devices="allDevices" :northbound-config="config" @saved="fetchConfig" />
+    <OpcuaSettingsDialog v-model:visible="opcuaDialogVisible" :config="opcuaEditConfig" :all-devices="allDevices" :northbound-config="config" @saved="fetchConfig" />
+    <SparkplugSettingsDialog v-model:visible="sparkplugDialogVisible" :config="sparkplugEditConfig" :all-devices="allDevices" :northbound-config="config" @saved="fetchConfig" />
+    <EdgeOSMQTTSettingsDialog v-model:visible="edgeosMQTTDialogVisible" :config="edgeosMQTTEditConfig" :all-devices="allDevices" :northbound-config="config" @saved="fetchConfig" />
+    <EdgeOSNATSSettingsDialog v-model:visible="edgeosNATSDialogVisible" :config="edgeosNATSEditConfig" :all-devices="allDevices" :northbound-config="config" @saved="fetchConfig" />
 
     <MqttHelpDialog
       v-model:visible="mqttHelpVisible"
@@ -140,12 +126,15 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { IconPlus, IconUpload, IconSend, IconStorage } from '@arco-design/web-vue/es/icon'
+import { IconPlus, IconUpload } from '@arco-design/web-vue/es/icon'
 import { Message } from '@arco-design/web-vue'
-import { showMessage } from '@/composables/useGlobalState'
 import request from '@/utils/request'
 import { flattenChannels } from '@/utils/northboundProtocols'
 import { fetchAllSouthboundDevices } from '@/utils/southboundDevices'
+import {
+  northboundSaveRequestConfig,
+  resolveNorthboundSaveError
+} from '@/utils/northboundSave'
 
 import NorthboundChannelCard from '@/components/northbound/NorthboundChannelCard.vue'
 import NorthboundAddDialog from '@/components/northbound/NorthboundAddDialog.vue'
@@ -218,7 +207,7 @@ const fetchConfig = async () => {
       status: data.status || {}
     }
   } catch (e) {
-    showMessage('获取配置失败: ' + e.message, 'error')
+    Message.error('获取配置失败：' + resolveNorthboundSaveError(e))
   } finally {
     loading.value = false
   }
@@ -289,6 +278,15 @@ const onStats = (type, item) => {
 }
 
 const deleteDialog = reactive({ visible: false, type: '', id: '' })
+const syncingOpcuaId = ref('')
+
+const closeArcoLoading = (handle) => {
+  if (handle && typeof handle.close === 'function') {
+    handle.close()
+    return true
+  }
+  return false
+}
 
 const deleteProtocol = (type, id) => {
   deleteDialog.type = type
@@ -301,25 +299,37 @@ const executeDeleteProtocol = async () => {
   if (!type || !id) return
 
   try {
-    await request.delete(`/api/northbound/${type}/${id}`)
-    showMessage('删除成功', 'success')
+    await request.delete(`/api/northbound/${type}/${id}`, northboundSaveRequestConfig)
+    Message.success('北向通道已删除')
     deleteDialog.visible = false
     fetchConfig()
   } catch (e) {
-    showMessage('删除失败: ' + e.message, 'error')
+    Message.error('删除失败：' + resolveNorthboundSaveError(e))
   }
 }
 
 const syncOpcuaServer = async (item) => {
-  if (!item?.id) return
-  const closeLoading = Message.loading({ content: '正在同步 OPC UA 点位映射...', duration: 0 })
+  if (!item?.id || syncingOpcuaId.value === item.id) return
+
+  syncingOpcuaId.value = item.id
+  let stopMessage = Message.loading({
+    content: '正在同步 OPC UA 点位映射...',
+    duration: 0,
+    id: `opcua-sync-${item.id}`
+  })
+
   try {
-    await request.post(`/api/northbound/opcua/${item.id}/sync`)
-    showMessage('点位映射已同步，读写权限已更新', 'success')
+    await request.post(`/api/northbound/opcua/${item.id}/sync`, null, northboundSaveRequestConfig)
+    closeArcoLoading(stopMessage)
+    stopMessage = null
+    Message.success('点位映射已同步，读写权限已更新')
   } catch (e) {
-    showMessage('同步失败: ' + (e.message || e), 'error')
+    closeArcoLoading(stopMessage)
+    stopMessage = null
+    Message.error('同步失败：' + resolveNorthboundSaveError(e))
   } finally {
-    closeLoading()
+    closeArcoLoading(stopMessage)
+    syncingOpcuaId.value = ''
   }
 }
 

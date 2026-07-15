@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -20,6 +21,15 @@ import (
 	"github.com/anviod/edgex/internal/storage"
 
 	"github.com/expr-lang/expr"
+)
+
+var errWindowStepPending = errors.New("window aggregation step pending")
+
+const (
+	maxEdgeWindowSamples  = 10000
+	maxEdgeValueCacheSize = 10000
+	maxEdgeMinuteCacheAge = 2 * time.Hour
+	maxEdgeActionRunKeys  = 64
 )
 
 type ruleTask struct {
@@ -41,7 +51,7 @@ type EdgeComputeManager struct {
 	valueCache map[string]model.Value
 	cacheMu    sync.RWMutex
 
-	// Shared Source Index
+	// Rule Index
 	ruleIndex map[string][]string // Key: "ChannelID/DeviceID/PointID", Value: []RuleID
 	indexMu   sync.RWMutex
 
@@ -49,12 +59,17 @@ type EdgeComputeManager struct {
 	workerPool  chan *ruleTask
 	workerCount int
 	wg          sync.WaitGroup
+	scheduler   *edgeRuleScheduler
+	events      *edgeEventRecorder
 
 	// Metrics
 	statsMu        sync.RWMutex
 	rulesTriggered int64
 	rulesExecuted  int64
 	rulesDropped   int64
+	rulesCoalesced int64
+	rulesDebounced int64
+	batchWindow    time.Duration
 
 	stopOnce sync.Once
 
@@ -79,19 +94,26 @@ type DeviceIO interface {
 }
 
 type EdgeComputeMetrics struct {
-	WorkerPoolSize    int   `json:"worker_pool_size"`
-	WorkerPoolUsage   int   `json:"worker_pool_usage"`
-	RuleCount         int   `json:"rule_count"`
-	SharedSourceCount int   `json:"shared_source_count"`
-	CacheSize         int   `json:"cache_size"`
-	RulesTriggered    int64 `json:"rules_triggered"`
-	RulesExecuted     int64 `json:"rules_executed"`
-	RulesDropped      int64 `json:"rules_dropped"`
+	WorkerPoolSize        int   `json:"worker_pool_size"`
+	WorkerPoolUsage       int   `json:"worker_pool_usage"`
+	RuleCount             int   `json:"rule_count"`
+	CacheSize             int   `json:"cache_size"`
+	WindowBufferTotal     int   `json:"window_buffer_total"`
+	PendingSchedulerTasks int   `json:"pending_scheduler_tasks"`
+	MinuteCacheSize       int   `json:"minute_cache_size"`
+	EventBufferSize       int   `json:"event_buffer_size"`
+	FailureBufferSize     int   `json:"failure_buffer_size"`
+	BatchWindowMs         int64 `json:"batch_window_ms"`
+	RulesTriggered        int64 `json:"rules_triggered"`
+	RulesExecuted         int64 `json:"rules_executed"`
+	RulesDropped          int64 `json:"rules_dropped"`
+	RulesCoalesced        int64 `json:"rules_coalesced"`
+	RulesDebounced        int64 `json:"rules_debounced"`
 }
 
 func NewEdgeComputeManager(pipeline *DataPipeline, store *storage.Storage, saveFunc func([]model.EdgeRule) error) *EdgeComputeManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &EdgeComputeManager{
+	em := &EdgeComputeManager{
 		ctx:         ctx,
 		cancel:      cancel,
 		rules:       make(map[string]model.EdgeRule),
@@ -103,32 +125,13 @@ func NewEdgeComputeManager(pipeline *DataPipeline, store *storage.Storage, saveF
 		valueCache:  make(map[string]model.Value),
 		minuteCache: make(map[string]*model.RuleMinuteSnapshot),
 		ruleIndex:   make(map[string][]string),
-		workerPool:  make(chan *ruleTask, 1000), // Buffer size 1000
-		workerCount: 10,                         // Default 10 workers
+		workerPool:  make(chan *ruleTask, defaultEdgeQueueSize),
+		workerCount: defaultEdgeWorkerCount,
+		batchWindow: defaultEdgeBatchWindow,
 	}
-}
-
-type SharedSourceInfo struct {
-	SourceID        string   `json:"source_id"`
-	Subscribers     []string `json:"subscribers"`
-	SubscriberCount int      `json:"subscriber_count"`
-}
-
-func (em *EdgeComputeManager) GetSharedSources() []SharedSourceInfo {
-	em.indexMu.RLock()
-	defer em.indexMu.RUnlock()
-
-	var result []SharedSourceInfo
-	for source, rules := range em.ruleIndex {
-		info := SharedSourceInfo{
-			SourceID:        source,
-			Subscribers:     make([]string, len(rules)),
-			SubscriberCount: len(rules),
-		}
-		copy(info.Subscribers, rules)
-		result = append(result, info)
-	}
-	return result
+	em.scheduler = newEdgeRuleScheduler(em, em.batchWindow)
+	em.events = newEdgeEventRecorder(store)
+	return em
 }
 
 func (em *EdgeComputeManager) GetMetrics() EdgeComputeMetrics {
@@ -137,22 +140,103 @@ func (em *EdgeComputeManager) GetMetrics() EdgeComputeMetrics {
 	em.mu.RLock()
 	ruleCount := len(em.rules)
 	em.mu.RUnlock()
-	em.indexMu.RLock()
-	sourceCount := len(em.ruleIndex)
-	em.indexMu.RUnlock()
 	em.cacheMu.RLock()
 	cacheSize := len(em.valueCache)
 	em.cacheMu.RUnlock()
+	em.stateMu.RLock()
+	windowTotal := 0
+	for _, samples := range em.windows {
+		windowTotal += len(samples)
+	}
+	em.stateMu.RUnlock()
+	em.bblotMu.Lock()
+	minuteCacheSize := len(em.minuteCache)
+	em.bblotMu.Unlock()
+	pending := 0
+	if em.scheduler != nil {
+		pending = em.scheduler.pendingCount()
+	}
+	eventCount, failureCount := 0, 0
+	if em.events != nil {
+		eventCount, failureCount = em.events.counts()
+	}
 
 	return EdgeComputeMetrics{
-		WorkerPoolSize:    cap(em.workerPool),
-		WorkerPoolUsage:   len(em.workerPool),
-		RuleCount:         ruleCount,
-		SharedSourceCount: sourceCount,
-		CacheSize:         cacheSize,
-		RulesTriggered:    em.rulesTriggered,
-		RulesExecuted:     em.rulesExecuted,
-		RulesDropped:      em.rulesDropped,
+		WorkerPoolSize:        cap(em.workerPool),
+		WorkerPoolUsage:       len(em.workerPool),
+		RuleCount:             ruleCount,
+		CacheSize:             cacheSize,
+		WindowBufferTotal:     windowTotal,
+		PendingSchedulerTasks: pending,
+		MinuteCacheSize:       minuteCacheSize,
+		EventBufferSize:       eventCount,
+		FailureBufferSize:     failureCount,
+		BatchWindowMs:         em.batchWindow.Milliseconds(),
+		RulesTriggered:        em.rulesTriggered,
+		RulesExecuted:         em.rulesExecuted,
+		RulesDropped:          em.rulesDropped,
+		RulesCoalesced:        em.rulesCoalesced,
+		RulesDebounced:        em.rulesDebounced,
+	}
+}
+
+func (em *EdgeComputeManager) incRulesCoalesced() {
+	em.statsMu.Lock()
+	em.rulesCoalesced++
+	em.statsMu.Unlock()
+}
+
+func (em *EdgeComputeManager) incRulesDebounced(n int64) {
+	em.statsMu.Lock()
+	em.rulesDebounced += n
+	em.statsMu.Unlock()
+}
+
+func (em *EdgeComputeManager) dispatchTask(task *ruleTask) {
+	em.statsMu.Lock()
+	em.rulesTriggered++
+	em.statsMu.Unlock()
+
+	select {
+	case em.workerPool <- task:
+	default:
+		em.statsMu.Lock()
+		em.rulesDropped++
+		em.statsMu.Unlock()
+		em.onSchedulerDrop(task, "worker_pool_full")
+	}
+}
+
+func (em *EdgeComputeManager) onSchedulerDrop(task *ruleTask, reason string) {
+	if task == nil {
+		return
+	}
+	log.Printf("[EdgeCompute] Dropped rule execution rule=%s priority=%d reason=%s", task.rule.ID, task.rule.Priority, reason)
+	tracker := em.startEvent(task.rule, task.val)
+	if tracker != nil {
+		tracker.beginPhase("dropped", map[string]any{"reason": reason})
+		em.finishEventWithStats(tracker, "dropped", reason, 0, 0)
+	}
+	em.recordFailure(model.EdgeFailureRecord{
+		RuleID:       task.rule.ID,
+		RuleName:     task.rule.Name,
+		Phase:        "dispatch",
+		Error:        reason,
+		TriggerValue: task.val.Value,
+		Condition:    task.rule.Condition,
+		Context: map[string]any{
+			"priority":   task.rule.Priority,
+			"channel_id": task.val.ChannelID,
+			"device_id":  task.val.DeviceID,
+			"point_id":   task.val.PointID,
+		},
+	}, task.val)
+}
+
+func (em *EdgeComputeManager) SetBatchWindow(d time.Duration) {
+	em.batchWindow = d
+	if em.scheduler != nil {
+		em.scheduler.batchWindow = d
 	}
 }
 
@@ -192,6 +276,7 @@ func (em *EdgeComputeManager) LoadRules(rules []model.EdgeRule) {
 func (em *EdgeComputeManager) Start() {
 	// Restore state from DB
 	em.restoreState()
+	em.loadPersistedEvents()
 
 	// Start Workers
 	for i := 0; i < em.workerCount; i++ {
@@ -204,6 +289,7 @@ func (em *EdgeComputeManager) Start() {
 
 	// Start retry loop
 	go em.retryLoop()
+	go em.maintenanceLoop()
 
 	//log.Println("Edge Compute Manager started with", em.workerCount, "workers")
 }
@@ -211,6 +297,9 @@ func (em *EdgeComputeManager) Start() {
 func (em *EdgeComputeManager) Stop() {
 	em.stopOnce.Do(func() {
 		em.cancel() // Cancel context
+		if em.scheduler != nil {
+			em.scheduler.stop()
+		}
 		close(em.workerPool)
 		em.wg.Wait()
 	})
@@ -283,6 +372,7 @@ func (em *EdgeComputeManager) handleValue(val model.Value) {
 	cacheKey := fmt.Sprintf("%s/%s/%s", val.ChannelID, val.DeviceID, val.PointID)
 	em.cacheMu.Lock()
 	em.valueCache[cacheKey] = val
+	em.trimValueCacheLocked()
 	em.cacheMu.Unlock()
 
 	// Find Matched Rules via Index (O(1) lookup)
@@ -319,28 +409,15 @@ func (em *EdgeComputeManager) handleValue(val model.Value) {
 	}
 	em.mu.RUnlock()
 
-	// Sort by Priority (High to Low)
+	// Sort by Priority (High to Low) before debounce scheduling.
 	if len(matchedRules) > 1 {
 		sort.Slice(matchedRules, func(i, j int) bool {
 			return matchedRules[i].Priority > matchedRules[j].Priority
 		})
 	}
 
-	// Dispatch to Worker Pool
 	for _, rule := range matchedRules {
-		em.statsMu.Lock()
-		em.rulesTriggered++
-		em.statsMu.Unlock()
-
-		select {
-		case em.workerPool <- &ruleTask{rule: rule, val: val}:
-			// Queued successfully
-		default:
-			em.statsMu.Lock()
-			em.rulesDropped++
-			em.statsMu.Unlock()
-			log.Printf("[EdgeCompute] Worker pool full, dropping rule execution for rule %s", rule.ID)
-		}
+		em.scheduler.schedule(&ruleTask{rule: rule, val: val})
 	}
 }
 
@@ -373,18 +450,72 @@ func matchSource(src model.RuleSource, val model.Value) bool {
 	return true
 }
 
+func (em *EdgeComputeManager) setExecutionPhase(ruleID string, phase string, actionIndex int) {
+	em.stateMu.Lock()
+	defer em.stateMu.Unlock()
+	state := em.ruleStates[ruleID]
+	if state == nil {
+		return
+	}
+	state.ExecutionPhase = phase
+	state.ExecutionActionIndex = actionIndex
+}
+
+func (em *EdgeComputeManager) markActionRun(ruleID string, actionIndex int) {
+	em.stateMu.Lock()
+	defer em.stateMu.Unlock()
+	state := em.ruleStates[ruleID]
+	if state == nil {
+		return
+	}
+	if state.ActionLastRuns == nil {
+		state.ActionLastRuns = make(map[int]time.Time)
+	}
+	state.ActionLastRuns[actionIndex] = time.Now()
+	em.trimActionLastRunsLocked(state)
+}
+
+func (em *EdgeComputeManager) shouldSkipActionInterval(ruleID string, actionIndex int, action model.RuleAction) bool {
+	intervalStr, ok := action.Config["interval"].(string)
+	if !ok || intervalStr == "" {
+		return false
+	}
+	duration, err := time.ParseDuration(intervalStr)
+	if err != nil {
+		return false
+	}
+	em.stateMu.Lock()
+	defer em.stateMu.Unlock()
+	state := em.ruleStates[ruleID]
+	if state == nil {
+		return false
+	}
+	if state.ActionLastRuns == nil {
+		state.ActionLastRuns = make(map[int]time.Time)
+	}
+	lastRun := state.ActionLastRuns[actionIndex]
+	return !lastRun.IsZero() && time.Since(lastRun) < duration
+}
+
 func (em *EdgeComputeManager) executeRule(rule model.EdgeRule, val model.Value) {
 	em.stateMu.Lock()
 	state, exists := em.ruleStates[rule.ID]
 	if !exists {
 		state = &model.RuleRuntimeState{
-			RuleID:        rule.ID,
-			RuleName:      rule.Name,
-			Enable:        rule.Enable,
-			CurrentStatus: "NORMAL",
+			RuleID:         rule.ID,
+			RuleName:       rule.Name,
+			Enable:         rule.Enable,
+			CurrentStatus:  "NORMAL",
+			ExecutionPhase: "idle",
 		}
 		em.ruleStates[rule.ID] = state
 	}
+	if rule.Type == "window" {
+		state.ExecutionPhase = "window"
+	} else {
+		state.ExecutionPhase = "evaluate"
+	}
+	state.LastCheckTime = time.Now()
 	em.stateMu.Unlock()
 
 	// Prepare Env for Expression
@@ -445,9 +576,6 @@ func (em *EdgeComputeManager) executeRule(rule model.EdgeRule, val model.Value) 
 		em.cacheMu.RUnlock()
 	}
 
-	// Logic refactored: Logic is now fully determined by the Condition expression using aliases.
-	// AND/OR branching is removed.
-
 	var rawTriggered bool
 	var err error
 	var outputVal model.Value = val
@@ -456,8 +584,6 @@ func (em *EdgeComputeManager) executeRule(rule model.EdgeRule, val model.Value) 
 	case "threshold", "state":
 		rawTriggered, err = evaluateThreshold(rule.Condition, env)
 	case "calculation":
-		// Calculation rules always "trigger" if calculation succeeds,
-		// and they output a new value.
 		var res any
 		res, err = evaluateCalculation(rule.Expression, env)
 		if err == nil {
@@ -467,52 +593,64 @@ func (em *EdgeComputeManager) executeRule(rule model.EdgeRule, val model.Value) 
 	case "window":
 		rawTriggered, outputVal, err = em.evaluateWindow(rule, val, env)
 	default:
-		// Default to threshold if condition exists, otherwise ignore
 		if rule.Condition != "" {
 			rawTriggered, err = evaluateThreshold(rule.Condition, env)
 		}
 	}
 
+	if errors.Is(err, errWindowStepPending) {
+		return
+	}
+
 	em.stateMu.Lock()
 	defer em.stateMu.Unlock()
 
-	// Persist state changes
 	defer func() { go em.saveRuleState(rule.ID) }()
 
 	if err != nil {
 		state.ErrorMessage = err.Error()
+		state.ExecutionPhase = "error"
 		log.Printf("Rule %s evaluation error: %v", rule.Name, err)
+		tracker := em.startEvent(rule, val)
+		tracker.beginPhase("evaluate", map[string]any{"type": rule.Type})
+		tracker.failPhase(err.Error())
+		em.applyEventStats(state, "error", false, 0, 0)
+		em.recordFinishedEvent(tracker, "error", err.Error())
+		em.recordFailure(model.EdgeFailureRecord{
+			RuleID:       rule.ID,
+			RuleName:     rule.Name,
+			Phase:        "evaluate",
+			Error:        err.Error(),
+			TriggerValue: val.Value,
+			Condition:    rule.Condition,
+		}, val)
 		return
 	}
 
 	finalTriggered := false
 
 	if !rawTriggered {
-		// Reset counters
 		state.ConditionStart = time.Time{}
 		state.ConditionCount = 0
-		finalTriggered = false
 		state.CurrentStatus = "NORMAL"
+		state.ExecutionPhase = "idle"
+		state.ExecutionActionIndex = 0
 	} else {
-		// Condition Met
 		if state.ConditionStart.IsZero() {
 			state.ConditionStart = time.Now()
 		}
 		state.ConditionCount++
 
-		// Check Constraints
 		constraintsMet := true
 		if rule.State != nil {
-			// Duration
 			if rule.State.Duration != "" {
 				if dur, err := time.ParseDuration(rule.State.Duration); err == nil {
 					if time.Since(state.ConditionStart) < dur {
 						constraintsMet = false
-						state.CurrentStatus = "WARNING" // Pending
+						state.CurrentStatus = "WARNING"
 					}
 				}
 			}
-			// Count
 			if rule.State.Count > 0 {
 				if state.ConditionCount < rule.State.Count {
 					constraintsMet = false
@@ -525,46 +663,71 @@ func (em *EdgeComputeManager) executeRule(rule model.EdgeRule, val model.Value) 
 
 		if constraintsMet {
 			finalTriggered = true
+		} else {
+			state.ExecutionPhase = "state_hold"
 		}
 	}
 
-	if finalTriggered {
-		prevStatus := state.CurrentStatus
-
-		state.LastTrigger = time.Now()
-		state.TriggerCount++
-		state.CurrentStatus = "ALARM"
-		state.LastValue = outputVal.Value
-		state.ErrorMessage = ""
-
-		// Record execution result to bblot
+	if !finalTriggered {
 		em.recordMinuteSnapshot(state)
-
-		// Check TriggerMode
-		shouldExecute := true
-		if rule.TriggerMode == "on_change" {
-			// Only execute if previous status was NOT ALARM
-			if prevStatus == "ALARM" {
-				shouldExecute = false
-			}
-		}
-
-		if shouldExecute {
-			go em.executeActions(rule.ID, rule.Actions, outputVal, env)
-		}
-	} else {
-		// Record status change/normal state to bblot
-		em.recordMinuteSnapshot(state)
+		return
 	}
+
+	prevStatus := state.CurrentStatus
+
+	state.LastTrigger = time.Now()
+	state.TriggerCount++
+	state.CurrentStatus = "ALARM"
+	state.LastValue = outputVal.Value
+	state.ErrorMessage = ""
+	state.ExecutionPhase = "trigger"
+
+	em.recordMinuteSnapshot(state)
+
+	tracker := em.startEvent(rule, val)
+	tracker.event.Triggered = true
+	tracker.event.OutputValue = outputVal.Value
+	tracker.beginPhase("trigger", map[string]any{
+		"channel_id": val.ChannelID,
+		"device_id":  val.DeviceID,
+		"point_id":   val.PointID,
+		"value":      val.Value,
+		"output":     outputVal.Value,
+	})
+
+	shouldExecute := true
+	if rule.TriggerMode == "on_change" {
+		if prevStatus == "ALARM" {
+			shouldExecute = false
+		}
+	}
+
+	if shouldExecute && len(rule.Actions) > 0 {
+		state.ExecutionPhase = "action"
+		state.ExecutionActionIndex = 0
+		go em.executeActions(rule, rule.Actions, outputVal, env, tracker)
+		return
+	}
+
+	state.ExecutionPhase = "completed"
+	em.applyEventStats(state, "completed", true, 0, 0)
+	em.recordFinishedEvent(tracker, "completed", "")
 }
 
 func (em *EdgeComputeManager) recordMinuteSnapshot(state *model.RuleRuntimeState) {
-	if em.store == nil {
+	if em.store == nil || state == nil {
+		return
+	}
+	if !hasEdgeErrorMessage(state.ErrorMessage) {
 		return
 	}
 
 	minuteKey := time.Now().Format("2006-01-02 15:04")
 	cacheKey := fmt.Sprintf("%s_%s", state.RuleID, minuteKey)
+	errorType := ClassifyEdgeErrorType("evaluate", state.ErrorMessage)
+	if state.ExecutionPhase == "action" {
+		errorType = ClassifyEdgeErrorType("action", state.ErrorMessage)
+	}
 
 	em.bblotMu.Lock()
 	snap, exists := em.minuteCache[cacheKey]
@@ -573,21 +736,15 @@ func (em *EdgeComputeManager) recordMinuteSnapshot(state *model.RuleRuntimeState
 			RuleID:    state.RuleID,
 			RuleName:  state.RuleName,
 			Minute:    minuteKey,
-			Status:    state.CurrentStatus,
 			UpdatedAt: time.Now(),
 		}
 		em.minuteCache[cacheKey] = snap
 	}
 
-	// Update snapshot
-	snap.Status = state.CurrentStatus
-	snap.TriggerCount = state.TriggerCount
-	snap.LastValue = state.LastValue
-	snap.LastTrigger = state.LastTrigger
+	snap.ErrorType = errorType
 	snap.ErrorMessage = state.ErrorMessage
 	snap.UpdatedAt = time.Now()
 
-	// Create a copy for async saving to avoid race conditions
 	snapCopy := *snap
 	em.bblotMu.Unlock()
 
@@ -601,7 +758,16 @@ func (em *EdgeComputeManager) recordMinuteSnapshot(state *model.RuleRuntimeState
 	}(snapCopy)
 }
 
-// QueryLogs retrieves logs based on time range and optional rule ID
+func isEdgeErrorMinuteSnapshot(snap model.RuleMinuteSnapshot) bool {
+	return hasEdgeErrorMessage(snap.ErrorMessage)
+}
+
+// IsEdgeErrorMinuteSnapshot reports whether a persisted minute snapshot is an error log row.
+func IsEdgeErrorMinuteSnapshot(snap model.RuleMinuteSnapshot) bool {
+	return isEdgeErrorMinuteSnapshot(snap)
+}
+
+// QueryLogs retrieves error logs based on time range and optional rule ID.
 func (em *EdgeComputeManager) QueryLogs(start, end time.Time, ruleID string) ([]model.RuleMinuteSnapshot, error) {
 	if em.store == nil {
 		return nil, fmt.Errorf("storage not initialized")
@@ -614,14 +780,16 @@ func (em *EdgeComputeManager) QueryLogs(start, end time.Time, ruleID string) ([]
 	endStr := end.Format("2006-01-02 15:04")
 
 	if ruleID != "" {
-		// Optimized range scan
 		minKey := fmt.Sprintf("%s_%s", ruleID, startStr)
 		maxKey := fmt.Sprintf("%s_%s", ruleID, endStr)
 
 		err := em.store.LoadRange(bucket, minKey, maxKey, func(k, v []byte) error {
 			var snap model.RuleMinuteSnapshot
 			if err := json.Unmarshal(v, &snap); err != nil {
-				return nil // Skip invalid data
+				return nil
+			}
+			if !isEdgeErrorMinuteSnapshot(snap) {
+				return nil
 			}
 			logs = append(logs, snap)
 			return nil
@@ -629,14 +797,12 @@ func (em *EdgeComputeManager) QueryLogs(start, end time.Time, ruleID string) ([]
 		return logs, err
 	}
 
-	// Full scan and filter
 	err := em.store.LoadAll(bucket, func(k, v []byte) error {
 		var snap model.RuleMinuteSnapshot
 		if err := json.Unmarshal(v, &snap); err != nil {
 			return nil
 		}
-		// Filter by time range
-		if snap.Minute >= startStr && snap.Minute <= endStr {
+		if snap.Minute >= startStr && snap.Minute <= endStr && isEdgeErrorMinuteSnapshot(snap) {
 			logs = append(logs, snap)
 		}
 		return nil
@@ -679,7 +845,23 @@ func (em *EdgeComputeManager) evaluateWindow(rule model.EdgeRule, val model.Valu
 		}
 	}
 
-	em.windows[rule.ID] = filtered
+	em.windows[rule.ID] = em.trimWindowSamples(filtered)
+
+	// Sliding/tumbling step: buffer always, aggregate only on Interval tick.
+	if rule.Window.Interval != "" {
+		if step, err := time.ParseDuration(rule.Window.Interval); err == nil && step > 0 {
+			state := em.ruleStates[rule.ID]
+			lastEval := time.Time{}
+			if state != nil {
+				lastEval = state.LastWindowEval
+			}
+			if !lastEval.IsZero() && time.Since(lastEval) < step {
+				em.stateMu.Unlock()
+				go em.saveWindowData(rule.ID)
+				return false, val, errWindowStepPending
+			}
+		}
+	}
 	em.stateMu.Unlock()
 
 	// Persist window data asynchronously
@@ -756,6 +938,12 @@ func (em *EdgeComputeManager) evaluateWindow(rule model.EdgeRule, val model.Valu
 
 	outputVal := val
 	outputVal.Value = result
+
+	em.stateMu.Lock()
+	if state := em.ruleStates[rule.ID]; state != nil {
+		state.LastWindowEval = time.Now()
+	}
+	em.stateMu.Unlock()
 
 	return triggered, outputVal, err
 }
@@ -992,43 +1180,92 @@ func toInt64(v any) (int64, error) {
 	}
 }
 
-func (em *EdgeComputeManager) executeActions(ruleID string, actions []model.RuleAction, val model.Value, env map[string]any) {
-	for i, action := range actions {
-		// Frequency Limit Check
-		if intervalStr, ok := action.Config["interval"].(string); ok && intervalStr != "" {
-			if duration, err := time.ParseDuration(intervalStr); err == nil {
-				em.stateMu.Lock()
-				state := em.ruleStates[ruleID]
-				if state != nil {
-					if state.ActionLastRuns == nil {
-						state.ActionLastRuns = make(map[int]time.Time)
-					}
-					lastRun := state.ActionLastRuns[i]
-					if time.Since(lastRun) < duration {
-						em.stateMu.Unlock()
-						continue // Skip this action
-					}
-					// Update last run time
-					state.ActionLastRuns[i] = time.Now()
-					// Trigger save in background to persist state
-					go em.saveRuleState(ruleID)
-				}
-				em.stateMu.Unlock()
-			}
+func (em *EdgeComputeManager) executeActions(rule model.EdgeRule, actions []model.RuleAction, val model.Value, env map[string]any, tracker *edgeEventTracker) {
+	if len(actions) == 0 {
+		em.setExecutionPhase(rule.ID, "completed", 0)
+		go em.saveRuleState(rule.ID)
+		if tracker != nil {
+			em.finishEventWithStats(tracker, "completed", "", 0, 0)
 		}
+		return
+	}
 
-		go func(act model.RuleAction) {
-			// Use manager context or create a per-action context with timeout if needed
-			err := em.executeSingleAction(em.ctx, ruleID, act, val, env)
-			if em.actionHook != nil {
-				em.actionHook(ruleID, act, val, env, err)
+	var wg sync.WaitGroup
+	executed := 0
+	var failMu sync.Mutex
+	var hadFailure bool
+	var lastErr string
+	var actionSuccess, actionFailure int
+
+	for i, action := range actions {
+		if em.shouldSkipActionInterval(rule.ID, i, action) {
+			if tracker != nil {
+				tracker.recordAction(i, action.Type, "skipped", "", time.Now(), time.Now())
 			}
+			continue
+		}
+		executed++
+		wg.Add(1)
+		actionIndex := i
+		go func(act model.RuleAction) {
+			defer wg.Done()
+			em.setExecutionPhase(rule.ID, "action", actionIndex)
+			em.markActionRun(rule.ID, actionIndex)
+			started := time.Now()
+			err := em.executeSingleAction(em.ctx, rule.ID, act, val, env)
+			ended := time.Now()
 			if err != nil {
-				//				log.Printf("[EdgeAction] Action failed: %v", err)
-				em.saveFailedAction(ruleID, act, val, env, err.Error())
+				failMu.Lock()
+				hadFailure = true
+				lastErr = err.Error()
+				actionFailure++
+				failMu.Unlock()
+				if tracker != nil {
+					tracker.recordAction(actionIndex, act.Type, "failed", err.Error(), started, ended)
+				}
+				em.saveFailedAction(rule.ID, act, val, env, err.Error())
+				em.recordFailure(model.EdgeFailureRecord{
+					RuleID:       rule.ID,
+					RuleName:     rule.Name,
+					Phase:        "action",
+					Error:        err.Error(),
+					TriggerValue: val.Value,
+					Condition:    rule.Condition,
+					ActionType:   act.Type,
+					ActionIndex:  actionIndex,
+				}, val)
+			} else {
+				failMu.Lock()
+				actionSuccess++
+				failMu.Unlock()
+				if tracker != nil {
+					tracker.recordAction(actionIndex, act.Type, "success", "", started, ended)
+				}
 			}
 		}(action)
 	}
+
+	if executed == 0 {
+		em.setExecutionPhase(rule.ID, "completed", 0)
+		go em.saveRuleState(rule.ID)
+		if tracker != nil {
+			em.finishEventWithStats(tracker, "completed", "", 0, 0)
+		}
+		return
+	}
+
+	go func() {
+		wg.Wait()
+		em.setExecutionPhase(rule.ID, "completed", 0)
+		go em.saveRuleState(rule.ID)
+		if tracker != nil {
+			status := "completed"
+			if hadFailure {
+				status = "error"
+			}
+			em.finishEventWithStats(tracker, status, lastErr, actionSuccess, actionFailure)
+		}
+	}()
 }
 
 func (em *EdgeComputeManager) resolveValueTemplate(val any, env map[string]any) any {
@@ -1148,8 +1385,14 @@ func (em *EdgeComputeManager) saveFailedAction(ruleID string, action model.RuleA
 
 func (em *EdgeComputeManager) retryLoop() {
 	ticker := time.NewTicker(30 * time.Second)
-	for range ticker.C {
-		em.processFailedActions()
+	defer ticker.Stop()
+	for {
+		select {
+		case <-em.ctx.Done():
+			return
+		case <-ticker.C:
+			em.processFailedActions()
+		}
 	}
 }
 
@@ -1758,6 +2001,17 @@ func (em *EdgeComputeManager) ClearRuntimeState() {
 	em.bblotMu.Unlock()
 }
 
+// RuntimeLogStats returns in-memory edge log buffer sizes for database stats.
+func (em *EdgeComputeManager) RuntimeLogStats() (eventsMem, failuresMem, minuteCache int) {
+	if em.events != nil {
+		eventsMem, failuresMem = em.events.counts()
+	}
+	em.bblotMu.Lock()
+	minuteCache = len(em.minuteCache)
+	em.bblotMu.Unlock()
+	return eventsMem, failuresMem, minuteCache
+}
+
 func (em *EdgeComputeManager) restoreState() {
 	if em.store == nil {
 		return
@@ -1832,6 +2086,63 @@ func (em *EdgeComputeManager) sanitizeRule(rule *model.EdgeRule) {
 					}
 				}
 			}
+		}
+	}
+}
+
+func (em *EdgeComputeManager) maintenanceLoop() {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-em.ctx.Done():
+			return
+		case <-ticker.C:
+			em.pruneMinuteCache()
+		}
+	}
+}
+
+func (em *EdgeComputeManager) pruneMinuteCache() {
+	cutoff := time.Now().Add(-maxEdgeMinuteCacheAge)
+	em.bblotMu.Lock()
+	defer em.bblotMu.Unlock()
+	for key, snap := range em.minuteCache {
+		if snap.UpdatedAt.Before(cutoff) {
+			delete(em.minuteCache, key)
+		}
+	}
+}
+
+func (em *EdgeComputeManager) trimValueCacheLocked() {
+	if len(em.valueCache) <= maxEdgeValueCacheSize {
+		return
+	}
+	overflow := len(em.valueCache) - maxEdgeValueCacheSize
+	for key := range em.valueCache {
+		delete(em.valueCache, key)
+		overflow--
+		if overflow <= 0 {
+			break
+		}
+	}
+}
+
+func (em *EdgeComputeManager) trimWindowSamples(samples []model.Value) []model.Value {
+	if len(samples) <= maxEdgeWindowSamples {
+		return samples
+	}
+	return samples[len(samples)-maxEdgeWindowSamples:]
+}
+
+func (em *EdgeComputeManager) trimActionLastRunsLocked(state *model.RuleRuntimeState) {
+	if len(state.ActionLastRuns) <= maxEdgeActionRunKeys {
+		return
+	}
+	for idx := range state.ActionLastRuns {
+		delete(state.ActionLastRuns, idx)
+		if len(state.ActionLastRuns) <= maxEdgeActionRunKeys {
+			break
 		}
 	}
 }

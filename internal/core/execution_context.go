@@ -8,18 +8,18 @@ import (
 )
 
 type ExecutionContext struct {
-	DeviceKey       string
-	Queue           chan *DriverTask
-	Worker          *SerialWorker
-	Driver          driver.Driver
-	Running         bool
-	mu              sync.Mutex
+	DeviceKey string
+	Queue     chan *DriverTask
+	Worker    *SerialWorker
+	Driver    driver.Driver
+	Running   bool
+	mu        sync.Mutex
 }
 
 type SerialWorker struct {
-	ctx         *ExecutionContext
-	stopCh      chan struct{}
-	wg          *sync.WaitGroup
+	ctx    *ExecutionContext
+	stopCh chan struct{}
+	wg     *sync.WaitGroup
 }
 
 func (w *SerialWorker) run() {

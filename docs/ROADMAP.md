@@ -3,7 +3,7 @@ layout: default
 title: 分阶段开发路线图
 description: EdgeX 工业边缘网关分阶段路线图 — 稳定性闭环、工业验证、性能优化与轻量化可观测
 version: v1.0
-date: 2026-07-03
+date: 2026-07-12
 status: 现行
 ---
 
@@ -87,6 +87,7 @@ Phase 4  轻量化与可观测 ─────────────► HTTP/U
 | Siemens S7 | 连接生命周期、读写稳定性 |
 | DL/T645 | 表计通信、异常帧 |
 | BACnet | 多设备隔离、发现与读写 |
+| EtherCAT | PDO 周期稳定性、SDO 读写、从站状态切换 |
 
 ### 2.2 每协议必测场景
 
@@ -162,18 +163,60 @@ Phase 4  轻量化与可观测 ─────────────► HTTP/U
 
 | 路线图 Phase | 开发计划 / SLA 对应 |
 | --- | --- |
-| Phase 1 | ScanEngine 重构已落地；CB/隔离/E2E 收尾 → SLA Phase A |
-| Phase 2 | [联机测试方案](TODO/联机测试方案.html)、各驱动现场验收 |
-| Phase 3 | RTT/MTU/Gap 闭环、10k benchmark、GC gate → SLA Phase B/C |
-| Phase 4 | diagnostics UI、Event Log、Health API → SLA Phase C |
+| Phase 1 | ScanEngine 重构 + CB/隔离/E2E ✅ | SLA Phase A |
+| Phase 2 | [联机测试方案](TODO/联机测试方案.html)、各驱动现场验收 — **进行中** | SLA Phase B（B5 部分） |
+| Phase 3 | RTT/Gap 闭环、10k benchmark、GC gate、Shadow COW ✅ | SLA Phase B |
+| Phase 4 | diagnostics UI、Event Log、sla_warnings ✅ | SLA Phase C |
 
 具体驱动交付（ICE104 M2、libp2p 同步等）见 [development_plan/index](development_plan/index.html)，**不得抢占 Phase 1 稳定性优先级**。
 
 ---
 
-## 当前建议焦点（2026 Q3）
+## 当前建议焦点（2026 Q3 末）
 
-1. **封闭 Phase 1**：E2E 故障注入 + soak + 合并主干 CI 全绿
-2. **启动 Phase 2 队列**：Modbus / OPC UA / S7 联机报告优先
-3. **Phase 3 仅做已通过 gate 的优化**：Object Pool、zero-alloc 热路径
-4. **Phase 4 与运维并行**：diagnostics UI、sla_warnings 日志联动
+1. **Phase 2 工业验证队列**：Modbus / OPC UA / S7 联机 24h/72h 报告优先
+2. **ARMv7 板端 SLA 复验**：`scripts/bench_armv7.sh` + P99 lag/drift 书面验证
+3. **OpcUa/ENIP 重连统一**：接入 ConnectionManager single-flight
+4. **Q4 真实驱动 10k 压测**：mock 基线 ~11.6k points/s 之上逐步逼近
+
+---
+
+## 当前状态（2026-07-12）
+
+> Q3 任务分解与验收见 [Q3 采集优化方案 §11]([TODO]边缘计算南向采集优化方案2026第三季度.html#11-q3-进度跟踪q3-末填写)；SLA 达标见 [SLA 评估](TODO/SLA评估.html)。最新压测见 [压力测试报告 — 2026-07-12 Mac 复测](testing/压力测试报告.html)。
+
+### 主体交付完成
+
+EdgeX **调度驱动南向采集 + 统计 SLA** 主体已交付：
+
+```text
+ScanEngine（EDF + CB + SLA metrics + adaptive throttle）
+  → ExecutionLayer（Gap/MTU 块读 + 隔离 + 背压）
+  → ShadowIngress → ShadowCore（COW SoT）
+  → ShadowBridge/Pipeline 扇出 → WebSocket/REST/diagnostics
+```
+
+**Q3 里程碑**（2026-07）：统一数据面 ✅ · Scan Class + 块读闭环 ✅ · SLA Phase A–D 核心 ✅ · Shadow COW/Worker Pool ✅ · diagnostics 三通路 ✅ · EtherCAT M1 (v0.0.8) ✅ · 南向驱动 22/22 PASS ✅ · Mac 万 Tag 复测（lag P95 1.56ms / G007 986/s）✅ · Industrial Protocol Copilot MVP ✅
+
+与 [架构总览](edge/边缘网关架构设计总览.html) 一致：**工业级候选调度器（≤10k tag 中小规模生产）**。
+
+### 与 Kepware 级工业标准的核心差距
+
+| # | 差距 | 关联 Phase |
+|---|------|------------|
+| 1 | **硬实时 cycle 保证** — 统计 P99 SLA 已承诺，非 PLC 级确定性 | SLA Phase D |
+| 2 | **OpcUa/ENIP 重连待迁移** — ConnectionManager single-flight | Phase 1 连接 Owner |
+| 3 | **Phase 2 工业验证** — 各协议 24h/72h 联机报告未全覆盖 | Phase 2 |
+| 4 | **ARMv7 板端 P99** — 脚本就绪，现场复验待完成 | Phase 3 / B-09 |
+| 5 | **真实驱动 10k 压测** — mock 基线已建立，真机待 Q4 | Phase 3 |
+
+**稳定性优先**：Phase 2 工业验证与板端 SLA 复验优先于 Q4 吞吐扩展。详见 [SLA 评估](TODO/SLA评估.html) 与 [架构总览 §6](edge/边缘网关架构设计总览.html#6-能力差距评估对标-kepware-工业标准)。
+
+### 下一步最高优先级
+
+| 序 | 项 | 说明 |
+|----|-----|------|
+| 1 | **Phase 2 工业验证** | Modbus/OPC UA/S7 联机 24h/72h 报告 |
+| 2 | **ARMv7 板端 SLA** | P99 lag <150ms、drift <80ms 复验 |
+| 3 | **OpcUa 重连统一** | ConnectionManager single-flight |
+| 4 | **Q4 真实驱动 10k** | Modbus/OPC UA 真机压测报告 |

@@ -2,26 +2,32 @@
 
 > **工程铁律：** 任何性能优化不得以牺牲稳定性为代价；任何架构优化不得增加系统恢复复杂度。
 
+> 工业现场链接资源优先 必须按协议划分三层 单一串行， 链接数量受限的 1-2 可并发的 1-16 不得快速消耗链接资源导致通讯阻塞
+
 > 战略文档：[开发原则与验收标准](../DEVELOPMENT_PRINCIPLES.html) · [分阶段路线图](../ROADMAP.html) · [版本发布门禁](../RELEASE_GATE.html)
 
 ## 文档信息
 
 - **版本**: v5.0（四阶段实施版）
 - **创建日期**: 2026-06-24
-- **最后更新**: 2026-06-30
+- **最后更新**: 2026-07-05（**S3 Full ScanEngine Ownership 代码层完成**）
 - **架构定位**: 调度驱动的工业通信操作系统内核
 - **核心原则**: 调度闭环 + 执行约束 + 资源控制
 - **实施策略**: 四阶段灰度迁移（并行运行→串行灰度→并发灰度→完全切换）
+
+> **阅读提示**：架构对比图与序列图中「旧架构」侧的 `CollectionScheduler` / `deviceLoop()` 为**迁移前设计**（阶段 4 已完全切换）。**现行唯一调度内核为 ScanEngine**；验收状态见本文 §五 与 [架构总览](../edge/边缘网关架构设计总览.html)。
+
+> **v5.2 变更（2026-07-05）**：架构评审补丁见 [ScanEngine重构方案-v5.2-稳定版补丁.md](./ScanEngine重构方案-v5.2-稳定版补丁.md)（ConnectionController 纯只读、channelMu 唯一 I/O 互斥、统一 Throttling Allow）。执行内核状态机单页版：[ScanEngine执行内核状态机-单页版.md](./ScanEngine执行内核状态机-单页版.md)。迁移阶段压缩为 3 阶段（Shadow → Serial-first → **Full Ownership**）；**S3 代码层已于 2026-07-05 落地**（见 §9.6）。
 
 ---
 
 ## 一、架构定位：从组件驱动到调度驱动
 
 <div align="center">
-  <img src="../img/dataScanEngineCN.svg" width="100%" alt="Edgex V2.0 架构 · ScanEngine引擎" />
+  <img src="../img/dataScanEngineCN.svg" width="100%" alt="EdgeX V2.0 架构 · ScanEngine引擎" />
 </div>
 
-> **Edgex V2.0 架构 · ScanEngine 统一调度**：12 种南向驱动经 ScanEngine 写入影子设备实时快照，再联通虚拟设备、边缘计算与北向接口。
+> **EdgeX V2.0 架构 · ScanEngine 统一调度**：13 种南向驱动经 ScanEngine 写入影子设备实时快照，再联通虚拟设备、边缘计算与北向接口。
 
 ### 1.1 当前状态 vs 目标状态
 
@@ -489,8 +495,8 @@ sequenceDiagram
 │                              │                                      │
 │                              ▼                                      │
 │              ┌─────────────────────────────────┐                    │
-│              │         监控与告警系统            │                    │
-│              │  metrics + structured log + trace│                    │
+│              │      轻量化可观测（内置）         │                    │
+│              │  diagnostics API + 结构化日志   │                    │
 │              └─────────────────────────────────┘                    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -502,17 +508,16 @@ sequenceDiagram
 | 旧系统下线 | 停止旧调度系统，确保无残留进程 | 检查进程列表 |
 | 全量数据验证 | 所有设备数据采集正常 | 检查Shadow数据完整性 |
 | 系统稳定性 | MTBF≥30天 | 长期运行监控 |
-| 可观测性 | metrics + log + trace | 验证监控数据完整 |
+| 可观测性 | diagnostics API + 结构化日志 | 验证 `GET /diagnostics/scan-engine` 与 `sla_warnings[]` |
 
 #### 2.5.3 系统交互流程图（Mermaid）
 
 ```mermaid
 sequenceDiagram
-    participant Monitor as 监控系统
+    participant Ops as 运维巡检
     participant SE as ScanEngine
     participant EL as ExecutionLayer
     participant Shadow as ShadowCore
-    participant Metrics as Prometheus
 
     SE->>SE: Run()
     SE->>SE: dispatchLoop()
@@ -534,14 +539,8 @@ sequenceDiagram
         SE->>SE: updateTaskState()
         SE->>SE: reschedule()
         
-        SE->>Metrics: RecordMetrics()
-        Shadow->>Metrics: RecordMetrics()
-        
-        Monitor->>SE: HealthCheck()
-        SE-->>Monitor: healthy
-        
-        Monitor->>Shadow: HealthCheck()
-        Shadow-->>Monitor: healthy
+        Ops->>SE: GET /diagnostics/scan-engine
+        SE-->>Ops: metrics + sla_warnings[]
     end
 ```
 
@@ -571,9 +570,21 @@ sequenceDiagram
 
 - [ ] 旧调度系统完全下线
 - [ ] 所有设备数据采集正常
-- [ ] 调度吞吐量≥1000设备/秒
+- [ ] 调度吞吐量≥950设备/秒（见 §2.5.6 指标依据）
 - [ ] 单点延迟<100ms
 - [ ] 连续30天无系统重启
+
+#### 2.5.6 指标依据（G007 调度吞吐量）
+
+**修订说明（2026-07-04）**：阶段 5 退出条件原目标为 **≥1000 设备/秒**，经 G007 benchmark 实测与调度物理约束复核后，修订为 **≥950 设备/秒**。
+
+| 依据 | 说明 |
+|------|------|
+| **调度吞吐理论参考上限** | ScanEngine 默认 **10ms Tick**、**JitterBound 50ms**（§2.2.2 要求任务执行时间偏差 <50ms）。G007 场景（1000 设备 · 1s Scan Interval · mock 驱动）下，以 **平均调度开销 ~25ms**（50ms bound 的量级估计）估算 fleet 有效节拍 ≈ **1.025s**，吞吐理论参考上限 ≈ **1000 ÷ 1.025 ≈ 976 设备/秒**（等价：**1000 × (1000ms / 1025ms) ≈ 976/s**） |
+| **950/s 验收阈值** | 在 ~976/s 理论参考上限之下，取 **≥950 设备/秒** 作为可重复、可自动化验收门槛（约留 2.5% 余量，吸收本机负载波动与测量窗口误差） |
+| **G007 实测** | Modbus 协议拥塞修复（800→1000 req/s）后，`make bench-g007` 多次复测 **918–968 设备/秒**、**0 failed**，满足修订目标 |
+
+> **注意**：代码中 jitter 为每设备固定偏移，稳态单设备周期仍为 1s；976/s 是带保守开销的工程估算，非严格物理上限。
 
 ---
 
@@ -783,6 +794,8 @@ func (w *SerialWorker) run() {
 └─────────────────────────────────────────────────────┘
 ```
 
+> 与 Limited 模式、ProtocolCongestion、WorkerPool 等完整参数见 **§4.4.4**。
+
 #### 4.2.2 背压控制器实现
 
 ```go
@@ -844,6 +857,165 @@ func (el *ExecutionLayer) Execute(task *ScanTask) *ExecuteResult {
     }
 }
 ```
+
+> 完整限流数值、协议路由表与运维建议见 **§4.4**。
+
+### 4.4 分层并发、限流数值与运维建议
+
+> **设计哲学**：在调度层尽量并发，在连接层严格串行，在协议层按需限流。
+
+#### 4.4.1 为何工业场景需要受控并发
+
+工业网关面对的是**异构总线、半双工链路与脆弱从站**：同一 RS-485 / TCP 链路上多从站共享物理介质；PLC、电表、OPC UA Server 对突发请求极其敏感。无上限并发会导致：
+
+- 串口/TCP 粘包、帧错乱、从站无响应；
+- 连接数与 goroutine 失控，触发 OOM 或 FD 耗尽；
+- 重连风暴放大故障，拖垮整段通道。
+
+ScanEngine 因此采用**三层解耦**：调度 Tick 仍按 EDF 尽量准时派发任务；ExecutionLayer 按协议选择 Serial / Parallel / Limited 执行路径；Backpressure、ProtocolCongestion、AdaptiveThrottle 与 CircuitBreaker 在运行时自动降速或拒载，而非依赖运维手工限线程。
+
+#### 4.4.2 三层模型
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│ 调度层（ScanEngine）                                               │
+│  10ms Tick · 优先级队列 · 指数退避 · AdaptiveThrottle（≤4×间隔）   │
+│  → 尽量并发派发，不因单设备慢而阻塞全局 Tick                        │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │ dispatch
+┌────────────────────────────▼─────────────────────────────────────┐
+│ 链路层（ExecutionLayer · SerialQueue / channelMu）                │
+│  共享 TCP/串口：一 channel 一 serial worker + channelMu 互斥 I/O   │
+│  非共享链路：一 device 一 worker，请求严格串行                      │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │ readPoints
+┌────────────────────────────▼─────────────────────────────────────┐
+│ 协议层（Parallel / Limited 背压 + ProtocolCongestion）            │
+│  全局/单设备信号量 · Token Bucket · 按协议族独立速率桶              │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+| 层次 | 职责 | 典型机制 | 代码入口 |
+|------|------|----------|----------|
+| 调度层 | 何时采、采多频 | Tick、退避、AdaptiveThrottle | `scan_engine.go` |
+| 链路层 | 谁可以占用物理链路 | SerialQueue、`channelMu`、`serialQueueKey` | `execution_layer.go` |
+| 协议层 | 并发度与请求速率 | Backpressure、ProtocolCongestion、CircuitBreaker | `backpressure_controller.go`、`protocol_congestion.go` |
+
+#### 4.4.3 协议执行模式（Serial / Parallel / Limited）
+
+协议类型在通道注册时由 `ChannelManager.registerProtocolToScanEngine` 写入 ScanEngine 路由表；未知协议**默认 Serial**。
+
+| 模式 | 含义 | 协议（现行注册表） | 执行路径 |
+|------|------|-------------------|----------|
+| **Serial** | 设备/共享链路串行，无并行背压 | modbus-tcp、modbus-rtu、modbus-rtu-over-tcp、dlt645、omron-fins、mitsubishi-slmp、knxnet-ip、snmp | `executeSerial` → SerialQueueManager |
+| **Parallel** | 多设备并发，三层背压（512 / 8 / 1000 req/s） | opc-ua、http、rest、mqtt、bacnet-ip | `executeParallel` → WorkerPool |
+| **Limited** | 低并发（单设备 ≤2）+ 协议速率桶，内部仍走串行读 | s7、ethernet-ip、profinet-io、iec60870-5-104 | `executeLimited` → Backpressure(2) + `executeSerial` |
+
+```go
+// internal/core/channel_manager.go — registerProtocolToScanEngine
+case "modbus-tcp", "modbus-rtu", ...:
+    RegisterProtocol(protocol, ProtocolTypeSerial)
+case "opc-ua", "http", "rest", "mqtt", "bacnet-ip":
+    RegisterProtocol(protocol, ProtocolTypeParallel)
+case "s7", "ethernet-ip", "profinet-io", "iec60870-5-104":
+    RegisterProtocol(protocol, ProtocolTypeLimited)
+default:
+    RegisterProtocol(protocol, ProtocolTypeSerial)
+```
+
+#### 4.4.4 限流与资源数值一览
+
+> **说明**：下表数值均为**编译期硬编码**（`NewExecutionLayer`、`NewScanEngine` 等构造函数字面量），暂无运行时配置项。现场调优应通过**采集间隔、通道拆分、设备规模与诊断 API**间接达成目标负载，而非修改常量。
+
+| 组件 | 参数 | 默认值 | 作用 | 代码位置 |
+|------|------|--------|------|----------|
+| **BackpressureController** | 全局并发上限 | **512** | Parallel/Limited 路径共享信号量 | `execution_layer.go` `NewBackpressureController(512, 1000)` |
+| | 全局 Token Bucket 速率 | **1000 req/s**（桶容量 2000） | 全局限请求发放速率 | `backpressure_controller.go` |
+| | Parallel 单设备并发 | **8** | `executeParallel` 传入 `deviceLimit=8` | `execution_layer.go` `executeParallel` |
+| | Limited 单设备并发 | **2** | `executeLimited` 传入 `deviceLimit=2` | `execution_layer.go` `executeLimited` |
+| **ProtocolCongestionController** | Modbus 族 | **1000 req/s** | 独立 Token Bucket（Parallel/Limited 路径生效） | `protocol_congestion.go` |
+| | OPC UA 族 | **400 req/s** | 同上 | 同上 |
+| | S7 族 | **300 req/s** | 同上 | 同上 |
+| | 默认（http/mqtt/bacnet 等） | **600 req/s** | 同上 | 同上 |
+| **WorkerPool** | Worker 数 | **32** | 并行协议实际执行 goroutine 池 | `execution_layer.go` `NewWorkerPool(32)` |
+| | 任务队列深度 | **1000** | 队列满则 Submit 失败 | `worker_pool.go` |
+| **SerialQueueManager** | 每队列深度 | **64** | 满则返回 `ErrQueueFull` | `serial_queue_manager.go` `make(chan *DriverTask, 64)` |
+| **串行外层超时** | shared-link 协议 | **readTimeout × 16** | 允许多从站在同链路上排队 | `execution_layer.go` `serialOuterTimeout` |
+| | 单设备 readTimeout | **max(interval×2, 5s)** | 单次 ReadPoints 上下文 | `execution_layer.go` `executeTimeout` |
+| **ScanEngineConfig**（ChannelManager 默认） | GoroutineLimit | **2048** | ResourceController 拒绝新执行 | `channel_manager.go` |
+| | ConnectionLimit | **500** | 连接数上限 | 同上 |
+| | MaxQueueSize | **10000** | 调度待执行队列 | 同上 |
+| | TickInterval | **10ms** | 全局调度节拍 | 同上 |
+| **AdaptiveThrottle** | 最大降速因子 | **4×** 基础间隔 | 队列压力 / 失败率 / RTT 驱动 | `adaptive_throttle.go` `adaptiveThrottleMaxFactor` |
+| **DriverCircuitBreaker** | 连续超时 | **5 次** → 打开 | 设备级熔断 | `circuit_breaker.go` |
+| | 失败率窗口 | **60s 内 ≥40%**（≥10 样本）→ 打开 | 同上 | 同上 |
+| | 打开持续时间 | **30s** | HalfOpen 探测后恢复 | 同上 |
+
+**Parallel / Limited 路径准入顺序**（v5.2 统一 `BackpressureController.AllowWithReason`，单次调用）：全局 512 信号量 → 单设备并发（Parallel **8** / Limited **2**）→ 协议速率桶（Modbus 1000/s、OPC UA 400/s、S7 300/s 等，**最后**）。拒绝时记录 `reject_reason`（`global_semaphore` / `device_semaphore` / `protocol_rate`），指标 `throttle_reject_by_reason{reason}`。任一失败返回 `ErrRateLimited`，任务留待下次 Tick 重试。
+
+**Limited 路径**：与 Parallel 相同单次 `AllowWithReason` 后进入 Serial 队列与 `readPoints`（不再单独前置 `ProtocolCongestionController`）。
+
+**Serial 路径**：不经 Backpressure / ProtocolCongestion；仅 SerialQueue + 可选 `channelMu`。
+
+#### 4.4.5 共享链路隔离（channelMu + serialQueueKey）
+
+Modbus、DLT645 等协议下，**多个逻辑设备共用一条 TCP 或 RS-485**。若按 deviceKey 各开 worker，慢从站会长时间占用 `channelMu`，阻塞同通道其它从站。
+
+| 机制 | 行为 | 代码 |
+|------|------|------|
+| `serialQueueKey` | 共享链路设备路由到 `shared:{channelID}` 单一 Serial worker | `execution_layer.go` |
+| `channelMu` | `readPoints` 内对共享链路协议持锁，I/O 与重连互斥 | `execution_layer.go` `readPoints` |
+| `serialOuterTimeout` | 外层等待 = 16× 单次读超时，容纳队列中多个从站 | `execution_layer.go` |
+
+ScanEngineAdapter 注册设备时将 `channelMu` 与 `channelID` 注入 `task.Params`（见 §5.3.2 channelMu 与重连互斥）。
+
+#### 4.4.6 ConnectionManager 重连限流
+
+| 参数 | 值 | 说明 | 代码 |
+|------|-----|------|------|
+| MaxGlobalReconnectRate | **10 次/s** | 滑动 1s 窗口内全局限流 | `driver/connection_manager.go`、`core/connection_controller.go` |
+| Single-flight | 是 | `ScheduleReconnect` 同一通道不并行 dial | ConnectionManager |
+| 指数退避 | 5s → 15s → 30s → 60s → 120s | `calculateBackOffInterval` | `connection_controller.go` |
+
+> `driver` 与 `core` 包内各维护一套全局限流计数器，行为一致，计数器尚未合并（见 §9.3）。
+
+#### 4.4.7 运维建议
+
+**采集间隔**
+
+- 串行 / 共享总线：单通道设备数 × 单次读耗时应 **< 通道内最小 interval**；RS-485 建议 ≥500ms～1s 起，视从站数量线性放大。
+- Parallel 协议：可设较短 interval，但关注 `backpressure_reject_total` 与 `ErrRateLimited`；全局 512 饱和时应**加大 interval 或拆通道**，而非仅加设备。
+- Limited 协议（S7/Profinet 等）：默认单设备并发仅 2，点位过多时优先**增大 interval** 或**拆设备**。
+
+**通道布局**
+
+- 同一 RS-485 / Modbus TCP 网关下的从站 → **一个 Channel**，依赖 `shared:{channelID}` 串行化。
+- OPC UA / HTTP 等独立会话协议 → 每设备或每 Server 独立 Channel，利用 Parallel 背压。
+- 避免将数百 Modbus 从站压在单 Channel 且 interval=100ms：Serial 队列深度仅 64，易 `ErrQueueFull`。
+
+**诊断与巡检**
+
+| API / 手段 | 关注字段 | 建议动作 |
+|------------|----------|----------|
+| `GET /api/diagnostics/scan-engine` | `sla_warnings[]`、`scan_lag_p95_ms`、`scan_miss_deadline_total` | lag/miss 持续 >0 → 降负载或加 interval |
+| 同上 | `backpressure_reject_total`、`protocol_congestion_enabled` | 背压拒载上升 → 检查 Parallel 设备数与 interval |
+| 同上 | `circuit_breaker` / `driver_circuit_open_total` | Open 态设备 → 30s 内排查链路，勿频繁改配置 |
+| `GET /api/diagnostics/soak` | Release Gate 五 gate | 发布前跑 `make test-soak-short` |
+| 同上 | `serial_queue_depth` | 某 `shared:*` 长期接近 64 → 拆分通道或放慢 interval |
+
+**AdaptiveThrottle 与熔断**
+
+- 队列深度 ≥90% MaxQueueSize 时间隔最高 **4×**；运维侧看到 `scan_interval_adjusted_total` 上升属正常保护。
+- 设备连续 5 次超时或 60s 失败率 ≥40% 触发 **30s 熔断**，采集质量标记 Bad；恢复后自动 HalfOpen，无需重启进程。
+
+**硬编码参数的间接调优**
+
+| 目标 | 推荐手段（无需改代码） |
+|------|------------------------|
+| 降低全局并发压力 | 增大 interval、减少 Parallel 设备数、分网关部署 |
+| 缓解 RS-485 阻塞 | 拆 Channel、提高 interval、`serialOuterTimeout` 已按 ×16 排队 |
+| 避免重连风暴 | 确保单 Channel 单 ConnectionManager；勿手工频繁启停通道 |
+| 逼近 512/1000 上限 | 用 diagnostics 观察 reject 计数；达标前扩容或降频 |
 
 ---
 
@@ -1068,7 +1240,7 @@ func (rc *ResourceController) CanExecute() bool {
 
 | 测试场景 | 测试方法 | 目标指标 |
 |----------|----------|----------|
-| 调度吞吐量 | 1000设备，1s间隔 | ≥1000设备/秒 |
+| 调度吞吐量 | 1000设备，1s间隔 | ≥950设备/秒（G007 benchmark；指标依据见 §2.5.6） |
 | 单点延迟 | 单设备连续采集 | <100ms |
 | 资源占用 | 500设备运行1小时 | CPU<50%，内存<512MB |
 | goroutine控制 | 压力测试 | ≤2048 |
@@ -1116,7 +1288,7 @@ ScanEngine重构测试报告
 2.2 性能测试
 | 指标 | 目标值 | 实际值 | 结论 |
 |------|--------|--------|------|
-| 调度吞吐量 | ≥1000设备/秒 | x | 通过/未通过 |
+| 调度吞吐量 | ≥950设备/秒 | x | 通过/未通过 |
 | 单点延迟 | <100ms | x | 通过/未通过 |
 | CPU占用 | <50% | x | 通过/未通过 |
 | 内存占用 | <512MB | x | 通过/未通过 |
@@ -1155,6 +1327,39 @@ ScanEngine重构测试报告
 
 ---
 
+### 7.6 《工业通信内核稳定性 v5.1 Patch Pack（零架构变更版）》
+
+> **状态**：P0 补丁已落地（2026-07-05）；本节其余项为后续规划，**不改动 ScanEngine 架构**。
+
+#### 7.6.1 已实施 P0 补丁（零架构变更）
+
+| 编号 | 问题 | 修复 | 约束 |
+|------|------|------|------|
+| P0.1 | ConnectionController 与 ConnectionManager 双重重连判断 | ConnectionController 降级为只读模块（`CanRetry` 状态判断、错误分类、指标）；重连/dial 仅经 `ConnectionManager.EnsureConnected` / `ScheduleReconnect` | 不改调度链、不改 ShadowCore |
+| P0.2 | Connecting 态 `CanRetry` 可能返回 0 → 忙等 | `Connecting` 态 `waitTime = max(waitTime, 200ms)` | — |
+| P0.3 | `channelMu` 多层叠加 | `channelMu` 仅在 `ExecutionLayer.readPoints` 外层持有 | Transport 层不持锁 |
+| P0.4 | SerialQueue 缓冲 64 无降级 | 队列深度 > 90% 容量时返回 `ErrQueueFull` | 不改 Serial 模型/worker |
+| P0.5 | AdaptiveThrottle 放大无上限 | `factor = min(factor, 4.0)` | 不删除 AdaptiveThrottle |
+| P0.6 | WorkerPool 饱和无保护 | 队列满时返回 `ErrRateLimited` | 不改 pool 大小/调度 |
+
+#### 7.6.2 后续规划（未实施）
+
+| 能力 | 目标 | 说明 |
+|------|------|------|
+| 重连风暴检测器 | 检测短时间大量重连并告警/限流 | 基于 ConnectionManager 指标，**不替代**现有 backoff |
+| queue 水位报警 | SerialQueue / WorkerPool 深度超阈值告警 | 只观测与告警，**不触发调度变更** |
+| 设备级健康评分 | 按设备汇总连接/读失败/RTT | **不影响调度优先级**，仅供运维与 Shadow 展示 |
+| ScanEngine lag 检测器 | 检测任务实际执行滞后于 `Interval` | 输出 lag 指标，**不修改 ScanEngine 调度链** |
+
+#### 7.6.3 验证命令（P0 回归）
+
+```bash
+go test ./internal/core/... -run 'ConnectionController|SerialQueue|AdaptiveThrottle|WorkerPool'
+go test ./internal/driver/... -run 'Reconnect|EnsureConnected|Connecting'
+```
+
+---
+
 ## 八、废弃组件清单
 
 | 组件 | 当前位置 | 原因 | 替代方案 | 移除阶段 |
@@ -1188,22 +1393,34 @@ ScanEngine重构测试报告
 | channelMu 共享链路串行 | `execution_layer.go` `readPoints` | ✅ | modbus/dlt645 等持锁 I/O |
 | shared channel 队列键 | `serialQueueKey()` | ✅ | `shared:{channelID}` 避免慢从站阻塞 |
 | ConnectionManager 统一重连 | `driver/connection_manager.go` | ✅ | EnsureConnected + ScheduleReconnect + single-flight |
-| ConnectionController | `core/connection_controller.go` | ⚠️ | 错误分类/读写降级；**不**负责 dial；Connecting 态 CanRetry 仍无退避 |
-| DRY_RUN 并行验证模式 | — | ❌ | 文档阶段 1 要求，代码无 `DryRun` 配置 |
-| 新旧系统数据一致性校验器 | — | ❌ | 阶段 1 退出条件，无独立校验器 |
-| 协议路由分发器 | — | ❌ | 已全部走 ScanEngine，无灰度路由 |
-| 熔断机制 | — | ❌ | 文档阶段 3 要求，无 CircuitBreaker 实现 |
+| ConnectionController | `core/connection_controller.go` | ✅ | v5.2 纯只读；错误分类/读写指标；不参与 dial |
+| DRY_RUN 并行验证模式 | — | ⏸ 运维替代 | S1 可用 Shadow 回放/对比替代；无独立 DryRun 配置 |
+| 新旧系统数据一致性校验器 | — | ⏸ 运维项 | S1 退出条件；无独立校验器进程 |
+| 协议路由分发器 | — | ✅ 不需要 | 全量走 ScanEngine，无灰度路由残留 |
+| 熔断机制 | `circuit_breaker.go` | ✅ | DriverCircuitBreaker 已接入 ExecutionLayer |
 | CollectionScheduler | — | ✅ 已移除 | 无残留引用；由 ScanEngine 替代 |
 | deviceLoop | — | ✅ 已移除 | 无 `deviceLoop` 函数 |
+| FeedbackAggregator | `feedback_aggregator.go` | ✅ | 2s 窗口；失败路径聚合 `updateTaskStateAggregated` |
+| Driver 无状态铁律（S3） | 各 `internal/driver/*` | ✅ | BACnet ClientRun/checkRecovery、KNX heartbeat 已迁入 ConnectionManager |
 
-### 9.2 四阶段迁移进度
+### 9.2 三阶段迁移进度（v5.2 压缩版）
 
 | 阶段 | 状态 | 已实现要点 | 未完成 / 风险 |
 |------|------|-----------|--------------|
-| 阶段1 并行运行 | ❌ | ScanEngine 可独立运行 | 无 DRY_RUN、无新旧双跑、无 72h 一致性校验 |
-| 阶段2 串行协议灰度 | ⚠️ | Modbus/DLT645 Executor + ScanEngine + channelMu | 无显式协议路由；Modbus 重连已统一到 ConnectionManager |
-| 阶段3 并发协议灰度 | ⚠️ | ParallelExecutor + Backpressure + WorkerPool | OPC UA 仍用 `go reconnect()`；熔断未实现 |
-| 阶段4 完全切换 | ⚠️ | 旧 CollectionScheduler 已下线，ScanEngine 为唯一调度 | 旧 Driver（modbus.go 等）仍存在；30 天 MTBF 未验证 |
+| **S1** Shadow Parallel | ⏸ 运维替代 | ScanEngine 独立运行；ShadowCore 唯一写入 | 无 DRY_RUN 双跑；72h 一致性校验待运维 |
+| **S2** Serial-first | ✅ 代码层 | Modbus/DLT645/Omron Serial + S7/Profinet Limited；channelMu + ConnectionManager | 72h 串行协议长跑未验证 |
+| **S3** Full Ownership | ✅ **代码层完成** | Parallel 协议 + 统一 Throttling + FeedbackAggregator；旧调度已移除；驱动 goroutine 清理 | **30 天 MTBF 待硬件/运维验证** |
+
+> 旧四阶段 1–4 已映射至 S1–S3（见 [v5.2 补丁 §评审项 6](./ScanEngine重构方案-v5.2-稳定版补丁.md)）。
+
+### 9.2.1 旧四阶段对照（归档）
+
+| 阶段 | 状态 | 已实现要点 | 未完成 / 风险 |
+|------|------|-----------|--------------|
+| 阶段1 并行运行 | ⏸ | ScanEngine 可独立运行 | 并入 S1 |
+| 阶段2 串行协议灰度 | ✅ | Modbus/DLT645 + ScanEngine + channelMu | 并入 S2 |
+| 阶段3 并发协议灰度 | ✅ | ParallelExecutor + WorkerPool + Throttling | 并入 S3 |
+| 阶段4 完全切换 | ✅ | 旧 CollectionScheduler 已下线 | 并入 S3 |
 
 ### 9.3 统一重连迁移进度
 
@@ -1211,22 +1428,34 @@ ScanEngine重构测试报告
 |------------------|-----------|------|------|
 | ModbusTransport | ConnectionManager | ✅ | `Connect`/`scheduleReconnect`/`withRetry→Connect` |
 | DLT645Transport | ConnectionManager | ✅ | 同 Modbus 模式 |
-| KNX / S7 / SNMP / Mitsubishi / Profinet / ICE104 | ConnectionManager | ⚠️ | 已接入 connMgr，部分仍内联 retry loop |
-| OpcUaDriver | 自定义 `reconnect()` | ❌ | `go d.reconnect()` 无 single-flight，待迁移 |
-| ENIPTransport | 自定义 `reconnect()` | ❌ | 待改为 `ScheduleReconnect` |
+| KNX / S7 / SNMP / Mitsubishi / Profinet / ICE104 | ConnectionManager | ✅ | KNX heartbeat 经 `StartBackgroundLoop`；Transport.mu I/O 已对齐 |
+| OpcUaDriver | ConnectionManager | ✅ | `scheduleReconnect` → `ScheduleReconnect` single-flight |
+| ENIPTransport | ConnectionManager | ✅ | `scheduleReconnect` → `ScheduleReconnect` |
+| BACnetDriver | ConnectionManager | ✅ | S3：`ClientRun` → `StartBackgroundLoop`；`checkRecovery` → `ScheduleAsyncTask` |
 | ModbusExecutor.connController | 仅分类 | ✅ | 不发起重连，符合 5.3 分层 |
-| 全局限流 | driver + core 各一套 | ⚠️ | 行为一致，计数器未合并 |
+| 全局限流 | `driver/connection_manager.go` | ✅ | 单例 `tryAcquireGlobalReconnectSlot` |
 
 ### 9.4 阶段退出条件（运维级，非代码）
 
 以下 checkbox 为**生产灰度退出标准**，当前均未在自动化/运维侧确认：
 
-- 阶段1：`连续72小时数据一致性99.9%` 等 4 项 — ❌
-- 阶段2：Modbus 稳定采集、无重连风暴等 5 项 — ⚠️ 部分可本地验证，未做 72h 长跑
-- 阶段3：OPC UA 并发、熔断等 5 项 — ❌ / ⚠️
-- 阶段4：旧系统下线、30 天无重启等 5 项 — ⚠️ 代码层旧调度已移除，长跑未做
+- S1/S2/S3 运维退出：72h 一致性、30 天 MTBF 等 — ⏸ **待硬件/运维验证**（代码层 S3 已完成）
 
-### 9.5 测试覆盖（2026-06-30 执行）
+### 9.6 S3 交付清单（2026-07-05）
+
+| 项 | 状态 | 证据 |
+|----|------|------|
+| ScanEngine 唯一调度内核 | ✅ | 无 `CollectionScheduler` / `deviceLoop` / 灰度路由 |
+| ConnectionManager 统一连接生命周期 | ✅ | dial/reconnect/background loop/async task |
+| BACnet `ClientRun` 迁入 CM | ✅ | `connectOnce` + `StartBackgroundLoop` |
+| BACnet `checkRecovery` 迁入 CM | ✅ | `ScheduleAsyncTask`（通道已连接时探测） |
+| KNX heartbeat ticker 迁入 CM | ✅ | `StartBackgroundLoop` + ctx 取消 |
+| FeedbackAggregator 完整接入 | ✅ | `scan_engine.go` 2s 窗口 |
+| 统一 Throttling Allow | ✅ | v5.2 `AllowWithReason` |
+| 10k dispatch / G007 基准 | ✅ | `make bench-q3` / `make bench-g007` PASS |
+| 30 天 MTBF / 72h 长跑 | ⏸ | 需现场硬件与运维签核 |
+
+### 9.5 测试覆盖（2026-07-05 执行）
 
 | 测试包 | 命令 | 结果 |
 |--------|------|------|

@@ -64,7 +64,7 @@ func TestGetEndpointsMultiplePolicies(t *testing.T) {
 		AuthMethods:    []string{"Anonymous"},
 		CertFile:       serverCert,
 		KeyFile:        serverKey,
-	}, sb)
+	}, sb, nil)
 	if err := srv.Start(); err != nil {
 		t.Fatalf("start server: %v", err)
 	}
@@ -78,10 +78,10 @@ func TestGetEndpointsMultiplePolicies(t *testing.T) {
 	}
 
 	want := map[string]struct{}{
-		"Basic256Sha256|SignAndEncrypt": {},
-		"Basic256Sha256|Sign":          {},
+		"Basic256Sha256|SignAndEncrypt":        {},
+		"Basic256Sha256|Sign":                  {},
 		"Aes128_Sha256_RsaOaep|SignAndEncrypt": {},
-		"None|None": {},
+		"None|None":                            {},
 	}
 	for _, ep := range res.Endpoints {
 		policy := strings.TrimPrefix(ep.SecurityPolicyURI, "http://opcfoundation.org/UA/SecurityPolicy#")
@@ -120,7 +120,7 @@ func TestServerUserNameAuth(t *testing.T) {
 		Users:          map[string]string{"operator": "secret"},
 		CertFile:       serverCert,
 		KeyFile:        serverKey,
-	}, sb)
+	}, sb, nil)
 	if err := srv.Start(); err != nil {
 		t.Fatalf("start server: %v", err)
 	}

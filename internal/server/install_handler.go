@@ -78,6 +78,20 @@ func (s *Server) checkPort(c *fiber.Ctx) error {
 		})
 	}
 
+	// 安装模式下 Web 服务已在监听；保留当前端口视为可用
+	if port == s.GetListenPort() {
+		return c.JSON(fiber.Map{
+			"code":    "0",
+			"message": "success",
+			"data": fiber.Map{
+				"available": true,
+				"port":      port,
+				"error":     "",
+			},
+			"error": nil,
+		})
+	}
+
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return c.JSON(fiber.Map{

@@ -1,5 +1,5 @@
 <template>
-  <div class="page-shell channel-list-container">
+  <div class="page-shell page-shell--wide channel-list-page channel-list-container">
     <div class="page-header channel-header">
       <div class="header-title">
         <h2 class="page-title title-text">采集通道</h2>
@@ -81,90 +81,161 @@
       </div>
     </div>
 
-    <a-spin :loading="loading" tip="数据同步中..." style="width: 100%">
-      <div v-if="channels.length > 0">
-        <a-row v-if="viewMode === 'card'" :gutter="[16, 16]">
-          <a-col v-for="item in channels" :key="item.id" :xs="24" :sm="12" :md="12" :lg="8">
-            <a-card 
-              class="minimal-line-card" 
-              :class="{ 'is-selected': isSelected(item.id) }" 
-              hoverable 
-              @click="handleCardClick(item)"
-            >
-              <template #title>
-                <div class="card-title-content">
-                  <span class="protocol-tag">{{ formatProtocolTag(item.protocol) }}</span>
-                  <span class="name-text text-truncate">{{ item.name }}</span>
-                </div>
-              </template>
-              <template #extra>
-                <a-tag :color="item.enableColor" size="small" bordered>{{ item.enableText }}</a-tag>
-              </template>
+    <div class="channel-list-body">
+      <a-spin :loading="loading" tip="数据同步中..." style="width: 100%">
+        <div v-if="channels.length === 0 && !loading" class="empty-card">
+          <div class="empty-content">
+            <icon-apps :size="48" style="margin-bottom: 12px;" />
+            <p>暂无采集通道配置</p>
+            <button class="btn-primary" @click="openAddDialog">添加通道</button>
+          </div>
+        </div>
 
-              <div class="card-info-body">
-                <div class="info-item">
-                  <span class="label">通道 ID</span>
-                  <span class="value">{{ item.id }}</span>
+        <template v-else>
+          <section
+            v-for="zone in channelZones"
+            :key="zone.key"
+            class="channel-list-zone"
+            :aria-label="`${zone.title}通道`"
+          >
+            <div class="channel-list-zone-header">
+              <h3 class="channel-list-zone-title">
+                {{ zone.title }}
+                <span class="channel-list-zone-count">{{ zone.items.length }}</span>
+              </h3>
+            </div>
+
+            <div class="channel-list-tertiary-block">
+              <div class="section">
+                <div v-if="viewMode === 'card'" class="channels-grid">
+                  <div
+                    v-for="item in zone.items"
+                    :key="item.id"
+                  class="channel-card"
+                  :class="[getProtocolClass(item.protocol), { 'is-selected': isSelected(item.id) }]"
+                  @click="handleCardClick(item)"
+                >
+                  <div class="channel-card-inner">
+                    <div class="channel-card-top">
+                      <div class="channel-identity">
+                        <div class="channel-icon" :class="getProtocolClass(item.protocol)">
+                          <icon-link v-if="['bacnet-ip', 'modbus-rtu', 'modbus-tcp', 'modbus-rtu-over-tcp'].includes(item.protocol)" :size="16" />
+                          <icon-tool v-else-if="item.protocol === 'opc-ua'" :size="16" />
+                          <icon-settings v-else-if="item.protocol === 's7'" :size="16" />
+                          <icon-link v-else :size="16" />
+                        </div>
+                        <div class="channel-info">
+                          <div class="channel-name">{{ item.name }}</div>
+                          <div class="channel-meta">
+                            <span class="protocol-tag">{{ formatProtocolTag(item.protocol) }}</span>
+                            <span
+                              class="channel-status-chip"
+                              :class="item.enable ? 'is-enabled' : 'is-disabled'"
+                            >
+                              <span class="status-dot"></span>
+                              {{ item.enableText }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <span
+                        v-if="item.metrics"
+                        class="quality-score"
+                        :class="getQualityClass(item.qualityScore)"
+                        :title="`通信质量 ${item.qualityScore ?? '-'}`"
+                      >
+                        {{ item.qualityScore ?? '-' }}
+                      </span>
+                    </div>
+
+                    <div class="channel-kpi-grid">
+                      <div class="channel-kpi">
+                        <span class="channel-kpi-label">设备</span>
+                        <span class="channel-kpi-value">{{ item.deviceCount || 0 }}</span>
+                      </div>
+                      <div class="channel-kpi">
+                        <span class="channel-kpi-label">状态</span>
+                        <span
+                          class="channel-kpi-value"
+                          :class="item.runtimeArcoStatus === 'success' ? 'online' : (item.runtimeArcoStatus === 'danger' ? 'offline' : '')"
+                        >
+                          {{ formatCardRuntimeText(item.runtimeText) }}
+                        </span>
+                      </div>
+                      <div class="channel-kpi">
+                        <span class="channel-kpi-label">成功率</span>
+                        <span class="channel-kpi-value" :class="getSuccessRateClass(item.successRate)">
+                          {{ formatPercent(item.successRate) }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div v-if="item.metrics" class="channel-metrics">
+                      <div class="metrics-header">
+                        <span class="metrics-label">通信质量</span>
+                        <span class="metrics-rtt">RTT {{ formatDuration(item.metrics.avgRtt) }}</span>
+                      </div>
+                      <div class="quality-bar-container">
+                        <div class="quality-bar" :class="getQualityBarClass(item.qualityScore)" :style="{ width: (item.qualityScore || 0) + '%' }"></div>
+                      </div>
+                    </div>
+
+                    <div class="channel-card-footer" @click.stop>
+                      <div class="channel-card-actions">
+                        <a-tooltip content="监控指标">
+                          <a-button type="text" size="mini" @click.stop="openMetricsDialog(item)">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                              <line x1="18" y1="20" x2="18" y2="10"/>
+                              <line x1="12" y1="20" x2="12" y2="4"/>
+                              <line x1="6" y1="20" x2="6" y2="14"/>
+                            </svg>
+                          </a-button>
+                        </a-tooltip>
+                        <a-tooltip content="编辑">
+                          <a-button type="text" size="mini" @click.stop="openEditDialog(item)">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                          </a-button>
+                        </a-tooltip>
+                        <a-tooltip v-if="item.protocol === 'bacnet-ip'" content="扫描设备">
+                          <a-button type="text" size="mini" @click.stop="scanChannel(item)">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M12 2a10 10 0 1010 10 10 10 0 00-10-10z"/>
+                              <path d="M12 6v6l4 2"/>
+                            </svg>
+                          </a-button>
+                        </a-tooltip>
+                        <a-tooltip content="删除">
+                          <a-button type="text" size="mini" status="danger" @click.stop="deleteChannel(item)">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                              <polyline points="3 6 5 6 21 6"/>
+                              <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                            </svg>
+                          </a-button>
+                        </a-tooltip>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="info-item">
-                  <span class="label">关联设备</span>
-                  <span class="value-highlight">{{ item.deviceCount }} <small>台</small></span>
-                </div>
-                <div class="info-item">
-                  <span class="label">运行状态</span>
-                  <a-badge :status="item.runtimeArcoStatus" :text="item.runtimeText" />
+
+                <div v-if="zone.items.length === 0" class="channel-list-zone-empty">
+                  暂无{{ zone.title }}通道
                 </div>
               </div>
 
-              <template #actions>
-                <a-tooltip content="监控指标">
-                  <a-button type="text" size="small" @click.stop="openMetricsDialog(item)">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                      <line x1="18" y1="20" x2="18" y2="10"/>
-                      <line x1="12" y1="20" x2="12" y2="4"/>
-                      <line x1="6" y1="20" x2="6" y2="14"/>
-                    </svg>
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip content="编辑">
-                  <a-button type="text" size="small" @click.stop="openEditDialog(item)">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip v-if="item.protocol === 'bacnet-ip'" content="扫描设备">
-                  <a-button type="text" size="small" @click.stop="scanChannel(item)">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M12 2a10 10 0 1010 10 10 10 0 00-10-10z"/>
-                      <path d="M12 6v6l4 2"/>
-                    </svg>
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip content="删除">
-                  <a-button type="text" size="small" status="danger" @click.stop="deleteChannel(item)">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-                    </svg>
-                  </a-button>
-                </a-tooltip>
-              </template>
-            </a-card>
-          </a-col>
-        </a-row>
-
-        <div v-else class="table-container">
-        <a-table 
-          :columns="tableColumns" 
-          :data="channels" 
-          :row-selection="selectionMode ? rowSelection : undefined"
-          row-key="id"
-          size="small"
-          :bordered="{ cell: true }"
-          :pagination="false"
-        >
+              <div v-else-if="zone.items.length > 0" class="table-container saas-table">
+                <a-table
+                  :columns="tableColumns"
+                  :data="zone.items"
+                  :row-selection="selectionMode ? rowSelection : undefined"
+                  row-key="id"
+                  size="small"
+                  :bordered="false"
+                  :scroll="{ x: 960 }"
+                  :pagination="false"
+                >
           <template #name="{ record }">
             <a-link @click="goToDevices(record)" icon>{{ record.name }}</a-link>
           </template>
@@ -188,7 +259,7 @@
           </template>
 
           <template #actions="{ record }">
-            <a-space>
+            <span class="table-ops">
               <a-tooltip content="监控">
                 <a-button type="text" size="mini" @click="openMetricsDialog(record)">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
@@ -222,13 +293,20 @@
                   </svg>
                 </a-button>
               </a-tooltip>
-            </a-space>
+            </span>
           </template>
-        </a-table>
-        </div>
-      </div>
-      <a-empty v-else class="empty-placeholder" />
-    </a-spin>
+                </a-table>
+              </div>
+
+              <div v-else class="channel-list-zone-empty">
+                暂无{{ zone.title }}通道
+              </div>
+            </div>
+          </div>
+        </section>
+        </template>
+      </a-spin>
+    </div>
 
     <!-- Add/Edit Dialog -->
     <a-modal 
@@ -444,12 +522,25 @@
 
         <!-- BACnet IP Config -->
         <div v-if="dialog.form.protocol === 'bacnet-ip'" class="config-section">
-          <a-form-item field="config.ip" label="IP地址">
-            <a-input v-model="dialog.form.config.ip" placeholder="0.0.0.0 (默认)" />
-          </a-form-item>
-          <a-form-item field="config.port" label="端口">
-            <a-input-number v-model="dialog.form.config.port" :min="1" :max="65535" placeholder="47808 (默认)" />
-          </a-form-item>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="12">
+              <a-form-item field="config.interface_ip" label="本机IP (绑定)">
+                <a-input v-model="dialog.form.config.interface_ip" placeholder="自动获取" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item field="config.target_ip" label="远程目标IP">
+                <a-input v-model="dialog.form.config.target_ip" placeholder="例: 192.168.3.115" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="12">
+              <a-form-item field="config.port" label="端口">
+                <a-input-number v-model="dialog.form.config.port" :min="1" :max="65535" placeholder="47808 (默认)" />
+              </a-form-item>
+            </a-col>
+          </a-row>
           <div class="advanced-block">
             <div class="modal-section__title modal-section__title--sub">加密参数 (可选)</div>
           <a-form-item field="config.key" label="密钥">
@@ -1054,6 +1145,40 @@
           </a-row>
         </div>
 
+        <!-- EtherCAT 通道配置 -->
+        <div v-if="dialog.form.protocol === 'ethercat'" class="config-section">
+          <div class="modal-section__title modal-section__title--sub">基础连接</div>
+          <a-form-item field="config.local_interface" label="网络接口" required>
+            <a-input v-model="dialog.form.config.local_interface" placeholder="eth0 或 lo (模拟)" />
+            <template #extra>
+              物理网卡名称（如 eth0、enp2s0）或 lo（模拟模式）
+            </template>
+          </a-form-item>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="8">
+              <a-form-item field="config.cycle_time_us" label="周期时间 (μs)">
+                <a-input-number v-model="dialog.form.config.cycle_time_us" :min="100" :max="100000" placeholder="1000" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.timeout" label="超时时间 (ms)">
+                <a-input-number v-model="dialog.form.config.timeout" :min="500" :max="60000" placeholder="3000" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="config.max_retries" label="重试次数">
+                <a-input-number v-model="dialog.form.config.max_retries" :min="0" :max="10" placeholder="3" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-form-item field="config.simulation" label="模拟模式">
+            <a-switch v-model="dialog.form.config.simulation" />
+            <template #extra>
+              开启后使用内置模拟器，无需真实 EtherCAT 硬件即可测试
+            </template>
+          </a-form-item>
+        </div>
+
       </a-form>
     </a-modal>
 
@@ -1119,7 +1244,6 @@
         :loading="metricsDialog.loading"
         :error="metricsDialog.error"
         :metrics="metricsDialog.metrics"
-        :scan-diagnostics="metricsDialog.scanDiagnostics"
       />
 
       <template #footer>
@@ -1157,8 +1281,9 @@ import { applyChannelDefaultConfig, getChannelDefaultConfig } from '@/utils/chan
 import ChannelProtocolHelpDrawer from '@/components/channel-help/ChannelProtocolHelpDrawer.vue'
 import ChannelMetricsPanel from '@/components/channel/ChannelMetricsPanel.vue'
 import { computeQualityScore, runtimeFromQualityScore } from '@/utils/channelMetrics'
-
-// 恢复使用 SVG 图标以避免导入问题
+import {
+  IconApps, IconLink, IconSettings, IconTool, IconArrowRight
+} from '@arco-design/web-vue/es/icon'
 
 const router = useRouter()
 const loading = ref(false)
@@ -1191,7 +1316,6 @@ const metricsDialog = reactive({
   error: null,
   channel: null,
   metrics: null,
-  scanDiagnostics: null,
 })
 
 const channelHelpVisible = ref(false)
@@ -1216,7 +1340,8 @@ const protocols = [
   { label: 'Profinet IO', value: 'profinet-io' },
   { label: 'Mitsubishi MC', value: 'mitsubishi-slmp' },
   { label: 'IEC 60870-5-104', value: 'iec60870-5-104' },
-  { label: 'SNMP', value: 'snmp' }
+  { label: 'SNMP', value: 'snmp' },
+  { label: 'EtherCAT', value: 'ethercat' }
 ]
 
 const tableColumns = [
@@ -1233,6 +1358,77 @@ const rowSelection = {
   onChange: (keys) => {
     selectedChannels.value = keys
   }
+}
+
+const enabledChannels = computed(() =>
+  channels.value.filter(ch => ch.enable)
+)
+
+const disabledChannels = computed(() =>
+  channels.value.filter(ch => !ch.enable)
+)
+
+const channelZones = computed(() => [
+  { key: 'enabled', title: '已启用', items: enabledChannels.value },
+  { key: 'disabled', title: '已禁用', items: disabledChannels.value },
+])
+
+const getProtocolClass = (protocol) => {
+  const classes = {
+    'modbus-tcp': 'protocol-tcp',
+    'modbus-rtu': 'protocol-rtu',
+    'modbus-rtu-over-tcp': 'protocol-tcp',
+    'bacnet-ip': 'protocol-bacnet',
+    'opc-ua': 'protocol-opc',
+    's7': 'protocol-s7',
+    'profinet-io': 'protocol-profinet-io',
+    'ethernet-ip': 'protocol-ip',
+    'mitsubishi-slmp': 'protocol-mitsubishi',
+    'omron-fins': 'protocol-omron',
+    'ethercat': 'protocol-ethercat'
+  }
+  return classes[protocol] || 'protocol-default'
+}
+
+const getQualityClass = (score) => {
+  if (score === undefined || score === null || score === 0) return 'quality-none'
+  if (score === 100) return 'quality-perfect'
+  if (score >= 90) return 'quality-good'
+  if (score >= 80) return 'quality-fair'
+  return 'quality-poor'
+}
+
+const getQualityBarClass = (score) => {
+  if (score === undefined || score === null || score === 0) return 'bar-none'
+  if (score === 100) return 'bar-perfect'
+  if (score >= 90) return 'bar-good'
+  if (score >= 80) return 'bar-fair'
+  return 'bar-poor'
+}
+
+const getSuccessRateClass = (rate) => {
+  if (!rate && rate !== 0) return ''
+  if (rate >= 0.99) return 'success'
+  if (rate >= 0.95) return 'warning'
+  return 'error'
+}
+
+const formatPercent = (val) => {
+  if (val === undefined || val === null) return '-'
+  return (val * 100).toFixed(0) + '%'
+}
+
+const formatCardRuntimeText = (text) => {
+  if (!text) return '-'
+  const idx = text.indexOf(' (')
+  return idx >= 0 ? text.slice(0, idx) : text
+}
+
+const formatDuration = (ms) => {
+  if (ms === undefined || ms === null) return '-'
+  if (ms < 1) return '<1ms'
+  if (ms < 1000) return ms.toFixed(2) + 'ms'
+  return (ms / 1000).toFixed(2) + 's'
 }
 
 const isSelected = (id) => selectedChannels.value.includes(id)
@@ -1366,7 +1562,6 @@ const openMetricsDialog = async (channel) => {
   metricsDialog.channel = channel
   metricsDialog.error = null
   metricsDialog.metrics = null
-  metricsDialog.scanDiagnostics = null
   metricsDialog.loading = true
   metricsDialog.show = true
 
@@ -1375,21 +1570,14 @@ const openMetricsDialog = async (channel) => {
       setTimeout(() => reject(new Error('加载超时')), 3000)
     )
 
-    const metricsResPromise = request({
-      url: `/api/channels/${channel.id}/metrics`,
-      method: 'get'
-    })
-    const scanDiagPromise = request({
-      url: '/api/diagnostics/scan-engine',
-      method: 'get'
-    }).catch(() => null)
-
-    const [metricsRes, scanDiag] = await Promise.all([
-      Promise.race([metricsResPromise, timeoutPromise]),
-      scanDiagPromise,
+    const metricsRes = await Promise.race([
+      request({
+        url: `/api/channels/${channel.id}/metrics`,
+        method: 'get',
+      }),
+      timeoutPromise,
     ])
     metricsDialog.metrics = metricsRes
-    metricsDialog.scanDiagnostics = scanDiag
   } catch (error) {
     metricsDialog.error = `获取监控指标失败: ${error.message}`
     console.error('Failed to get channel metrics:', error)
@@ -1457,7 +1645,9 @@ const fetchChannels = async () => {
         enableColor,
         runtimeText,
         runtimeArcoStatus,
-        metrics: null // 先不加载指标
+        qualityScore: null,
+        successRate: null,
+        metrics: null
       }
     })
     
@@ -1493,6 +1683,8 @@ const fetchChannels = async () => {
             channels.value[channelIndex] = {
               ...channels.value[channelIndex],
               metrics,
+              qualityScore: score,
+              successRate: metrics.successRate ?? metrics.success_rate ?? null,
               runtimeText: runtime.text,
               runtimeArcoStatus: runtime.status,
             }
@@ -1524,10 +1716,5 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.config-section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
+/* v3.0 — styles in src/styles/channel-list.css */
 </style>

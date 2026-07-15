@@ -317,36 +317,39 @@ func (s *Server) enrichChannelScanEngineMetrics(channelID string, ch *model.Chan
 		return
 	}
 
-	seSnap := s.cm.GetScanEngineMetricsSnapshot()
+	seSnap := s.cm.GetChannelScanEngineMetricsSnapshot(channelID)
+
+	scanSLA := &model.ChannelScanSLA{}
 	if p95, ok := seSnap["scan_lag_p95_ms"].(float64); ok {
 		metrics.ScanLagP95Ms = p95
+		scanSLA.ScanLagP95Ms = p95
 	}
+	if drift, ok := seSnap["scan_drift_avg_ms"].(float64); ok {
+		metrics.ScanDriftAvgMs = drift
+		scanSLA.ScanDriftAvgMs = drift
+	}
+	if driftWin, ok := seSnap["scan_drift_avg_ms_window"].(float64); ok {
+		metrics.ScanDriftAvgMsWindow = driftWin
+		scanSLA.ScanDriftAvgMsWindow = driftWin
+	}
+	if missTotal, ok := seSnap["scan_miss_deadline_total"].(uint64); ok {
+		metrics.ScanMissDeadlineTotal = missTotal
+		scanSLA.ScanMissDeadlineTotal = missTotal
+	}
+	if missWin, ok := seSnap["scan_miss_deadline_window"].(uint64); ok {
+		metrics.ScanMissDeadlineWindow = missWin
+		scanSLA.ScanMissDeadlineWindow = missWin
+	}
+	if openCount, ok := seSnap["circuit_breaker_open"].(int); ok {
+		metrics.CircuitBreakerOpen = openCount
+		scanSLA.CircuitBreakerOpen = openCount
+	}
+	if warnings, ok := seSnap["sla_warnings"].([]map[string]any); ok {
+		metrics.SLAWarnings = warnings
+		scanSLA.SLAWarnings = warnings
+	}
+	metrics.ScanSLA = scanSLA
 
-	cbSnap, _ := seSnap["circuit_breaker"].(map[string]any)
-	devices, _ := cbSnap["devices"].(map[string]any)
-	openCount := 0
-	maxLag := metrics.ScanLagP95Ms
-	for _, dev := range ch.Devices {
-		if devices != nil {
-			if entry, ok := devices[dev.ID].(map[string]any); ok {
-				if state, _ := entry["state"].(string); state == "Open" {
-					openCount++
-				}
-			}
-		}
-		diag := s.cm.GetDeviceDiagnostics(dev.ID)
-		if tasks, ok := diag["scan_tasks"].([]map[string]any); ok {
-			for _, task := range tasks {
-				if lag, ok := task["lag_ms"].(float64); ok && lag > maxLag {
-					maxLag = lag
-				}
-			}
-		}
-	}
-	if maxLag > metrics.ScanLagP95Ms {
-		metrics.ScanLagP95Ms = maxLag
-	}
-	metrics.CircuitBreakerOpen = openCount
 	metrics.QualityScore = model.CalculateQualityScore(metrics)
 }
 

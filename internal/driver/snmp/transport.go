@@ -11,16 +11,17 @@ import (
 )
 
 type SNMPTransport struct {
-	cfg               deviceConfig
-	client            *gosnmp.GoSNMP
-	connected         atomic.Bool
-	connectTime       time.Time
+	cfg                deviceConfig
+	client             *gosnmp.GoSNMP
+	connected          atomic.Bool
+	connectTime        time.Time
 	lastDisconnectTime time.Time
-	reconnectCount    atomic.Int32
-	localAddr         string
+	reconnectCount     atomic.Int32
+	localAddr          string
 
-	getHook func(oids []string, community string) ([]gosnmp.SnmpPDU, error)
-	setHook func(oid string, value interface{}, asnType gosnmp.Asn1BER, community string) error
+	getHook  func(oids []string, community string) ([]gosnmp.SnmpPDU, error)
+	setHook  func(oid string, value interface{}, asnType gosnmp.Asn1BER, community string) error
+	walkHook func(rootOID string, community string, walkFn func(pdu gosnmp.SnmpPDU) error) error
 }
 
 func NewSNMPTransport(cfg map[string]any) *SNMPTransport {
@@ -141,6 +142,9 @@ func (t *SNMPTransport) GetNext(oid string, community string) (*gosnmp.SnmpPDU, 
 }
 
 func (t *SNMPTransport) Walk(rootOID string, community string, walkFn func(pdu gosnmp.SnmpPDU) error) error {
+	if t.walkHook != nil {
+		return t.walkHook(rootOID, community, walkFn)
+	}
 	if !t.IsConnected() {
 		return fmt.Errorf("snmp not connected")
 	}

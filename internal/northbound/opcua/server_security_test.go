@@ -51,7 +51,7 @@ func TestServerSecureChannelBasic256Sha256(t *testing.T) {
 		CertFile:    serverCert,
 		KeyFile:     serverKey,
 		// Empty TrustedCertPath reproduces the default UI configuration.
-	}, sb)
+	}, sb, nil)
 	if err := srv.Start(); err != nil {
 		t.Fatalf("start server: %v", err)
 	}

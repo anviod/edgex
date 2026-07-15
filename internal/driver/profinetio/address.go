@@ -18,7 +18,7 @@ type ParsedAddress struct {
 	Slot    int
 	SubSlot int
 	Index   int
-	Bit     int  // -1 when not a bit address
+	Bit     int // -1 when not a bit address
 	Endian  string
 	IsBit   bool
 }

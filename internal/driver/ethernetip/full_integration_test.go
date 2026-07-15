@@ -21,7 +21,7 @@ func TestFullIntegration(t *testing.T) {
 // 1. 连接建立测试
 func testConnectionEstablishment(t *testing.T) {
 	t.Log("Testing Connection Establishment...")
-	
+
 	tcp, err := go_ethernet_ip.NewTCP("127.0.0.1", nil)
 	if err != nil {
 		t.Fatalf("Failed to create TCP client: %v", err)
@@ -33,14 +33,14 @@ func testConnectionEstablishment(t *testing.T) {
 	}
 
 	t.Log("✓ Connection established successfully")
-	
+
 	defer tcp.Close()
 }
 
 // 2. 标签读写测试
 func testTagReadWrite(t *testing.T) {
 	t.Log("Testing Tag Read/Write...")
-	
+
 	tcp, err := go_ethernet_ip.NewTCP("127.0.0.1", nil)
 	if err != nil {
 		t.Fatalf("Failed to create TCP client: %v", err)
@@ -65,14 +65,14 @@ func testTagReadWrite(t *testing.T) {
 	// 单个标签写入
 	t.Run("SingleTagWrite", func(t *testing.T) {
 		tagGroup := go_ethernet_ip.NewTagGroup(new(sync.Mutex))
-		
+
 		tag := new(go_ethernet_ip.Tag)
 		err := tcp.InitializeTag("Program:MainProgram.IntTag", tag)
 		if err != nil {
 			t.Fatalf("InitializeTag failed: %v", err)
 		}
 		tagGroup.Add(tag)
-		
+
 		err = tagGroup.Write()
 		if err != nil {
 			t.Fatalf("Single tag write failed: %v", err)
@@ -84,7 +84,7 @@ func testTagReadWrite(t *testing.T) {
 // 3. 数据类型支持测试
 func testDataTypeSupport(t *testing.T) {
 	t.Log("Testing Data Type Support...")
-	
+
 	tcp, err := go_ethernet_ip.NewTCP("127.0.0.1", nil)
 	if err != nil {
 		t.Fatalf("Failed to create TCP client: %v", err)
@@ -129,7 +129,7 @@ func testDataTypeSupport(t *testing.T) {
 // 4. 批量操作测试
 func testBatchOperations(t *testing.T) {
 	t.Log("Testing Batch Operations...")
-	
+
 	tcp, err := go_ethernet_ip.NewTCP("127.0.0.1", nil)
 	if err != nil {
 		t.Fatalf("Failed to create TCP client: %v", err)
@@ -144,14 +144,14 @@ func testBatchOperations(t *testing.T) {
 	// 批量读取
 	t.Run("BatchRead", func(t *testing.T) {
 		tagGroup := go_ethernet_ip.NewTagGroup(new(sync.Mutex))
-		
+
 		tags := []string{
 			"Global.BoolTag",
 			"Global.IntTag",
 			"Global.RealTag",
 			"Global.StringTag",
 		}
-		
+
 		for _, name := range tags {
 			tag := new(go_ethernet_ip.Tag)
 			err := tcp.InitializeTag(name, tag)
@@ -160,7 +160,7 @@ func testBatchOperations(t *testing.T) {
 			}
 			tagGroup.Add(tag)
 		}
-		
+
 		err := tagGroup.Read()
 		if err != nil {
 			t.Fatalf("Batch read failed: %v", err)
@@ -171,22 +171,22 @@ func testBatchOperations(t *testing.T) {
 	// 批量写入
 	t.Run("BatchWrite", func(t *testing.T) {
 		tagGroup := go_ethernet_ip.NewTagGroup(new(sync.Mutex))
-		
+
 		tag1 := new(go_ethernet_ip.Tag)
 		err := tcp.InitializeTag("Program:MainProgram.IntTag", tag1)
 		if err != nil {
 			t.Fatalf("InitializeTag IntTag failed: %v", err)
 		}
-		
+
 		tag2 := new(go_ethernet_ip.Tag)
 		err = tcp.InitializeTag("Program:MainProgram.RealTag", tag2)
 		if err != nil {
 			t.Fatalf("InitializeTag RealTag failed: %v", err)
 		}
-		
+
 		tagGroup.Add(tag1)
 		tagGroup.Add(tag2)
-		
+
 		err = tagGroup.Write()
 		if err != nil {
 			t.Fatalf("Batch write failed: %v", err)
@@ -198,7 +198,7 @@ func testBatchOperations(t *testing.T) {
 // 5. 错误处理测试
 func testErrorHandling(t *testing.T) {
 	t.Log("Testing Error Handling...")
-	
+
 	tcp, err := go_ethernet_ip.NewTCP("127.0.0.1", nil)
 	if err != nil {
 		t.Fatalf("Failed to create TCP client: %v", err)

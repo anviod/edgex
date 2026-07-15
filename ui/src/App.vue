@@ -74,6 +74,14 @@
         <span v-if="breadcrumb" class="title-sub">{{ breadcrumb }}</span>
       </div>
       <div class="header-actions">
+        <button
+          class="ai-assistant-trigger"
+          title="AI 助手"
+          @click="openAiAssistant"
+        >
+          <AiAssistantIcon />
+          <span class="ai-assistant-trigger__label">AI助手</span>
+        </button>
         <button class="theme-toggle" @click="toggleTheme" title="切换主题">
           <icon-sun-fill v-if="isDarkTheme" :size="18" />
           <icon-moon-fill v-else :size="18" />
@@ -119,6 +127,7 @@
     </main>
 
     <change-password-dialog ref="changePwdRef" />
+    <AiAssistantPanel ref="aiAssistantRef" />
 
     <a-modal
       v-model:visible="restartModalVisible"
@@ -153,6 +162,8 @@ import { globalState, showMessage } from './composables/useGlobalState'
 import { userStore } from '@/stores/user'
 import LoginApi from '@/api/login'
 import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue'
+import AiAssistantIcon from '@/components/ai-assistant/AiAssistantIcon.vue'
+import AiAssistantPanel from '@/components/ai-assistant/AiAssistantPanel.vue'
 import {
   IconApps, IconLink, IconSettings, IconArrowUp,
   IconFile, IconTool, IconThunderbolt, IconSunFill, IconMoonFill,
@@ -168,6 +179,11 @@ const user = userStore()
 const changePwdRef = ref(null)
 const restartModalVisible = ref(false)
 const isDarkTheme = ref(false)
+const aiAssistantRef = ref(null)
+
+const openAiAssistant = () => {
+  aiAssistantRef.value?.open()
+}
 
 const systemVersion = ref('dev')
 const buildTime = ref('')

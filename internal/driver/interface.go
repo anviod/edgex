@@ -60,6 +60,13 @@ type BACnetAddressNotifySetter interface {
 	SetBACnetAddressNotifier(BACnetAddressNotifier)
 }
 
+// ReconnectScheduler is optional. Drivers that support async reconnection
+// (e.g. Modbus, BACnet) should implement it so the channel manager can
+// schedule background reconnects without blocking startup.
+type ReconnectScheduler interface {
+	ScheduleReconnect(ctx context.Context, timeout time.Duration)
+}
+
 // Factory function type for creating drivers
 type Factory func() Driver
 

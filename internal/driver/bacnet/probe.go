@@ -5,46 +5,31 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
-	"github.com/anviod/edgex/internal/driver/bacnet/datalink"
+	"github.com/anviod/bacnet/btypes"
+	"github.com/anviod/bacnet/datalink"
 
 	"go.uber.org/zap"
 )
 
-const defaultBACnetPort = 47808
+const defaultBACnetPort = discoveryListenPort
 
-// whoIsDiscoverDevice locates a BACnet device when its UDP port may have changed
-// after reboot. Who-Is is sent to the standard port first, then optional hints,
-// then broadcast.
+// commonProbePorts are tried (after the configured hint) when Who-Is misses a device.
+// Matches the reference driver_workflow / four_device_acceptance port-scan fallback.
+var commonProbePorts = []int{
+	47808, 47810, 47811, 47812, 47809,
+	58494, 64339, 54304, 61663, 50958,
+}
+
+// whoIsDiscoverDevice locates a BACnet device using broadcast Who-Is.
+// Broadcast is used exclusively (no unicast Destination) so the external library
+// preserves the I-Am source address, including ephemeral UDP ports.
 func (d *BACnetDriver) whoIsDiscoverDevice(client Client, deviceID int, ip string, portHint int) (btypes.Device, bool) {
 	if client == nil {
 		return btypes.Device{}, false
 	}
 
-	whoisBase := &WhoIsOpts{Low: deviceID, High: deviceID}
-
-	if ip != "" {
-		parsedIP := net.ParseIP(ip)
-		if parsedIP != nil {
-			ports := []int{defaultBACnetPort}
-			if portHint != 0 && portHint != defaultBACnetPort {
-				ports = append(ports, portHint)
-			}
-			for _, p := range ports {
-				whois := *whoisBase
-				whois.Destination = datalink.IPPortToAddress(parsedIP, p)
-				devices, err := client.WhoIs(&whois)
-				if dev, ok := matchWhoIsDevice(devices, err, deviceID); ok {
-					return dev, true
-				}
-			}
-		}
-	}
-
-	whois := *whoisBase
-	whois.Destination = nil
-	time.Sleep(500 * time.Millisecond)
-	devices, err := client.WhoIs(&whois)
+	whois := &WhoIsOpts{Low: deviceID, High: deviceID}
+	devices, err := client.WhoIs(whois)
 	if dev, ok := matchWhoIsDevice(devices, err, deviceID); ok {
 		return dev, true
 	}
@@ -87,10 +72,148 @@ func deviceIPFromAddr(dev btypes.Device, fallback string) string {
 	return fallback
 }
 
+func buildDirectDevice(deviceID int, ip string, port int) (btypes.Device, bool) {
+	if ip == "" || port <= 0 {
+		return btypes.Device{}, false
+	}
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return btypes.Device{}, false
+	}
+	addr := datalink.IPPortToAddress(parsedIP, port)
+	return btypes.Device{
+		Addr:     *addr,
+		ID:       btypes.ObjectID{Type: btypes.DeviceType, Instance: btypes.ObjectInstance(deviceID)},
+		DeviceID: deviceID,
+		Ip:       ip,
+		Port:     port,
+		MaxApdu:  btypes.MaxAPDU,
+	}, true
+}
+
+// verifyDeviceObjectName confirms a candidate address with ReadProperty(Object_Name).
+// This is the reference flow's unicast fallback when Who-Is misses non-standard ports.
+func verifyDeviceObjectName(client Client, deviceID int, ip string, port int, timeout time.Duration) (btypes.Device, bool) {
+	if client == nil {
+		return btypes.Device{}, false
+	}
+	dev, ok := buildDirectDevice(deviceID, ip, port)
+	if !ok {
+		return btypes.Device{}, false
+	}
+	if timeout <= 0 {
+		timeout = probeVerifyTimeout
+	}
+	pd := btypes.PropertyData{
+		Object: btypes.Object{
+			ID: btypes.ObjectID{
+				Type:     btypes.DeviceType,
+				Instance: btypes.ObjectInstance(deviceID),
+			},
+			Properties: []btypes.Property{{
+				Type:       btypes.PropObjectName,
+				ArrayIndex: btypes.ArrayAll,
+			}},
+		},
+	}
+	resp, err := client.ReadPropertyWithTimeout(dev, pd, timeout)
+	if err != nil || len(resp.Object.Properties) == 0 || resp.Object.Properties[0].Data == nil {
+		return btypes.Device{}, false
+	}
+	return dev, true
+}
+
+func portsToProbe(hint int) []int {
+	seen := make(map[int]struct{}, len(commonProbePorts)+1)
+	out := make([]int, 0, len(commonProbePorts)+1)
+	add := func(p int) {
+		if p <= 0 {
+			return
+		}
+		if _, ok := seen[p]; ok {
+			return
+		}
+		seen[p] = struct{}{}
+		out = append(out, p)
+	}
+	add(hint)
+	for _, p := range commonProbePorts {
+		add(p)
+	}
+	return out
+}
+
+// locateDeviceAddress resolves a device via Who-Is, then ReadProperty port-scan fallback.
+// Mirrors Phase 1 of the bacnet driver_workflow_test reference.
+func (d *BACnetDriver) locateDeviceAddress(client Client, deviceID int, ip string, portHint int) (btypes.Device, bool) {
+	if client == nil {
+		return btypes.Device{}, false
+	}
+
+	if found, ok := d.whoIsDiscoverDevice(client, deviceID, ip, portHint); ok {
+		resolvedIP := deviceIPFromAddr(found, ip)
+		resolvedPort := devicePortFromAddr(found)
+		// If IP is known, verify reachability via ReadProperty Object_Name.
+		// 若 IP 已知，通过 ReadProperty Object_Name 验证可达性。
+		if resolvedIP != "" {
+			if verified, vok := verifyDeviceObjectName(client, deviceID, resolvedIP, resolvedPort, probeVerifyTimeout); vok {
+				return verified, true
+			}
+		}
+		// Who-Is returned a device; keep it even if Object_Name probe failed
+		// (some devices omit that property under certain conditions).
+		// Who-Is 已返回设备；即使 Object_Name 探测失败仍保留结果
+		//（某些设备在特定条件下不返回该属性）。
+		return found, true
+	}
+
+	if ip == "" {
+		return btypes.Device{}, false
+	}
+
+	for _, port := range portsToProbe(portHint) {
+		if verified, ok := verifyDeviceObjectName(client, deviceID, ip, port, probeVerifyTimeout); ok {
+			zap.L().Info("BACnet device located via ReadProperty port scan",
+				zap.Int("device_id", deviceID),
+				zap.String("ip", ip),
+				zap.Int("port", port))
+			return verified, true
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	return btypes.Device{}, false
+}
+
 // applyDiscoveredDeviceLocked updates runtime device context; caller must hold d.mu.
-func (d *BACnetDriver) applyDiscoveredDeviceLocked(deviceID int, configuredIP string, configuredPort int, found btypes.Device) {
+// IMPORTANT: This function must NOT call any method that acquires cm.mu (e.g. notifyAddressChange)
+// to avoid deadlocks when called from SetDeviceConfig while cm.mu is held by AddDevice.
+// applyDiscoveredDeviceLocked 更新运行时设备上下文；调用者必须持有 d.mu。
+// 重要：此函数不能调用任何会获取 cm.mu 的方法（如 notifyAddressChange），
+// 以避免在 AddDevice 持有 cm.mu 时从 SetDeviceConfig 调用导致死锁。
+func (d *BACnetDriver) applyDiscoveredDeviceLocked(deviceID int, configuredIP string, configuredPort int, found btypes.Device) string {
 	resolvedIP := deviceIPFromAddr(found, configuredIP)
 	resolvedPort := devicePortFromAddr(found)
+
+	// Discovered port takes priority over configured port.
+	// Yabe simulators respond to I-Am with their actual listening port
+	// which differs from the BACnet default 47808.
+	if resolvedPort == 0 && configuredPort != 0 {
+		zap.L().Info("No port discovered, using configured port as fallback",
+			zap.Int("device_id", deviceID),
+			zap.Int("configured_port", configuredPort))
+		resolvedPort = configuredPort
+		if len(found.Addr.Mac) >= 6 {
+			found.Addr.Mac[4] = byte(configuredPort >> 8)
+			found.Addr.Mac[5] = byte(configuredPort & 0xFF)
+		}
+		found.Port = configuredPort
+	} else if configuredPort != 0 && configuredPort != resolvedPort {
+		zap.L().Info("Using discovered port instead of configured port",
+			zap.Int("device_id", deviceID),
+			zap.Int("discovered_port", resolvedPort),
+			zap.Int("configured_port", configuredPort))
+	}
 
 	devCtx, exists := d.deviceContexts[deviceID]
 	if !exists {
@@ -127,13 +250,21 @@ func (d *BACnetDriver) applyDiscoveredDeviceLocked(deviceID int, configuredIP st
 		)
 	}
 
-	d.notifyAddressChange(deviceKey, resolvedIP, resolvedPort)
+	return deviceKey
 }
 
 func (d *BACnetDriver) applyDiscoveredDevice(deviceID int, configuredIP string, configuredPort int, found btypes.Device) {
 	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.applyDiscoveredDeviceLocked(deviceID, configuredIP, configuredPort, found)
+	deviceKey := d.applyDiscoveredDeviceLocked(deviceID, configuredIP, configuredPort, found)
+	resolvedIP := deviceIPFromAddr(found, configuredIP)
+	resolvedPort := devicePortFromAddr(found)
+	if resolvedPort == 0 && configuredPort != 0 {
+		resolvedPort = configuredPort
+	}
+	d.mu.Unlock()
+	// Notify after releasing d.mu to avoid deadlock with cm.mu (see applyDiscoveredDeviceLocked comment)
+	// 锁释放后才通知，避免与 cm.mu 死锁
+	d.notifyAddressChange(deviceKey, resolvedIP, resolvedPort)
 }
 
 func (d *BACnetDriver) deviceKeyForInstance(deviceID int) string {

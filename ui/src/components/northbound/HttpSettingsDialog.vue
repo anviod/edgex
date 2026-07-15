@@ -7,12 +7,14 @@
     unmount-on-close
     :footer="true"
     :mask-closable="false"
-    :ok-loading="loading"
-    @ok="saveSettings"
   >
     <div class="nb-mode-banner nb-mode-banner--push">
       <span class="nb-mode-banner__tag">主动上报</span>
-      <span>网关通过 HTTP POST/PUT 定时推送采集数据到 REST 接口</span>
+      <span>
+        网关通过 HTTP POST/PUT 定时推送采集数据到 REST 接口。
+        配置项与 Payload 见
+        <a href="/docs/API/Northbound_Configuration_CN.html" target="_blank" class="nb-help-link">北向配置 API</a>。
+      </span>
     </div>
 
     <a-tabs v-model:active-key="activeTab" type="rounded" size="small">
@@ -87,54 +89,26 @@
         </a-form>
       </a-tab-pane>
 
-      <a-tab-pane key="device-strategy">
-        <template #title>上报策略</template>
-        <div class="table-header table-header--strategy">
-          <span class="table-header__hint">启用设备默认周期上报 10s</span>
-          <div class="table-header__actions">
-            <a-input
-              v-model="batchInterval"
-              size="small"
-              placeholder="10s"
-              class="mono-text batch-interval-input"
-              @press-enter="batchSetInterval"
-            />
-            <a-button type="outline" size="small" @click="batchSetInterval">批量设置周期</a-button>
-            <a-button type="outline" size="small" @click="autoFillDevices">全部启用 (10s)</a-button>
-          </div>
-        </div>
-        <div class="table-container saas-table nb-device-table">
-          <a-table :columns="deviceColumns" :data="deviceTableData" size="small" :bordered="false" :pagination="false" class="industrial-table-inline">
-            <template #empty>
-              <a-empty description="暂无南向设备，请先在通道管理中创建设备" />
-            </template>
-            <template #state="{ record }">
-              <a-tag v-if="record.state === 0" color="green" size="small">在线</a-tag>
-              <a-tag v-else-if="record.state === 1" color="orangered" size="small">不稳定</a-tag>
-              <a-tag v-else color="red" size="small">离线</a-tag>
-            </template>
-            <template #enable="{ record }">
-              <a-switch v-model="record._enable" size="small" @change="updateDeviceEnable(record)" />
-            </template>
-            <template #strategy="{ record }">
-              <a-select v-model="record._strategy" size="small" :disabled="!record._enable" @change="updateDeviceStrategy(record)" class="mono-text strategy-select">
-                <a-option value="periodic">周期上报</a-option>
-                <a-option value="change">变化上报</a-option>
-              </a-select>
-            </template>
-            <template #interval="{ record }">
-              <a-input
-                v-if="record._strategy === 'periodic'"
-                v-model="record._interval"
-                size="small"
-                :disabled="!record._enable"
-                placeholder="10s"
-                class="mono-text strategy-interval-input"
-                @change="updateDeviceInterval(record)"
-              />
-            </template>
-          </a-table>
-        </div>
+      <a-tab-pane key="real-devices">
+        <template #title>上报真实设备</template>
+        <NorthboundReportStrategyPanel
+          device-kind="real"
+          :visible="visible"
+          :all-devices="allDevices"
+          v-model:devices="form.devices"
+          v-model:virtual-devices="form.virtual_devices"
+        />
+      </a-tab-pane>
+
+      <a-tab-pane key="virtual-devices">
+        <template #title>上报虚拟设备</template>
+        <NorthboundReportStrategyPanel
+          device-kind="virtual"
+          :visible="visible"
+          :all-devices="allDevices"
+          v-model:devices="form.devices"
+          v-model:virtual-devices="form.virtual_devices"
+        />
       </a-tab-pane>
     </a-tabs>
 
@@ -149,13 +123,22 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { showMessage } from '@/composables/useGlobalState'
 import request from '@/utils/request'
+import {
+  closeNorthboundSettingsDialog,
+  northboundSaveRequestConfig,
+  notifyNorthboundSaveError,
+  notifyNorthboundSaveSuccess,
+  notifyNorthboundValidationError,
+  validateNorthboundChannelName
+} from '@/utils/northboundSave'
+import NorthboundReportStrategyPanel from '@/components/northbound/NorthboundReportStrategyPanel.vue'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
   config: { type: Object, default: null },
-  allDevices: { type: Array, default: () => [] }
+  allDevices: { type: Array, default: () => [] },
+  northboundConfig: { type: Object, default: () => ({}) }
 })
 
 const emit = defineEmits(['update:visible', 'saved'])
@@ -167,23 +150,12 @@ const visible = computed({
 const loading = ref(false)
 const form = ref({})
 const activeTab = ref('basic')
-const deviceTableData = ref([])
-const batchInterval = ref('10s')
-
-const DEFAULT_INTERVAL = '10s'
-
-const deviceColumns = [
-  { title: '设备', dataIndex: 'name', width: 180, ellipsis: true, tooltip: true },
-  { title: '通道', dataIndex: 'channelName', width: 120 },
-  { title: '状态', slotName: 'state', width: 80, align: 'center' },
-  { title: '启用', slotName: 'enable', width: 70, align: 'center' },
-  { title: '策略', slotName: 'strategy', width: 130 },
-  { title: '上报周期', slotName: 'interval', width: 100 }
-]
+const isNewMode = ref(false)
 
 watch(() => props.visible, (val) => {
   if (val) {
     activeTab.value = 'basic'
+    isNewMode.value = !props.config
     if (props.config) {
       form.value = JSON.parse(JSON.stringify(props.config))
     } else {
@@ -203,131 +175,50 @@ watch(() => props.visible, (val) => {
         data_endpoint: '/api/data',
         device_event_endpoint: '/api/events',
         cache: { enable: true, max_count: 1000, flush_interval: '1m' },
-        devices: {}
+        devices: {},
+        virtual_devices: {}
       }
     }
     if (!form.value.cache) form.value.cache = { enable: true, max_count: 1000, flush_interval: '1m' }
     if (!form.value.devices) form.value.devices = {}
-    batchInterval.value = DEFAULT_INTERVAL
-    buildDeviceTable()
+    if (!form.value.virtual_devices) form.value.virtual_devices = {}
   }
 })
 
-const buildDeviceTable = () => {
-  deviceTableData.value = props.allDevices.map(dev => {
-    const current = form.value.devices[dev.id]
-    let _enable = false, _strategy = 'periodic', _interval = DEFAULT_INTERVAL
-    if (current === undefined || current === null) {
-      _enable = false
-    } else if (typeof current === 'boolean') {
-      _enable = current
-      if (_enable) {
-        _strategy = 'periodic'
-        _interval = DEFAULT_INTERVAL
-      }
-    } else if (typeof current === 'object') {
-      _enable = !!current.enable
-      _strategy = current.strategy || 'periodic'
-      _interval = current.interval || DEFAULT_INTERVAL
-    }
-    return { ...dev, _enable, _strategy, _interval }
-  })
-}
-
-const syncRecordToForm = (record) => {
-  form.value.devices[record.id] = {
-    enable: record._enable,
-    strategy: record._strategy,
-    interval: record._interval || DEFAULT_INTERVAL
-  }
-}
-
-const updateDeviceEnable = (record) => {
-  if (record._enable) {
-    record._strategy = 'periodic'
-    record._interval = record._interval || DEFAULT_INTERVAL
-  }
-  if (!form.value.devices[record.id] || typeof form.value.devices[record.id] === 'boolean') {
-    syncRecordToForm(record)
-  } else {
-    form.value.devices[record.id].enable = record._enable
-    if (record._enable) {
-      form.value.devices[record.id].strategy = 'periodic'
-      form.value.devices[record.id].interval = record._interval
-    }
-  }
-}
-
-const updateDeviceStrategy = (record) => {
-  if (record._strategy === 'periodic' && !record._interval) {
-    record._interval = DEFAULT_INTERVAL
-  }
-  if (!form.value.devices[record.id] || typeof form.value.devices[record.id] === 'boolean') {
-    syncRecordToForm(record)
-  } else {
-    form.value.devices[record.id].strategy = record._strategy
-    if (record._strategy === 'periodic') {
-      form.value.devices[record.id].interval = record._interval
-    }
-  }
-}
-
-const updateDeviceInterval = (record) => {
-  record._interval = record._interval || DEFAULT_INTERVAL
-  if (!form.value.devices[record.id] || typeof form.value.devices[record.id] === 'boolean') {
-    syncRecordToForm(record)
-  } else {
-    form.value.devices[record.id].interval = record._interval
-  }
-}
-
-const batchSetInterval = () => {
-  const interval = (batchInterval.value || DEFAULT_INTERVAL).trim()
-  if (!interval) {
-    showMessage('请输入上报周期', 'warning')
-    return
-  }
-  let count = 0
-  deviceTableData.value.forEach(record => {
-    if (!record._enable) return
-    record._strategy = 'periodic'
-    record._interval = interval
-    syncRecordToForm(record)
-    count++
-  })
-  if (count === 0) {
-    showMessage('请先启用至少一个设备', 'warning')
-    return
-  }
-  showMessage(`已为 ${count} 个设备设置周期 ${interval}`, 'success')
-}
-
-const autoFillDevices = () => {
-  deviceTableData.value.forEach(record => {
-    record._enable = true
-    record._strategy = 'periodic'
-    record._interval = DEFAULT_INTERVAL
-    syncRecordToForm(record)
-  })
-  showMessage('已启用全部设备，周期 10s', 'success')
+const buildPayload = () => {
+  const payload = JSON.parse(JSON.stringify(form.value))
+  if (!payload.headers || typeof payload.headers !== 'object') payload.headers = {}
+  if (!payload.devices) payload.devices = {}
+  if (!payload.virtual_devices) payload.virtual_devices = {}
+  if (!payload.cache) payload.cache = { enable: true, max_count: 1000, flush_interval: '1m' }
+  return payload
 }
 
 const saveSettings = async () => {
+  const missing = []
+  if (!form.value.name?.trim()) missing.push('通道名称')
+  if (!form.value.url?.trim()) missing.push('服务器地址')
+  if (missing.length) {
+    notifyNorthboundValidationError('请填写必填项：' + missing.join('、'))
+    activeTab.value = 'basic'
+    return
+  }
+
+  const nameError = validateNorthboundChannelName(form.value.name, form.value.id, props.northboundConfig)
+  if (nameError) {
+    notifyNorthboundValidationError(nameError)
+    activeTab.value = 'basic'
+    return
+  }
+
   loading.value = true
   try {
-    const payload = JSON.parse(JSON.stringify(form.value))
-    if (payload.devices && typeof payload.devices === 'object') {
-      for (const k of Object.keys(payload.devices)) {
-        const v = payload.devices[k]
-        payload.devices[k] = (v && typeof v === 'object') ? !!v.enable : !!v
-      }
-    }
-    await request.post('/api/northbound/http', payload)
-    showMessage('HTTP 配置已保存', 'success')
-    visible.value = false
+    await request.post('/api/northbound/http', buildPayload(), northboundSaveRequestConfig)
+    notifyNorthboundSaveSuccess('HTTP 推送', isNewMode.value)
+    closeNorthboundSettingsDialog(emit)
     emit('saved')
   } catch (e) {
-    showMessage('保存失败: ' + e.message, 'error')
+    notifyNorthboundSaveError(e, 'HTTP 推送')
   } finally {
     loading.value = false
   }

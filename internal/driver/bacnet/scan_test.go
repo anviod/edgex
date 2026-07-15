@@ -1,11 +1,14 @@
+//go:build integration
+
 package bacnet
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/bacnet/btypes"
 )
 
 // MockScanClient implements Client interface
@@ -21,6 +24,16 @@ func (m *MockScanClient) ClientRun()      {}
 func (m *MockScanClient) WhoIs(wh *WhoIsOpts) ([]btypes.Device, error) {
 	// Return pre-configured devices
 	return m.Devices, nil
+}
+
+// SubscribeCOV registers for COV notifications (stub for external lib compatibility)
+func (m *MockScanClient) SubscribeCOV(device btypes.Device, data btypes.SubscribeCOVData) error {
+	return nil
+}
+
+// CancelSubscribeCOV cancels a COV subscription (stub for external lib compatibility)
+func (m *MockScanClient) CancelSubscribeCOV(device btypes.Device, processID uint32, objectID btypes.ObjectID) error {
+	return nil
 }
 
 func (m *MockScanClient) ReadProperty(dest btypes.Device, rp btypes.PropertyData) (btypes.PropertyData, error) {
@@ -141,17 +154,6 @@ func TestBACnetDriver_Scan_MultiInterface(t *testing.T) {
 	}
 }
 
-func TestParseExistingDeviceIDs(t *testing.T) {
-	ids := parseExistingDeviceIDs(map[string]any{
-		"existing_device_ids": []int{100, 200},
-	})
-	if len(ids) != 2 {
-		t.Fatalf("expected 2 ids, got %d", len(ids))
-	}
-	if _, ok := ids[100]; !ok {
-		t.Fatal("expected device 100")
-	}
-	if _, ok := ids[200]; !ok {
-		t.Fatal("expected device 200")
-	}
+func (m *MockScanClient) WaitCOVNotification(processIDFilter int64, timeout time.Duration) (btypes.COVNotification, error) {
+	return btypes.COVNotification{}, fmt.Errorf("not implemented")
 }

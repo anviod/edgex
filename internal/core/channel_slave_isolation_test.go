@@ -19,10 +19,10 @@ type blockingSlaveMock struct {
 	blockDuration time.Duration
 }
 
-func (m *blockingSlaveMock) Init(_ model.DriverConfig) error { return nil }
-func (m *blockingSlaveMock) Connect(_ context.Context) error   { return nil }
-func (m *blockingSlaveMock) Disconnect() error                 { return nil }
-func (m *blockingSlaveMock) Health() drv.HealthStatus          { return drv.HealthStatusGood }
+func (m *blockingSlaveMock) Init(_ model.DriverConfig) error        { return nil }
+func (m *blockingSlaveMock) Connect(_ context.Context) error        { return nil }
+func (m *blockingSlaveMock) Disconnect() error                      { return nil }
+func (m *blockingSlaveMock) Health() drv.HealthStatus               { return drv.HealthStatusGood }
 func (m *blockingSlaveMock) SetDeviceConfig(_ map[string]any) error { return nil }
 func (m *blockingSlaveMock) WritePoint(_ context.Context, _ model.Point, _ any) error {
 	return nil

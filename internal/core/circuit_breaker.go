@@ -12,6 +12,8 @@ const (
 	circuitBreakerFailureRateWindow           = 60 * time.Second
 	circuitBreakerFailureRateThreshold        = 0.40
 	circuitBreakerMinFailureRateSamples       = 10
+	// Pre-cap outcome history to avoid slice realloc during soak windows.
+	circuitBreakerOutcomeCap = 128
 )
 
 type CircuitState int
@@ -62,10 +64,10 @@ type DriverCircuitBreaker struct {
 type CircuitBreakerEventHandler func(deviceKey, eventType, message string)
 
 type circuitBreakerEvent struct {
-	fn              CircuitBreakerEventHandler
-	deviceKey       string
-	eventType       string
-	message         string
+	fn        CircuitBreakerEventHandler
+	deviceKey string
+	eventType string
+	message   string
 }
 
 func (e circuitBreakerEvent) emit() {
@@ -92,7 +94,10 @@ func (cb *DriverCircuitBreaker) SetEventHandler(fn CircuitBreakerEventHandler) {
 func (cb *DriverCircuitBreaker) entry(key string) *circuitEntry {
 	e, ok := cb.entries[key]
 	if !ok {
-		e = &circuitEntry{state: CircuitClosed}
+		e = &circuitEntry{
+			state:    CircuitClosed,
+			outcomes: make([]circuitOutcome, 0, circuitBreakerOutcomeCap),
+		}
 		cb.entries[key] = e
 	}
 	return e

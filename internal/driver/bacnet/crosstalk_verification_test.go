@@ -1,3 +1,5 @@
+//go:build integration
+
 package bacnet
 
 import (
@@ -6,103 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/edgex/internal/model"
 )
-
-// SmartMockClient implements Client interface for multi-device testing
-type SmartMockClient struct {
-	Devices map[int]btypes.Device  // InstanceID -> Device Info
-	Values  map[string]interface{} // "InstanceID:ObjectType:ObjectInstance" -> Value
-}
-
-func (m *SmartMockClient) Close() error    { return nil }
-func (m *SmartMockClient) IsRunning() bool { return true }
-func (m *SmartMockClient) ClientRun()      {}
-
-func (m *SmartMockClient) WhoIs(wh *WhoIsOpts) ([]btypes.Device, error) {
-	var found []btypes.Device
-	// Simulate discovery based on Low/High limits
-	low := -1
-	high := -1
-	if wh != nil {
-		low = int(wh.Low)
-		high = int(wh.High)
-	}
-
-	for id, dev := range m.Devices {
-		if (low == -1 && high == -1) || (id >= low && id <= high) {
-			found = append(found, dev)
-		}
-	}
-	return found, nil
-}
-
-func (m *SmartMockClient) WhatIsNetworkNumber() []*btypes.Address         { return nil }
-func (m *SmartMockClient) IAm(dest btypes.Address, iam btypes.IAm) error  { return nil }
-func (m *SmartMockClient) WhoIsRouterToNetwork() (resp *[]btypes.Address) { return nil }
-func (m *SmartMockClient) Objects(dev btypes.Device) (btypes.Device, error) {
-	return dev, nil
-}
-
-func (m *SmartMockClient) ReadProperty(dest btypes.Device, rp btypes.PropertyData) (btypes.PropertyData, error) {
-	// Not used by ReadPoints (which uses ReadMultiProperty), but implemented just in case fallback occurs
-	key := fmt.Sprintf("%d:%d:%d", dest.DeviceID, rp.Object.ID.Type, rp.Object.ID.Instance)
-	if val, ok := m.Values[key]; ok {
-		rp.Object.Properties[0].Data = val
-		return rp, nil
-	}
-	return rp, fmt.Errorf("property not found: %s", key)
-}
-
-func (m *SmartMockClient) ReadMultiProperty(dev btypes.Device, rp btypes.MultiplePropertyData) (btypes.MultiplePropertyData, error) {
-	// Construct response based on requested objects
-	resp := btypes.MultiplePropertyData{
-		ErrorClass: 0,
-		ErrorCode:  0,
-	}
-
-	for _, obj := range rp.Objects {
-		respObj := btypes.Object{
-			ID: obj.ID,
-		}
-
-		// Look up value
-		key := fmt.Sprintf("%d:%d:%d", dev.DeviceID, obj.ID.Type, obj.ID.Instance)
-
-		if val, ok := m.Values[key]; ok {
-			// Success
-			respObj.Properties = []btypes.Property{
-				{
-					Type:       btypes.PropPresentValue, // Assuming we are reading PresentValue
-					ArrayIndex: 0,                       // Not used usually
-					Data:       val,
-				},
-			}
-		} else {
-			// Error for this object (simulate Property Error)
-			// In real BACnet, this might set an error code per property, but for now we just return empty or error
-			return resp, fmt.Errorf("mock value not found for key: %s", key)
-		}
-		resp.Objects = append(resp.Objects, respObj)
-	}
-	return resp, nil
-}
-
-func (m *SmartMockClient) WriteProperty(dest btypes.Device, wp btypes.PropertyData) error {
-	return nil
-}
-func (m *SmartMockClient) WriteMultiProperty(dev btypes.Device, wp btypes.MultiplePropertyData) error {
-	return nil
-}
-
-func (m *SmartMockClient) ReadPropertyWithTimeout(dest btypes.Device, rp btypes.PropertyData, timeout time.Duration) (btypes.PropertyData, error) {
-	return m.ReadProperty(dest, rp)
-}
-
-func (m *SmartMockClient) ReadMultiPropertyWithTimeout(dev btypes.Device, rp btypes.MultiplePropertyData, timeout time.Duration) (btypes.MultiplePropertyData, error) {
-	return m.ReadMultiProperty(dev, rp)
-}
 
 // TestCrosstalkVerification verifies that points are read from the correct devices
 // and that crosstalk (reading Device A's data for Device B) is prevented.

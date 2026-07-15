@@ -45,3 +45,72 @@ export function buildNorthboundDeviceRows(allDevices, deviceConfig, defaultInter
     return { ...dev, _enable, _strategy, _interval }
   })
 }
+
+/** 根据 OPC UA 配置中的 virtual_devices 映射，构建虚拟设备暴露表格行 */
+export function buildNorthboundVirtualDeviceRows(allVirtualDevices, deviceConfig) {
+  const allowAll = !deviceConfig || Object.keys(deviceConfig).length === 0
+  return (allVirtualDevices || []).map((dev) => {
+    const current = deviceConfig?.[dev.id]
+    let _enable = allowAll
+    if (current === undefined || current === null) {
+      _enable = allowAll
+    } else if (typeof current === 'boolean') {
+      _enable = current
+    } else if (typeof current === 'object') {
+      _enable = !!current.enable
+    }
+    return {
+      ...dev,
+      pointCount: dev.points?.length || 0,
+      _enable
+    }
+  })
+}
+
+/** 根据北向配置中的 virtual_devices 映射，构建虚拟设备上报策略表格行 */
+export function buildNorthboundVirtualDeviceStrategyRows(allVirtualDevices, deviceConfig, defaultInterval = '10s') {
+  return (allVirtualDevices || []).map((dev) => {
+    const current = deviceConfig?.[dev.id]
+    let _enable = false
+    let _strategy = 'periodic'
+    let _interval = defaultInterval
+
+    if (current === undefined || current === null) {
+      _enable = false
+    } else if (typeof current === 'boolean') {
+      _enable = current
+      if (_enable) {
+        _strategy = 'periodic'
+        _interval = defaultInterval
+      }
+    } else if (typeof current === 'object') {
+      _enable = !!current.enable
+      _strategy = current.strategy || 'periodic'
+      _interval = current.interval || defaultInterval
+    }
+
+    return {
+      ...dev,
+      pointCount: dev.points?.length || 0,
+      _enable,
+      _strategy,
+      _interval
+    }
+  })
+}
+
+/** 将虚拟设备表格行同步回 OPC UA 配置的 virtual_devices 字段（稀疏存储） */
+export function syncNorthboundVirtualDevicesFromRows(rows) {
+  if (!rows?.length) {
+    return {}
+  }
+  const devices = {}
+  let hasExplicitDisable = false
+  for (const record of rows) {
+    if (!record._enable) {
+      hasExplicitDisable = true
+      devices[record.id] = { enable: false }
+    }
+  }
+  return hasExplicitDisable ? devices : {}
+}

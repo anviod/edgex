@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/anviod/edgex/internal/driver/bacnet"
+	_ "github.com/anviod/bacnet"
 	"github.com/anviod/edgex/internal/model"
 	"github.com/stretchr/testify/require"
 )
@@ -30,7 +30,7 @@ func TestBACnet_AddDeviceFromScanPayload(t *testing.T) {
 		"enable": true,
 		"config": {
 			"device_id": 2228316,
-			"bacnetDeviceInstance": 2228316,
+			"bacnet_device_id": 2228316,
 			"ip": "192.168.3.106",
 			"port": 54103,
 			"vendor_name": "Test Vendor",

@@ -13,20 +13,20 @@ import (
 )
 
 const (
-	udpBroadcastPort = 4002
-	udpBroadcastAddr = "255.255.255.255:4002"
+	udpBroadcastPort  = 4002
+	udpBroadcastAddr  = "255.255.255.255:4002"
 	broadcastInterval = 5 * time.Second
 )
 
 type UDPDiscovery struct {
-	conn       *net.UDPConn
-	localAddr  string
-	peers      map[string]*PeerInfo
-	ctx        context.Context
-	cancel     context.CancelFunc
-	mu         sync.RWMutex
-	gossip     *GossipManager
-	enabled    bool
+	conn      *net.UDPConn
+	localAddr string
+	peers     map[string]*PeerInfo
+	ctx       context.Context
+	cancel    context.CancelFunc
+	mu        sync.RWMutex
+	gossip    *GossipManager
+	enabled   bool
 }
 
 func NewUDPDiscovery(gossip *GossipManager) (*UDPDiscovery, error) {

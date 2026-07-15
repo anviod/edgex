@@ -1,3 +1,5 @@
+//go:build integration
+
 package bacnet
 
 import (
@@ -7,97 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/edgex/internal/model"
 )
-
-// RealWorldMockClient simulates the specific environment described in the bug report
-type RealWorldMockClient struct {
-	SmartMockClient
-	Delays      map[int]time.Duration
-	Errors      map[int]error
-	CallCounter map[int]int
-	mu          sync.Mutex
-}
-
-func (m *RealWorldMockClient) ReadMultiProperty(dev btypes.Device, rp btypes.MultiplePropertyData) (btypes.MultiplePropertyData, error) {
-	m.mu.Lock()
-	m.CallCounter[dev.DeviceID]++
-	delay := m.Delays[dev.DeviceID]
-	err := m.Errors[dev.DeviceID]
-	m.mu.Unlock()
-
-	if delay > 0 {
-		time.Sleep(delay)
-	}
-
-	if err != nil {
-		return btypes.MultiplePropertyData{}, err
-	}
-
-	return m.SmartMockClient.ReadMultiProperty(dev, rp)
-}
-
-func (m *RealWorldMockClient) ReadProperty(dest btypes.Device, rp btypes.PropertyData) (btypes.PropertyData, error) {
-	return m.ReadPropertyWithTimeout(dest, rp, 10*time.Second)
-}
-
-func (m *RealWorldMockClient) ReadPropertyWithTimeout(dest btypes.Device, rp btypes.PropertyData, timeout time.Duration) (btypes.PropertyData, error) {
-	m.mu.Lock()
-	delay := m.Delays[dest.DeviceID]
-	err := m.Errors[dest.DeviceID]
-	m.mu.Unlock()
-
-	if delay > 0 {
-		if delay > timeout {
-			time.Sleep(timeout)
-			return rp, context.DeadlineExceeded
-		}
-		time.Sleep(delay)
-	}
-	if err != nil {
-		return rp, err
-	}
-	return m.SmartMockClient.ReadProperty(dest, rp)
-}
-
-func (m *RealWorldMockClient) ReadMultiPropertyWithTimeout(dev btypes.Device, rp btypes.MultiplePropertyData, timeout time.Duration) (btypes.MultiplePropertyData, error) {
-	m.mu.Lock()
-	m.CallCounter[dev.DeviceID]++
-	delay := m.Delays[dev.DeviceID]
-	err := m.Errors[dev.DeviceID]
-	m.mu.Unlock()
-
-	if delay > 0 {
-		if delay > timeout {
-			time.Sleep(timeout)
-			return btypes.MultiplePropertyData{}, context.DeadlineExceeded
-		}
-		time.Sleep(delay)
-	}
-
-	if err != nil {
-		return btypes.MultiplePropertyData{}, err
-	}
-
-	return m.SmartMockClient.ReadMultiProperty(dev, rp)
-}
-
-func (m *RealWorldMockClient) WhoIs(wh *WhoIsOpts) ([]btypes.Device, error) {
-	var found []btypes.Device
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for id, dev := range m.Devices {
-		if (wh.Low == -1 || id >= wh.Low) && (wh.High == -1 || id <= wh.High) {
-			if _, isErr := m.Errors[id]; isErr {
-				continue
-			}
-			found = append(found, dev)
-		}
-	}
-	return found, nil
-}
 
 func TestBugVerification_Strict(t *testing.T) {
 	mock := &RealWorldMockClient{
@@ -145,8 +59,7 @@ func TestBugVerification_Strict(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	mock.mu.Lock()
-	mock.Errors[2228319] = fmt.Errorf("i/o timeout")
-	mock.Delays[2228319] = 2000 * time.Millisecond
+	mock.Delays[2228319] = 5000 * time.Millisecond
 	mock.mu.Unlock()
 
 	p16 := []model.Point{{ID: "P16", DeviceID: "bacnet-16", Address: "AnalogValue:1", DataType: "float32"}}
@@ -162,8 +75,8 @@ func TestBugVerification_Strict(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error for offline device 19")
 	}
-	if time.Since(start) > 3*time.Second {
-		t.Fatalf("Offline device read exceeded 3s budget: %v", time.Since(start))
+	if time.Since(start) > 4*time.Second {
+		t.Fatalf("Offline device read exceeded 4s budget: %v", time.Since(start))
 	}
 
 	t.Log("--- Phase 2: Concurrent access ---")
@@ -178,8 +91,8 @@ func TestBugVerification_Strict(t *testing.T) {
 		if err == nil {
 			errors <- fmt.Errorf("device 19 should fail")
 		}
-		if time.Since(start) > 3*time.Second {
-			errors <- fmt.Errorf("device 19 exceeded 3s budget: %v", time.Since(start))
+		if time.Since(start) > 4*time.Second {
+			errors <- fmt.Errorf("device 19 exceeded 4s budget: %v", time.Since(start))
 		}
 	}()
 

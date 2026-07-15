@@ -91,6 +91,8 @@ type ClientWrapper struct {
 	collectFailCount atomic.Int32
 	maxFailCount     int32
 	collectCycle     time.Duration
+
+	onReconnectNeeded func()
 }
 
 func NewOpcUaDriver() driver.Driver {
@@ -183,19 +185,18 @@ func (d *OpcUaDriver) SetDeviceConfig(config map[string]any) error {
 		// Check connection state
 		if wrapper.Client.State() == opcua.Closed {
 			wrapper.Connected = false
-			// Try reconnect
-			go d.reconnect(wrapper)
+			d.scheduleReconnect(wrapper)
 		}
 		return nil
 	}
 
 	wrapper := &ClientWrapper{
-		Endpoint:         endpoint,
-		Config:           config,
-		Subscriptions:    make(map[string]*DeviceSubscription),
-		connMgr:          driver.NewConnectionManager("opcua"),
-		maxFailCount:     5,
-		collectCycle:     10 * time.Second,
+		Endpoint:      endpoint,
+		Config:        config,
+		Subscriptions: make(map[string]*DeviceSubscription),
+		connMgr:       driver.NewConnectionManager("opcua"),
+		maxFailCount:  5,
+		collectCycle:  10 * time.Second,
 	}
 	wrapper.lastActivityTime.Store(time.Time{})
 
@@ -229,6 +230,8 @@ func (d *OpcUaDriver) SetDeviceConfig(config map[string]any) error {
 		wrapper.Connected = true
 		wrapper.connMgr.RecordSuccess()
 	}
+
+	wrapper.onReconnectNeeded = func() { d.scheduleReconnect(wrapper) }
 
 	d.clients[endpoint] = wrapper
 	d.activeClient = wrapper
@@ -534,50 +537,36 @@ func (d *OpcUaDriver) Scan(ctx context.Context, params map[string]any) (any, err
 	return []map[string]any{device}, nil
 }
 
-func (d *OpcUaDriver) reconnect(w *ClientWrapper) {
-	d.mu.Lock()
-	if w.Connected {
-		d.mu.Unlock()
-		return
+func (d *OpcUaDriver) scheduleReconnect(w *ClientWrapper) {
+	const connectTimeout = 10 * time.Second
+	const maxRetries = 64
+	timeout := connectTimeout * time.Duration(maxRetries)
+	if timeout <= 0 {
+		timeout = 30 * time.Second
 	}
-	w.connMgr.SetState(StateRetrying)
-	d.mu.Unlock()
 
-	zap.L().Info("[OPC UA] Reconnecting", zap.String("endpoint", w.Endpoint))
+	w.connMgr.ScheduleReconnect(context.Background(), timeout, func(ctx context.Context) error {
+		d.mu.Lock()
+		defer d.mu.Unlock()
 
-	for {
-		canRetry, waitTime := w.connMgr.CanRetry()
-		if !canRetry {
-			zap.L().Error("[OPC UA] Reconnection not allowed")
-			return
+		if w.Connected {
+			return nil
+		}
+		if w.Client == nil {
+			return fmt.Errorf("opcua client not initialized")
 		}
 
-		if waitTime > 0 {
-			time.Sleep(waitTime)
+		zap.L().Info("[OPC UA] Reconnecting", zap.String("endpoint", w.Endpoint))
+
+		if err := w.Client.Connect(ctx); err != nil {
+			return err
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		err := w.Client.Connect(ctx)
-		cancel()
-
-		if err == nil {
-			d.mu.Lock()
-			w.Connected = true
-			w.connMgr.RecordSuccess()
-			d.recordReconnect()
-			d.mu.Unlock()
-			zap.L().Info("[OPC UA] Reconnected", zap.String("endpoint", w.Endpoint))
-			return
-		}
-
-		shouldRetry, _ := w.connMgr.RecordFailure()
-		if !shouldRetry {
-			zap.L().Error("[OPC UA] Reconnection failed, entering coolDown", zap.Error(err))
-			return
-		}
-
-		zap.L().Warn("[OPC UA] Reconnection failed, will retry", zap.Error(err))
-	}
+		w.Connected = true
+		d.recordReconnect()
+		zap.L().Info("[OPC UA] Reconnected", zap.String("endpoint", w.Endpoint))
+		return nil
+	})
 }
 
 func (d *OpcUaDriver) buildClientOptions(config map[string]any) ([]opcua.Option, error) {
@@ -645,25 +634,27 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 		return nil, fmt.Errorf("no active client")
 	}
 	if !client.Connected {
-		canRetry, waitTime := client.connMgr.CanRetry()
-		if !canRetry {
-			d.recordReadOutcome(startTime, false, "network")
-			return nil, fmt.Errorf("client not connected, cannot retry")
-		}
-		if waitTime > 0 {
-			time.Sleep(waitTime)
-		}
+		err := client.connMgr.EnsureConnected(ctx, func(ctx context.Context) error {
+			d.mu.Lock()
+			defer d.mu.Unlock()
 
-		if err := client.Client.Connect(ctx); err != nil {
-			client.connMgr.RecordFailure()
+			if client.Connected {
+				return nil
+			}
+			if client.Client == nil {
+				return fmt.Errorf("opcua client not initialized")
+			}
+			if err := client.Client.Connect(ctx); err != nil {
+				return err
+			}
+			client.Connected = true
+			d.recordReconnect()
+			return nil
+		})
+		if err != nil {
 			d.recordReadOutcome(startTime, false, "network")
 			return nil, fmt.Errorf("client not connected: %v", err)
 		}
-		d.mu.Lock()
-		client.Connected = true
-		client.connMgr.RecordSuccess()
-		d.recordReconnect()
-		d.mu.Unlock()
 	}
 
 	deviceID := points[0].DeviceID
@@ -2663,6 +2654,9 @@ func (w *ClientWrapper) RecordFailure(err error) {
 			zap.Int32("max_fail", w.maxFailCount),
 		)
 		w.Connected = false
+		if w.onReconnectNeeded != nil {
+			w.onReconnectNeeded()
+		}
 	}
 }
 

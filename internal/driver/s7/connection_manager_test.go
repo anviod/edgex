@@ -10,10 +10,10 @@ import (
 
 func TestNewConnectionManager(t *testing.T) {
 	tests := []struct {
-		name               string
-		driverName         string
-		maxRetries         int
-		maxFailCount       int
+		name         string
+		driverName   string
+		maxRetries   int
+		maxFailCount int
 	}{
 		{"S7-200Smart", "s7-200smart", 8, 3},
 		{"S7-1200", "s7-1200", 64, 5},
@@ -94,7 +94,7 @@ func TestCanRetry(t *testing.T) {
 	cm.SetState(StateConnecting)
 	canRetry, wait = cm.CanRetry()
 	assert.True(t, canRetry)
-	assert.Equal(t, 0*time.Millisecond, wait)
+	assert.Equal(t, 200*time.Millisecond, wait)
 
 	cm.RecordSuccess()
 	canRetry, wait = cm.CanRetry()

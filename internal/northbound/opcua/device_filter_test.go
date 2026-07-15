@@ -83,7 +83,7 @@ func TestServer_DeviceFiltering(t *testing.T) {
 				Devices:  tt.configDevices,
 			}
 
-			srv := NewServer(cfg, mockSB)
+			srv := NewServer(cfg, mockSB, nil)
 			if err := srv.Start(); err != nil {
 				t.Fatalf("Failed to start server: %v", err)
 			}

@@ -11,8 +11,8 @@ hero_buttons:
   - text: 样式参考
     url: 样式参考.html
     style: secondary
-  - text: 部署指南
-    url: ../deployment/index.html
+  - text: 用户手册
+    url: ../guide/USER_MANUAL.html#安装指南
     style: secondary
   - text: 返回首页
     url: ../index.html
@@ -42,6 +42,9 @@ hero_buttons:
 - [样式参考](样式参考.html)
 
 ### 故障修复
+
+> 以下为历史修复记录归档。
+
 - [批量读取修复总结](BATCH_READ_FIX_SUMMARY.html)
 - [驱动连接修复](DRIVER_CONNECTION_FIX.html)
 - [前端修复报告](FRONTEND_FIX_REPORT.html)
@@ -59,6 +62,9 @@ hero_buttons:
 - [质量评分规则](quality_score_rules.html)
 
 ### 项目总结
+
+> **历史报告归档：** 以下文档为阶段性交付/修复记录，仅供历史查阅。现行运维请参考系统设置、回滚方案与样式参考。
+
 - [项目完成报告](PROJECT_COMPLETION_REPORT.html)
 - [完成总结](COMPLETION_SUMMARY.html)
 - [最终总结](FINAL_SUMMARY.html)

@@ -5,7 +5,7 @@
 .page-shell {
   padding: var(--page-padding-y) var(--page-padding-x);
   min-height: calc(100vh - var(--header-height));
-  background: var(--surface);
+  background: var(--shell-bg);
   color: var(--text-primary);
   box-sizing: border-box;
   display: flex;
@@ -18,7 +18,7 @@
 }
 
 .main-content.has-sidebar {
-  background: transparent !important;
+  background: var(--shell-bg) !important;
 }
 
 .page-container {
@@ -303,45 +303,6 @@
   color: var(--text-tertiary);
   margin-top: var(--space-2);
 }
-
-/* ── mode legend ── */
-.mode-legend {
-  display: flex;
-  gap: var(--space-3);
-  margin-bottom: var(--space-6);
-  flex-wrap: wrap;
-}
-
-.mode-legend__item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 8px 14px;
-  border-radius: var(--radius-lg);
-  font-size: 12px;
-  color: var(--text-secondary);
-  border: 1px solid;
-}
-
-.mode-legend__item--push {
-  background: var(--edgex-push-bg);
-  border-color: var(--edgex-push-border);
-}
-
-.mode-legend__item--passive {
-  background: var(--edgex-passive-bg);
-  border-color: var(--edgex-passive-border);
-}
-
-.mode-legend__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-full);
-  flex-shrink: 0;
-}
-
-.mode-legend__item--push .mode-legend__dot { background: var(--primary); }
-.mode-legend__item--passive .mode-legend__dot { background: #722ed1; }
 
 /* ── responsive ── */
 @media (max-width: 1024px) {

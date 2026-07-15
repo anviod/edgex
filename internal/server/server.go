@@ -10,12 +10,15 @@ import (
 	"log"
 	"math/rand/v2"
 	"os"
+	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/anviod/edgex/internal/ai_agent"
 	"github.com/anviod/edgex/internal/config"
 	"github.com/anviod/edgex/internal/core"
 	"github.com/anviod/edgex/internal/model"
@@ -49,32 +52,37 @@ type DashboardSummary struct {
 }
 
 type Server struct {
-	app                 *fiber.App
-	cm                  *core.ChannelManager
-	storage             *storage.Storage
-	shadowCore          *core.ShadowCore
-	virtualShadow       *core.VirtualShadowEngine
-	vsm                 *core.VirtualShadowManager
-	hub                 *Hub
-	pipeline            *core.DataPipeline
-	nbm                 *core.NorthboundManager
-	ecm                 *core.EdgeComputeManager
-	sm                  *core.SystemManager
-	dsm                 *core.DeviceStorageManager
-	cfgManager          *config.ConfigManager
-	syncManager         *syncpkg.SyncManager
-	logBroadcaster      *logger.LogBroadcaster
-	randomWriteMu       sync.Mutex
-	randomWriteStop     chan struct{}
-	randomWriteRunning  bool
-	startTime           time.Time
-	logger              *zap.Logger
-	listenAddr          string
-	serverMu            sync.Mutex
-	portSwitching       bool
-	storageAttachHook   func(*storage.Storage)
-	runtimeStartHook    func()
-	shadowSubscribeOnce sync.Once
+	app                    *fiber.App
+	cm                     *core.ChannelManager
+	storage                *storage.Storage
+	shadowCore             *core.ShadowCore
+	virtualShadow          *core.VirtualShadowEngine
+	vsm                    *core.VirtualShadowManager
+	hub                    *Hub
+	pipeline               *core.DataPipeline
+	nbm                    *core.NorthboundManager
+	ecm                    *core.EdgeComputeManager
+	sm                     *core.SystemManager
+	dsm                    *core.DeviceStorageManager
+	cfgManager             *config.ConfigManager
+	syncManager            *syncpkg.SyncManager
+	logBroadcaster         *logger.LogBroadcaster
+	randomWriteMu          sync.Mutex
+	randomWriteStop        chan struct{}
+	randomWriteRunning     bool
+	startTime              time.Time
+	logger                 *zap.Logger
+	listenAddr             string
+	serverMu               sync.Mutex
+	portSwitching          bool
+	aiAgent                *ai_agent.Agent
+	aiSettingsMem          *model.AICopilotSettings
+	storageAttachHook      func(*storage.Storage)
+	runtimeStartHook       func()
+	shadowSubscribeOnce    sync.Once
+	runtimeCompactStop     chan struct{}
+	runtimeCompactOnce     sync.Once
+	runtimeCompactStopOnce sync.Once
 }
 
 func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeline, nbm *core.NorthboundManager, ecm *core.EdgeComputeManager, sm *core.SystemManager, dsm *core.DeviceStorageManager, cfgManager *config.ConfigManager, syncManager *syncpkg.SyncManager, logBroadcaster *logger.LogBroadcaster) *Server {
@@ -174,6 +182,9 @@ func (s *Server) Start(addr string) error {
 		go s.nbm.PublishPointsMetadata()
 	}
 	go s.broadcastLoop()
+	if s.storage != nil {
+		s.startRuntimeCompactLoop()
+	}
 
 	err := s.app.Listen(addr)
 	if err == nil {
@@ -305,17 +316,14 @@ func (s *Server) exportEdgeComputeLogsToCSV(c *fiber.Ctx) error {
 	b := &bytes.Buffer{}
 	w := csv.NewWriter(b)
 	// Write Header
-	w.Write([]string{"RuleID", "RuleName", "Minute", "Status", "TriggerCount", "LastValue", "ErrorMessage"})
+	w.Write([]string{"RuleID", "RuleName", "Minute", "ErrorType", "ErrorMessage"})
 
 	for _, log := range logs {
-		valStr := fmt.Sprintf("%v", log.LastValue)
 		w.Write([]string{
 			log.RuleID,
 			log.RuleName,
 			log.Minute,
-			log.Status,
-			fmt.Sprintf("%d", log.TriggerCount),
-			valStr,
+			log.ErrorType,
 			log.ErrorMessage,
 		})
 	}
@@ -363,6 +371,22 @@ func (s *Server) setupRoutes() {
 	// 首页 Dashboard
 	api.Get("/dashboard/summary", s.getDashboardSummary)
 
+	// AI 助手（本地上下文助手 + Industrial Protocol Copilot 工作台）
+	api.Get("/ai/status", s.getAiStatus)
+	api.Post("/ai/chat", s.postAiChat)
+	api.Get("/ai/settings", s.getAiSettings)
+	api.Put("/ai/settings", s.putAiSettings)
+	api.Get("/ai/quota", s.getAiQuota)
+	api.Get("/ai/tasks", s.listAiTasks)
+	api.Post("/ai/tasks", s.createAiTask)
+	api.Post("/ai/tasks/upload", s.postAiTaskFromUpload)
+	api.Get("/ai/tasks/:id", s.getAiTask)
+	api.Post("/ai/tasks/:id/upload", s.uploadAiTaskFile)
+	api.Post("/ai/tasks/:id/confirm", s.confirmAiTask)
+	api.Post("/ai/validate", s.postAiValidate)
+	api.Post("/ai/edge-rule/draft", s.postAiEdgeRuleDraft)
+	api.Get("/ai/diagnostics/summary", s.getAiDiagnosticsSummary)
+
 	// 系统设置
 	api.Get("/system", s.getSystemConfig)
 	api.Put("/system", s.updateSystemConfig)
@@ -391,6 +415,7 @@ func (s *Server) setupRoutes() {
 	api.Post("/channels/:channelId/scan", s.scanChannel)
 	api.Get("/channels/:channelId/metrics", s.getChannelMetrics) // 通道监控指标
 	api.Get("/diagnostics/scan-engine", s.getScanEngineDiagnostics)
+	api.Get("/diagnostics/soak", s.getSoakMonitor)
 	api.Get("/channels/:channelId/diagnostics/events", s.getChannelEventLog)
 	api.Get("/devices/:deviceId/diagnostics", s.getDeviceDiagnostics)
 	api.Get("/devices/:deviceId/history", s.getDeviceHistory) // New history API
@@ -450,6 +475,7 @@ func (s *Server) setupRoutes() {
 	api.Post("/northbound/opcua/:id/batch-write", s.batchWriteOPCUA)
 	api.Get("/northbound/opcua/:id/write-history", s.getOPCUAWriteHistory)
 	api.Get("/northbound/mqtt/:id/stats", s.getMQTTStats)
+	api.Post("/northbound/sparkplugb", s.upsertSparkplugBConfig)        // Sparkplug B Upsert
 	api.Delete("/northbound/sparkplug_b/:id", s.deleteSparkplugBConfig) // Sparkplug B Delete
 
 	// edgeOS(MQTT)
@@ -484,8 +510,10 @@ func (s *Server) setupRoutes() {
 	api.Delete("/virtual-shadows/:id", s.deleteVirtualShadow)
 	api.Get("/edge/cache", s.getEdgeCache)
 	api.Get("/edge/metrics", s.getEdgeMetrics)
-	api.Get("/edge/shared-sources", s.getEdgeSharedSources)
 	api.Get("/edge/logs", s.handleGetEdgeLogs)
+	api.Post("/edge/logs/clear", s.clearEdgeLogs)
+	api.Get("/edge/events", s.getEdgeEvents)
+	api.Get("/edge/failures", s.getEdgeFailures)
 
 	tools := api.Group("/tools")
 	tools.Post("/random-write/start", s.startRandomWrite)
@@ -587,13 +615,27 @@ func (s *Server) setupRoutes() {
 	api.Get("/ws/logs", websocket.New(s.handleLogWebSocket))
 	api.Get("/logs/download", s.handleLogDownload)
 
-	// 静态资源
-	s.app.Static("/", "./ui/dist")
+	// 静态资源（优先相对可执行文件目录，兼容未设置 WorkingDirectory 的部署）
+	uiDist := uiDistDir()
+	s.app.Static("/", uiDist)
 
 	// SPA Fallback: 所有未匹配的路由都返回 index.html
 	s.app.Get("*", func(c *fiber.Ctx) error {
-		return c.SendFile("./ui/dist/index.html")
+		return c.SendFile(filepath.Join(uiDist, "index.html"))
 	})
+}
+
+func uiDistDir() string {
+	candidates := []string{"./ui/dist"}
+	if exe, err := os.Executable(); err == nil {
+		candidates = append([]string{filepath.Join(filepath.Dir(exe), "ui", "dist")}, candidates...)
+	}
+	for _, dir := range candidates {
+		if info, err := os.Stat(filepath.Join(dir, "index.html")); err == nil && !info.IsDir() {
+			return dir
+		}
+	}
+	return "./ui/dist"
 }
 
 func (s *Server) getDeviceHistory(c *fiber.Ctx) error {
@@ -767,11 +809,12 @@ func (s *Server) updateMQTTConfig(c *fiber.Ctx) error {
 		cfg.ID = uuid.New().String()
 	}
 
-	if err := s.nbm.UpsertMQTTConfig(cfg); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	warning, err := s.nbm.UpsertMQTTConfig(cfg)
+	if err != nil {
+		return c.Status(northboundUpsertErrorStatus(err)).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.JSON(cfg)
+	return c.JSON(northboundConfigJSON(cfg, warning))
 }
 
 // updateOPCUAConfig updates OPC UA configuration
@@ -788,12 +831,12 @@ func (s *Server) updateOPCUAConfig(c *fiber.Ctx) error {
 		cfg.ID = uuid.New().String()
 	}
 
-	savedCfg, err := s.nbm.UpsertOPCUAConfig(cfg)
+	savedCfg, warning, err := s.nbm.UpsertOPCUAConfig(cfg)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(northboundUpsertErrorStatus(err)).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.JSON(model.SanitizeOPCUAForClient(savedCfg))
+	return c.JSON(northboundConfigJSON(model.SanitizeOPCUAForClient(savedCfg), warning))
 }
 
 func (s *Server) uploadOPCUACertificate(c *fiber.Ctx) error {
@@ -844,11 +887,12 @@ func (s *Server) upsertSparkplugBConfig(c *fiber.Ctx) error {
 		cfg.ID = uuid.New().String()
 	}
 
-	if err := s.nbm.UpsertSparkplugBConfig(cfg); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	warning, err := s.nbm.UpsertSparkplugBConfig(cfg)
+	if err != nil {
+		return c.Status(northboundUpsertErrorStatus(err)).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.JSON(cfg)
+	return c.JSON(northboundConfigJSON(cfg, warning))
 }
 
 func (s *Server) deleteSparkplugBConfig(c *fiber.Ctx) error {
@@ -940,6 +984,13 @@ func (s *Server) getChannelDevices(c *fiber.Ctx) error {
 	if devices == nil {
 		return c.JSON([]model.Device{})
 	}
+	if c.Query("include_points") == "false" {
+		out := make([]model.Device, len(devices))
+		for i, d := range devices {
+			out[i] = d.WithPointsSummary()
+		}
+		return c.JSON(out)
+	}
 	return c.JSON(devices)
 }
 
@@ -981,18 +1032,46 @@ func (s *Server) addDevice(c *fiber.Ctx) error {
 			if err := model.EnsureDeviceID(&devices[i]); err != nil {
 				return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 			}
-			if err := s.cm.AddDevice(channelId, &devices[i]); err != nil {
-				return c.Status(deviceAddErrorStatus(err)).JSON(fiber.Map{"error": fmt.Sprintf("Failed to add device %s: %v", devices[i].Name, err)})
+		}
+
+		created, err := s.cm.AddDevices(channelId, devices)
+		if err != nil {
+			status := deviceAddErrorStatus(err)
+			if len(created) == 0 {
+				return c.Status(status).JSON(fiber.Map{"error": err.Error()})
 			}
+			// partial success: return created devices with warning
+			for i := range created {
+				if s.dsm != nil {
+					s.dsm.UpdateDeviceConfig(created[i].ID, created[i].Storage)
+				}
+			}
+			if s.nbm != nil {
+				s.nbm.PublishPointsMetadata()
+			}
+			summaries := make([]model.Device, len(created))
+			for i, d := range created {
+				summaries[i] = d.WithPointsSummary()
+			}
+			return c.Status(status).JSON(fiber.Map{
+				"devices": summaries,
+				"error":   err.Error(),
+			})
+		}
+
+		for i := range created {
 			if s.dsm != nil {
-				s.dsm.UpdateDeviceConfig(devices[i].ID, devices[i].Storage)
+				s.dsm.UpdateDeviceConfig(created[i].ID, created[i].Storage)
 			}
 		}
-		// 触发点位元数据同步到 edgeOS
 		if s.nbm != nil {
 			s.nbm.PublishPointsMetadata()
 		}
-		return c.JSON(devices)
+		summaries := make([]model.Device, len(created))
+		for i, d := range created {
+			summaries[i] = d.WithPointsSummary()
+		}
+		return c.JSON(summaries)
 
 	case map[string]interface{}:
 		// 单个添加
@@ -1119,7 +1198,7 @@ func (s *Server) getDevicePoints(c *fiber.Ctx) error {
 	}
 
 	// 设置API请求超时，避免长时间阻塞
-	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 5*time.Second)
 	defer cancel()
 
 	// 使用带超时的上下文获取点位数据
@@ -1345,6 +1424,16 @@ func (s *Server) getRealtimeValues(c *fiber.Ctx) error {
 		}
 	}
 
+	// Fast path: when a specific deviceID is requested but no shadow device
+	// exists for it, return an empty map immediately instead of falling through
+	// to GetAllValues() which scans the entire runtime DB and can block if the
+	// DB is locked by a scheduler write. This keeps the endpoint under 5ms.
+	// 快速路径：指定了 deviceID 但无影子设备时，立即返回空 map，
+	// 避免 GetAllValues() 全库扫描被 DB 写锁阻塞。
+	if deviceID != "" {
+		return c.JSON(map[string]any{})
+	}
+
 	if s.storage == nil {
 		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
 	}
@@ -1358,13 +1447,10 @@ func (s *Server) getRealtimeValues(c *fiber.Ctx) error {
 		return c.JSON(vals)
 	}
 
-	// 按 ChannelID/DeviceID 过滤
+	// 按 ChannelID 过滤（deviceID 已由快速路径处理）
 	filtered := make(map[string]model.Value)
 	for k, v := range vals {
 		if channelID != "" && v.ChannelID != channelID {
-			continue
-		}
-		if deviceID != "" && v.DeviceID != deviceID {
 			continue
 		}
 		filtered[k] = v
@@ -1589,13 +1675,6 @@ func (s *Server) getEdgeMetrics(c *fiber.Ctx) error {
 		return c.Status(503).JSON(fiber.Map{"error": "Edge Compute Manager not initialized"})
 	}
 	return c.JSON(s.ecm.GetMetrics())
-}
-
-func (s *Server) getEdgeSharedSources(c *fiber.Ctx) error {
-	if s.ecm == nil {
-		return c.Status(503).JSON(fiber.Map{"error": "Edge Compute Manager not initialized"})
-	}
-	return c.JSON(s.ecm.GetSharedSources())
 }
 
 // handleLogWebSocket handles real-time log streaming
@@ -1915,12 +1994,13 @@ func (s *Server) updateEdgeOSMQTTConfig(c *fiber.Ctx) error {
 		cfg.ID = uuid.New().String()
 	}
 
-	if err := s.nbm.UpsertEdgeOSMQTTConfig(cfg); err != nil {
+	warning, err := s.nbm.UpsertEdgeOSMQTTConfig(cfg)
+	if err != nil {
 		zap.L().Error("Failed to update edgeOS(MQTT) config",
 			zap.Error(err),
 			zap.String("id", cfg.ID),
 		)
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(northboundUpsertErrorStatus(err)).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	zap.L().Info("edgeOS(MQTT) config updated",
@@ -1928,7 +2008,11 @@ func (s *Server) updateEdgeOSMQTTConfig(c *fiber.Ctx) error {
 		zap.String("name", cfg.Name),
 	)
 
-	return c.JSON(fiber.Map{"success": true, "config": cfg})
+	resp := fiber.Map{"success": true, "config": cfg}
+	if warning != "" {
+		resp["warning"] = warning
+	}
+	return c.JSON(resp)
 }
 
 func (s *Server) deleteEdgeOSMQTTConfig(c *fiber.Ctx) error {
@@ -2000,12 +2084,13 @@ func (s *Server) updateEdgeOSNATSConfig(c *fiber.Ctx) error {
 		cfg.ID = uuid.New().String()
 	}
 
-	if err := s.nbm.UpsertEdgeOSNATSConfig(cfg); err != nil {
+	warning, err := s.nbm.UpsertEdgeOSNATSConfig(cfg)
+	if err != nil {
 		zap.L().Error("Failed to update edgeOS(NATS) config",
 			zap.Error(err),
 			zap.String("id", cfg.ID),
 		)
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(northboundUpsertErrorStatus(err)).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	zap.L().Info("edgeOS(NATS) config updated",
@@ -2013,7 +2098,11 @@ func (s *Server) updateEdgeOSNATSConfig(c *fiber.Ctx) error {
 		zap.String("name", cfg.Name),
 	)
 
-	return c.JSON(fiber.Map{"success": true, "config": cfg})
+	resp := fiber.Map{"success": true, "config": cfg}
+	if warning != "" {
+		resp["warning"] = warning
+	}
+	return c.JSON(resp)
 }
 
 func (s *Server) deleteEdgeOSNATSConfig(c *fiber.Ctx) error {
@@ -3029,6 +3118,8 @@ func (s *Server) getDataStats(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
+	stats = s.enrichRuntimeBucketStats(stats)
+
 	result := fiber.Map{
 		"config_db": fiber.Map{
 			"path": s.storage.GetConfigPath(),
@@ -3041,6 +3132,84 @@ func (s *Server) getDataStats(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(result)
+}
+
+func (s *Server) enrichRuntimeBucketStats(stats []storage.BucketStats) []storage.BucketStats {
+	runtimeIndex := make(map[string]int, len(stats))
+	for i, st := range stats {
+		if st.Database == "runtime" {
+			runtimeIndex[st.Name] = i
+		}
+	}
+
+	addRuntimeCount := func(name string, extra int) {
+		if extra <= 0 {
+			return
+		}
+		if idx, ok := runtimeIndex[name]; ok {
+			stats[idx].RecordCount += extra
+			return
+		}
+		category, clearable := storage.ClassifyBucket(name)
+		stats = append(stats, storage.BucketStats{
+			Name:        name,
+			RecordCount: extra,
+			Category:    category,
+			Clearable:   clearable,
+			Database:    "runtime",
+		})
+		runtimeIndex[name] = len(stats) - 1
+	}
+
+	if s.ecm != nil {
+		eventsMem, failuresMem, minuteCache := s.ecm.RuntimeLogStats()
+		addRuntimeCount("edge_events", eventsMem)
+		addRuntimeCount("edge_failures", failuresMem)
+		addRuntimeCount("bblot", minuteCache)
+	}
+
+	if s.shadowCore != nil {
+		_, pointCount := s.shadowCore.RuntimePointStats()
+		if pointCount > 0 {
+			if idx, ok := runtimeIndex["shadow_values"]; ok {
+				stats[idx].RecordCount = pointCount
+			} else {
+				stats = append(stats, storage.BucketStats{
+					Name:        "shadow_values",
+					RecordCount: pointCount,
+					Category:    "runtime",
+					Clearable:   true,
+					Database:    "runtime",
+				})
+				runtimeIndex["shadow_values"] = len(stats) - 1
+			}
+		}
+	}
+
+	if s.dsm != nil {
+		for _, name := range s.dsm.HistoryBucketNames() {
+			if _, ok := runtimeIndex[name]; ok {
+				continue
+			}
+			stats = append(stats, storage.BucketStats{
+				Name:        name,
+				RecordCount: 0,
+				Category:    "history",
+				Clearable:   true,
+				Database:    "runtime",
+			})
+			runtimeIndex[name] = len(stats) - 1
+		}
+	}
+
+	sort.SliceStable(stats, func(i, j int) bool {
+		if stats[i].Database != stats[j].Database {
+			return stats[i].Database == "config"
+		}
+		return stats[i].Name < stats[j].Name
+	})
+
+	return stats
 }
 
 func (s *Server) clearCache(c *fiber.Ctx) error {
@@ -3106,6 +3275,14 @@ func (s *Server) clearCache(c *fiber.Ctx) error {
 		}
 	}
 
+	compactInfo, compactErr := s.compactRuntimeWithStats()
+	if compactErr != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error":   "cleared but failed to compact runtime db: " + compactErr.Error(),
+			"cleared": bucketsToClear,
+		})
+	}
+
 	stats, totalSize, err := s.storage.GetBucketStats()
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -3114,6 +3291,7 @@ func (s *Server) clearCache(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"cleared": bucketsToClear,
+		"compact": compactInfo,
 		"config_db": fiber.Map{
 			"path": s.storage.GetConfigPath(),
 		},
@@ -3140,18 +3318,34 @@ func (s *Server) clearAllRuntime(c *fiber.Ctx) error {
 	if s.shadowCore != nil {
 		s.shadowCore.ClearAllShadowDevices()
 	}
+
+	var edgeLogsCleared any
 	if s.ecm != nil {
+		edgeResult, edgeErr := s.ecm.ClearEdgeLogs()
+		if edgeErr != nil {
+			return c.Status(500).JSON(fiber.Map{"error": edgeErr.Error(), "cleared": cleared})
+		}
+		edgeLogsCleared = edgeResult
 		s.ecm.ClearRuntimeState()
 	}
 	if s.dsm != nil {
 		s.dsm.ClearAllHistory()
 	}
 
+	compactInfo, compactErr := s.compactRuntimeWithStats()
+	if compactErr != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error":   "cleared but failed to compact runtime db: " + compactErr.Error(),
+			"cleared": cleared,
+		})
+	}
+
 	stats, totalSize, _ := s.storage.GetBucketStats()
 
-	return c.JSON(fiber.Map{
+	response := fiber.Map{
 		"status":  "success",
 		"cleared": cleared,
+		"compact": compactInfo,
 		"config_db": fiber.Map{
 			"path": s.storage.GetConfigPath(),
 		},
@@ -3160,7 +3354,11 @@ func (s *Server) clearAllRuntime(c *fiber.Ctx) error {
 		},
 		"total_size": totalSize,
 		"buckets":    stats,
-	})
+	}
+	if edgeLogsCleared != nil {
+		response["edge_logs"] = edgeLogsCleared
+	}
+	return c.JSON(response)
 }
 
 // backupConfigDB 备份配置数据库（优先备份，不包含运行时数据）
@@ -3272,13 +3470,13 @@ func (s *Server) importConfigDBArchive(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"status":           "success",
-		"message":          message,
-		"force_overwrite":  result.ForceOverwrite,
-		"preserved_users":  result.PreservedUsers,
-		"preserved_port":   result.PreservedPort,
-		"device_count":     result.DeviceCount,
-		"channel_count":    result.ChannelCount,
+		"status":          "success",
+		"message":         message,
+		"force_overwrite": result.ForceOverwrite,
+		"preserved_users": result.PreservedUsers,
+		"preserved_port":  result.PreservedPort,
+		"device_count":    result.DeviceCount,
+		"channel_count":   result.ChannelCount,
 	})
 }
 
@@ -3290,10 +3488,10 @@ func (s *Server) pullRemoteConfig(c *fiber.Ctx) error {
 	}
 
 	var req struct {
-		Host      string `json:"host"`
-		Port      int    `json:"port"`
-		Token     string `json:"token"`
-		UseHTTPS  bool   `json:"use_https"`
+		Host     string `json:"host"`
+		Port     int    `json:"port"`
+		Token    string `json:"token"`
+		UseHTTPS bool   `json:"use_https"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid request body: " + err.Error()})
@@ -3328,26 +3526,24 @@ func (s *Server) pullRemoteConfig(c *fiber.Ctx) error {
 	})
 }
 
-// compactRuntimeDB 压缩运行时数据库，回收已删除数据的空间
-// POST /api/data/compact-runtime
-func (s *Server) compactRuntimeDB(c *fiber.Ctx) error {
+// compactRuntimeWithStats 压缩 runtime.db 并返回压缩前后文件大小。
+func (s *Server) compactRuntimeWithStats() (fiber.Map, error) {
 	if s.storage == nil {
-		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
+		return nil, fmt.Errorf("storage not available")
 	}
 
-	// 获取压缩前大小
-	beforeInfo, _ := os.Stat(s.storage.GetPath())
+	runtimePath := s.storage.GetRuntimePath()
+	beforeInfo, _ := os.Stat(runtimePath)
 	beforeSize := int64(0)
 	if beforeInfo != nil {
 		beforeSize = beforeInfo.Size()
 	}
 
 	if err := s.storage.CompactRuntimeDB(); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "failed to compact runtime db: " + err.Error()})
+		return nil, err
 	}
 
-	// 获取压缩后大小
-	afterInfo, _ := os.Stat(s.storage.GetPath())
+	afterInfo, _ := os.Stat(runtimePath)
 	afterSize := int64(0)
 	if afterInfo != nil {
 		afterSize = afterInfo.Size()
@@ -3358,16 +3554,31 @@ func (s *Server) compactRuntimeDB(c *fiber.Ctx) error {
 		saved = 0
 	}
 
-	return c.JSON(fiber.Map{
-		"status":       "success",
+	return fiber.Map{
 		"before_bytes": beforeSize,
 		"after_bytes":  afterSize,
 		"saved_bytes":  saved,
 		"before_size":  formatBytes(beforeSize),
 		"after_size":   formatBytes(afterSize),
 		"saved_size":   formatBytes(saved),
-		"message":      "运行时数据库已压缩，配置库不受影响",
-	})
+	}, nil
+}
+
+// compactRuntimeDB 压缩运行时数据库，回收已删除数据的空间
+// POST /api/data/compact-runtime
+func (s *Server) compactRuntimeDB(c *fiber.Ctx) error {
+	if s.storage == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
+	}
+
+	compactInfo, err := s.compactRuntimeWithStats()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to compact runtime db: " + err.Error()})
+	}
+
+	compactInfo["status"] = "success"
+	compactInfo["message"] = "运行时数据库已压缩，配置库不受影响"
+	return c.JSON(compactInfo)
 }
 
 // formatBytes 格式化字节数为 MB 显示

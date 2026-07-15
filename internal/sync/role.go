@@ -9,10 +9,10 @@ import (
 
 // RoleManager manages node roles
 type RoleManager struct {
-	selfID   peer.ID
-	role     NodeRole
-	peers    map[peer.ID]*PeerInfo
-	mu       sync.RWMutex
+	selfID peer.ID
+	role   NodeRole
+	peers  map[peer.ID]*PeerInfo
+	mu     sync.RWMutex
 }
 
 // NewRoleManager creates a new RoleManager

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -14,6 +17,7 @@ import (
 	"github.com/anviod/edgex/internal/core"
 	_ "github.com/anviod/edgex/internal/driver/bacnet"
 	_ "github.com/anviod/edgex/internal/driver/dlt645"
+	_ "github.com/anviod/edgex/internal/driver/ethercat"
 	_ "github.com/anviod/edgex/internal/driver/ethernetip"
 	_ "github.com/anviod/edgex/internal/driver/ice104"
 	_ "github.com/anviod/edgex/internal/driver/knxnetip"
@@ -31,6 +35,30 @@ import (
 
 	"go.uber.org/zap"
 )
+
+func startPprof() func() {
+	addr := os.Getenv("PPROF_ADDR")
+	if addr == "" {
+		addr = "127.0.0.1:6060"
+	}
+	if addr == "off" || addr == "0" {
+		return func() {}
+	}
+
+	srv := &http.Server{Addr: addr}
+	go func() {
+		zap.L().Info("pprof server starting", zap.String("addr", addr))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			zap.L().Warn("pprof server failed", zap.String("addr", addr), zap.Error(err))
+		}
+	}()
+
+	return func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+	}
+}
 
 func main() {
 	// Parse command-line flags
@@ -232,6 +260,7 @@ func main() {
 			zap.L().Warn("Failed to load virtual shadows", zap.Error(err))
 		}
 		srv.SetVirtualShadowManager(vsm)
+		nbm.SetVirtualShadowManager(vsm)
 	}
 	srv.SetStorageAttachHook(func(st *storage.Storage) {
 		if ecm != nil {
@@ -253,6 +282,7 @@ func main() {
 					return cfgManager.SaveVirtualShadows(devices)
 				})
 				srv.SetVirtualShadowManager(vsm)
+				nbm.SetVirtualShadowManager(vsm)
 			}
 			zap.L().Info("ShadowCore initialized after install")
 		}
@@ -262,6 +292,7 @@ func main() {
 	startDataPlane := func() {
 		go func() {
 			current := cfgManager.GetConfig()
+			var wg sync.WaitGroup
 			for _, chConfig := range current.Channels {
 				ch := chConfig
 
@@ -271,11 +302,16 @@ func main() {
 					continue
 				}
 
-				err = cm.StartChannel(ch.ID)
-				if err != nil {
-					zap.L().Error("Failed to start channel", zap.String("channel", ch.Name), zap.Error(err))
-				}
+				// 并行启动每个通道，避免 Modbus 60s cooldown 阻塞 BACnet
+				wg.Add(1)
+				go func(ch model.Channel) {
+					defer wg.Done()
+					if err := cm.StartChannel(ch.ID); err != nil {
+						zap.L().Error("Failed to start channel", zap.String("channel", ch.Name), zap.Error(err))
+					}
+				}(ch)
 			}
+			wg.Wait()
 			zap.L().Info("All channels initialization completed")
 
 			nbm.Start()
@@ -291,6 +327,8 @@ func main() {
 	srv.SetRuntimeStartHook(startDataPlaneOnce)
 
 	pipeline.Start()
+	stopPprof := startPprof()
+	defer stopPprof()
 
 	// 5. Start Web Server first (before any potentially blocking operations)
 	go func() {
@@ -320,5 +358,6 @@ func main() {
 
 	zap.L().Info("Shutting down...")
 
+	srv.StopBackgroundTasks()
 	cm.Shutdown()
 }

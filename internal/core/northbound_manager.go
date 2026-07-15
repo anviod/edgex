@@ -24,6 +24,16 @@ type NorthboundStatus struct {
 	Status string `json:"status"`
 }
 
+// connectorStartWarning logs a connector start failure after config was persisted
+// and returns a user-facing warning message (empty when start succeeded).
+func connectorStartWarning(protocol, name string, err error) string {
+	if err == nil {
+		return ""
+	}
+	log.Printf("Northbound %s [%s]: config saved but connector start failed: %v", protocol, name, err)
+	return fmt.Sprintf("配置已保存，但 %s 暂不可达：%v", protocol, err)
+}
+
 type NorthboundManager struct {
 	config            model.NorthboundConfig
 	mqttClients       map[string]*mqtt.Client
@@ -35,6 +45,7 @@ type NorthboundManager struct {
 	pipeline          *DataPipeline
 	sb                model.SouthboundManager
 	cm                *ChannelManager // Reference to ChannelManager for device lookups
+	vsm               *VirtualShadowManager
 	storage           *storage.Storage
 	ctx               context.Context
 	cancel            context.CancelFunc
@@ -151,6 +162,18 @@ func (nm *NorthboundManager) GetNorthboundStats() []NorthboundStatus {
 	return stats
 }
 
+func (nm *NorthboundManager) SetVirtualShadowManager(vsm *VirtualShadowManager) {
+	nm.vsm = vsm
+}
+
+func (nm *NorthboundManager) newOPCUAServer(cfg model.OPCUAConfig) *opcua.Server {
+	var lister opcua.VirtualShadowLister
+	if nm.vsm != nil {
+		lister = nm.vsm
+	}
+	return opcua.NewServer(cfg, nm.sb, lister)
+}
+
 func (nm *NorthboundManager) Start() {
 	nm.mu.Lock()
 	defer nm.mu.Unlock()
@@ -181,7 +204,7 @@ func (nm *NorthboundManager) Start() {
 	// Start OPC UA Servers
 	for _, cfg := range nm.config.OPCUA {
 		if cfg.Enable {
-			server := opcua.NewServer(cfg, nm.sb)
+			server := nm.newOPCUAServer(cfg)
 			if err := server.Start(); err != nil {
 				log.Printf("Failed to start OPC UA server [%s]: %v", cfg.Name, err)
 			} else {
@@ -241,6 +264,9 @@ func (nm *NorthboundManager) handleValue(v model.Value) {
 	for _, client := range nm.mqttClients {
 		client.Publish(v)
 	}
+	for _, client := range nm.httpClients {
+		client.Publish(v)
+	}
 	for _, server := range nm.opcuaServers {
 		server.Update(v)
 	}
@@ -255,20 +281,15 @@ func (nm *NorthboundManager) handleValue(v model.Value) {
 	}
 }
 
-// OnDeviceStatusChange handles device status changes and notifies northbound clients
-// It publishes status to all configured endpoints that have this device mapped
+// OnDeviceStatusChange handles device status changes and notifies northbound clients.
+// Virtual shadow devices do not emit southbound status events; only physical devices are handled here.
 func (nm *NorthboundManager) OnDeviceStatusChange(deviceID string, status int) {
 	nm.mu.RLock()
 	defer nm.mu.RUnlock()
 
-	// Filter by device mapping
 	for _, cfg := range nm.config.MQTT {
 		if client, ok := nm.mqttClients[cfg.ID]; ok {
-			// Check if device is mapped to this config
-			if cfg.Devices == nil || len(cfg.Devices) == 0 {
-				// Empty mapping means all devices
-				client.PublishDeviceStatus(deviceID, status)
-			} else if devCfg, exists := cfg.Devices[deviceID]; exists && devCfg.Enable {
+			if devCfg, ok := model.LookupNorthboundPublishConfig(deviceID, model.OpcUaDeviceMap(cfg.Devices), cfg.VirtualDevices); ok && devCfg.Enable {
 				client.PublishDeviceStatus(deviceID, status)
 			}
 		}
@@ -276,38 +297,28 @@ func (nm *NorthboundManager) OnDeviceStatusChange(deviceID string, status int) {
 
 	for _, cfg := range nm.config.HTTP {
 		if client, ok := nm.httpClients[cfg.ID]; ok {
-			// Check if device is mapped to this config
-			if cfg.Devices == nil || len(cfg.Devices) == 0 {
-				client.PublishDeviceStatus(deviceID, status)
-			} else if enabled, exists := cfg.Devices[deviceID]; exists && enabled {
+			if devCfg, ok := model.LookupNorthboundPublishConfig(deviceID, cfg.Devices, cfg.VirtualDevices); ok && devCfg.Enable {
 				client.PublishDeviceStatus(deviceID, status)
 			}
 		}
 	}
 
-	// edgeOS(MQTT)
 	for _, cfg := range nm.config.EdgeOSMQTT {
 		if client, ok := nm.edgeOSMQTTClients[cfg.ID]; ok {
-			if cfg.Devices == nil || len(cfg.Devices) == 0 {
-				client.PublishDeviceStatus(deviceID, status)
-			} else if deviceConfig, exists := cfg.Devices[deviceID]; exists && deviceConfig.Enable {
+			if devCfg, ok := model.LookupNorthboundPublishConfig(deviceID, model.OpcUaDeviceMap(cfg.Devices), cfg.VirtualDevices); ok && devCfg.Enable {
 				client.PublishDeviceStatus(deviceID, status)
 			}
 		}
 	}
 
-	// edgeOS(NATS)
 	for _, cfg := range nm.config.EdgeOSNATS {
 		if client, ok := nm.edgeOSNATSClients[cfg.ID]; ok {
-			if cfg.Devices == nil || len(cfg.Devices) == 0 {
-				client.PublishDeviceStatus(deviceID, status)
-			} else if deviceConfig, exists := cfg.Devices[deviceID]; exists && deviceConfig.Enable {
+			if devCfg, ok := model.LookupNorthboundPublishConfig(deviceID, model.OpcUaDeviceMap(cfg.Devices), cfg.VirtualDevices); ok && devCfg.Enable {
 				client.PublishDeviceStatus(deviceID, status)
 			}
 		}
 	}
 
-	// Publish device online/offline notifications for edgeOS
 	nm.publishDeviceLifecycleNotification(deviceID, status)
 }
 
@@ -347,13 +358,10 @@ func (nm *NorthboundManager) publishDeviceLifecycleNotification(deviceID string,
 	// edgeOS(MQTT)
 	for _, cfg := range nm.config.EdgeOSMQTT {
 		if client, ok := nm.edgeOSMQTTClients[cfg.ID]; ok {
-			deviceConfig, exists := cfg.Devices[deviceID]
-			if cfg.Devices == nil || len(cfg.Devices) == 0 || (exists && deviceConfig.Enable) {
+			if devCfg, ok := model.LookupNorthboundPublishConfig(deviceID, model.OpcUaDeviceMap(cfg.Devices), cfg.VirtualDevices); ok && devCfg.Enable {
 				if status == 0 {
-					// Device online
 					client.PublishDeviceOnline(deviceID, device.Name, details)
 				} else {
-					// Device offline
 					reason := "Unknown"
 					if status == 2 {
 						reason = "Connection timeout"
@@ -371,13 +379,10 @@ func (nm *NorthboundManager) publishDeviceLifecycleNotification(deviceID string,
 	// edgeOS(NATS)
 	for _, cfg := range nm.config.EdgeOSNATS {
 		if client, ok := nm.edgeOSNATSClients[cfg.ID]; ok {
-			deviceConfig, exists := cfg.Devices[deviceID]
-			if cfg.Devices == nil || len(cfg.Devices) == 0 || (exists && deviceConfig.Enable) {
+			if devCfg, ok := model.LookupNorthboundPublishConfig(deviceID, model.OpcUaDeviceMap(cfg.Devices), cfg.VirtualDevices); ok && devCfg.Enable {
 				if status == 0 {
-					// Device online
 					client.PublishDeviceOnline(deviceID, device.Name, details)
 				} else {
-					// Device offline
 					reason := "Unknown"
 					if status == 2 {
 						reason = "Connection timeout"
@@ -603,9 +608,13 @@ func (nm *NorthboundManager) DeleteMQTTConfig(id string) error {
 
 // SparkplugB Operations
 
-func (nm *NorthboundManager) UpsertSparkplugBConfig(cfg model.SparkplugBConfig) error {
+func (nm *NorthboundManager) UpsertSparkplugBConfig(cfg model.SparkplugBConfig) (string, error) {
 	nm.mu.Lock()
 	defer nm.mu.Unlock()
+
+	if err := nm.validateNorthboundChannelName(cfg.ID, cfg.Name); err != nil {
+		return "", err
+	}
 
 	found := false
 	for i, c := range nm.config.SparkplugB {
@@ -620,7 +629,7 @@ func (nm *NorthboundManager) UpsertSparkplugBConfig(cfg model.SparkplugBConfig) 
 	}
 
 	if err := nm.saveConfig(); err != nil {
-		return err
+		return "", err
 	}
 
 	client, exists := nm.sparkplugClients[cfg.ID]
@@ -630,20 +639,19 @@ func (nm *NorthboundManager) UpsertSparkplugBConfig(cfg model.SparkplugBConfig) 
 			client.Stop()
 			delete(nm.sparkplugClients, cfg.ID)
 		}
-		return nil
+		return "", nil
 	}
 
+	var startErr error
 	if !exists {
 		newClient := sparkplugb.NewClient(cfg)
-		if err := newClient.Start(); err != nil {
-			return err
-		}
+		startErr = newClient.Start()
 		nm.sparkplugClients[cfg.ID] = newClient
 	} else {
-		return client.UpdateConfig(cfg)
+		startErr = client.UpdateConfig(cfg)
 	}
 
-	return nil
+	return connectorStartWarning("Sparkplug B Broker", cfg.Name, startErr), nil
 }
 
 func (nm *NorthboundManager) DeleteSparkplugBConfig(id string) error {
@@ -668,9 +676,13 @@ func (nm *NorthboundManager) DeleteSparkplugBConfig(id string) error {
 
 // OPC UA Operations
 
-func (nm *NorthboundManager) UpsertOPCUAConfig(cfg model.OPCUAConfig) (model.OPCUAConfig, error) {
+func (nm *NorthboundManager) UpsertOPCUAConfig(cfg model.OPCUAConfig) (model.OPCUAConfig, string, error) {
 	nm.mu.Lock()
 	defer nm.mu.Unlock()
+
+	if err := nm.validateNorthboundChannelName(cfg.ID, cfg.Name); err != nil {
+		return model.OPCUAConfig{}, "", err
+	}
 
 	found := false
 	for i, c := range nm.config.OPCUA {
@@ -687,15 +699,15 @@ func (nm *NorthboundManager) UpsertOPCUAConfig(cfg model.OPCUAConfig) (model.OPC
 
 	if strings.TrimSpace(cfg.ServerCertPEM) != "" || strings.TrimSpace(cfg.ServerKeyPEM) != "" {
 		if strings.TrimSpace(cfg.ServerCertPEM) == "" || strings.TrimSpace(cfg.ServerKeyPEM) == "" {
-			return model.OPCUAConfig{}, fmt.Errorf("server certificate and private key must both be configured")
+			return model.OPCUAConfig{}, "", fmt.Errorf("server certificate and private key must both be configured")
 		}
 		if err := opcua.ValidateServerPEMPair(cfg.ServerCertPEM, cfg.ServerKeyPEM); err != nil {
-			return model.OPCUAConfig{}, err
+			return model.OPCUAConfig{}, "", err
 		}
 	}
 
 	if err := nm.saveConfig(); err != nil {
-		return model.OPCUAConfig{}, err
+		return model.OPCUAConfig{}, "", err
 	}
 
 	server, exists := nm.opcuaServers[cfg.ID]
@@ -705,20 +717,21 @@ func (nm *NorthboundManager) UpsertOPCUAConfig(cfg model.OPCUAConfig) (model.OPC
 			server.Stop()
 			delete(nm.opcuaServers, cfg.ID)
 		}
-		return cfg, nil
+		return cfg, "", nil
 	}
 
+	var startErr error
 	if !exists {
-		newServer := opcua.NewServer(cfg, nm.sb)
-		if err := newServer.Start(); err != nil {
-			return model.OPCUAConfig{}, err
+		newServer := nm.newOPCUAServer(cfg)
+		startErr = newServer.Start()
+		if startErr == nil {
+			nm.opcuaServers[cfg.ID] = newServer
 		}
-		nm.opcuaServers[cfg.ID] = newServer
-	} else if err := server.UpdateConfig(cfg); err != nil {
-		return model.OPCUAConfig{}, err
+	} else {
+		startErr = server.UpdateConfig(cfg)
 	}
 
-	return cfg, nil
+	return cfg, connectorStartWarning("OPC UA 服务", cfg.Name, startErr), nil
 }
 
 // UpdateOPCUACertificates updates server/trusted PEM blobs and restarts the OPC UA server.
@@ -767,7 +780,7 @@ func (nm *NorthboundManager) UpdateOPCUACertificates(id string, certPEM, keyPEM 
 			return model.OPCUAConfig{}, err
 		}
 	} else if cfg.Enable {
-		newServer := opcua.NewServer(cfg, nm.sb)
+		newServer := nm.newOPCUAServer(cfg)
 		if err := newServer.Start(); err != nil {
 			return model.OPCUAConfig{}, err
 		}
@@ -973,7 +986,7 @@ func (nm *NorthboundManager) SyncOPCUAServer(id string) error {
 	}
 
 	if !running {
-		newServer := opcua.NewServer(cfg, nm.sb)
+		newServer := nm.newOPCUAServer(cfg)
 		if err := newServer.Start(); err != nil {
 			return err
 		}
@@ -1023,7 +1036,7 @@ func (nm *NorthboundManager) updateOPCUAServers(oldConfigs, newConfigs []model.O
 				server.UpdateConfig(newCfg)
 			} else {
 				// 创建新服务器
-				server := opcua.NewServer(newCfg, nm.sb)
+				server := nm.newOPCUAServer(newCfg)
 				if err := server.Start(); err != nil {
 					log.Printf("Failed to start OPC UA server [%s]: %v", newCfg.Name, err)
 				} else {
@@ -1072,8 +1085,8 @@ func (nm *NorthboundManager) updateSparkplugBClients(oldConfigs, newConfigs []mo
 					log.Printf("Failed to start Sparkplug B client [%s]: %v", newCfg.Name, err)
 				} else {
 					log.Printf("Northbound Sparkplug B client [%s] started", newCfg.Name)
-					nm.sparkplugClients[newCfg.ID] = client
 				}
+				nm.sparkplugClients[newCfg.ID] = client
 			}
 		}
 	}

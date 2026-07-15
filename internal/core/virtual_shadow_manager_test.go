@@ -17,9 +17,8 @@ func TestVirtualShadowManager_ReloadAll(t *testing.T) {
 	mgr := NewVirtualShadowManager(vse, cm, sc, nil)
 
 	cfg := model.VirtualShadowDeviceConfig{
-		ID:        "virtual-reload",
-		ChannelID: "ch1",
-		Enable:    true,
+		ID:     "virtual-reload",
+		Enable: true,
 		Points: []model.VirtualShadowPointDef{
 			{PointID: "p1", Mode: "map", SourceRef: "ch1.dev1.temp"},
 		},

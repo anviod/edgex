@@ -1,0 +1,442 @@
+/*
+ * EdgeX v3.0 — 采集通道页（Dashboard 三级视觉对齐）
+ */
+
+/* ── page shell：全宽 + 紧凑 section 间距 ── */
+.channel-list-page.page-shell {
+  gap: var(--space-5);
+  max-width: none;
+}
+
+.channel-list-page .page-header {
+  margin-bottom: 0;
+}
+
+/* ── body flow ── */
+.channel-list-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+/* ── zone 分区（对齐 dashboard-zone / northbound-zone） ── */
+.channel-list-zone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* zones live inside a-spin, so .channel-list-body gap does not apply */
+.channel-list-zone + .channel-list-zone {
+  margin-top: var(--space-6);
+}
+
+.channel-list-zone-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.channel-list-zone-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.channel-list-zone-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.channel-list-zone-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+
+/* ── tertiary block：透明外层 + 内嵌卡片 ── */
+.channel-list-tertiary-block {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.channel-list-tertiary-block .section {
+  gap: var(--space-4);
+}
+
+.channel-list-tertiary-block .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.channel-list-tertiary-block .section-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* ── 密集网格 ── */
+.channel-list-page .channels-grid {
+  grid-template-columns: repeat(auto-fill, minmax(288px, 1fr));
+  gap: var(--space-4) !important;
+}
+
+/* ── 通道卡片：工业面板风格 ── */
+.channel-list-page .channel-card {
+  position: relative;
+  padding: 0 !important;
+  overflow: hidden;
+  background: var(--surface-1) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.channel-list-page .channel-card:hover {
+  border-color: rgba(14, 165, 233, 0.28) !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.channel-list-page .channel-card.is-selected {
+  border-color: rgba(14, 165, 233, 0.4) !important;
+  background: rgba(14, 165, 233, 0.03) !important;
+  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.12);
+}
+
+.channel-list-page .channel-card-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) 0;
+  min-width: 0;
+}
+
+/* ── 卡片顶栏：身份 + 质量分 ── */
+.channel-list-page .channel-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.channel-list-page .channel-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+  flex: 1;
+}
+
+.channel-list-page .channel-header {
+  align-items: flex-start;
+}
+
+.channel-list-page .channel-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+}
+
+.channel-list-page .channel-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 0;
+  line-height: 1.35;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.channel-list-page .channel-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.channel-list-page .channel-meta .protocol-tag {
+  font-size: 10px;
+  padding: 1px 7px;
+  letter-spacing: 0.02em;
+}
+
+.channel-list-page .channel-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px 1px 6px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-secondary);
+}
+
+.channel-list-page .channel-status-chip .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-tertiary);
+}
+
+.channel-list-page .channel-status-chip.is-enabled {
+  border-color: rgba(22, 163, 74, 0.25);
+  background: rgba(22, 163, 74, 0.06);
+  color: var(--edgex-success);
+}
+
+.channel-list-page .channel-status-chip.is-enabled .status-dot {
+  background: var(--edgex-success);
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15);
+}
+
+.channel-list-page .channel-status-chip.is-disabled {
+  color: var(--text-tertiary);
+}
+
+.channel-list-page .quality-score {
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  line-height: 1.4;
+}
+
+.channel-list-page .channel-icon,
+.channel-list-page .quality-score,
+.channel-list-page .channel-metrics {
+  background: var(--bg);
+}
+
+/* ── KPI 指标区 ── */
+.channel-list-page .channel-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.channel-list-page .channel-kpi {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--space-2) var(--space-1);
+  min-width: 0;
+}
+
+.channel-list-page .channel-kpi + .channel-kpi {
+  border-left: 1px solid var(--border);
+}
+
+.channel-list-page .channel-kpi-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  line-height: 1.2;
+}
+
+.channel-list-page .channel-kpi-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.channel-list-page .channel-kpi-value.online,
+.channel-list-page .channel-kpi-value.success {
+  color: var(--edgex-success);
+}
+
+.channel-list-page .channel-kpi-value.offline,
+.channel-list-page .channel-kpi-value.error {
+  color: var(--edgex-error);
+}
+
+.channel-list-page .channel-kpi-value.warning {
+  color: #d97706;
+}
+
+/* ── 通信质量 ── */
+.channel-list-page .channel-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-2) var(--space-3) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+  background: var(--bg) !important;
+}
+
+.channel-list-page .channel-metrics .metrics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: 0;
+}
+
+.channel-list-page .channel-metrics .metrics-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.channel-list-page .channel-metrics .metrics-rtt {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.channel-list-page .quality-bar-container {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-2);
+}
+
+/* ── 底部操作栏 ── */
+.channel-list-page .channel-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
+}
+
+.channel-list-page .channel-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  padding: 0;
+  border: none;
+  margin: 0;
+}
+
+.channel-list-page .channel-card-actions .arco-btn {
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+}
+
+.channel-list-page .channel-card-actions .arco-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg);
+}
+
+.channel-list-page .empty-card {
+  background: transparent !important;
+  border: 1px dashed var(--border) !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.channel-list-zone-empty {
+  padding: var(--space-5) var(--space-4);
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* ── 列表视图 ── */
+.channel-list-page .table-container {
+  min-width: 0;
+}
+
+.channel-list-page .table-ops {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: nowrap;
+}
+
+/* ── Dark ── */
+.dark-theme .channel-list-page .channel-card {
+  background: var(--surface-1) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.dark-theme .channel-list-page .channel-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+}
+
+.dark-theme .channel-list-page .channel-card.is-selected {
+  background: rgba(14, 165, 233, 0.08) !important;
+}
+
+.dark-theme .channel-list-page .channel-card-footer {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* ── Responsive ── */
+@media (max-width: 1200px) {
+  .channel-list-page .channels-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .channel-list-tertiary-block .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

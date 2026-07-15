@@ -3,7 +3,6 @@ package core
 import (
 	"errors"
 	"testing"
-	"time"
 )
 
 func TestConnectionController_New(t *testing.T) {
@@ -37,17 +36,22 @@ func TestConnectionController_RecordConnectionFailure(t *testing.T) {
 	cc := NewConnectionController("modbus", "device1", "modbus-tcp")
 
 	cc.RecordConnectionSuccess()
+	stateBefore := cc.GetState()
 
 	shouldRetry, backoff := cc.RecordConnectionFailure()
 
-	if !shouldRetry {
-		t.Error("应允许重试")
+	if shouldRetry {
+		t.Error("观测层不应授权重试")
 	}
-	if backoff <= 0 {
-		t.Errorf("退避时间应大于0，实际%v", backoff)
+	if backoff != 0 {
+		t.Errorf("观测层不应返回退避，实际%v", backoff)
 	}
-	if cc.GetState() != ConnStateRetrying {
-		t.Errorf("状态应为Retrying，实际%s", cc.GetState())
+	if cc.GetState() != stateBefore {
+		t.Errorf("RecordConnectionFailure 不应改变连接态，期望 %s，实际 %s", stateBefore, cc.GetState())
+	}
+	_, _, _, _, _, _, connectionFailCount := cc.GetStatus()
+	if connectionFailCount != 1 {
+		t.Errorf("connectionFailCount 应为 1，实际 %d", connectionFailCount)
 	}
 }
 
@@ -55,9 +59,9 @@ func TestConnectionController_IsConnectionFailure(t *testing.T) {
 	cc := NewConnectionController("modbus", "device1", "modbus-tcp")
 
 	testCases := []struct {
-		err        error
-		expected   bool
-		desc       string
+		err      error
+		expected bool
+		desc     string
 	}{
 		{errors.New("connection refused"), true, "连接拒绝"},
 		{errors.New("connection reset by peer"), true, "连接重置"},
@@ -82,9 +86,9 @@ func TestConnectionController_IsReadFailure(t *testing.T) {
 	cc := NewConnectionController("modbus", "device1", "modbus-tcp")
 
 	testCases := []struct {
-		err        error
-		expected   bool
-		desc       string
+		err      error
+		expected bool
+		desc     string
 	}{
 		{errors.New("illegal data address"), true, "非法地址"},
 		{errors.New("illegal function"), true, "非法功能码"},
@@ -129,88 +133,15 @@ func TestConnectionController_RecordReadFailure(t *testing.T) {
 	}
 }
 
-func TestConnectionController_CanRetry(t *testing.T) {
+func TestConnectionController_HealthScore(t *testing.T) {
 	cc := NewConnectionController("modbus", "device1", "modbus-tcp")
-
-	canRetry, waitTime := cc.CanRetry()
-	if !canRetry {
-		t.Error("Disconnected状态应允许重试")
-	}
-	if waitTime != 0 {
-		t.Errorf("Disconnected状态等待时间应为0，实际%v", waitTime)
+	if cc.HealthScore() != 1.0 {
+		t.Fatalf("初始 HealthScore 应为 1.0，实际 %v", cc.HealthScore())
 	}
 
-	cc.RecordConnectionSuccess()
-	canRetry, waitTime = cc.CanRetry()
-	if canRetry {
-		t.Error("Connected状态不应允许重试")
-	}
-
-	cc.RecordConnectionFailure()
-	canRetry, waitTime = cc.CanRetry()
-	if !canRetry {
-		t.Error("Retrying状态应允许重试")
-	}
-	if waitTime <= 0 {
-		t.Errorf("Retrying状态应有退避时间，实际%v", waitTime)
-	}
-}
-
-func TestConnectionController_GlobalReconnectRateLimit(t *testing.T) {
-	cc := NewConnectionController("modbus", "device1", "modbus-tcp")
-
-	originalRate := MaxGlobalReconnectRate
-	MaxGlobalReconnectRate = 2
-
-	defer func() {
-		MaxGlobalReconnectRate = originalRate
-	}()
-
-	for i := 0; i < 3; i++ {
-		cc.RecordConnectionFailure()
-	}
-
-	canRetry, waitTime := cc.CanRetry()
-	if !canRetry {
-		t.Error("应允许重试")
-	}
-	if waitTime != 1*time.Second {
-		t.Errorf("超过全局限流时应等待1秒，实际%v", waitTime)
-	}
-}
-
-func TestConnectionController_CalculateBackoff(t *testing.T) {
-	cc := NewConnectionController("modbus", "device1", "modbus-tcp")
-
-	backoff1 := cc.calculateBackoff(1)
-	backoff2 := cc.calculateBackoff(2)
-	backoff3 := cc.calculateBackoff(3)
-
-	if backoff1 >= backoff2 {
-		t.Errorf("退避时间应递增，backoff1=%v, backoff2=%v", backoff1, backoff2)
-	}
-	if backoff2 >= backoff3 {
-		t.Errorf("退避时间应递增，backoff2=%v, backoff3=%v", backoff2, backoff3)
-	}
-}
-
-func TestConnectionController_AttemptHalfOpen(t *testing.T) {
-	cc := NewConnectionController("modbus", "device1", "modbus-tcp")
-
-	cc.SetState(ConnStateDead)
-	cc.enterCoolDown()
-
-	cc.AttemptHalfOpen(true)
-	if cc.GetState() != ConnStateConnected {
-		t.Errorf("Half-Open成功后状态应为Connected，实际%s", cc.GetState())
-	}
-
-	cc.SetState(ConnStateDead)
-	cc.enterCoolDown()
-
-	cc.AttemptHalfOpen(false)
-	if cc.GetState() == ConnStateConnected {
-		t.Errorf("Half-Open失败后状态不应为Connected")
+	cc.RecordReadFailure()
+	if cc.HealthScore() >= 1.0 {
+		t.Fatal("读取失败后 HealthScore 应下降")
 	}
 }
 

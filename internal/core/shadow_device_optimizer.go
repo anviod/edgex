@@ -15,11 +15,11 @@ const (
 
 // ShadowDeviceOptimizer 影子设备优化器，集成RTT、MTU、Gap优化
 type ShadowDeviceOptimizer struct {
-	rttManager       *RTTManager
-	mtuManager       *MTUManager
-	gapOptimizer     *GapOptimizer
-	lastProfileRTT   map[string]int64
-	mu               sync.RWMutex
+	rttManager     *RTTManager
+	mtuManager     *MTUManager
+	gapOptimizer   *GapOptimizer
+	lastProfileRTT map[string]int64
+	mu             sync.RWMutex
 }
 
 // NewShadowDeviceOptimizer 创建影子设备优化器

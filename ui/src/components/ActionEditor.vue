@@ -239,7 +239,7 @@
                    </a-form-item>
                  </a-col>
                  <a-col :span="24" :md="6">
-                   <a-form-item label="点位">
+                   <a-form-item label="点位(仅可写类型)">
                      <a-select 
                        v-model="action.config.point_id" 
                        :options="pointList" 
@@ -395,9 +395,13 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, computed, inject } from 'vue'
+import { ref, watch, onMounted, inject } from 'vue'
 import request from '@/utils/request'
 import { IconDelete, IconPlus, IconClose } from '@arco-design/web-vue/es/icon'
+import {
+  normalizeDeviceOptions,
+  fetchWritablePointOptions
+} from '@/utils/southboundPointOptions'
 // Recursive component self-reference
 import ActionEditor from './ActionEditor.vue'
 import TargetEditor from './TargetEditor.vue'
@@ -418,44 +422,8 @@ const emit = defineEmits(['update:modelValue', 'remove'])
 const action = ref(props.modelValue)
 const deviceList = ref([])
 const pointList = ref([])
-
-const toOptionLabel = (item, fallbackText) => {
-    if (typeof item === 'string' || typeof item === 'number') return String(item)
-
-    const candidates = [
-        item?.name,
-        item?.device_name,
-        item?.point_name,
-        item?.label,
-        item?.id,
-        item?.value
-    ]
-
-    const candidate = candidates.find((value) => value != null && String(value).trim() !== '')
-    return candidate == null ? fallbackText : String(candidate)
-}
-
-const normalizeDeviceOptions = (data) => {
-    return (Array.isArray(data) ? data : []).map((d) => ({
-        label: toOptionLabel(d, 'Unnamed Device'),
-        value: (typeof d === 'string' || typeof d === 'number')
-            ? String(d)
-            : String(d?.id ?? d?.value ?? toOptionLabel(d, 'Unnamed Device')),
-        raw: d
-    }))
-}
-
-const normalizePointOptions = (points) => {
-    return (Array.isArray(points) ? points : [])
-        .filter((p) => p?.readwrite !== 'R')
-        .map((p) => ({
-            label: toOptionLabel(p, 'Unnamed Point'),
-            value: (typeof p === 'string' || typeof p === 'number')
-                ? String(p)
-                : String(p?.id ?? p?.value ?? toOptionLabel(p, 'Unnamed Point')),
-            raw: p
-        }))
-}
+const loadedChannelId = ref('')
+const pointLoadToken = ref(0)
 
 // Inject Options
 const mqttOptions = inject('mqttOptions', ref([]))
@@ -555,31 +523,75 @@ const onChannelChange = async (cfg) => {
     cfg.point_id = ''
     deviceList.value = []
     pointList.value = []
+    loadedChannelId.value = ''
 
     if (!cfg.channel_id) return
 
-    const data = await request.get(`/api/channels/${cfg.channel_id}/devices`)
+    const data = await request.get(`/api/channels/${encodeURIComponent(cfg.channel_id)}/devices`)
     deviceList.value = normalizeDeviceOptions(data)
+    loadedChannelId.value = cfg.channel_id
 }
 
-const onDeviceChange = (cfg) => {
+const loadPointsForDevice = async (cfg) => {
+    if (!cfg?.channel_id || !cfg?.device_id) {
+        pointList.value = []
+        return
+    }
+
+    const channelId = cfg.channel_id
+    const deviceId = cfg.device_id
+    const token = ++pointLoadToken.value
+    const dev = deviceList.value.find((d) => String(d.value) === String(deviceId))
+    const embeddedPoints = dev?.raw?.points
+
+    const options = await fetchWritablePointOptions(
+        request,
+        channelId,
+        deviceId,
+        embeddedPoints
+    )
+
+    if (token !== pointLoadToken.value) return
+    if (String(channelId) !== String(loadedChannelId.value)) return
+    if (String(deviceId) !== String(cfg.device_id)) return
+
+    pointList.value = options
+}
+
+const onDeviceChange = async (cfg) => {
     cfg.point_id = ''
     pointList.value = []
 
-    if (!cfg.device_id || deviceList.value.length === 0) return
+    if (!cfg.device_id) return
 
-    const dev = deviceList.value.find((d) => String(d.value) === String(cfg.device_id))
-    const points = dev?.raw?.points || dev?.points || []
-    pointList.value = normalizePointOptions(points)
+    if (deviceList.value.length === 0 && cfg.channel_id) {
+        await loadDevices(cfg)
+        return
+    }
+
+    await loadPointsForDevice(cfg)
 }
 
 const loadDevices = async (cfg) => {
-    if (!cfg?.channel_id || deviceList.value.length > 0) return
+    if (!cfg?.channel_id) {
+        loadedChannelId.value = ''
+        deviceList.value = []
+        pointList.value = []
+        return
+    }
 
-    const data = await request.get(`/api/channels/${cfg.channel_id}/devices`)
-    deviceList.value = normalizeDeviceOptions(data)
+    const channelChanged = loadedChannelId.value !== cfg.channel_id
+
+    if (channelChanged || deviceList.value.length === 0) {
+        const data = await request.get(`/api/channels/${encodeURIComponent(cfg.channel_id)}/devices`)
+        deviceList.value = normalizeDeviceOptions(data)
+        loadedChannelId.value = cfg.channel_id
+    }
+
     if (cfg.device_id) {
-        onDeviceChange(cfg)
+        await loadPointsForDevice(cfg)
+    } else {
+        pointList.value = []
     }
 }
 

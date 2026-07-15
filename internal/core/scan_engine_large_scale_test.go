@@ -8,17 +8,17 @@ import (
 )
 
 type StressTestResult struct {
-	TotalTasks         int
-	ExecutedTasks      int64
-	FailedTasks        int64
-	TotalDuration      time.Duration
-	MinLatency         time.Duration
-	MaxLatency         time.Duration
-	AvgLatency         time.Duration
-	GoroutinePeak      int32
-	ConnectionPeak     int32
-	QueuePeak          int
-	Throughput         float64
+	TotalTasks     int
+	ExecutedTasks  int64
+	FailedTasks    int64
+	TotalDuration  time.Duration
+	MinLatency     time.Duration
+	MaxLatency     time.Duration
+	AvgLatency     time.Duration
+	GoroutinePeak  int32
+	ConnectionPeak int32
+	QueuePeak      int
+	Throughput     float64
 }
 
 func TestScanEngine_SerialProtocolIsolation(t *testing.T) {

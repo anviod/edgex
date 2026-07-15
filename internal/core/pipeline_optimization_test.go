@@ -49,3 +49,42 @@ func TestPipeline_Optimization(t *testing.T) {
 		t.Errorf("Expected buffer size 1 for p2, got %d", len(buf2))
 	}
 }
+
+func TestPipeline_StartHandlersAndBatch(t *testing.T) {
+	dp := NewDataPipeline(10)
+	dp.Start()
+
+	var singleCount, batchCount int
+	dp.AddHandler(func(v model.Value) {
+		singleCount++
+	})
+	dp.AddBatchHandler(func(batch []model.Value) {
+		batchCount++
+		if len(batch) == 0 {
+			t.Error("batch handler received empty batch")
+		}
+	})
+
+	val := model.Value{ChannelID: "c1", DeviceID: "d1", PointID: "p1", Value: 42}
+	dp.Push(val)
+	dp.PushBatch([]model.Value{
+		{ChannelID: "c1", DeviceID: "d1", PointID: "p2", Value: 1},
+		{ChannelID: "c1", DeviceID: "d1", PointID: "p3", Value: 2},
+	})
+
+	deadline := time.After(2 * time.Second)
+	for singleCount == 0 || batchCount == 0 {
+		select {
+		case <-deadline:
+			t.Fatalf("handlers not invoked: single=%d batch=%d", singleCount, batchCount)
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+
+	sc := NewShadowCore()
+	ingress := NewShadowIngress(sc, 64, 10*time.Millisecond)
+	dp.SetShadowIngress(ingress)
+	dp.process(model.Value{ChannelID: "c1", DeviceID: "d1", PointID: "p4", Value: 99})
+	dp.PushBatch(nil)
+}

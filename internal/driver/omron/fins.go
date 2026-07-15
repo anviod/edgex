@@ -344,8 +344,8 @@ func (b *tcpBackend) GetSchedulerStats() finslib.SchedulerStats {
 type udpBackend struct {
 	cfg map[string]interface{}
 
-	client   udpClient
-	decoder  *finslib.Decoder
+	client    udpClient
+	decoder   *finslib.Decoder
 	scheduler *udpScheduler
 
 	mu          sync.RWMutex

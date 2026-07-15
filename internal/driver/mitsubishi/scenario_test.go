@@ -5,8 +5,6 @@ import (
 	"errors"
 	"net"
 	"strconv"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -97,7 +95,7 @@ func TestScenario_ReconnectCountOnConnect(t *testing.T) {
 	assert.Equal(t, int64(2), reconCount)
 }
 
-func TestScenario_ConcurrentSchedulerStats(t *testing.T) {
+func TestScenario_SchedulerStatsAccumulation(t *testing.T) {
 	mock := NewMockPLC()
 	mock.SetWord("D", 200, 42)
 	addr, err := mock.Start()
@@ -114,18 +112,11 @@ func TestScenario_ConcurrentSchedulerStats(t *testing.T) {
 	scheduler := NewMCScheduler(transport, NewMCDecoder(), 8)
 	point := model.Point{ID: "p1", Address: "D200", DataType: "INT16"}
 
-	var wg sync.WaitGroup
-	var ops int32
+	// MC 为串行协议；同 Transport 并发 I/O 无 channelMu 保护，与 ScanEngine 生产路径不一致。
 	for i := 0; i < 20; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			_, _ = scheduler.ReadPoints(context.Background(), []model.Point{point})
-			atomic.AddInt32(&ops, 1)
-		}()
+		_, err := scheduler.ReadPoints(context.Background(), []model.Point{point})
+		require.NoError(t, err)
 	}
-	wg.Wait()
-	assert.Equal(t, int32(20), atomic.LoadInt32(&ops))
 
 	total, success, _ := scheduler.GetStats()
 	assert.Equal(t, int64(20), total)

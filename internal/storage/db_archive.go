@@ -91,7 +91,7 @@ func exportOpenDBAsTarGz(db *bbolt.DB, sourcePath, entryName, archiveType string
 	}
 
 	archiveData, err := buildTarGz(map[string][]byte{
-		entryName:             dbBytes.Bytes(),
+		entryName:           dbBytes.Bytes(),
 		ArchiveManifestName: manifest,
 	})
 	if err != nil {

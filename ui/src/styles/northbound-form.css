@@ -152,21 +152,18 @@
   transform: translateX(2px);
 }
 
-/* ── 通道卡片 ── */
+/* ── 通道卡片（页面级 surface-1 见 northbound.css） ── */
 .nb-card.arco-card {
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--bg);
+  box-shadow: none;
   transition: border-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .nb-card.arco-card:hover {
-  border-color: rgba(14, 165, 233, 0.35);
+  border-color: rgba(14, 165, 233, 0.2);
   transform: translateY(-1px);
-}
-
-.nb-card--passive.arco-card:hover {
-  border-color: rgba(114, 46, 209, 0.35);
 }
 
 .nb-card .arco-card-header {
@@ -216,10 +213,6 @@
   white-space: nowrap;
   flex: 1;
   min-width: 0;
-}
-
-.nb-card__mode-tag {
-  flex-shrink: 0;
 }
 
 .nb-card__body {
@@ -511,56 +504,139 @@
   padding: var(--space-2) 0;
 }
 
-/* ── 帮助文档 ── */
+/* ── 帮助文档（对齐 help-drawer.css 文档排版） ── */
 .northbound-help-modal .arco-tabs-nav {
   margin-bottom: var(--space-4);
 }
 
-.northbound-help-modal .nb-help-section {
-  margin-bottom: var(--space-4);
+.northbound-help-modal .arco-tabs-content {
+  padding-top: 0;
 }
 
-.northbound-help-modal .nb-help-section h4 {
-  margin: 0 0 var(--space-2);
+.northbound-help-modal .nb-help-tab,
+.northbound-help-modal .nb-help-doc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.northbound-help-modal .nb-help-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.northbound-help-modal .nb-help-hero__title {
+  margin: 0;
   font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 1.4;
 }
 
-.northbound-help-modal .nb-help-section p {
-  margin: 0 0 var(--space-4);
+.northbound-help-modal .nb-help-hero__lead {
+  margin: 0;
   font-size: 13px;
-  color: var(--text-secondary);
   line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.northbound-help-modal .nb-help-hero__lead code,
+.northbound-help-modal .help-doc-faq p code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+}
+
+.northbound-help-modal .nb-help-block-title {
+  margin: 0 0 var(--space-2);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+.northbound-help-modal .nb-help-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.northbound-help-modal .nb-help-hint {
+  margin: var(--space-1) 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
 }
 
 .northbound-help-modal .nb-help-topic-card {
-  margin-bottom: var(--space-4);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: var(--bg);
 }
 
-.northbound-help-modal .nb-help-topic-card--primary {
-  border-color: rgba(14, 165, 233, 0.35);
-}
-
-.northbound-help-modal .nb-help-topic-card--blue {
-  border-color: rgba(22, 93, 255, 0.35);
+.northbound-help-modal .nb-help-topic-card__body {
+  padding: var(--space-3) var(--space-4);
 }
 
 .northbound-help-modal .nb-help-topic-card__label {
   font-size: 12px;
   font-weight: 600;
   margin-bottom: var(--space-2);
+  line-height: 1.4;
+}
+
+.northbound-help-modal .nb-help-topic-card--primary {
+  border-color: rgba(14, 165, 233, 0.35);
 }
 
 .northbound-help-modal .nb-help-topic-card--primary .nb-help-topic-card__label {
   color: var(--primary);
 }
 
+.northbound-help-modal .nb-help-topic-card--blue {
+  border-color: rgba(22, 93, 255, 0.35);
+}
+
 .northbound-help-modal .nb-help-topic-card--blue .nb-help-topic-card__label {
   color: #165dff;
+}
+
+.northbound-help-modal .nb-help-topic-card--green {
+  border-color: rgba(0, 180, 42, 0.35);
+}
+
+.northbound-help-modal .nb-help-topic-card--green .nb-help-topic-card__label {
+  color: #00b42a;
+}
+
+.northbound-help-modal .nb-help-topic-card--orange {
+  border-color: rgba(255, 125, 0, 0.35);
+}
+
+.northbound-help-modal .nb-help-topic-card--orange .nb-help-topic-card__label {
+  color: #ff7d00;
+}
+
+.northbound-help-modal .nb-help-topic-card--red {
+  border-color: rgba(245, 63, 63, 0.35);
+}
+
+.northbound-help-modal .nb-help-topic-card--red .nb-help-topic-card__label {
+  color: #f53f3f;
+}
+
+.northbound-help-modal .nb-help-topic-card--purple {
+  border-color: rgba(114, 46, 209, 0.35);
+}
+
+.northbound-help-modal .nb-help-topic-card--purple .nb-help-topic-card__label {
+  color: #722ed1;
 }
 
 .northbound-help-modal .nb-help-code-row {
@@ -573,6 +649,7 @@
   font-size: 13px;
   font-weight: 500;
   font-family: var(--font-mono);
+  color: var(--text-primary);
 }
 
 .northbound-help-modal .nb-help-code-row__text {
@@ -580,13 +657,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.northbound-help-modal .nb-help-pre-label {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: var(--space-2);
-  color: var(--text-primary);
 }
 
 .northbound-help-modal pre,
@@ -598,9 +668,212 @@
   line-height: 1.5;
   border: 1px solid var(--border);
   overflow-x: auto;
-  margin: 0 0 var(--space-4);
+  margin: 0;
   font-family: var(--font-mono);
   color: var(--text-primary);
+}
+
+.northbound-help-modal .nb-help-pre code {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: transparent;
+}
+
+.northbound-help-modal .nb-help-alert {
+  margin: 0;
+}
+
+.northbound-help-modal .nb-help-alert .arco-alert-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.northbound-help-modal .nb-help-alert code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+}
+
+.northbound-help-modal .nb-help-steps-box {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.northbound-help-modal .nb-help-steps-box strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.northbound-help-modal .nb-help-list,
+.northbound-help-modal .nb-help-steps-box ol,
+.northbound-help-modal .nb-help-steps-box ul,
+.northbound-help-modal .nb-help-doc ul {
+  margin: var(--space-2) 0 0;
+  padding-left: 1.25rem;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.northbound-help-modal .nb-help-list li + li,
+.northbound-help-modal .nb-help-steps-box li + li,
+.northbound-help-modal .nb-help-doc li + li {
+  margin-top: var(--space-1);
+}
+
+.northbound-help-modal .nb-help-list--tertiary {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.northbound-help-modal .nb-help-doc p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.northbound-help-modal .nb-help-doc .nb-help-block-title {
+  margin-top: var(--space-2);
+}
+
+.northbound-help-modal .nb-help-doc .nb-help-block-title:first-child {
+  margin-top: 0;
+}
+
+.northbound-help-modal .nb-help-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+.northbound-help-modal .nb-help-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.northbound-help-modal .nb-help-table th,
+.northbound-help-modal .nb-help-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.northbound-help-modal .nb-help-table th {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-tertiary);
+  background: var(--surface-1);
+}
+
+.northbound-help-modal .nb-help-table td {
+  color: var(--text-secondary);
+}
+
+.northbound-help-modal .nb-help-table tr:last-child td {
+  border-bottom: none;
+}
+
+.northbound-help-modal .nb-help-table code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+}
+
+.northbound-help-modal .nb-help-collapse.help-doc-faq,
+.northbound-help-modal .help-doc-faq {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 8px 16px;
+}
+
+.northbound-help-modal .help-doc-faq.arco-collapse {
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.northbound-help-modal .help-doc-faq .arco-collapse-item {
+  border-bottom: 1px solid var(--border);
+}
+
+.northbound-help-modal .help-doc-faq .arco-collapse-item:last-child {
+  border-bottom: none;
+}
+
+.northbound-help-modal .help-doc-faq .arco-collapse-item-header {
+  padding: 14px 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.5;
+  background: transparent;
+}
+
+.northbound-help-modal .help-doc-faq .arco-collapse-item-content {
+  padding: 0 8px 16px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.northbound-help-modal .help-doc-faq .arco-collapse-item-content-box {
+  padding: 0;
+}
+
+.northbound-help-modal .help-doc-faq .arco-collapse-item-active > .arco-collapse-item-header {
+  padding-bottom: 8px;
+}
+
+.northbound-help-modal .help-doc-faq p {
+  margin: 0 0 var(--space-2);
+}
+
+.northbound-help-modal .help-doc-faq p:last-child {
+  margin-bottom: 0;
+}
+
+.northbound-help-modal .nb-help-link {
+  font-size: 13px;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.northbound-help-modal .nb-help-link:hover {
+  text-decoration: underline;
+}
+
+.northbound-help-modal .arco-table {
+  font-size: 13px;
+}
+
+.northbound-help-modal .arco-table-th {
+  background: var(--surface-1);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.northbound-help-modal .arco-table-td {
+  color: var(--text-secondary);
 }
 
 /* ── Dark ── */
@@ -623,44 +896,6 @@
 
 .dark-theme .northbound-stats-modal .log-viewer {
   background: var(--edgex-surface-inset);
-}
-
-/* Help modal: override legacy inline grays */
-.northbound-help-modal .arco-modal-body h4 {
-  margin: 0 0 var(--space-2) !important;
-  font-size: 15px !important;
-  font-weight: 600 !important;
-  color: var(--text-primary) !important;
-}
-
-.northbound-help-modal .arco-modal-body p {
-  margin: 0 0 var(--space-4) !important;
-  font-size: 13px !important;
-  color: var(--text-secondary) !important;
-  line-height: 1.6 !important;
-}
-
-.northbound-help-modal .arco-modal-body pre {
-  background: var(--edgex-surface-inset) !important;
-  padding: var(--space-3) !important;
-  border-radius: var(--radius-sm) !important;
-  font-size: 13px !important;
-  line-height: 1.5 !important;
-  border: 1px solid var(--border) !important;
-  overflow-x: auto;
-  margin: 0 0 var(--space-4) !important;
-  font-family: var(--font-mono) !important;
-  color: var(--text-primary) !important;
-}
-
-.northbound-help-modal .arco-modal-body .arco-card {
-  margin-bottom: var(--space-4);
-  border-radius: var(--radius-lg);
-  background: var(--bg);
-}
-
-.northbound-help-modal .arco-modal-body .arco-card .arco-card-body {
-  padding: var(--space-3) var(--space-4);
 }
 
 .northbound-page .empty-wrap .arco-empty-image {

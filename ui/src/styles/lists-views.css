@@ -108,6 +108,14 @@
   flex-shrink: 0;
 }
 
+.list-detail-meta__dot.is-offline {
+  background: var(--text-quaternary, #9ca3af);
+}
+
+.list-detail-meta__dot.is-idle {
+  background: #64748b;
+}
+
 .list-detail-meta__text {
   font-family: var(--font-mono);
   letter-spacing: 0.01em;

@@ -1,1 +1,6 @@
 * linguist-language=Go
+
+*.sh text eol=lf
+scripts/** text eol=lf
+edgex.sh text eol=lf
+edgex.service text eol=lf

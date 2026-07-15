@@ -7,14 +7,14 @@ import (
 )
 
 type driverConfig struct {
-	ip          string
-	port        int
-	networkNo   int
-	pcNo        int
-	stationNo   int
-	frameType   string // "3E" or "4E" (4E falls back to 3E for now)
-	timeout     time.Duration
-	maxRetries  int
+	ip           string
+	port         int
+	networkNo    int
+	pcNo         int
+	stationNo    int
+	frameType    string // "3E" or "4E" (4E falls back to 3E for now)
+	timeout      time.Duration
+	maxRetries   int
 	batchReadMax int
 }
 

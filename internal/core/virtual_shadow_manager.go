@@ -208,6 +208,10 @@ func (m *VirtualShadowManager) SearchSourceDevices(query, channelID string, limi
 					continue
 				}
 			}
+			state := 2
+			if d := m.cm.GetDevice(ch.ID, dev.ID); d != nil {
+				state = d.State
+			}
 			results = append(results, model.SourceDeviceSummary{
 				Key:         ch.ID + "::" + dev.ID,
 				ChannelID:   ch.ID,
@@ -215,6 +219,8 @@ func (m *VirtualShadowManager) SearchSourceDevices(query, channelID string, limi
 				DeviceID:    dev.ID,
 				DeviceName:  dev.Name,
 				PointCount:  len(dev.Points),
+				State:       state,
+				Online:      state == 0 || state == 1,
 			})
 			if len(results) >= limit {
 				return results
@@ -284,7 +290,7 @@ func (m *VirtualShadowManager) applyOne(cfg model.VirtualShadowDeviceConfig) err
 	if err != nil {
 		return err
 	}
-	return m.vse.ReplaceVirtualDevice(cfg.ID, cfg.ChannelID, formulas)
+	return m.vse.ReplaceVirtualDevice(cfg.ID, "", formulas)
 }
 
 func (m *VirtualShadowManager) persist(configs []model.VirtualShadowDeviceConfig) error {

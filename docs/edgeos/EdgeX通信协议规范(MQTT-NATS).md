@@ -6,6 +6,8 @@ description: EdgeX EdgeX端 通信协议规范 (MQTT-NATS)
 
 # EdgeX端 通信协议规范 (MQTT/NATS)
 
+> **文档定位：** 本文描述 **EdgeX ↔ edgeOS 蜂群** 专用 Topic/Subject 与消息体（节点注册、设备上报、下行控制等）。**通用 MQTT 北向插件**（Values-format 上报、读写/状态主题、多格式选项）见 [MQTT 数据上下行格式](../northbound/MQTT数据上下行格式.html)，二者 scope 不同、互不替代。
+
 ## 概述
 
 本文档详细说明了 EdgeX 边缘采集网关与 edgeOS 蜂群网络之间的通信协议规范，支持 MQTT 和 NATS 两种消息中间件, 通过添加北向通道来实现,北向通信协议名称取名 edgeOS(MQTT) 和 edgeOS(NATS) 可以参考当前项目 MQTT 和OPC-UA 。
@@ -1234,6 +1236,8 @@ func (c *NATSClient) SubscribeDiscoverCommands(nodeID string, callback func(Mess
 ## 9. 测试配置
 
 ### 9.1 本地测试环境
+
+> **说明**：下文 Docker 命令仅用于启动**第三方 MQTT/NATS Broker**。**EdgeX 网关本体**以裸机二进制或 systemd 部署，见 [部署流程](../guide/产品说明.html#部署流程)。
 
 #### MQTT Broker
 

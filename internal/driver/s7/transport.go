@@ -36,12 +36,12 @@ type S7ClientHandler interface {
 
 // S7 区域常量
 const (
-	S7AreaDB  = 0x84 // 数据块
-	S7AreaMK  = 0x83 // 标志存储器 (M区)
-	S7AreaPE  = 0x81 // 输入过程映像 (I区)
-	S7AreaPA  = 0x80 // 输出过程映像 (Q区)
-	S7AreaTM  = 0x1D // 定时器
-	S7AreaCT  = 0x1C // 计数器
+	S7AreaDB = 0x84 // 数据块
+	S7AreaMK = 0x83 // 标志存储器 (M区)
+	S7AreaPE = 0x81 // 输入过程映像 (I区)
+	S7AreaPA = 0x80 // 输出过程映像 (Q区)
+	S7AreaTM = 0x1D // 定时器
+	S7AreaCT = 0x1C // 计数器
 )
 
 // S7 字长常量
@@ -64,11 +64,11 @@ const (
 
 // PLC类型默认参数
 var plcDefaults = map[string]struct {
-	Rack           int
-	Slot           int
-	ConnType       int
-	MaxFailCount   int
-	DefaultCycle   time.Duration
+	Rack         int
+	Slot         int
+	ConnType     int
+	MaxFailCount int
+	DefaultCycle time.Duration
 }{
 	"s7-200smart": {Rack: 0, Slot: 1, ConnType: ConnTypeS7Basic, MaxFailCount: 3, DefaultCycle: 60 * time.Second},
 	"s7-1200":     {Rack: 0, Slot: 1, ConnType: ConnTypeS7Basic, MaxFailCount: 5, DefaultCycle: 10 * time.Second},
@@ -79,38 +79,38 @@ var plcDefaults = map[string]struct {
 
 // S7Transport S7传输层，封装gos7连接管理
 type S7Transport struct {
-	cfg    map[string]any
-	client gos7.Client
+	cfg     map[string]any
+	client  gos7.Client
 	handler S7ClientHandler
 
 	// 依赖注入（用于测试）
-	clientFactory func(handler S7ClientHandler) gos7.Client
+	clientFactory  func(handler S7ClientHandler) gos7.Client
 	handlerFactory func(address string, rack, slot, connType int) S7ClientHandler
 
 	// 配置参数
-	ip           string
-	port         int
-	rack         int
-	slot         int
-	timeout      time.Duration
-	connType     int
-	pduSize      int
-	plcType      string
+	ip       string
+	port     int
+	rack     int
+	slot     int
+	timeout  time.Duration
+	connType int
+	pduSize  int
+	plcType  string
 
 	// 连接状态
-	connected    atomic.Bool
-	mu           sync.Mutex
-	connectTime  time.Time
+	connected          atomic.Bool
+	mu                 sync.Mutex
+	connectTime        time.Time
 	lastDisconnectTime time.Time
-	reconnectCount atomic.Int32
-	localAddr    string
-	remoteAddr   string
+	reconnectCount     atomic.Int32
+	localAddr          string
+	remoteAddr         string
 
 	// 采集健康检测（替代独立心跳）
-	lastSuccessTime    atomic.Value // time.Time
-	collectFailCount   atomic.Int32
-	maxFailCount       int32
-	collectCycle       time.Duration
+	lastSuccessTime  atomic.Value // time.Time
+	collectFailCount atomic.Int32
+	maxFailCount     int32
+	collectCycle     time.Duration
 
 	// 重试
 	maxRetries    int
@@ -118,7 +118,7 @@ type S7Transport struct {
 	maxBackoff    time.Duration
 
 	// 指数退避参数
-	baseDelay    time.Duration
+	baseDelay     time.Duration
 	backoffFactor float64
 
 	// 连接管理器（状态机）
@@ -128,18 +128,18 @@ type S7Transport struct {
 // NewS7Transport 创建S7传输层实例
 func NewS7Transport(cfg map[string]any) *S7Transport {
 	t := &S7Transport{
-		cfg:            cfg,
-		port:           102,
-		timeout:        2 * time.Second,
-		connType:       ConnTypeS7Basic,
-		pduSize:        4096,
-		maxRetries:     1,
-		retryInterval:  100 * time.Millisecond,
-		maxBackoff:     30 * time.Second,
-		baseDelay:      100 * time.Millisecond,
-		backoffFactor:  2.0,
-		maxFailCount:   5,
-		collectCycle:   10 * time.Second,
+		cfg:           cfg,
+		port:          102,
+		timeout:       2 * time.Second,
+		connType:      ConnTypeS7Basic,
+		pduSize:       4096,
+		maxRetries:    1,
+		retryInterval: 100 * time.Millisecond,
+		maxBackoff:    30 * time.Second,
+		baseDelay:     100 * time.Millisecond,
+		backoffFactor: 2.0,
+		maxFailCount:  5,
+		collectCycle:  10 * time.Second,
 	}
 	t.lastSuccessTime.Store(time.Time{})
 

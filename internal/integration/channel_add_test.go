@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/anviod/edgex/internal/core"
-	_ "github.com/anviod/edgex/internal/driver/bacnet"
+	_ "github.com/anviod/bacnet"
 	_ "github.com/anviod/edgex/internal/driver/dlt645"
 	_ "github.com/anviod/edgex/internal/driver/ethernetip"
 	_ "github.com/anviod/edgex/internal/driver/ice104"
@@ -100,10 +100,10 @@ func TestAddChannel_ModbusAutoPoints(t *testing.T) {
 }
 
 type protocolFixture struct {
-	protocol    string
-	config      map[string]any
-	device      model.Device
-	point       model.Point
+	protocol string
+	config   map[string]any
+	device   model.Device
+	point    model.Point
 }
 
 func protocolFixtures() []protocolFixture {

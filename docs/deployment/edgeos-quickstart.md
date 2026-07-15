@@ -6,9 +6,11 @@ layout: default
 
 ## 1. 环境准备
 
+> **说明**：下文 Docker 示例仅用于快速启动**第三方 MQTT/NATS Broker**（Mosquitto、NATS 等）。**EdgeX 本体**以裸机二进制或 systemd 服务部署，不提供官方 Docker 镜像。部署步骤见 [产品说明 — 部署流程](../guide/产品说明.html#部署流程) 与 [用户手册 — 部署流程](../guide/USER_MANUAL.html#部署流程)。
+
 ### 1.1 启动 MQTT Broker
 
-使用 Mosquitto:
+使用 Mosquitto（第三方 Broker，可选 Docker）:
 ```bash
 docker run -d \
   --name mosquitto \
@@ -19,7 +21,7 @@ docker run -d \
 
 ### 1.2 启动 NATS Server
 
-使用普通模式:
+使用普通模式（第三方 Broker，可选 Docker）:
 ```bash
 docker run -d \
   --name nats \
@@ -374,7 +376,7 @@ client_id: "edgex-node-002-mqtt"
 ## 8. 下一步
 
 - 阅读完整文档: [edgeos-northbound.md](edgeos-northbound.html)
-- 查看协议规范: [EdgeX-EdgeOS通信协议规范(MQTT-NATS).md](../doc/TODO/EdgeX-EdgeOS通信协议规范(MQTT-NATS).md)
+- 查看协议规范: [EdgeX 通信协议规范](../edgeos/EdgeX通信协议规范%28MQTT-NATS%29.html)
 - 集成到现有 edgeOS 蜂群网络
 - 实现自定义消息处理逻辑
 

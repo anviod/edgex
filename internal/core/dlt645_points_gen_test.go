@@ -25,7 +25,7 @@ func TestAddDevice_DLT645_AutoDefaultPoints(t *testing.T) {
 		ID:   "dev-meter-1",
 		Name: "Meter 1",
 		Config: map[string]any{
-			"station_address":    "123456789012",
+			"station_address":     "123456789012",
 			"auto_points_enabled": true,
 		},
 	}
@@ -65,7 +65,7 @@ func TestAddDevice_DLT645_AutoPointsDisabled(t *testing.T) {
 		ID:   "dev-meter-2",
 		Name: "Meter 2",
 		Config: map[string]any{
-			"station_address":    "123456789012",
+			"station_address":     "123456789012",
 			"auto_points_enabled": false,
 		},
 	}
@@ -93,7 +93,7 @@ func TestAddDevice_DLT645_SkipsAutoWhenPointsProvided(t *testing.T) {
 		ID:   "dev-meter-3",
 		Name: "Meter 3",
 		Config: map[string]any{
-			"station_address":    "123456789012",
+			"station_address":     "123456789012",
 			"auto_points_enabled": true,
 		},
 		Points: []model.Point{{
@@ -137,8 +137,8 @@ func TestAddDevice_DLT645_NoAddressSkipsAutoPoints(t *testing.T) {
 func TestGenerateDLT645StandardPoints_ContainsExtensionDI(t *testing.T) {
 	points := GenerateDLT645StandardPoints("123456789012", "dev-1")
 	extensionChecks := map[string]string{
-		"forward_active_max_demand_time":                    "123456789012#01-01-00-00#T",
-		"reverse_active_max_demand_time":                    "123456789012#01-02-00-00#T",
+		"forward_active_max_demand_time":                   "123456789012#01-01-00-00#T",
+		"reverse_active_max_demand_time":                   "123456789012#01-02-00-00#T",
 		"last_timed_freeze_forward_active_max_demand_time": "123456789012#05-00-09-01#T",
 	}
 	for id, wantAddr := range extensionChecks {
@@ -168,12 +168,12 @@ func TestDLT645StandardPointTemplates_KeyDIs(t *testing.T) {
 		scale    float64
 		unit     string
 	}{
-		"forward_active_energy":       {dataID: "00-01-00-00", dataType: "uint64", scale: 0.01, unit: "kWh"},
-		"b_phase_voltage":             {dataID: "02-01-02-00", dataType: "uint16", scale: 0.1, unit: "V"},
-		"total_active_power":          {dataID: "02-03-00-00", dataType: "int32", scale: 0.0001, unit: "kW"},
-		"reverse_active_max_demand":   {dataID: "01-02-00-00", dataType: "uint64", scale: 0.0001, unit: "kW"},
+		"forward_active_energy":                     {dataID: "00-01-00-00", dataType: "uint64", scale: 0.01, unit: "kWh"},
+		"b_phase_voltage":                           {dataID: "02-01-02-00", dataType: "uint16", scale: 0.1, unit: "V"},
+		"total_active_power":                        {dataID: "02-03-00-00", dataType: "int32", scale: 0.0001, unit: "kW"},
+		"reverse_active_max_demand":                 {dataID: "01-02-00-00", dataType: "uint64", scale: 0.0001, unit: "kW"},
 		"last_instant_freeze_forward_active_energy": {dataID: "05-01-01-01", dataType: "uint32", scale: 0.01, unit: "kWh"},
-		"tariff_count":                {dataID: "04-00-02-04", dataType: "uint8", scale: 0, unit: ""},
+		"tariff_count":                              {dataID: "04-00-02-04", dataType: "uint8", scale: 0, unit: ""},
 	}
 	byID := make(map[string]DLT645PointTemplate, len(DLT645StandardPointTemplates))
 	for _, tpl := range DLT645StandardPointTemplates {

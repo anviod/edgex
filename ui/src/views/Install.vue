@@ -407,10 +407,10 @@ const validateConfirmPassword = () => {
   confirmPasswordMessage.value = ''
 }
 
-const validateForm = () => {
+const validateForm = async () => {
   generalErrors.value = []
 
-  validatePort()
+  await validatePort()
   validatePassword()
   validateConfirmPassword()
 
@@ -435,7 +435,7 @@ const validateForm = () => {
 }
 
 const handleStartInstall = async () => {
-  if (!validateForm()) return
+  if (!(await validateForm())) return
 
   startingInstall.value = true
   try {
@@ -535,11 +535,13 @@ onMounted(async () => {
     if (res.code === '0') {
       if (res.data.isInstalled) {
         location.href = '/#/login'
+        return
       }
     }
   } catch (error) {
     console.error('检查安装状态失败:', error)
   }
+  await validatePort()
 })
 
 onUnmounted(() => {

@@ -46,5 +46,9 @@ hero_buttons:
 - [多从站更新日志](CHANGELOG_MULTI_SLAVE.html)
 
 ### 项目交付
+
+> **历史报告归档：** 以下文档为阶段性交付记录，仅供历史查阅。
+
 - [项目交付](PROJECT_DELIVERY.html)
 - [交付清单](DELIVERY_CHECKLIST.html)
+- [集成报告](INTEGRATION_REPORT.html)

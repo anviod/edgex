@@ -37,10 +37,18 @@ func tryAcquireGlobalReconnectSlot() bool {
 	return true
 }
 
+const connectingMinBackoff = 200 * time.Millisecond
+
+func ensureConnectingMinBackoff(state ConnState, wait time.Duration) time.Duration {
+	if state == StateConnecting && wait < connectingMinBackoff {
+		return connectingMinBackoff
+	}
+	return wait
+}
+
 // ConnectFunc performs a single connection attempt (dial/open). Retry/backoff is
 // owned exclusively by ConnectionManager.EnsureConnected.
 type ConnectFunc func(ctx context.Context) error
-
 
 type ConnState int
 
@@ -93,6 +101,10 @@ type ConnectionManager struct {
 	driverName string
 
 	reconnectRunning atomic.Bool
+
+	bgMu     sync.Mutex
+	bgCancel context.CancelFunc
+	bgDone   chan struct{}
 }
 
 func NewConnectionManager(driverName string) *ConnectionManager {
@@ -246,12 +258,12 @@ func (cm *ConnectionManager) CanRetry() (canRetry bool, waitTime time.Duration) 
 			if !tryAcquireGlobalReconnectSlot() {
 				return true, 1 * time.Second
 			}
-			return true, cm.calculateBackoff(cm.retryCount)
+			return true, ensureConnectingMinBackoff(cm.state, cm.calculateBackoff(cm.retryCount))
 		}
 		if !tryAcquireGlobalReconnectSlot() {
 			return true, 1 * time.Second
 		}
-		return true, 0
+		return true, ensureConnectingMinBackoff(cm.state, 0)
 	case StateConnected:
 		return false, 0
 	case StateRetrying:
@@ -269,16 +281,11 @@ func (cm *ConnectionManager) CanRetry() (canRetry bool, waitTime time.Duration) 
 		remaining := cm.coolDownUntil.Sub(time.Now())
 		if remaining <= 0 {
 			cm.state = StateRetrying
-			if cm.retryCount >= cm.maxRetries {
-				cm.state = StateDead
-				cm.enterCoolDown()
-				remaining = cm.coolDownUntil.Sub(time.Now())
-				return true, remaining
-			}
+			cm.retryCount = 0 // 重置重试计数，给新一轮连接尝试机会
 			if !tryAcquireGlobalReconnectSlot() {
 				return true, 1 * time.Second
 			}
-			return true, cm.calculateBackoff(cm.retryCount)
+			return true, 0
 		}
 		return true, remaining
 	default:
@@ -325,9 +332,46 @@ func (cm *ConnectionManager) GetStatus() (state ConnState, retryCount int, maxRe
 }
 
 func (cm *ConnectionManager) Close() {
+	cm.StopBackgroundLoop()
 	if cm.dailyResetTimer != nil {
 		cm.dailyResetTimer.Stop()
 	}
+}
+
+// StartBackgroundLoop runs fn in a single managed goroutine until StopBackgroundLoop
+// is called or the parent context passed to fn is cancelled via StopBackgroundLoop.
+// Only one background loop may run per ConnectionManager.
+func (cm *ConnectionManager) StartBackgroundLoop(fn func(context.Context)) {
+	cm.bgMu.Lock()
+	defer cm.bgMu.Unlock()
+	cm.stopBackgroundLoopLocked()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	cm.bgCancel = cancel
+	cm.bgDone = done
+
+	go func() {
+		defer close(done)
+		fn(ctx)
+	}()
+}
+
+// StopBackgroundLoop cancels and waits for the managed background goroutine to exit.
+func (cm *ConnectionManager) StopBackgroundLoop() {
+	cm.bgMu.Lock()
+	defer cm.bgMu.Unlock()
+	cm.stopBackgroundLoopLocked()
+}
+
+func (cm *ConnectionManager) stopBackgroundLoopLocked() {
+	if cm.bgCancel == nil {
+		return
+	}
+	cm.bgCancel()
+	<-cm.bgDone
+	cm.bgCancel = nil
+	cm.bgDone = nil
 }
 
 func (cm *ConnectionManager) SetMaxRetries(max int) {
@@ -383,7 +427,8 @@ func (cm *ConnectionManager) EnsureConnected(ctx context.Context, connect Connec
 		lastErr = err
 		shouldRetry, _ := cm.RecordFailure()
 		if !shouldRetry {
-			return fmt.Errorf("[%s] connection failed, entering coolDown: %w", cm.driverName, err)
+			// 进入 coolDown，不退出循环，让 CanRetry 处理 StateDead 等待
+			continue
 		}
 	}
 }
@@ -407,6 +452,33 @@ func (cm *ConnectionManager) ScheduleReconnect(parentCtx context.Context, timeou
 
 		if err := cm.EnsureConnected(ctx, connect); err != nil {
 			zap.L().Error("[ConnMgr] Reconnection failed",
+				zap.String("driver", cm.driverName),
+				zap.Error(err),
+			)
+		}
+	}()
+}
+
+// ScheduleAsyncTask runs a one-shot async operation under the same single-flight
+// guard as ScheduleReconnect, without requiring a disconnected connection state.
+// Use for device-level recovery probes while the channel remains connected.
+func (cm *ConnectionManager) ScheduleAsyncTask(parentCtx context.Context, timeout time.Duration, task func(context.Context) error) {
+	if !cm.reconnectRunning.CompareAndSwap(false, true) {
+		return
+	}
+
+	go func() {
+		defer cm.reconnectRunning.Store(false)
+
+		ctx := parentCtx
+		var cancel context.CancelFunc
+		if timeout > 0 {
+			ctx, cancel = context.WithTimeout(parentCtx, timeout)
+			defer cancel()
+		}
+
+		if err := task(ctx); err != nil {
+			zap.L().Warn("[ConnMgr] Async task failed",
 				zap.String("driver", cm.driverName),
 				zap.Error(err),
 			)

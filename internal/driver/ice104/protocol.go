@@ -12,7 +12,7 @@ const (
 	uTestFRAct  byte = 0x43
 	uTestFRCon  byte = 0x83
 
-	cotActivation   uint16 = 6
+	cotActivation    uint16 = 6
 	cotActivationCon uint16 = 7
 	cotInterrogated  uint16 = 20
 

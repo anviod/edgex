@@ -118,7 +118,7 @@
             <li><strong>防抖动</strong>：对波动较大的传感器，使用 State 类型或设置持续时间/连续次数。</li>
             <li><strong>复杂联动</strong>：多步骤设备启停使用 Sequence + Check + On Fail 实现安全回退。</li>
             <li><strong>性能优化</strong>：非紧急规则使用较长检查频率（如 30s、1m）；合并功能相似的规则。</li>
-            <li><strong>定期维护</strong>：禁用或删除不再使用的规则；通过「运行记录」和「日志查询」排查异常。</li>
+            <li><strong>定期维护</strong>：禁用或删除不再使用的规则；通过「记录与日志」排查异常。</li>
           </ol>
         </ChannelHelpBlock>
       </div>

@@ -40,7 +40,7 @@ archives:
   - id: edgex-archive
     formats:
       - tar.gz
-    name_template: '{{.ProjectName}}-{{.Version}}-{{.Os}}-{{.Arch}}{{if .Arm}}{{.Arm}}{{end}}'
+    name_template: '{{.ProjectName}}-{{.RawVersion}}-{{.Os}}-{{.Arch}}{{if .Arm}}{{.Arm}}{{end}}'
     files:
       - README*
       - LICENSE*
@@ -53,9 +53,10 @@ archives:
 nfpms:
   - id: edgex-deb
     package_name: edgex
-    file_name_template: 'edgex-v{{.Version}}-{{.Arch}}'
+    file_name_template: 'edgex-v{{.RawVersion}}-{{.Arch}}'
     formats:
       - deb
+      - rpm
     vendor: HNE Inc.
     homepage: https://github.com/anviod/edgex
     maintainer: anviod <anviod@aliyun.com>
@@ -70,10 +71,10 @@ nfpms:
         dst: /usr/local/bin/edgex/edgex.sh
       - src: ./conf
         dst: /usr/local/bin/edgex/conf
-        type: dir
+        type: tree
       - src: ./ui/dist
         dst: /usr/local/bin/edgex/ui/dist
-        type: dir
+        type: tree
     scripts:
       preinstall: scripts/preinstall.sh
       postinstall: scripts/postinstall.sh

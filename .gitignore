@@ -11,3 +11,9 @@ logs/gateway.edgex.log
 *.exe
 dist/
 *.log
+*.txt
+*.out
+.golangci-lint-cache/
+.gomodcache/
+.github/
+

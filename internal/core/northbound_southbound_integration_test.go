@@ -30,10 +30,10 @@ func newIntegrationMockDriver() *integrationMockDriver {
 	}
 }
 
-func (d *integrationMockDriver) Init(cfg model.DriverConfig) error             { return nil }
+func (d *integrationMockDriver) Init(cfg model.DriverConfig) error           { return nil }
 func (d *integrationMockDriver) Connect(ctx context.Context) error           { return nil }
 func (d *integrationMockDriver) Disconnect() error                           { return nil }
-func (d *integrationMockDriver) Health() driver.HealthStatus               { return driver.HealthStatusGood }
+func (d *integrationMockDriver) Health() driver.HealthStatus                 { return driver.HealthStatusGood }
 func (d *integrationMockDriver) SetSlaveID(slaveID uint8) error              { return nil }
 func (d *integrationMockDriver) SetDeviceConfig(config map[string]any) error { return nil }
 func (d *integrationMockDriver) GetConnectionMetrics() (int64, int64, string, string, time.Time) {

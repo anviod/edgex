@@ -9,15 +9,15 @@ import (
 const defaultDiscoveryMulticast = "224.0.23.12:3671"
 
 type transportConfig struct {
-	ip                string
-	port              int
-	mode              string
-	timeout           time.Duration
-	maxRetries        int
-	heartbeatInterval time.Duration
-	localIP           string
-	discovery         bool
-	discoveryTimeout  time.Duration
+	ip                 string
+	port               int
+	mode               string
+	timeout            time.Duration
+	maxRetries         int
+	heartbeatInterval  time.Duration
+	localIP            string
+	discovery          bool
+	discoveryTimeout   time.Duration
 	discoveryMulticast string
 }
 

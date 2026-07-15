@@ -33,7 +33,14 @@
         <a-row :gutter="16" v-if="timeConfig.mode === 'manual'">
           <a-col :span="12">
             <a-form-item field="manual.datetime" label="本地时间">
-              <a-input v-model="timeConfig.manual.datetime" type="datetime-local" class="rect-input" />
+              <a-date-picker
+                v-model="timeConfig.manual.datetime"
+                show-time
+                format="YYYY-MM-DD HH:mm:ss"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                class="rect-input"
+                style="width: 100%"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">

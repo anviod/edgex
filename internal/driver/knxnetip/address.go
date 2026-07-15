@@ -131,7 +131,7 @@ func formatGroupAddress(addr uint16) string {
 	sub := addr & 0xFF
 	if middle == 0 && sub <= 255 {
 		// could be 2-level or 3-level with middle=0
-		if (addr & 0x7FF) == sub && sub <= 255 {
+		if (addr&0x7FF) == sub && sub <= 255 {
 			return fmt.Sprintf("%d/%d/%d", main, middle, sub)
 		}
 	}

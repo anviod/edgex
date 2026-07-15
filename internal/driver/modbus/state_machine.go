@@ -50,12 +50,12 @@ func (sm *DeviceStateMachine) OnSuccess() {
 
 	sm.failCount = 0
 	sm.lastSuccess = time.Now()
-	
+
 	if sm.state == StateOffline || sm.state == StateDegraded {
 		sm.state = StateRecovering
 		// In next cycle it might become Online if stable
 		// For simplicity, let's switch to Online immediately or have a recovering phase
-		sm.state = StateOnline 
+		sm.state = StateOnline
 	} else {
 		sm.state = StateOnline
 	}

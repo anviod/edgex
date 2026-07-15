@@ -7,15 +7,15 @@ import (
 
 // SnapshotResponse represents a snapshot API response
 type SnapshotResponse struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	NodeID      string                 `json:"node_id"`
-	NodeName    string                 `json:"node_name"`
-	CapturedAt  string                 `json:"captured_at"`
-	Size        int64                  `json:"size"`
-	Description string                 `json:"description"`
-	Tags        []string               `json:"tags"`
-	Data        *syncpkg.NodeSnapshot  `json:"data,omitempty"`
+	ID          string                `json:"id"`
+	Name        string                `json:"name"`
+	NodeID      string                `json:"node_id"`
+	NodeName    string                `json:"node_name"`
+	CapturedAt  string                `json:"captured_at"`
+	Size        int64                 `json:"size"`
+	Description string                `json:"description"`
+	Tags        []string              `json:"tags"`
+	Data        *syncpkg.NodeSnapshot `json:"data,omitempty"`
 }
 
 // getSnapshots returns all snapshots
@@ -91,8 +91,8 @@ func (s *Server) createSnapshot(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message":   "snapshot created",
-		"snapshot":  snapshot,
+		"message":     "snapshot created",
+		"snapshot":    snapshot,
 		"snapshot_id": snapshot.ID,
 	})
 }
@@ -132,8 +132,8 @@ func (s *Server) deleteSnapshot(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"message":      "snapshot deleted",
-		"snapshot_id":  snapshotID,
+		"message":     "snapshot deleted",
+		"snapshot_id": snapshotID,
 	})
 }
 
@@ -208,9 +208,9 @@ func (s *Server) pullFromRemote(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"message":     "configuration pulled from remote",
-		"peer_id":     peerID,
-		"snapshot":    snapshot,
+		"message":  "configuration pulled from remote",
+		"peer_id":  peerID,
+		"snapshot": snapshot,
 	})
 }
 

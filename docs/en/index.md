@@ -1,32 +1,63 @@
 ---
 layout: section-index
 title: EdgeX Documentation (English)
-description: English documentation index for EdgeX industrial edge gateway expert knowledge base
+description: English documentation hub for EdgeX industrial edge gateway — product overview, architecture, drivers, and testing
 hero_eyebrow: Expert Knowledge Base
 hero_title: EdgeX Documentation (English)
-hero_lead: English reference hub for driver matrices, test reports, and architecture documentation. Primary technical content is maintained in Chinese.
+hero_lead: English entry for EdgeX industrial edge gateway. Primary technical content is maintained in Chinese; this hub mirrors README.en and links to published Pages.
 hero_buttons:
+  - text: README.en (GitHub)
+    url: https://github.com/anviod/edgex/blob/dev/README.en.md
+    style: primary
   - text: Home (中文)
     url: ../index.html
-    style: primary
-  - text: Driver Matrix
+    style: secondary
+  - text: Driver Matrix (EN)
     url: ../drivers/index_en.html
     style: secondary
-  - text: Test Report
-    url: ../testing/southbound-driver-test-report.html
+  - text: Product Guide (中文)
+    url: ../guide/产品说明.html
     style: secondary
 ---
 
-## Quick Links
+## Product Overview
 
-| Topic | Link |
+Industrial Edge Gateway runs at the industrial edge to bridge **OT devices ↔ IT systems** — unified southbound access, local edge processing, and flexible northbound integration in a single gateway. **13 southbound protocols write into ShadowCore (runtime SoT), then fan out to virtual devices, edge rules, persistence, and northbound — backed by industrial-grade SLA and Soak verification.**
+
+- **Unified access**: heterogeneous PLCs, meters, building and network devices — one gateway for collection
+- **Shadow SoT**: in-memory ShadowCore shared by UI, edge compute, and northbound
+- **Edge intelligence**: local rules and derived tags for control linkage and reduced uplink traffic
+- **Open integration**: cloud platforms, SCADA, and enterprise apps with reverse write/control
+- **Industrial-grade stability**: built-in metric gates, Soak regression, and CI five-gate verification
+
+Full narrative: [README.en.md](https://github.com/anviod/edgex/blob/dev/README.en.md) on GitHub. Concise product page: [PRODUCT](../guide/PRODUCT.html).
+
+## Product Advantages
+
+| Capability | Core Value | Key Metrics |
+| :--- | :--- | :--- |
+| **Quality assurance** | Metric gates + Soak + CI five-gate | lag P95 **<100ms** · miss deadline **=0** · 10k-tag benchmark |
+| **Southbound access** | 13 industrial protocols | device discovery · object scan · batch tag registration |
+| **Collection scheduling** | 10ms-class kernel, in-memory shadow SoT | P99 lag **<150ms** (≤10k tags, statistical SLA) |
+| **Edge intelligence** | rules + virtual shadow derived computation | cross-device mapping · formula aggregation |
+| **Northbound integration** | cloud, SCADA, enterprise | MQTT · Sparkplug B · OPC UA · EdgeOS |
+
+Detailed SLA, protocols, and virtual shadow: [Product Guide (中文)](../guide/产品说明.html#产品优势).
+
+## Documentation
+
+| Document | Description |
 | :--- | :--- |
-| Home (中文) | [首页](../index.html) |
-| Device Drivers (EN) | [Driver Matrix](../drivers/index_en.html) |
-| Southbound Test Report | [Test Report](../testing/southbound-driver-test-report.html) |
-| Product Overview | [产品说明](../man/产品说明.html) |
-| Architecture | [Architecture](../architecture/index.html) |
-| Development Plan | [Development Plan](../development_plan/index.html) |
+| [Architecture Overview (EN)](architecture-overview.html) | Southbound → Shadow → edge / history / northbound hot path |
+| [Architecture (中文)](../architecture/index.html) | ScanEngine scheduling kernel, ShadowCore, system diagrams |
+| [Product Guide (EN)](../guide/PRODUCT.html) | Concise product positioning |
+| [产品手册 / 产品说明](../guide/PRODUCT.zh-CN.html) · [产品说明](../guide/产品说明.html) | Chinese product docs |
+| [User Manual (EN)](../guide/USER_MANUAL.en.html) | Protocols, deploy, ops, best practices |
+| [Edge Gateway Architecture (中文)](../edge/边缘网关架构设计总览.html) | Authoritative architecture overview (v3.0) |
+| [Southbound Driver Matrix (EN)](../drivers/index_en.html) | 13 protocol drivers and development standards |
+| [Testing & Verification](../testing/index.html) | SLA benchmarks, Soak, regression, and driver test reports |
+| [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) | Coverage matrix and hot-path unit tests |
+| [User Manual — Installation (中文)](../guide/USER_MANUAL.html#安装指南) | deb / rpm / tar.gz install and upgrade |
 
 ## Implemented Southbound Drivers
 
@@ -46,5 +77,12 @@ Registered in `cmd/main.go`:
 | Mitsubishi SLMP | `mitsubishi-slmp` | Production |
 | Profinet IO | `profinet-io` | Implemented |
 | KNXnet/IP | `knxnet-ip` | Production |
+| EtherCAT | `ethercat` | M1 delivered |
 
-See [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) for test results and coverage.
+See [Southbound Driver Test Report](../testing/southbound-driver-test-report.html) for coverage under `-short`.
+
+## Related
+
+- [中文首页](../index.html)
+- [README.md](https://github.com/anviod/edgex/blob/dev/README.md)
+- [README.en.md](https://github.com/anviod/edgex/blob/dev/README.en.md)

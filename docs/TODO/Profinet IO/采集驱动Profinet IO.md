@@ -1,7 +1,7 @@
 Profinet IO
 PROFINET 是一个开放式的工业以太网通信协议，是由 PROFIBUS & PROFINET 国际协会所提出。PROFINET 应用 TCP/IP 相关标准，是实时的工业以太网。PROFINET 有模组化的结构，使用者可以依其需求选择层叠的技能。
 
-> **状态**：已在 EdgeX 中实现，详见 [Profinet IO 驱动文档](../drivers/PLC_Profinet_IO.md)。
+> **状态**：已在 EdgeX 中实现，详见 [Profinet IO 驱动文档](../../drivers/PLC_Profinet_IO.html)。
 
 PROFINET IO 系统包括几个部分：IO 控制器，IO 设备，IO 监控器。IO 控制器用于控制自动化的任务工作；IO 设备一般是现场设备，受 IO 控制器的控制及监控，一个 IO 设备可能包括数个模组和子模组；IO 监控器是一个 PC 软件，可以设定参数以及诊断个别模组的状态。
 
@@ -31,7 +31,7 @@ API 列表	IO 设备模块 API
 设置组和点位
 完成通道和设备的添加与配置后，进入设备点位页添加采集点位。
 
-点位地址格式、数据类型等详见 [Profinet IO 驱动文档](../drivers/PLC_Profinet_IO.md)。
+点位地址格式、数据类型等详见 [Profinet IO 驱动文档](../../drivers/PLC_Profinet_IO.html)。
 
 数据类型
 INT8

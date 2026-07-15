@@ -68,7 +68,7 @@ type PointScheduler struct {
 
 	slaveID  uint8
 	rttModel *RTTModel
-	mu         sync.Mutex
+	mu       sync.Mutex
 }
 
 func NewPointScheduler(transport Transport, decoder Decoder, maxPacketSize uint16, groupThreshold uint16, instructionInterval time.Duration) *PointScheduler {
@@ -544,13 +544,13 @@ func (s *PointScheduler) readGroup(ctx context.Context, group PointGroup) (map[s
 					log.Printf("Error decoding point %s in fallback: %v", point.ID, derr)
 					result[point.ID] = derr
 					if mt, ok := s.transport.(*ModbusTransport); ok && mt.metricsRecorder != nil {
-						mt.metricsRecorder.RecordPointDebug(mt.channelID, point.ID, append([]byte(nil), b...), nil, "Bad")
+						mt.metricsRecorder.RecordPointDebug(mt.channelID, point.ID, b, nil, "Bad")
 					}
 					continue
 				}
 
 				if mt, ok := s.transport.(*ModbusTransport); ok && mt.metricsRecorder != nil {
-					mt.metricsRecorder.RecordPointDebug(mt.channelID, point.ID, append([]byte(nil), b...), val, quality)
+					mt.metricsRecorder.RecordPointDebug(mt.channelID, point.ID, b, val, quality)
 				}
 
 				result[point.ID] = val
@@ -585,14 +585,14 @@ func (s *PointScheduler) readGroup(ctx context.Context, group PointGroup) (map[s
 			log.Printf("Error decoding point %s: %v", point.ID, err)
 			// record debug info if transport supports metrics recorder
 			if mt, ok := s.transport.(*ModbusTransport); ok && mt.metricsRecorder != nil {
-				mt.metricsRecorder.RecordPointDebug(mt.channelID, point.ID, append([]byte(nil), pointBytes...), nil, "Bad")
+				mt.metricsRecorder.RecordPointDebug(mt.channelID, point.ID, pointBytes, nil, "Bad")
 			}
 			continue
 		}
 
 		// record successful decode
 		if mt, ok := s.transport.(*ModbusTransport); ok && mt.metricsRecorder != nil {
-			mt.metricsRecorder.RecordPointDebug(mt.channelID, point.ID, append([]byte(nil), pointBytes...), val, quality)
+			mt.metricsRecorder.RecordPointDebug(mt.channelID, point.ID, pointBytes, val, quality)
 		}
 
 		result[point.ID] = val

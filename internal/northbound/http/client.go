@@ -22,9 +22,36 @@ type Client struct {
 	stopChan chan struct{}
 	configMu sync.RWMutex
 
+	lastValues sync.Map
+	bufferMu   sync.Mutex
+	buffers    map[string]*bufferItem
+
+	periodicMu sync.Mutex
+	periodic   map[string]*periodicItem
+
 	// Stats
 	successCount int64
 	failCount    int64
+}
+
+type aggregatedPayload struct {
+	Timestamp int64          `json:"timestamp"`
+	ChannelID string         `json:"channel_id"`
+	DeviceID  string         `json:"device_id"`
+	Values    map[string]any `json:"values"`
+	Errors    map[string]any `json:"errors,omitempty"`
+}
+
+type bufferItem struct {
+	payload *aggregatedPayload
+	timer   *time.Timer
+}
+
+type periodicItem struct {
+	channelID string
+	values    map[string]model.Value
+	ticker    *time.Ticker
+	stop      chan struct{}
 }
 
 func NewClient(cfg model.HTTPConfig, s *storage.Storage) *Client {
@@ -33,11 +60,14 @@ func NewClient(cfg model.HTTPConfig, s *storage.Storage) *Client {
 		storage:  s,
 		client:   &http.Client{Timeout: 10 * time.Second},
 		stopChan: make(chan struct{}),
+		buffers:  make(map[string]*bufferItem),
+		periodic: make(map[string]*periodicItem),
 	}
 }
 
 func (c *Client) Start() {
 	go c.retryLoop()
+	c.updatePeriodicTasks()
 	zap.L().Info("HTTP Northbound Client started", zap.String("id", c.config.ID))
 }
 
@@ -47,8 +77,9 @@ func (c *Client) Stop() {
 
 func (c *Client) UpdateConfig(cfg model.HTTPConfig) {
 	c.configMu.Lock()
-	defer c.configMu.Unlock()
 	c.config = cfg
+	c.configMu.Unlock()
+	c.updatePeriodicTasks()
 }
 
 func (c *Client) Send(payload []byte) error {
@@ -102,16 +133,181 @@ func (c *Client) Send(payload []byte) error {
 	return nil
 }
 
-func (c *Client) PublishDeviceStatus(deviceID string, status int) {
+func (c *Client) Publish(v model.Value) {
 	c.configMu.RLock()
-	enabled := c.config.Devices[deviceID]
-	if !enabled {
-		c.configMu.RUnlock()
+	enable := c.config.Enable
+	devCfg, ok := model.LookupNorthboundPublishConfig(v.DeviceID, c.config.Devices, c.config.VirtualDevices)
+	c.configMu.RUnlock()
+
+	if !enable || !ok {
 		return
 	}
+
+	if devCfg.Strategy == "cov" || devCfg.Strategy == "change" {
+		key := v.DeviceID + ":" + v.PointID
+		lastVal, loaded := c.lastValues.Load(key)
+		if loaded && lastVal == v.Value {
+			return
+		}
+		c.lastValues.Store(key, v.Value)
+	} else if devCfg.Strategy == "periodic" && time.Duration(devCfg.Interval) > 0 {
+		c.periodicMu.Lock()
+		if item, exists := c.periodic[v.DeviceID]; exists {
+			item.channelID = v.ChannelID
+			item.values[v.PointID] = v
+		}
+		c.periodicMu.Unlock()
+		return
+	}
+
+	c.bufferMu.Lock()
+	defer c.bufferMu.Unlock()
+
+	item, exists := c.buffers[v.DeviceID]
+	if !exists {
+		item = &bufferItem{
+			payload: &aggregatedPayload{
+				Timestamp: v.TS.UnixMilli(),
+				ChannelID: v.ChannelID,
+				DeviceID:  v.DeviceID,
+				Values:    make(map[string]any),
+				Errors:    make(map[string]any),
+			},
+		}
+		item.timer = time.AfterFunc(100*time.Millisecond, func() {
+			c.flushDevice(v.DeviceID)
+		})
+		c.buffers[v.DeviceID] = item
+	}
+
+	item.payload.Values[v.PointID] = v.Value
+	if v.Quality != "Good" {
+		item.payload.Errors[v.PointID] = v.Quality
+	}
+}
+
+func (c *Client) flushDevice(deviceID string) {
+	c.bufferMu.Lock()
+	item, ok := c.buffers[deviceID]
+	if !ok {
+		c.bufferMu.Unlock()
+		return
+	}
+	delete(c.buffers, deviceID)
+	c.bufferMu.Unlock()
+
+	data, err := json.Marshal(item.payload)
+	if err != nil {
+		zap.L().Error("Failed to marshal HTTP payload", zap.Error(err))
+		return
+	}
+
+	if err := c.Send(data); err != nil {
+		zap.L().Error("Failed to send HTTP payload", zap.Error(err), zap.String("device", deviceID))
+	}
+}
+
+func (c *Client) updatePeriodicTasks() {
+	c.periodicMu.Lock()
+	defer c.periodicMu.Unlock()
+
+	c.configMu.RLock()
+	devices := c.config.Devices
+	virtualDevices := c.config.VirtualDevices
+	c.configMu.RUnlock()
+
+	isPeriodicEnabled := func(devID string) bool {
+		cfg, ok := model.LookupNorthboundPublishConfig(devID, devices, virtualDevices)
+		return ok && cfg.Enable && cfg.Strategy == "periodic" && time.Duration(cfg.Interval) > 0
+	}
+
+	for devID, item := range c.periodic {
+		if !isPeriodicEnabled(devID) {
+			close(item.stop)
+			item.ticker.Stop()
+			delete(c.periodic, devID)
+		}
+	}
+
+	startPeriodic := func(devID string, devCfg model.DevicePublishConfig) {
+		if !devCfg.Enable || devCfg.Strategy != "periodic" || time.Duration(devCfg.Interval) <= 0 {
+			return
+		}
+		if _, exists := c.periodic[devID]; exists {
+			return
+		}
+		item := &periodicItem{
+			values: make(map[string]model.Value),
+			ticker: time.NewTicker(time.Duration(devCfg.Interval)),
+			stop:   make(chan struct{}),
+		}
+		c.periodic[devID] = item
+		go c.runPeriodicTask(devID, item)
+	}
+
+	for devID, devCfg := range devices {
+		startPeriodic(devID, devCfg)
+	}
+	for devID, devCfg := range virtualDevices {
+		startPeriodic(devID, devCfg)
+	}
+}
+
+func (c *Client) runPeriodicTask(deviceID string, item *periodicItem) {
+	for {
+		select {
+		case <-item.stop:
+			return
+		case <-c.stopChan:
+			return
+		case <-item.ticker.C:
+			c.flushPeriodic(deviceID, item)
+		}
+	}
+}
+
+func (c *Client) flushPeriodic(deviceID string, item *periodicItem) {
+	c.periodicMu.Lock()
+	if len(item.values) == 0 {
+		c.periodicMu.Unlock()
+		return
+	}
+
+	payload := &aggregatedPayload{
+		Timestamp: time.Now().UnixMilli(),
+		ChannelID: item.channelID,
+		DeviceID:  deviceID,
+		Values:    make(map[string]any),
+		Errors:    make(map[string]any),
+	}
+	for _, v := range item.values {
+		payload.Values[v.PointID] = v.Value
+		if v.Quality != "Good" {
+			payload.Errors[v.PointID] = v.Quality
+		}
+	}
+	c.periodicMu.Unlock()
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		zap.L().Error("Failed to marshal periodic HTTP payload", zap.Error(err))
+		return
+	}
+	if err := c.Send(data); err != nil {
+		zap.L().Error("Failed to send periodic HTTP payload", zap.Error(err), zap.String("device", deviceID))
+	}
+}
+
+func (c *Client) PublishDeviceStatus(deviceID string, status int) {
+	c.configMu.RLock()
+	_, ok := model.LookupNorthboundPublishConfig(deviceID, c.config.Devices, c.config.VirtualDevices)
 	url := c.config.URL
 	endpoint := c.config.DeviceEventEndpoint
 	c.configMu.RUnlock()
+
+	if !ok {
+		return
+	}
 
 	statusStr := "offline"
 	if status == 0 {

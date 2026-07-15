@@ -12,10 +12,9 @@ import (
 	"time"
 
 	drv "github.com/anviod/edgex/internal/driver"
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes/null"
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes/units"
-	"github.com/anviod/edgex/internal/driver/bacnet/datalink"
+	"github.com/anviod/bacnet/btypes"
+	"github.com/anviod/bacnet/btypes/null"
+	"github.com/anviod/bacnet/datalink"
 	"github.com/anviod/edgex/internal/model"
 
 	"go.uber.org/zap"
@@ -68,6 +67,7 @@ type BACnetDriver struct {
 	scheduler            *PointScheduler
 	mu                   sync.RWMutex
 	useDataformatDecoder bool
+	connMgr              *drv.ConnectionManager
 
 	// Factory for creating clients (injectable for testing)
 	clientFactory func(cb *ClientBuilder) (Client, error)
@@ -127,6 +127,7 @@ func NewBACnetDriver() drv.Driver {
 		subnetCIDR:        24,        // Default CIDR
 		connected:         false,
 		clientFactory:     NewClient,
+		connMgr:           drv.NewConnectionManager("bacnet-ip"),
 		historicalObjects: make(map[int]map[string]ObjectResult),
 		deviceContexts:    make(map[int]*DeviceContext),
 		idMap:             make(map[string]int),
@@ -190,51 +191,85 @@ func (d *BACnetDriver) Init(config model.DriverConfig) error {
 
 func (d *BACnetDriver) Connect(ctx context.Context) error {
 	d.mu.Lock()
-	defer d.mu.Unlock()
-
 	if d.connected && d.client != nil && d.client.IsRunning() {
+		d.mu.Unlock()
 		return nil
 	}
-
-	// Record connection start time
 	d.connectionStartTime = time.Now()
 	d.reconnectCount++
+	d.mu.Unlock()
 
-	// Create Client
-	cb := &ClientBuilder{
-		Ip:         d.interfaceIP,
-		Port:       d.interfacePort,
-		SubnetCIDR: d.subnetCIDR,
+	return d.connMgr.EnsureConnected(ctx, d.connectOnce)
+}
+
+func (d *BACnetDriver) connectOnce(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
-	// If interfaceIP is not set, we might default to 0.0.0.0 or let NewClient handle it
-	if d.interfaceIP == "" {
-		// Try to find a sensible default or just use 0.0.0.0 equivalent?
-		// NewClient implementation logic:
-		// if iface != "" -> NewUDPDataLink(iface, port)
-		// else -> NewUDPDataLinkFromIP(ip, sub, port)
-		// We should probably set Ip to "0.0.0.0" if not specified, but NewUDPDataLinkFromIP needs valid IP.
-		// For now, let's assume config provides IP or we try to bind broadly.
-		// If Ip is empty, NewClient might fail or we should handle it.
-		// Let's assume user provides config for now, or we default to a local IP.
+
+	// Step 1: Close old client under lock (fast pointer swap).
+	d.mu.Lock()
+	if d.client != nil {
+		d.client.Close()
+		d.connMgr.StopBackgroundLoop()
+		d.client = nil
+	}
+	d.connected = false
+
+	connectPort := discoveryListenPort // 47808
+	if d.interfacePort != 0 {
+		connectPort = d.interfacePort
+	}
+	ifaceIP := d.interfaceIP
+	subnetCIDR := d.subnetCIDR
+	d.mu.Unlock()
+
+	// Step 2: Create new client outside lock (involves UDP socket bind).
+	cb := &ClientBuilder{
+		Ip:         ifaceIP,
+		Port:       connectPort,
+		SubnetCIDR: subnetCIDR,
 	}
 
 	client, err := d.clientFactory(cb)
 	if err != nil {
 		return fmt.Errorf("failed to create BACnet client: %v", err)
 	}
+
+	// Step 3: Store new client under lock.
+	d.mu.Lock()
 	d.client = client
+	d.connected = true
+	d.mu.Unlock()
 
-	// Start Client
-	go d.client.ClientRun()
+	d.connMgr.StartBackgroundLoop(func(_ context.Context) {
+		client.ClientRun()
+	})
 
-	// Wait a bit for client to start?
 	time.Sleep(100 * time.Millisecond)
 
-	// Discover Target Device
-	// Only if we had some target configured? No, wait for SetDeviceConfig.
-	d.connected = true
-
+	zap.L().Info("BACnet Connect client started",
+		zap.String("ip", ifaceIP),
+		zap.Int("port", connectPort))
 	return nil
+}
+
+// startEphemeralClient starts a bounded BACnet receive loop for discovery/scan APIs.
+// Call the returned stop function when the session completes.
+func startEphemeralClient(client Client) (stop func(), err error) {
+	if client == nil {
+		return nil, fmt.Errorf("bacnet client is nil")
+	}
+	done := make(chan struct{})
+	go func() {
+		client.ClientRun()
+		close(done)
+	}()
+	time.Sleep(100 * time.Millisecond)
+	return func() {
+		_ = client.Close()
+		<-done
+	}, nil
 }
 
 func (d *BACnetDriver) SetBACnetAddressNotifier(notifier drv.BACnetAddressNotifier) {
@@ -244,52 +279,50 @@ func (d *BACnetDriver) SetBACnetAddressNotifier(notifier drv.BACnetAddressNotifi
 }
 
 func (d *BACnetDriver) discoverDevice(deviceID int, ip string, port int) error {
-	found, ok := d.whoIsDiscoverDevice(d.client, deviceID, ip, port)
-	if !ok {
-		if ip != "" {
-			fallbackPort := defaultBACnetPort
-			if port != 0 {
-				fallbackPort = port
+	// Use full strategy chain: WhoIs → ReadProperty port-scan → direct fallback
+	// 使用完整策略链：WhoIs → ReadProperty 端口扫描 → 直连回退
+	if d.client == nil {
+		return fmt.Errorf("BACnet client not connected")
+	}
+
+	if found, ok := d.locateDeviceAddress(d.client, deviceID, ip, port); ok {
+		d.applyDiscoveredDevice(deviceID, ip, port, found)
+		return nil
+	}
+
+	// Direct fallback from configured IP:port
+	if ip != "" && port > 0 {
+		parsedIP := net.ParseIP(ip)
+		if parsedIP != nil {
+			addr := datalink.IPPortToAddress(parsedIP, port)
+			found := btypes.Device{
+				Addr:     *addr,
+				ID:       btypes.ObjectID{Type: btypes.DeviceType, Instance: btypes.ObjectInstance(deviceID)},
+				DeviceID: deviceID,
+				Ip:       ip,
+				Port:     port,
+				MaxApdu:  btypes.MaxAPDU,
 			}
-			parsedIP := net.ParseIP(ip)
-			if parsedIP != nil {
-				zap.L().Warn("Using configured address as fallback", zap.Int("device_id", deviceID), zap.String("ip", ip), zap.Int("port", fallbackPort))
-				addr := datalink.IPPortToAddress(parsedIP, fallbackPort)
-				found = btypes.Device{
-					Addr: *addr,
-					ID: btypes.ObjectID{
-						Type:     btypes.DeviceType,
-						Instance: btypes.ObjectInstance(deviceID),
-					},
-					DeviceID:     deviceID,
-					Ip:           ip,
-					Port:         fallbackPort,
-					MaxApdu:      1476,
-					Segmentation: btypes.Enumerated(3),
-				}
-				ok = true
-			}
-		}
-		if !ok {
-			return fmt.Errorf("device %d not found on network", deviceID)
+			d.applyDiscoveredDevice(deviceID, ip, port, found)
+			return nil
 		}
 	}
 
-	d.applyDiscoveredDeviceLocked(deviceID, ip, port, found)
-	return nil
+	return fmt.Errorf("device %d not found on network", deviceID)
 }
 
 func (d *BACnetDriver) Disconnect() error {
 	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	// Record disconnect time
 	d.lastDisconnectTime = time.Now()
-
-	if d.client != nil {
-		d.client.Close()
-	}
+	client := d.client
+	d.client = nil
 	d.connected = false
+	d.mu.Unlock()
+
+	if client != nil {
+		_ = client.Close()
+	}
+	d.connMgr.StopBackgroundLoop()
 	return nil
 }
 
@@ -322,7 +355,7 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 	if !exists || devCtx.Scheduler == nil {
 		d.mu.Unlock()
 		if targetID != -1 {
-			go d.checkRecovery(targetID)
+			d.scheduleDeviceRecovery(targetID)
 		}
 		return nil, fmt.Errorf("scheduler not initialized for device %s (targetID=%d). Ensure device ID contains the BACnet Instance ID.", sID, targetID)
 	}
@@ -332,6 +365,9 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 	d.mu.Unlock()
 	defer devCtx.ReadMu.Unlock()
 
+	// raw, err — scheduler.Read returns (map[pointID]Value, error)
+	// 部分成功时 err==nil 且 raw 中包含成功读取的点位。
+	// 全部失败时 err!=nil 或 raw 为空。
 	raw, err := scheduler.Read(ctx, points)
 	now := time.Now()
 	results := make(map[string]model.Value, len(points))
@@ -369,7 +405,12 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 		}
 	}
 
-	if err == nil && failed == 0 && len(raw) > 0 {
+	// Partial success: at least one point was read successfully.
+	// Return results without error to prevent the failure cascade that
+	// leads to device isolation and scan-engine task removal.
+	// 部分成功：至少一个点位成功读取即返回 nil error，
+	// 避免触发设备隔离和任务移除的级联失败。
+	if len(raw) > 0 {
 		d.mu.Lock()
 		if devCtx, ok := d.deviceContexts[targetID]; ok {
 			devCtx.State = DeviceStateOnline
@@ -377,20 +418,25 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 			applyFreshReadToCache(devCtx, sID, results)
 		}
 		d.mu.Unlock()
+		if failed > 0 {
+			zap.L().Warn("Partial read success",
+				zap.String("device", sID),
+				zap.Int("succeeded", len(raw)),
+				zap.Int("failed", failed),
+				zap.Int("total", len(points)))
+		}
 		return results, nil
 	}
 
-	if err == nil && failed == 0 && len(points) > 0 {
-		err = fmt.Errorf("no points collected for device %s", sID)
-	}
-
+	// All points failed — increment failure count and trigger recovery if needed
+	// 全部失败 — 递增失败计数，必要时触发恢复
 	d.mu.Lock()
 	if devCtx, ok := d.deviceContexts[targetID]; ok {
 		devCtx.ConsecutiveFailures++
 		failures := devCtx.ConsecutiveFailures
 		d.mu.Unlock()
 		if failures >= readFailureRecoveryThreshold {
-			go d.checkRecovery(targetID)
+			d.scheduleDeviceRecovery(targetID)
 		}
 	} else {
 		d.mu.Unlock()
@@ -399,141 +445,141 @@ func (d *BACnetDriver) ReadPoints(ctx context.Context, points []model.Point) (ma
 	if err != nil {
 		return results, err
 	}
-	return results, fmt.Errorf("incomplete read for device %s: %d/%d points failed", sID, failed, len(points))
+	return results, fmt.Errorf("no points collected for device %s", sID)
 }
 
-func (d *BACnetDriver) checkRecovery(deviceID int) {
+func (d *BACnetDriver) scheduleDeviceRecovery(deviceID int) {
 	d.mu.Lock()
-	zap.L().Debug("checkRecovery called", zap.Int("device_id", deviceID))
 	if d.client == nil {
-		zap.L().Debug("checkRecovery: d.client is nil")
 		d.mu.Unlock()
 		return
 	}
-
-	var lastDiscovery time.Time
-	var isContextExists bool
 
 	devCtx, exists := d.deviceContexts[deviceID]
-	if exists {
-		zap.L().Debug("checkRecovery: context found", zap.Int("device_id", deviceID))
-		lastDiscovery = devCtx.LastDiscovery
-		isContextExists = true
-	} else {
-		zap.L().Debug("checkRecovery: context NOT found", zap.Int("device_id", deviceID))
-		// Cannot recover unknown device
+	if !exists {
 		d.mu.Unlock()
 		return
 	}
 
-	if time.Since(lastDiscovery) < 30*time.Second {
-		zap.L().Debug("checkRecovery skipped: too soon", zap.Int("device_id", deviceID))
+	if time.Since(devCtx.LastDiscovery) < 30*time.Second {
 		d.mu.Unlock()
 		return
 	}
 
-	// Update timestamp to prevent spamming
-	zap.L().Debug("checkRecovery triggering", zap.Int("device_id", deviceID))
-	if isContextExists {
-		devCtx.LastDiscovery = time.Now()
-		zap.L().Debug("Updated LastDiscovery", zap.Int("device_id", deviceID))
-	} else {
-		d.lastDiscovery = time.Now()
-		zap.L().Debug("Updated driver.lastDiscovery")
-	}
+	devCtx.LastDiscovery = time.Now()
+	client := d.client
+	currentIP := devCtx.Config.IP
+	currentPort := devCtx.Config.Port
 	d.mu.Unlock()
 
-	go func() {
-		d.mu.Lock()
-		client := d.client
-		var currentIP string
-		var currentPort int
-		if ctx, ok := d.deviceContexts[deviceID]; ok {
-			currentIP = ctx.Config.IP
-			currentPort = ctx.Config.Port
-		} else {
-			d.mu.Unlock()
-			return
+	const recoveryTimeout = 60 * time.Second
+	d.connMgr.ScheduleAsyncTask(context.Background(), recoveryTimeout, func(ctx context.Context) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
-		d.mu.Unlock()
-
 		if client == nil {
-			return
+			return fmt.Errorf("bacnet client not available")
 		}
 
 		zap.L().Info("BACnet auto-recovery starting", zap.Int("device_id", deviceID))
 
-		success := d.probeDevice(client, deviceID, currentIP, currentPort)
-		if success {
+		if d.probeDevice(client, deviceID, currentIP, currentPort) {
 			d.mu.Lock()
 			d.connected = true
 			d.mu.Unlock()
 			zap.L().Info("BACnet auto-recovery successful", zap.Int("device_id", deviceID))
-		} else {
-			zap.L().Warn("BACnet auto-recovery failed, extending isolation", zap.Int("device_id", deviceID))
-			d.mu.Lock()
-			if devCtx, ok := d.deviceContexts[deviceID]; ok && devCtx.State == DeviceStateIsolated {
-				backoff := d.calculateBackoff(devCtx.IsolationCount + 1)
-				jitter := time.Duration(rand.Intn(5000)) * time.Millisecond
-				totalBackoff := backoff + jitter
-				if totalBackoff > 1*time.Hour {
-					totalBackoff = 1 * time.Hour
-				}
-				devCtx.IsolationUntil = time.Now().Add(totalBackoff)
-				devCtx.IsolationCount++
-				zap.L().Warn("BACnet isolation extended", zap.Int("device_id", deviceID), zap.Duration("backoff", totalBackoff), zap.Int("isolation_count", devCtx.IsolationCount))
-			}
-			d.mu.Unlock()
+			return nil
 		}
-	}()
+
+		zap.L().Warn("BACnet auto-recovery failed, extending isolation", zap.Int("device_id", deviceID))
+		d.mu.Lock()
+		if devCtx, ok := d.deviceContexts[deviceID]; ok && devCtx.State == DeviceStateIsolated {
+			backoff := d.calculateBackoff(devCtx.IsolationCount + 1)
+			jitter := time.Duration(rand.Intn(5000)) * time.Millisecond
+			totalBackoff := backoff + jitter
+			if totalBackoff > 1*time.Hour {
+				totalBackoff = 1 * time.Hour
+			}
+			devCtx.IsolationUntil = time.Now().Add(totalBackoff)
+			devCtx.IsolationCount++
+			zap.L().Warn("BACnet isolation extended", zap.Int("device_id", deviceID), zap.Duration("backoff", totalBackoff), zap.Int("isolation_count", devCtx.IsolationCount))
+		}
+		d.mu.Unlock()
+		return fmt.Errorf("bacnet probe failed for device %d", deviceID)
+	})
 }
 
-// probeDevice performs network discovery without holding global lock.
+// checkRecovery is retained for tests; production uses scheduleDeviceRecovery via ConnectionManager.
+func (d *BACnetDriver) checkRecovery(deviceID int) {
+	d.scheduleDeviceRecovery(deviceID)
+}
+
+// probeDevice performs network discovery using the full strategy chain:
+// 1. WhoIs broadcast → 2. ReadProperty port-scan fallback
 // Returns true if probe succeeded, false if failed.
+// probeDevice 执行完整的设备探测策略链：
+// 1. WhoIs 广播 → 2. ReadProperty 多端口扫描回退
 func (d *BACnetDriver) probeDevice(client Client, deviceID int, ip string, port int) bool {
 	zap.L().Debug("Probing BACnet device", zap.Int("device_id", deviceID), zap.String("ip", ip), zap.Int("port", port))
 
-	found, ok := d.whoIsDiscoverDevice(client, deviceID, ip, port)
-	if !ok {
-		zap.L().Debug("BACnet probe failed", zap.Int("device_id", deviceID))
-		return false
+	// Use full locateDeviceAddress strategy chain (WhoIs → port-scan)
+	// 使用完整的 locateDeviceAddress 策略链（WhoIs → 端口扫描）
+	if found, ok := d.locateDeviceAddress(client, deviceID, ip, port); ok {
+		d.applyDiscoveredDevice(deviceID, ip, port, found)
+		zap.L().Info("BACnet device probe successful",
+			zap.Int("device_id", deviceID),
+			zap.String("ip", deviceIPFromAddr(found, ip)),
+			zap.Int("port", devicePortFromAddr(found)))
+		return true
 	}
 
-	d.applyDiscoveredDevice(deviceID, ip, port, found)
-	zap.L().Info("BACnet device probe successful", zap.Int("device_id", deviceID), zap.Int("port", devicePortFromAddr(found)))
-	return true
+	// Last resort: construct device directly from configured IP:port
+	// 最终手段：从配置的 IP:port 直接构建设备地址
+	if ip != "" && port > 0 {
+		parsedIP := net.ParseIP(ip)
+		if parsedIP != nil {
+			addr := datalink.IPPortToAddress(parsedIP, port)
+			found := btypes.Device{
+				Addr:     *addr,
+				ID:       btypes.ObjectID{Type: btypes.DeviceType, Instance: btypes.ObjectInstance(deviceID)},
+				DeviceID: deviceID,
+				Ip:       ip,
+				Port:     port,
+				MaxApdu:  btypes.MaxAPDU,
+			}
+			d.applyDiscoveredDevice(deviceID, ip, port, found)
+			zap.L().Info("BACnet device probe successful (direct fallback)",
+				zap.Int("device_id", deviceID), zap.String("ip", ip), zap.Int("port", port))
+			return true
+		}
+	}
+
+	zap.L().Debug("BACnet probe failed", zap.Int("device_id", deviceID))
+	return false
 }
 
 func (d *BACnetDriver) WritePoint(ctx context.Context, point model.Point, value any) error {
-	// Simple implementation for Write
-	// TODO: Integrate with scheduler for batch writes if needed
+	// Resolve target device and scheduler under lock, then release lock before I/O.
+	// Holding d.mu during network I/O would block all ReadPoints for every device.
 
 	d.mu.Lock()
-	defer d.mu.Unlock()
-
 	if !d.connected {
+		d.mu.Unlock()
 		return fmt.Errorf("driver not connected")
 	}
 
-	// Resolve Target ID from Point
 	targetID := -1
 	sID := point.DeviceID
-
-	// Try map lookup first
 	if id, ok := d.idMap[sID]; ok {
 		targetID = id
 	}
-
 	if targetID == -1 {
-		// Heuristic: Try to match string ID suffix
 		parts := strings.Split(sID, "-")
 		if len(parts) > 0 {
 			if val, err := strconv.Atoi(parts[len(parts)-1]); err == nil {
 				targetID = val
 			}
 		}
-
-		// Fallback: Try whole string parsing
 		if targetID == -1 {
 			if val, err := strconv.Atoi(sID); err == nil {
 				targetID = val
@@ -542,18 +588,17 @@ func (d *BACnetDriver) WritePoint(ctx context.Context, point model.Point, value 
 	}
 
 	devCtx, exists := d.deviceContexts[targetID]
+	d.mu.Unlock()
+
 	if !exists || devCtx.Scheduler == nil {
 		return fmt.Errorf("scheduler not initialized for device %s (targetID=%d). Ensure device ID contains the BACnet Instance ID.", sID, targetID)
 	}
 
 	// Determine Priority and Value
-	priority := btypes.NPDUPriority(16) // Default
+	priority := btypes.NPDUPriority(16)
 	var writeVal any = value
 
-	// Check if value is a map containing "value" and "priority"
 	if valMap, ok := value.(map[string]any); ok {
-		// If it's a map, try to extract 'value' and 'priority'
-		// Note: This assumes the caller passes a map if they want to set priority
 		if v, ok := valMap["value"]; ok {
 			writeVal = v
 		}
@@ -566,12 +611,14 @@ func (d *BACnetDriver) WritePoint(ctx context.Context, point model.Point, value 
 		}
 	}
 
-	// Handle Release (NULL)
 	if writeVal == nil {
 		writeVal = null.Null{}
 	} else {
-		// Type casting based on Point DataType
-		switch point.DataType {
+		dataType := point.DataType
+		if dataType == "" {
+			dataType = inferDataTypeFromAddress(point.Address)
+		}
+		switch dataType {
 		case "float32":
 			if v, ok := writeVal.(float64); ok {
 				writeVal = float32(v)
@@ -601,7 +648,6 @@ func (d *BACnetDriver) WritePoint(ctx context.Context, point model.Point, value 
 				}
 			}
 		case "bool", "boolean":
-			// bool is usually fine, but handle string/int?
 			if v, ok := writeVal.(string); ok {
 				writeVal = (v == "true" || v == "1")
 			} else if v, ok := writeVal.(float64); ok {
@@ -616,7 +662,6 @@ func (d *BACnetDriver) WritePoint(ctx context.Context, point model.Point, value 
 		}
 	}
 
-	// Prepare Write Request via Scheduler
 	var priorityVal uint8 = 16
 	if priority != btypes.NPDUPriority(0) {
 		priorityVal = uint8(priority)
@@ -629,6 +674,28 @@ func (d *BACnetDriver) WritePoint(ctx context.Context, point model.Point, value 
 	}
 
 	return devCtx.Scheduler.Write(ctx, []PointWriteRequest{writeReq})
+}
+
+// inferDataTypeFromAddress converts BACnet object type to system data type.
+// Used as fallback when point.DataType is not set.
+// inferDataTypeFromAddress 从 BACnet 地址推断数据类型，作为 DataType 为空时的回退。
+// 地址格式: "AnalogValue:2" → float32, "BinaryValue:0" → bool, "MultiStateValue:1" → uint16
+func inferDataTypeFromAddress(address string) string {
+	if address == "" {
+		return "float32"
+	}
+	// Extract object type before the colon
+	parts := strings.SplitN(address, ":", 2)
+	objType := strings.ToLower(parts[0])
+
+	if strings.Contains(objType, "binary") || strings.Contains(objType, "bit") {
+		return "bool"
+	}
+	if strings.Contains(objType, "multistate") {
+		return "uint16"
+	}
+	// Default: AnalogInput, AnalogOutput, AnalogValue → float32
+	return "float32"
 }
 
 func (d *BACnetDriver) Health() drv.HealthStatus {
@@ -647,22 +714,32 @@ func (d *BACnetDriver) SetDeviceConfig(config map[string]any) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	// Update target config
+	// Extract BACnet device instance ID for communication.
+	// Only bacnet_device_id is used for BACnet communication.
+	// device_id is the system management UUID and must NOT be used for communication.
 	var newID int
-	if v, ok := config["device_id"]; ok {
+	if v, ok := config["bacnet_device_id"]; ok {
 		if val, ok := v.(int); ok {
 			newID = val
 		} else if val, ok := v.(float64); ok {
 			newID = int(val)
+		} else if val, ok := v.(string); ok {
+			if id, err := strconv.Atoi(val); err == nil {
+				newID = id
+			}
 		}
 	}
-	// Support instance_id alias
+	// Fallback: instance_id is an alias for bacnet_device_id (backward compatibility)
 	if newID == 0 {
 		if v, ok := config["instance_id"]; ok {
 			if val, ok := v.(int); ok {
 				newID = val
 			} else if val, ok := v.(float64); ok {
 				newID = int(val)
+			} else if val, ok := v.(string); ok {
+				if id, err := strconv.Atoi(val); err == nil {
+					newID = id
+				}
 			}
 		}
 	}
@@ -727,12 +804,53 @@ func (d *BACnetDriver) SetDeviceConfig(config map[string]any) error {
 		}
 
 		if needDiscovery {
-			// If connected, trigger discovery immediately
-			if d.connected && d.client != nil {
-				if err := d.discoverDevice(newID, ip, port); err != nil {
-					zap.L().Error("Failed to discover updated device", zap.Int("device_id", newID), zap.Error(err))
-					return err
+			// 同步创建 DeviceContext（不等待 WhoIs 发现）
+			// 如果已有配置的 IP:port，直接使用配置地址初始化
+			// 避免 WhoIs 广播超时导致 API 响应超时
+			if ip != "" && port > 0 {
+				parsedIP := net.ParseIP(ip)
+				if parsedIP != nil {
+					addr := datalink.IPPortToAddress(parsedIP, port)
+					device := btypes.Device{
+						Addr:     *addr,
+						ID:       btypes.ObjectID{Type: btypes.DeviceType, Instance: btypes.ObjectInstance(newID)},
+						DeviceID: newID,
+						Ip:       ip,
+						Port:     port,
+						MaxApdu:  btypes.MaxAPDU,
+					}
+					// Skip notifyAddressChange during initial config to avoid deadlock with cm.mu held by AddDevice.
+					// 初始配置阶段跳过地址变更通知，避免与 AddDevice 持有的 cm.mu 死锁。
+					d.applyDiscoveredDeviceLocked(newID, ip, port, device)
+					zap.L().Info("SetDeviceConfig: created device context from config",
+						zap.Int("device_id", newID), zap.String("ip", ip), zap.Int("port", port))
 				}
+			}
+
+			// 异步发现策略：
+			// 当用户明确提供了 IP + 端口 + 实例ID 三要素时，直接信任用户配置，
+			// 不触发异步发现，避免 locateDeviceAddress 用错误的发现端口覆盖用户配置。
+			// 仅在缺少关键信息（无IP或无端口）时才触发异步探测。
+			// Async discovery strategy:
+			// When user explicitly provides IP + port + instanceID, trust the config
+			// and do NOT trigger async discovery to avoid overwriting user-specified port.
+			// Only probe when critical info is missing (no IP or no port).
+			skipAsyncDiscovery := (ip != "" && port > 0)
+			if skipAsyncDiscovery {
+				zap.L().Info("SetDeviceConfig: user provided IP+port+instanceID, skipping async discovery",
+					zap.Int("device_id", newID), zap.String("ip", ip), zap.Int("port", port))
+			} else if d.connected && d.client != nil {
+				go func() {
+					if found, ok := d.locateDeviceAddress(d.client, newID, ip, port); ok {
+						d.applyDiscoveredDevice(newID, ip, port, found)
+						zap.L().Info("Async discovery confirmed device",
+							zap.Int("device_id", newID),
+							zap.String("ip", deviceIPFromAddr(found, ip)),
+							zap.Int("port", devicePortFromAddr(found)))
+					} else {
+						zap.L().Debug("Async discovery did not find device", zap.Int("device_id", newID))
+					}
+				}()
 			}
 		}
 	}
@@ -778,18 +896,98 @@ func (d *BACnetDriver) GetConnectionMetrics() (connectionSeconds int64, reconnec
 	return connSec, d.reconnectCount, local, remote, d.lastDisconnectTime
 }
 
-// Scan performs a device discovery (WhoIs) and optionally reads device details
-func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, error) {
+// ScheduleReconnect schedules a reconnection attempt for the BACnet driver.
+func (d *BACnetDriver) ScheduleReconnect(ctx context.Context, timeout time.Duration) {
+	d.connMgr.ScheduleReconnect(ctx, timeout, d.connectOnce)
+}
 
+// isRealUnicast checks if an IP is a usable unicast address (not zero, not broadcast, not link-local).
+// Go's net.IP lacks IsBroadcast(), so we check for 255.255.255.255 and host-all-ones heuristically.
+// isRealUnicast 检查 IP 是否是可用的单播地址（非全零、非广播、非链路本地）。
+func isRealUnicast(ip net.IP) bool {
+	if ip == nil || ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsLoopback() {
+		return false
+	}
+	ipv4 := ip.To4()
+	if ipv4 == nil {
+		return false
+	}
+	// Check for broadcast: 255.255.255.255 or host bits all 1s (e.g., 192.168.3.255)
+	// 检查广播地址：255.255.255.255 或主机位全 1
+	if ipv4[0] == 0xFF && ipv4[1] == 0xFF && ipv4[2] == 0xFF && ipv4[3] == 0xFF {
+		return false
+	}
+	if ipv4[3] == 0xFF {
+		return false
+	}
+	return true
+}
+
+// isBetterDeviceAddr returns true if `candidate` has a better address than `existing`.
+// A "better" address means: has a real unicast IP (not broadcast/zero), and/or has a non-zero port.
+// Raw probe results (with correct IP from UDP remoteAddr) should win over library
+// WhoIs results (which often contain broadcast addresses).
+//
+// isBetterDeviceAddr 判断候选设备的地址是否优于已有设备。
+// 优先选择有真实单播 IP（非广播/全零）和非零端口的结果。
+func isBetterDeviceAddr(candidate, existing btypes.Device) bool {
+	cIP := net.ParseIP(candidate.Ip)
+	eIP := net.ParseIP(existing.Ip)
+
+	cIsUnicast := isRealUnicast(cIP)
+	eIsUnicast := isRealUnicast(eIP)
+
+	// Candidate has real IP, existing doesn't — candidate wins
+	// 候选有真实 IP，已有设备没有 — 候选胜出
+	if cIsUnicast && !eIsUnicast {
+		return true
+	}
+	// Existing has real IP, candidate doesn't — existing wins
+	if !cIsUnicast && eIsUnicast {
+		return false
+	}
+
+	// Both have real IPs or both don't — prefer the one with a non-zero port
+	// 两者都有真实 IP 或都没有 — 优先选择有端口的
+	if candidate.Port > 0 && existing.Port == 0 {
+		return true
+	}
+	if candidate.Port == 0 && existing.Port > 0 {
+		return false
+	}
+
+	// If candidate has more info (MaxApdu, Vendor), prefer it
+	// 如果候选有更多信息（MaxApdu、Vendor），优先选择
+	if candidate.MaxApdu > 0 && existing.MaxApdu == 0 {
+		return true
+	}
+
+	return false
+}
+
+// Scan performs BACnet device discovery using a four-strategy progressive approach
+// aligned with the reference test report (策略1→策略4):
+//
+//   - 策略1: 标准广播 WhoIs (255.255.255.255:47808)
+//   - 策略2: 子网广播 WhoIs (computed from localIP/subnetCIDR)
+//   - 策略3: 单播探测 (target_ip + multi-port ReadProperty)
+//   - 策略4: 最终确认 (逐设备 ReadProperty ObjectName)
+//
+// Params:
+//   - interface_ip: local NIC IP to bind UDP socket (e.g. "192.168.3.230")
+//   - target_ip:    remote target IP to scan (e.g. "192.168.3.115"); if empty, broadcast
+//   - mode:         "deep"/"full" for object scan on discovered devices
+//   - device_id:    if set, triggers ScanObjects instead of device discovery
+func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, error) {
 	d.mu.Lock()
 	defaultInterfacePort := d.interfacePort
 	defaultSubnetCIDR := d.subnetCIDR
 	clientFactory := d.clientFactory
-	// Use default client if we are not scanning multiple interfaces and no specific interface is requested
 	defaultClient := d.client
 	d.mu.Unlock()
 
-	// 1. Check if we are scanning for objects of a specific device (different mode)
+	// ── Fast path: object scan for a specific device ──
+	// ── 快速路径：指定设备ID时进入对象扫描模式 ──
 	if v, ok := params["device_id"]; ok {
 		var devID int
 		if val, ok := v.(int); ok {
@@ -804,60 +1002,106 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 				deep = true
 			}
 		}
-		if v, ok := params["deep"]; ok {
-			if b, ok := v.(bool); ok && b {
-				deep = true
-			}
-		}
-		// For object scan, we use the default client or a specific one if requested
-		// This part is kept simple to preserve existing behavior
+
 		scanClient := defaultClient
+		// Create ephemeral client on a specific interface if requested
+		// 如果指定了 interface_ip，创建临时客户端绑定到该网卡
 		if v, ok := params["interface_ip"]; ok {
 			if ifaceIP, ok := v.(string); ok && ifaceIP != "" {
 				cb := &ClientBuilder{
 					Ip:         ifaceIP,
-					Port:       defaultInterfacePort,
+					Port:       discoveryListenPort,
 					SubnetCIDR: defaultSubnetCIDR,
 				}
 				if cli, err := clientFactory(cb); err == nil {
-					scanClient = cli
-					defer cli.Close()
-					go cli.ClientRun()
-					time.Sleep(100 * time.Millisecond)
+					stop, startErr := startEphemeralClient(cli)
+					if startErr != nil {
+						zap.L().Warn("Failed to start ephemeral scan client", zap.Error(startErr))
+					} else {
+						defer stop()
+						scanClient = cli
+					}
 				}
 			}
 		}
-		return d.scanDeviceObjects(scanClient, devID, deep)
+
+		// Extract target_ip for direct addressing (bypass WhoIs)
+		var devIP string
+		var devPort int
+		if v, ok := params["target_ip"]; ok {
+			devIP, _ = v.(string)
+		}
+		if v, ok := params["ip"]; ok {
+			devIP, _ = v.(string)
+		}
+		if v, ok := params["port"]; ok {
+			switch val := v.(type) {
+			case int:
+				devPort = val
+			case float64:
+				devPort = int(val)
+			case string:
+				devPort, _ = strconv.Atoi(val)
+			}
+		}
+
+		return d.scanDeviceObjectsEx(scanClient, devID, deep, devIP, devPort)
 	}
 
-	// 2. Device Discovery Mode
-	targetIPs := []string{}
+	// ── Device Discovery Mode ──
+	// ── 设备发现模式 ──
 
-	// Check if a specific interface is requested
+	// Resolve local binding IP (where we bind our UDP socket)
+	// 解析本地绑定 IP（我们绑定 UDP 套接字的位置）
+	localIP := ""
 	if v, ok := params["interface_ip"]; ok {
-		if ifaceIP, ok := v.(string); ok && ifaceIP != "" {
-			targetIPs = append(targetIPs, ifaceIP)
-		}
+		localIP, _ = v.(string)
 	}
-
-	// If no specific interface, find all valid IPv4 interfaces
-	if len(targetIPs) == 0 {
-		if ips, err := getInterfaceIPs(); err != nil {
-			zap.L().Warn("Failed to list interface IPs for scan", zap.Error(err))
+	if localIP == "" {
+		localIP = d.interfaceIP
+	}
+	if localIP == "" || localIP == "0.0.0.0" {
+		if ips, err := getInterfaceIPs(); err == nil && len(ips) > 0 {
+			localIP = ips[0]
 		} else {
-			targetIPs = append(targetIPs, ips...)
+			localIP = "0.0.0.0"
 		}
 	}
 
-	// If still no IPs found (e.g. error or no interfaces), use a placeholder to trigger default client usage?
-	// Actually, if targetIPs is empty, we might want to use the defaultClient logic.
-	// But let's stick to the plan: if targetIPs is empty, we try 0.0.0.0 or just use defaultClient.
-	useDefaultClient := len(targetIPs) == 0
+	// Resolve target IP (remote machine to scan)
+	// 解析目标 IP（要扫描的远程机器）
+	var targetIPs []string
+	if v, ok := params["target_ip"]; ok {
+		if ip, ok := v.(string); ok && ip != "" {
+			targetIPs = append(targetIPs, ip)
+		}
+	}
+	// Backward compat: interface_ip doubles as target when it's not a local interface
+	// 向后兼容：interface_ip 在不是本地网卡时也作为目标 IP
+	if v, ok := params["interface_ip"]; ok {
+		if ip, ok := v.(string); ok && ip != "" && ip != localIP {
+			found := false
+			for _, t := range targetIPs {
+				if t == ip {
+					found = true
+					break
+				}
+			}
+			if !found {
+				targetIPs = append(targetIPs, ip)
+			}
+		}
+	}
 
-	zap.L().Info("Scan targetIPs", zap.Strings("ips", targetIPs), zap.Bool("use_default", useDefaultClient))
+	zap.L().Info("BACnet Scan: device discovery",
+		zap.String("local_ip", localIP),
+		zap.Strings("target_ips", targetIPs),
+		zap.Int("local_port", defaultInterfacePort))
 
+	// Device ID range for WhoIs
+	// WhoIs 设备 ID 范围
 	low := 0
-	high := 4194303 // Max Device ID
+	high := 4194303
 	if v, ok := params["low_limit"]; ok {
 		if val, ok := v.(int); ok {
 			low = val
@@ -873,303 +1117,276 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 		}
 	}
 
-	var foundDevices []btypes.Device
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-
-	scanOnInterface := func(ifaceIP string, useDefault bool) {
-		defer wg.Done()
-
-		var scanClient Client
-		var err error
-		var broadcastDest *btypes.Address
-
-		// Determine if we should use the default client
-		// 1. Explicitly requested (useDefault = true)
-		// 2. The interface IP matches the driver's configured interface IP
-		// 3. The driver is bound to all interfaces (0.0.0.0) - in this case we use it for everything
-		shouldUseDefault := useDefault
-		if !shouldUseDefault && defaultClient != nil {
-			if d.interfaceIP == "0.0.0.0" || d.interfaceIP == ifaceIP {
-				shouldUseDefault = true
-			}
-		}
-
-		if shouldUseDefault {
-			scanClient = defaultClient
-			if scanClient == nil {
-				return
-			}
-			zap.L().Info("Scanning on default client", zap.String("interface", d.interfaceIP))
-
-			// If we are reusing the default client but scanning a specific interface (ifaceIP),
-			// we should calculate the broadcast address for that interface and use it.
-			if ifaceIP != "" && ifaceIP != "0.0.0.0" {
-				ip := net.ParseIP(ifaceIP)
-				if ip != nil {
-					mask := net.CIDRMask(defaultSubnetCIDR, 32)
-					ipv4 := ip.To4()
-					if ipv4 != nil {
-						broadcast := make(net.IP, len(ipv4))
-						for i := range ipv4 {
-							broadcast[i] = ipv4[i] | ^mask[i]
-						}
-						// Use standard BACnet port 47808 for broadcast, as most devices listen there.
-						// Using defaultInterfacePort (our binding port) is wrong if we are on a non-standard port (e.g. 47809).
-						port := 47808
-						broadcastDest = datalink.IPPortToAddress(broadcast, port)
-						zap.L().Info("Calculated broadcast address using default client", zap.String("interface", ifaceIP), zap.String("broadcast", broadcast.String()), zap.Int("port", port))
-					}
-				}
-			}
-
-		} else {
-			cb := &ClientBuilder{
-				Ip:         ifaceIP,
-				Port:       defaultInterfacePort,
-				SubnetCIDR: defaultSubnetCIDR,
-			}
-			scanClient, err = clientFactory(cb)
-			if err != nil {
-				zap.L().Warn("Failed to create client for scan", zap.String("interface", ifaceIP), zap.Error(err))
-				return
-			}
-			defer scanClient.Close()
-			go scanClient.ClientRun()
-			time.Sleep(100 * time.Millisecond)
-
-			// Calculate broadcast address
-			ip := net.ParseIP(ifaceIP)
-			if ip != nil {
-				mask := net.CIDRMask(defaultSubnetCIDR, 32)
-				ipv4 := ip.To4()
-				if ipv4 != nil {
-					broadcast := make(net.IP, len(ipv4))
-					for i := range ipv4 {
-						broadcast[i] = ipv4[i] | ^mask[i]
-					}
-					// Always broadcast to standard BACnet port 47808
-					port := 47808
-					broadcastDest = datalink.IPPortToAddress(broadcast, port)
-					zap.L().Info("Calculated broadcast address", zap.String("interface", ifaceIP), zap.String("broadcast", broadcast.String()), zap.Int("port", port))
-				}
-			}
-		}
-
-		whois := &WhoIsOpts{
-			Low:         low,
-			High:        high,
-			Destination: broadcastDest,
-		}
-
-		devices, err := scanClient.WhoIs(whois)
-		if err != nil {
-			zap.L().Warn("Scan failed on interface", zap.String("interface", ifaceIP), zap.Error(err))
-			return
-		}
-		zap.L().Info("Scan on interface found devices", zap.String("interface", ifaceIP), zap.Int("count", len(devices)))
-
-		// Also try Unicast to the interface IP itself (port 47808) to find local simulators
-		// This is necessary because if we are bound to 47809, we might miss Broadcast I-Am responses
-		// from devices on 47808 (unless we listen on 47808).
-		// Unicast WhoIs triggers Unicast I-Am, which we CAN receive.
-
-		// Determine the target IP for unicast: use ifaceIP if provided, otherwise d.interfaceIP
-		targetUnicastIP := ifaceIP
-		if targetUnicastIP == "" && shouldUseDefault {
-			d.mu.Lock()
-			targetUnicastIP = d.interfaceIP
-			d.mu.Unlock()
-		}
-
-		if targetUnicastIP != "" && targetUnicastIP != "0.0.0.0" {
-			ip := net.ParseIP(targetUnicastIP)
-			if ip != nil {
-				unicastDest := datalink.IPPortToAddress(ip, 47808)
-				unicastWhoIs := &WhoIsOpts{
-					Low:         low,
-					High:        high,
-					Destination: unicastDest,
-				}
-				zap.L().Info("Sending Unicast WhoIs", zap.String("ip", targetUnicastIP))
-				if dev2, err := scanClient.WhoIs(unicastWhoIs); err == nil {
-					zap.L().Info("Unicast Scan found devices", zap.String("ip", targetUnicastIP), zap.Int("count", len(dev2)))
-					devices = append(devices, dev2...)
-				} else {
-					zap.L().Warn("Unicast Scan failed", zap.String("ip", targetUnicastIP), zap.Error(err))
-				}
-			}
-		} else if targetUnicastIP == "0.0.0.0" {
-			// If bound to 0.0.0.0, explicit unicast to localhost is often required to find local simulators
-			// that don't respond to broadcast or are on the loopback interface.
-			zap.L().Info("Sending Unicast WhoIs to localhost (fallback for 0.0.0.0)")
-			localhostIP := net.ParseIP("127.0.0.1")
-			unicastDest := datalink.IPPortToAddress(localhostIP, 47808)
-			unicastWhoIs := &WhoIsOpts{
-				Low:         low,
-				High:        high,
-				Destination: unicastDest,
-			}
-			if dev2, err := scanClient.WhoIs(unicastWhoIs); err == nil {
-				zap.L().Info("Localhost Unicast Scan found devices", zap.Int("count", len(dev2)))
-				devices = append(devices, dev2...)
-			} else {
-				zap.L().Warn("Localhost Unicast Scan failed", zap.Error(err))
-			}
-		}
-
-		mu.Lock()
-		foundDevices = append(foundDevices, devices...)
-		mu.Unlock()
-	}
-
-	if useDefaultClient {
-		wg.Add(1)
-		go scanOnInterface("", true)
-	} else {
-		for _, ip := range targetIPs {
-			wg.Add(1)
-			// Check if this IP matches the driver's bound IP, or if driver is bound to all interfaces
-			isDriverIP := ip == d.interfaceIP || d.interfaceIP == "0.0.0.0"
-			zap.L().Debug("Scan loop", zap.String("ip", ip), zap.String("driver_ip", d.interfaceIP), zap.Bool("is_driver_ip", isDriverIP))
-			go scanOnInterface(ip, useDefaultClient || isDriverIP)
-		}
-	}
-
-	wg.Wait()
-
-	// Deduplicate devices by DeviceID
-	uniqueDevices := make(map[int]btypes.Device)
-	for _, dev := range foundDevices {
-		uniqueDevices[dev.DeviceID] = dev
-	}
-
-	var ids []btypes.ObjectInstance
-	for _, dev := range uniqueDevices {
-		ids = append(ids, dev.ID.Instance)
-	}
-	zap.L().Info("Scan finished", zap.Int("count", len(uniqueDevices)), zap.Any("ids", ids))
-
-	// Enrich details (Vendor, Model, etc.)
-	// We can pick any client to read properties, or we should use the one that found it?
-	// Ideally, we should use a client that can reach it.
-	// For simplicity, we'll try to use a temporary client bound to the device's IP network if possible,
-	// OR just use the default client if it's connected.
-	// Actually, `Scan` in `bacnet.go` used `scanClient.ReadProperty`.
-	// Since we closed the temp clients, we need a way to read properties.
-	// We can spin up a client just for reading, or assume the default client can reach them (if routing exists).
-	// However, if we found a device on a specific subnet that the default client (0.0.0.0) cannot reach?
-	// 0.0.0.0 *should* be able to reach if routing is set up.
-	// Let's use the default client for reading properties if available.
-
-	// Re-acquire default client in case it changed (unlikely)
+	// ── Prepare readerClient for both steps ──
 	d.mu.Lock()
 	readerClient := d.client
 	d.mu.Unlock()
 
-	// If default client is not ready/connected, we might fail to read properties.
-	// But `Scan` is often used to configure the system, so we might not have a main client yet?
-	// If readerClient is nil, we should create a temporary one.
 	if readerClient == nil {
 		cb := &ClientBuilder{
-			Ip:         d.interfaceIP, // 0.0.0.0 usually
-			Port:       defaultInterfacePort,
+			Ip:         localIP,
+			Port:       discoveryListenPort,
 			SubnetCIDR: defaultSubnetCIDR,
 		}
 		if cli, err := clientFactory(cb); err == nil {
-			readerClient = cli
-			defer cli.Close()
-			go cli.ClientRun()
-			time.Sleep(100 * time.Millisecond)
+			stop, startErr := startEphemeralClient(cli)
+			if startErr == nil {
+				defer stop()
+				readerClient = cli
+			}
 		}
 	}
 
-	// Convert map to slice for parallel processing
-	deviceList := make([]btypes.Device, 0, len(uniqueDevices))
-	for _, dev := range uniqueDevices {
-		deviceList = append(deviceList, dev)
+	// ── Step 1: Unicast ReadProperty verification for preconfigured devices ──
+	// ── 步骤1：单播 ReadProperty 验证预配置设备 ──
+	preconfigured := parsePreconfiguredDevices(params)
+	step1Results := make(map[int]ScanResult)
+	var step1Mu sync.Mutex
+
+	for _, pc := range preconfigured {
+		dev, ok := buildDirectDevice(pc.DeviceID, pc.IP, pc.Port)
+		if !ok {
+			continue
+		}
+		objectName := readPropertyString(readerClient, dev, btypes.PropObjectName, probeVerifyTimeout)
+		if objectName != "" {
+			step1Mu.Lock()
+			step1Results[pc.DeviceID] = ScanResult{
+				DeviceID:       pc.DeviceID,
+				IP:             pc.IP,
+				Port:           pc.Port,
+				ObjectName:     objectName,
+				Status:         "online",
+				Step1Verified:  true,
+				DiscoveryPhase: "preconfigured",
+			}
+			step1Mu.Unlock()
+			zap.L().Info("[步骤1] 预配置设备验证成功",
+				zap.Int("device_id", pc.DeviceID),
+				zap.String("ip", pc.IP),
+				zap.Int("port", pc.Port))
+		} else {
+			zap.L().Info("[步骤1] 预配置设备验证失败",
+				zap.Int("device_id", pc.DeviceID),
+				zap.String("ip", pc.IP),
+				zap.Int("port", pc.Port))
+		}
 	}
 
-	results := make([]ScanResult, len(deviceList))
+	// ── Step 2: Broadcast WhoIs for supplementary discovery ──
+	// ── 步骤2：广播 WhoIs 补充发现 ──
+	var foundDevices []btypes.Device
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	if len(preconfigured) == 0 {
+		// No preconfigured devices: pure broadcast path (legacy Strategy 1 + 2)
+		// 无预配置设备：走纯广播路径（旧策略 1 + 2）
+
+		// Strategy 1: Standard broadcast WhoIs
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			scanClient := defaultClient
+			if scanClient == nil {
+				cb := &ClientBuilder{
+					Ip:         localIP,
+					Port:       discoveryListenPort,
+					SubnetCIDR: defaultSubnetCIDR,
+				}
+				cli, err := clientFactory(cb)
+				if err != nil {
+					zap.L().Warn("[Strategy1] Failed to create discovery client", zap.Error(err))
+					return
+				}
+				stop, _ := startEphemeralClient(cli)
+				defer stop()
+				scanClient = cli
+			}
+
+			whois := &WhoIsOpts{Low: low, High: high}
+			devices, err := scanClient.WhoIs(whois)
+			if err != nil {
+				zap.L().Debug("[Strategy1] Standard broadcast WhoIs returned error", zap.Error(err))
+				return
+			}
+			if len(devices) > 0 {
+				zap.L().Info("[Strategy1] 标准广播发现设备",
+					zap.Int("count", len(devices)))
+				mu.Lock()
+				foundDevices = append(foundDevices, devices...)
+				mu.Unlock()
+			}
+		}()
+
+		// Strategy 2: Subnet broadcast WhoIs
+		if localIP != "" && localIP != "0.0.0.0" {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				ip := net.ParseIP(localIP)
+				if ip == nil {
+					return
+				}
+				mask := net.CIDRMask(defaultSubnetCIDR, 32)
+				ipv4 := ip.To4()
+				if ipv4 == nil {
+					return
+				}
+				subnetBcast := make(net.IP, 4)
+				for i := range ipv4 {
+					subnetBcast[i] = ipv4[i] | ^mask[i]
+				}
+				subnetDest := datalink.IPPortToAddress(subnetBcast, 47808)
+
+				scanClient := defaultClient
+				if scanClient == nil {
+					cb := &ClientBuilder{
+						Ip:         localIP,
+						Port:       discoveryListenPort,
+						SubnetCIDR: defaultSubnetCIDR,
+					}
+					cli, err := clientFactory(cb)
+					if err != nil {
+						return
+					}
+					stop, _ := startEphemeralClient(cli)
+					defer stop()
+					scanClient = cli
+				}
+
+				whois := &WhoIsOpts{Low: low, High: high, Destination: subnetDest}
+				devices, err := scanClient.WhoIs(whois)
+				if err != nil {
+					return
+				}
+				if len(devices) > 0 {
+					zap.L().Info("[Strategy2] 子网广播发现设备",
+						zap.String("subnet_bcast", subnetBcast.String()),
+						zap.Int("count", len(devices)))
+					mu.Lock()
+					foundDevices = append(foundDevices, devices...)
+					mu.Unlock()
+				}
+			}()
+		}
+	} else {
+		// Has preconfigured devices: standard broadcast WhoIs only
+		// 有预配置设备：仅执行标准广播 WhoIs
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			scanClient := defaultClient
+			if scanClient == nil {
+				cb := &ClientBuilder{
+					Ip:         localIP,
+					Port:       discoveryListenPort,
+					SubnetCIDR: defaultSubnetCIDR,
+				}
+				cli, err := clientFactory(cb)
+				if err != nil {
+					zap.L().Warn("[Step2] Failed to create discovery client", zap.Error(err))
+					return
+				}
+				stop, _ := startEphemeralClient(cli)
+				defer stop()
+				scanClient = cli
+			}
+
+			whois := &WhoIsOpts{Low: low, High: high}
+			devices, err := scanClient.WhoIs(whois)
+			if err != nil {
+				zap.L().Debug("[Step2] Standard broadcast WhoIs returned error", zap.Error(err))
+				return
+			}
+			if len(devices) > 0 {
+				zap.L().Info("[步骤2] 广播发现设备",
+					zap.Int("count", len(devices)))
+				mu.Lock()
+				foundDevices = append(foundDevices, devices...)
+				mu.Unlock()
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	// ── Deduplicate by DeviceID, prefer real unicast IP ──
+	// ── 按 DeviceID 去重，优先保留有真实单播 IP 的结果 ──
+	uniqueDevices := make(map[int]btypes.Device)
+	for _, dev := range foundDevices {
+		existing, exists := uniqueDevices[dev.DeviceID]
+		if !exists || isBetterDeviceAddr(dev, existing) {
+			uniqueDevices[dev.DeviceID] = dev
+		}
+	}
+
+	zap.L().Info("Scan: 去重后设备数",
+		zap.Int("total", len(uniqueDevices)))
+
+	// ── Enrich Step 2 discovered devices with ReadProperty ──
+	// ── 对步骤2发现的设备进行 ReadProperty 验证和丰富 ──
+	step2Results := make(map[int]ScanResult)
 	var wgEnrich sync.WaitGroup
 
-	// Helper to read property
-	readProp := func(dev btypes.Device, propID btypes.PropertyType) string {
-		if readerClient == nil {
-			return ""
-		}
-		pd := btypes.PropertyData{
-			Object: btypes.Object{
-				ID: btypes.ObjectID{
-					Type:     btypes.DeviceType,
-					Instance: btypes.ObjectInstance(dev.DeviceID),
-				},
-				Properties: []btypes.Property{
-					{
-						Type:       propID,
-						ArrayIndex: btypes.ArrayAll,
-					},
-				},
-			},
-		}
-		resp, err := readerClient.ReadProperty(dev, pd)
-		// Fallback to 47808 if read fails on ephemeral port
-		if err != nil && len(dev.Addr.Mac) >= 6 {
-			port := int(dev.Addr.Mac[4])<<8 | int(dev.Addr.Mac[5])
-			if port != 47808 {
-				zap.L().Warn("ReadProperty failed on ephemeral port, trying 47808", zap.Int("port", port), zap.Error(err))
-				fallbackDev := dev
-				// Copy Mac to avoid modifying original device if shared (though dev is value type here, Mac is slice ref)
-				// dev.Addr.Mac is a slice. We must copy it.
-				newMac := make([]byte, len(dev.Addr.Mac))
-				copy(newMac, dev.Addr.Mac)
-				newMac[4] = 0xBA
-				newMac[5] = 0xC0
-				fallbackDev.Addr.Mac = newMac
-				fallbackDev.Port = 47808
-
-				resp, err = readerClient.ReadProperty(fallbackDev, pd)
-				if err == nil {
-					zap.L().Info("Fallback to 47808 succeeded")
-				}
-			}
-		}
-		if err == nil && len(resp.Object.Properties) > 0 {
-			if val, ok := resp.Object.Properties[0].Data.(string); ok {
-				return val
-			}
-			return fmt.Sprintf("%v", resp.Object.Properties[0].Data)
-		}
-		return ""
-	}
-
-	for i, dev := range deviceList {
+	for _, dev := range uniqueDevices {
 		wgEnrich.Add(1)
-		go func(idx int, device btypes.Device) {
+		go func(device btypes.Device) {
 			defer wgEnrich.Done()
-			// Enrich with details
-			vendorName := readProp(device, btypes.PropVendorName)
-			modelName := readProp(device, btypes.PropModelName)
-			objectName := readProp(device, btypes.PropObjectName)
 
-			res := ScanResult{
-				DeviceID:     device.DeviceID,
-				IP:           device.Ip,
-				Port:         device.Port,
-				Network:      uint16(device.NetworkNumber),
-				VendorID:     device.Vendor,
-				VendorName:   vendorName,
-				ModelName:    modelName,
-				ObjectName:   objectName,
-				MaxAPDU:      device.MaxApdu,
-				Segmentation: uint32(device.Segmentation),
-				Status:       "online",
+			vendorName := readPropertyString(readerClient, device, btypes.PropVendorName, probeVerifyTimeout)
+			modelName := readPropertyString(readerClient, device, btypes.PropModelName, probeVerifyTimeout)
+			objectName := readPropertyString(readerClient, device, btypes.PropObjectName, probeVerifyTimeout)
+
+			step2Results[device.DeviceID] = ScanResult{
+				DeviceID:        device.DeviceID,
+				IP:              device.Ip,
+				Port:            device.Port,
+				Network:         uint16(device.NetworkNumber),
+				VendorID:        device.Vendor,
+				VendorName:      vendorName,
+				ModelName:       modelName,
+				ObjectName:      objectName,
+				MaxAPDU:         device.MaxApdu,
+				Segmentation:    uint32(device.Segmentation),
+				Status:          "online",
+				Step2Discovered: true,
+				DiscoveryPhase:  "broadcast",
 			}
-			results[idx] = res
-		}(i, dev)
+		}(dev)
 	}
 
 	wgEnrich.Wait()
+
+	// ── Merge Step 1 and Step 2 results ──
+	// ── 合并步骤 1 和步骤 2 的结果 ──
+	finalResults := make(map[int]ScanResult)
+	for id, sr := range step1Results {
+		finalResults[id] = sr
+	}
+	for id, sr := range step2Results {
+		if existing, ok := finalResults[id]; ok {
+			existing.IP = sr.IP
+			existing.Port = sr.Port
+			existing.Network = sr.Network
+			existing.VendorID = sr.VendorID
+			existing.VendorName = sr.VendorName
+			existing.ModelName = sr.ModelName
+			existing.ObjectName = sr.ObjectName
+			existing.MaxAPDU = sr.MaxAPDU
+			existing.Segmentation = sr.Segmentation
+			existing.Step2Discovered = true
+			existing.DiscoveryPhase = "both"
+			finalResults[id] = existing
+		} else {
+			finalResults[id] = sr
+		}
+	}
+
+	results := make([]ScanResult, 0, len(finalResults))
+	for _, sr := range finalResults {
+		results = append(results, sr)
+	}
 
 	existingIDs := parseExistingDeviceIDs(params)
 	for i := range results {
@@ -1180,7 +1397,6 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 		}
 	}
 
-	// Log the results for debugging
 	if data, err := json.Marshal(results); err == nil {
 		zap.L().Info("Scan results", zap.String("json", string(data)))
 	}
@@ -1189,18 +1405,21 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 }
 
 type ScanResult struct {
-	DeviceID     int    `json:"device_id"`
-	IP           string `json:"ip"`
-	Port         int    `json:"port"`
-	Network      uint16 `json:"network_number"`
-	VendorID     uint32 `json:"vendor_id"`
-	VendorName   string `json:"vendor_name"`
-	ModelName    string `json:"model_name"`
-	ObjectName   string `json:"object_name"`
-	MaxAPDU      uint32 `json:"max_apdu"`
-	Segmentation uint32 `json:"segmentation"`
-	Status       string `json:"status"`
-	DiffStatus   string `json:"diff_status,omitempty"` // new, existing
+	DeviceID        int    `json:"device_id"`
+	IP              string `json:"ip"`
+	Port            int    `json:"port"`
+	Network         uint16 `json:"network_number"`
+	VendorID        uint32 `json:"vendor_id"`
+	VendorName      string `json:"vendor_name"`
+	ModelName       string `json:"model_name"`
+	ObjectName      string `json:"object_name"`
+	MaxAPDU         uint32 `json:"max_apdu"`
+	Segmentation    uint32 `json:"segmentation"`
+	Status          string `json:"status"`
+	DiffStatus      string `json:"diff_status,omitempty"` // new, existing
+	Step1Verified   bool   `json:"step1_verified"`
+	Step2Discovered bool   `json:"step2_discovered"`
+	DiscoveryPhase  string `json:"discovery_phase"` // preconfigured, broadcast, both
 }
 
 func parseExistingDeviceIDs(params map[string]any) map[int]struct{} {
@@ -1234,6 +1453,125 @@ func parseExistingDeviceIDs(params map[string]any) map[int]struct{} {
 	return out
 }
 
+type preconfiguredDevice struct {
+	DeviceID int    `json:"device_id"`
+	IP       string `json:"ip"`
+	Port     int    `json:"port"`
+}
+
+func parsePreconfiguredDevices(params map[string]any) []preconfiguredDevice {
+	var out []preconfiguredDevice
+	if params == nil {
+		return out
+	}
+	v, ok := params["preconfigured_devices"]
+	if !ok {
+		return out
+	}
+
+	switch devices := v.(type) {
+	case []preconfiguredDevice:
+		return devices
+	case []map[string]any:
+		for _, d := range devices {
+			pc := preconfiguredDevice{}
+			if id, ok := d["device_id"]; ok {
+				switch val := id.(type) {
+				case int:
+					pc.DeviceID = val
+				case float64:
+					pc.DeviceID = int(val)
+				}
+			}
+			if ip, ok := d["ip"]; ok {
+				if s, ok := ip.(string); ok {
+					pc.IP = s
+				}
+			}
+			if port, ok := d["port"]; ok {
+				switch val := port.(type) {
+				case int:
+					pc.Port = val
+				case float64:
+					pc.Port = int(val)
+				}
+			}
+			if pc.DeviceID > 0 && pc.IP != "" && pc.Port > 0 {
+				out = append(out, pc)
+			}
+		}
+	case []any:
+		for _, item := range devices {
+			switch d := item.(type) {
+			case preconfiguredDevice:
+				out = append(out, d)
+			case map[string]any:
+				pc := preconfiguredDevice{}
+				if id, ok := d["device_id"]; ok {
+					switch val := id.(type) {
+					case int:
+						pc.DeviceID = val
+					case float64:
+						pc.DeviceID = int(val)
+					}
+				}
+				if ip, ok := d["ip"]; ok {
+					if s, ok := ip.(string); ok {
+						pc.IP = s
+					}
+				}
+				if port, ok := d["port"]; ok {
+					switch val := port.(type) {
+					case int:
+						pc.Port = val
+					case float64:
+						pc.Port = int(val)
+					}
+				}
+				if pc.DeviceID > 0 && pc.IP != "" && pc.Port > 0 {
+					out = append(out, pc)
+				}
+			}
+		}
+	}
+	return out
+}
+
+func readPropertyString(client Client, dev btypes.Device, propID btypes.PropertyType, timeout time.Duration) string {
+	if client == nil {
+		return ""
+	}
+	pd := btypes.PropertyData{
+		Object: btypes.Object{
+			ID: btypes.ObjectID{
+				Type:     btypes.DeviceType,
+				Instance: btypes.ObjectInstance(dev.DeviceID),
+			},
+			Properties: []btypes.Property{
+				{Type: propID, ArrayIndex: btypes.ArrayAll},
+			},
+		},
+	}
+	resp, err := client.ReadPropertyWithTimeout(dev, pd, timeout)
+	if err != nil {
+		if dev.Port > 0 && dev.Ip != "" {
+			if addrDev, ok := buildDirectDevice(dev.DeviceID, dev.Ip, dev.Port); ok {
+				resp, err = client.ReadPropertyWithTimeout(addrDev, pd, timeout)
+			}
+		}
+		if err != nil {
+			return ""
+		}
+	}
+	if len(resp.Object.Properties) > 0 && resp.Object.Properties[0].Data != nil {
+		if val, ok := resp.Object.Properties[0].Data.(string); ok {
+			return val
+		}
+		return fmt.Sprintf("%v", resp.Object.Properties[0].Data)
+	}
+	return ""
+}
+
 type ObjectResult struct {
 	Type         string `json:"type"`
 	Instance     int    `json:"instance"`
@@ -1243,6 +1581,7 @@ type ObjectResult struct {
 	PresentValue any    `json:"present_value,omitempty"`
 	StatusFlags  string `json:"status_flags,omitempty"`
 	Reliability  string `json:"reliability,omitempty"`
+	Writable     bool   `json:"writable"`
 	DiffStatus   string `json:"diff_status"` // new, existing, removed
 }
 
@@ -1261,7 +1600,7 @@ func (d *BACnetDriver) readDevicePropStr(dev btypes.Device, propID btypes.Proper
 			},
 		},
 	}
-	resp, err := d.client.ReadProperty(dev, pd)
+	resp, err := d.client.ReadPropertyWithTimeout(dev, pd, 3*time.Second)
 	if err == nil && len(resp.Object.Properties) > 0 {
 		if val, ok := resp.Object.Properties[0].Data.(string); ok {
 			return val
@@ -1269,413 +1608,6 @@ func (d *BACnetDriver) readDevicePropStr(dev btypes.Device, propID btypes.Proper
 		return fmt.Sprintf("%v", resp.Object.Properties[0].Data)
 	}
 	return ""
-}
-
-func (d *BACnetDriver) scanDeviceObjects(client Client, devID int, deep bool) (any, error) {
-	var dev btypes.Device
-
-	// Optimization: If we are already connected to this device, use the cached address
-	d.mu.Lock() // Ensure thread safety
-
-	// Use passed client or default to d.client
-	if client == nil {
-		client = d.client
-	}
-
-	var cachedDev btypes.Device
-	var hasCached bool
-	if ctx, ok := d.deviceContexts[devID]; ok {
-		cachedDev = ctx.Device
-		hasCached = true
-	}
-	d.mu.Unlock() // Unlock before potentially long operations
-
-	if client == nil {
-		return nil, fmt.Errorf("no BACnet client available for object scan")
-	}
-
-	if hasCached {
-		zap.L().Info("scanDeviceObjects: Using cached address", zap.Int("device_id", devID), zap.String("addr", fmt.Sprintf("%v", cachedDev.Addr)))
-		dev = cachedDev
-	} else {
-		// 1. Find the device via WhoIs
-		zap.L().Info("scanDeviceObjects: Discovering device", zap.Int("device_id", devID))
-		whois := &WhoIsOpts{
-			Low:  devID,
-			High: devID,
-		}
-		// Try twice to be sure
-		devices, err := client.WhoIs(whois)
-		if err != nil || len(devices) == 0 {
-			time.Sleep(500 * time.Millisecond)
-			devices, err = client.WhoIs(whois)
-		}
-
-		// Fallback: Try Unicast to interface IP (for local simulators)
-		if (err != nil || len(devices) == 0) && d.interfaceIP != "" && d.interfaceIP != "0.0.0.0" {
-			zap.L().Info("scanDeviceObjects: Broadcast WhoIs failed, trying Unicast", zap.String("ip", d.interfaceIP))
-			ip := net.ParseIP(d.interfaceIP)
-			if ip != nil {
-				unicastDest := datalink.IPPortToAddress(ip, 47808)
-				unicastWhoIs := &WhoIsOpts{
-					Low:         devID,
-					High:        devID,
-					Destination: unicastDest,
-				}
-				if dev2, err2 := client.WhoIs(unicastWhoIs); err2 == nil && len(dev2) > 0 {
-					devices = append(devices, dev2...)
-					err = nil
-				}
-			}
-		}
-
-		if err != nil || len(devices) == 0 {
-			return nil, fmt.Errorf("device %d not found (timeout or unreachable)", devID)
-		}
-		dev = devices[0]
-		zap.L().Info("scanDeviceObjects: Found device", zap.Int("device_id", devID), zap.String("addr", fmt.Sprintf("%v", dev.Addr)))
-	}
-
-	// 2. Read ObjectList
-	zap.L().Info("Reading ObjectList", zap.Int("device_id", devID))
-	// ObjectList is an array of ObjectIDs.
-	// We might need to read it index by index if it's too large, but let's try reading all.
-	// ArrayAll means read the whole array.
-	pd := btypes.PropertyData{
-		Object: btypes.Object{
-			ID: btypes.ObjectID{
-				Type:     btypes.DeviceType,
-				Instance: btypes.ObjectInstance(devID),
-			},
-			Properties: []btypes.Property{
-				{
-					Type:       btypes.PropObjectList,
-					ArrayIndex: btypes.ArrayAll,
-				},
-			},
-		},
-	}
-
-	resp, err := client.ReadProperty(dev, pd)
-	if err != nil {
-		zap.L().Error("Failed to read ObjectList", zap.Int("device_id", devID), zap.Error(err))
-		return nil, fmt.Errorf("failed to read object list: %v", err)
-	}
-
-	if len(resp.Object.Properties) == 0 {
-		zap.L().Warn("ObjectList response has no properties")
-		return []any{}, nil
-	}
-
-	data := resp.Object.Properties[0].Data
-	zap.L().Info("ObjectList data type", zap.String("type", fmt.Sprintf("%T", data)))
-	zap.L().Info("ObjectList raw data", zap.String("data", fmt.Sprintf("%v", data)))
-
-	// Data should be []btypes.ObjectID
-	// But it might be parsed differently depending on decoding.
-	// Let's assume it's []btypes.ObjectID
-
-	var results []ObjectResult
-
-	var objectIDs []btypes.ObjectID
-
-	if list, ok := data.([]btypes.ObjectID); ok {
-		objectIDs = list
-		zap.L().Info("ObjectList parsed as []btypes.ObjectID", zap.Int("count", len(objectIDs)))
-	} else if list, ok := data.([]interface{}); ok {
-		zap.L().Info("ObjectList parsed as []interface{}", zap.Int("count", len(list)))
-		for i, item := range list {
-			if oid, ok := item.(btypes.ObjectID); ok {
-				objectIDs = append(objectIDs, oid)
-			} else {
-				zap.L().Warn("ObjectList item is not ObjectID", zap.Int("index", i), zap.String("type", fmt.Sprintf("%T", item)), zap.String("value", fmt.Sprintf("%v", item)))
-			}
-		}
-		zap.L().Info("ObjectList converted ObjectIDs count", zap.Int("count", len(objectIDs)))
-	} else {
-		zap.L().Warn("ObjectList data is not []ObjectID", zap.String("type", fmt.Sprintf("%T", data)))
-		return []any{}, nil
-	}
-
-	// 优化：快速模式扫描（默认开启）
-	// - 只读取轻量属性：ObjectName、Description、Units
-	// - 并发批量 ReadMultiProperty，限制总时长 10s(Fast) / 30s(Deep)
-	// - 过滤常用对象类型（AI/AO/AV/BI/BO/BV），减少无关对象的扫描开销
-	start := time.Now()
-	timeout := 10 * time.Second
-	if deep {
-		timeout = 30 * time.Second
-	}
-	deadline := start.Add(timeout)
-
-	// 过滤对象类型
-	filtered := make([]btypes.ObjectID, 0, len(objectIDs))
-	allow := map[btypes.ObjectType]bool{
-		btypes.AnalogInput:  true,
-		btypes.AnalogOutput: true,
-		btypes.AnalogValue:  true,
-		btypes.BinaryInput:  true,
-		btypes.BinaryOutput: true,
-		btypes.BinaryValue:  true,
-	}
-	for _, oid := range objectIDs {
-		if allow[oid.Type] {
-			filtered = append(filtered, oid)
-		}
-	}
-	objectIDs = filtered
-
-	// 并发与分片
-	chunkSize := 10
-	concurrency := 6
-	sem := make(chan struct{}, concurrency)
-
-	var muRes sync.Mutex
-	results = make([]ObjectResult, 0, len(objectIDs))
-
-	// 历史缓存：已有对象直接复用名称与单位，减少读取次数
-	d.mu.Lock()
-	var hist map[string]ObjectResult
-	if d.historicalObjects != nil {
-		hist = d.historicalObjects[devID]
-	}
-	d.mu.Unlock()
-
-	type job struct {
-		Chunk []btypes.ObjectID
-		Idx   int
-	}
-	jobs := make([]job, 0, (len(objectIDs)+chunkSize-1)/chunkSize)
-	for i := 0; i < len(objectIDs); i += chunkSize {
-		end := i + chunkSize
-		if end > len(objectIDs) {
-			end = len(objectIDs)
-		}
-		jobs = append(jobs, job{Chunk: objectIDs[i:end], Idx: i})
-	}
-
-	var wg sync.WaitGroup
-RespLoop:
-	for _, jb := range jobs {
-		// 超时保护
-		if time.Now().After(deadline) {
-			zap.L().Warn("scanDeviceObjects: time budget reached, early return", zap.Int("device_id", devID))
-			break
-		}
-		sem <- struct{}{}
-		wg.Add(1)
-		go func(jb job) {
-			defer func() { <-sem; wg.Done() }()
-			// 构建批量读取
-			mpd := btypes.MultiplePropertyData{Objects: make([]btypes.Object, len(jb.Chunk))}
-			for j, oid := range jb.Chunk {
-				obj := btypes.Object{
-					ID: oid,
-				}
-				props := []btypes.Property{
-					{Type: btypes.PropObjectName, ArrayIndex: btypes.ArrayAll},
-					{Type: btypes.PropDescription, ArrayIndex: btypes.ArrayAll},
-					{Type: btypes.PropUnits, ArrayIndex: btypes.ArrayAll},
-				}
-				if deep {
-					props = append(props,
-						btypes.Property{Type: btypes.PropPresentValue, ArrayIndex: btypes.ArrayAll},
-						btypes.Property{Type: btypes.PropStatusFlags, ArrayIndex: btypes.ArrayAll},
-						btypes.Property{Type: btypes.PropReliability, ArrayIndex: btypes.ArrayAll},
-					)
-				}
-				obj.Properties = props
-				mpd.Objects[j] = obj
-			}
-
-			// 若历史有缓存且足够，则跳过请求
-			if hist != nil {
-				allCached := true
-				for _, oid := range jb.Chunk {
-					key := fmt.Sprintf("%s:%d", oid.Type.String(), oid.Instance)
-					if _, ok := hist[key]; !ok {
-						allCached = false
-						break
-					}
-				}
-				if allCached {
-					tmp := make([]ObjectResult, 0, len(jb.Chunk))
-					for _, oid := range jb.Chunk {
-						key := fmt.Sprintf("%s:%d", oid.Type.String(), oid.Instance)
-						hr := hist[key]
-						tmp = append(tmp, ObjectResult{
-							Type:        oid.Type.String(),
-							Instance:    int(oid.Instance),
-							Name:        hr.Name,
-							Description: hr.Description,
-							Units:       hr.Units,
-						})
-					}
-					muRes.Lock()
-					results = append(results, tmp...)
-					muRes.Unlock()
-					return
-				}
-			}
-
-			resp, err := client.ReadMultiProperty(dev, mpd)
-			respMap := make(map[string]*btypes.Object)
-			if err == nil {
-				for i := range resp.Objects {
-					obj := &resp.Objects[i]
-					key := fmt.Sprintf("%d:%d", obj.ID.Type, obj.ID.Instance)
-					respMap[key] = obj
-				}
-			} else {
-				// 降级：逐个对象快速读取名称（优先 ObjectName），减少额外属性
-				for _, oid := range jb.Chunk {
-					obj := &btypes.Object{ID: oid}
-					pd := btypes.PropertyData{
-						Object: btypes.Object{
-							ID: oid,
-							Properties: []btypes.Property{
-								{Type: btypes.PropObjectName, ArrayIndex: btypes.ArrayAll},
-							},
-						},
-					}
-					if resProp, errProp := client.ReadProperty(dev, pd); errProp == nil && len(resProp.Object.Properties) > 0 {
-						obj.Properties = append(obj.Properties, resProp.Object.Properties[0])
-					}
-					key := fmt.Sprintf("%d:%d", oid.Type, oid.Instance)
-					respMap[key] = obj
-				}
-			}
-
-			tmp := make([]ObjectResult, 0, len(jb.Chunk))
-			for _, oid := range jb.Chunk {
-				res := ObjectResult{
-					Type:     oid.Type.String(),
-					Instance: int(oid.Instance),
-				}
-				key := fmt.Sprintf("%d:%d", oid.Type, oid.Instance)
-				if obj, found := respMap[key]; found {
-					for _, prop := range obj.Properties {
-						switch prop.Type {
-						case btypes.PropObjectName:
-							if v, ok := prop.Data.(string); ok {
-								res.Name = v
-							}
-						case btypes.PropDescription:
-							if v, ok := prop.Data.(string); ok {
-								res.Description = v
-							}
-						case btypes.PropUnits:
-							var u units.Unit
-							okU := false
-							if v, ok := prop.Data.(btypes.Enumerated); ok {
-								u = units.Unit(v)
-								okU = true
-							} else if v, ok := prop.Data.(uint); ok {
-								u = units.Unit(v)
-								okU = true
-							} else if v, ok := prop.Data.(uint32); ok {
-								u = units.Unit(v)
-								okU = true
-							} else if v, ok := prop.Data.(uint16); ok {
-								u = units.Unit(v)
-								okU = true
-							} else if v, ok := prop.Data.(int); ok {
-								u = units.Unit(v)
-								okU = true
-							} else if v, ok := prop.Data.(float64); ok {
-								u = units.Unit(v)
-								okU = true
-							}
-							if okU {
-								res.Units = u.String()
-							} else {
-								res.Units = fmt.Sprintf("%v", prop.Data)
-							}
-						case btypes.PropPresentValue:
-							res.PresentValue = prop.Data
-						case btypes.PropStatusFlags:
-							if v, ok := prop.Data.(btypes.BitString); ok {
-								res.StatusFlags = v.String()
-							} else if v, ok := prop.Data.(string); ok {
-								res.StatusFlags = v
-							} else {
-								res.StatusFlags = fmt.Sprintf("%v", prop.Data)
-							}
-						case btypes.PropReliability:
-							res.Reliability = fmt.Sprintf("%v", prop.Data)
-						}
-					}
-				}
-				tmp = append(tmp, res)
-			}
-			muRes.Lock()
-			results = append(results, tmp...)
-			muRes.Unlock()
-		}(jb)
-
-		// 时间保护：避免提交过多任务导致超过 5s
-		if time.Now().Add(250 * time.Millisecond).After(deadline) {
-			// 留一点时间给已派发任务完成
-			break RespLoop
-		}
-	}
-	wg.Wait()
-
-	// --- Diff Logic: New / Existing / Removed ---
-	d.mu.Lock()
-	if d.historicalObjects == nil {
-		d.historicalObjects = make(map[int]map[string]ObjectResult)
-	}
-	history, hasHistory := d.historicalObjects[devID]
-	// If no history (first scan), treat as empty map
-	if !hasHistory {
-		history = make(map[string]ObjectResult)
-	}
-
-	currentMap := make(map[string]ObjectResult)
-	finalResults := make([]ObjectResult, 0, len(results))
-
-	for i := range results {
-		res := results[i]
-		// Construct a unique key.
-		// Note: res.Type is string representation.
-		key := fmt.Sprintf("%s:%d", res.Type, res.Instance)
-
-		// Deduplicate: If we already processed this key in the current scan, skip it.
-		if _, exists := currentMap[key]; exists {
-			zap.L().Warn("Duplicate object detected in scan", zap.String("key", key))
-			continue
-		}
-
-		if hasHistory {
-			if _, exists := history[key]; exists {
-				res.DiffStatus = "existing"
-			} else {
-				res.DiffStatus = "new"
-			}
-		} else {
-			res.DiffStatus = "new"
-		}
-
-		currentMap[key] = res
-		finalResults = append(finalResults, res)
-	}
-
-	// Identify removed objects
-	if hasHistory {
-		for key, oldObj := range history {
-			if _, exists := currentMap[key]; !exists {
-				oldObj.DiffStatus = "removed"
-				finalResults = append(finalResults, oldObj)
-			}
-		}
-	}
-
-	// Update history with current valid objects
-	d.historicalObjects[devID] = currentMap
-	d.mu.Unlock()
-
-	return finalResults, nil
 }
 
 // GetMetrics 返回BACnet驱动的详细指标

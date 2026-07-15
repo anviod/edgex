@@ -35,8 +35,8 @@ func TestMDNSResponderAnswersHostnameARecord(t *testing.T) {
 
 func TestBuildHostnameAccessStatus(t *testing.T) {
 	status := BuildHostnameAccessStatus(model.HostnameConfig{
-		Name:      "edgex",
-		HTTPPort:  8080,
+		Name:       "edgex",
+		HTTPPort:   8080,
 		EnableMDNS: true,
 	}, HostnameMDNSStatus{
 		Active: true,

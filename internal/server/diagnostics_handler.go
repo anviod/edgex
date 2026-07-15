@@ -1,6 +1,8 @@
 package server
 
 import (
+	"time"
+
 	"github.com/anviod/edgex/internal/model"
 	"github.com/gofiber/fiber/v2"
 )
@@ -11,6 +13,23 @@ func (s *Server) getScanEngineDiagnostics(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{})
 	}
 	return c.JSON(s.cm.GetScanEngineMetricsSnapshot())
+}
+
+// getSoakMonitor 返回 ScanEngine Soak 会话监控与 Release Gate 验收项。
+func (s *Server) getSoakMonitor(c *fiber.Ctx) error {
+	if s.cm == nil {
+		return c.JSON(fiber.Map{})
+	}
+	snap := s.cm.GetSoakMonitorSnapshot()
+	if snap == nil {
+		snap = fiber.Map{}
+	}
+	uptime := time.Since(s.startTime)
+	snap["runtime"] = fiber.Map{
+		"start_time": s.startTime.UTC().Format(time.RFC3339),
+		"uptime_sec": int(uptime.Seconds()),
+	}
+	return c.JSON(snap)
 }
 
 // getDeviceDiagnostics 返回单设备通信画像与点位降级状态。

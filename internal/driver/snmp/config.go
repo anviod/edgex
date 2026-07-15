@@ -29,14 +29,14 @@ type deviceConfig struct {
 
 func parseDeviceConfig(raw map[string]any) deviceConfig {
 	cfg := deviceConfig{
-		SNMPVersion:  "v2c",
-		TargetIP:     "127.0.0.1",
-		TargetPort:   161,
-		Timeout:      3 * time.Second,
-		Retries:      3,
-		MaxBulkSize:  10,
-		SendInterval: 100 * time.Millisecond,
-		Community:    "public",
+		SNMPVersion:   "v2c",
+		TargetIP:      "127.0.0.1",
+		TargetPort:    161,
+		Timeout:       3 * time.Second,
+		Retries:       3,
+		MaxBulkSize:   10,
+		SendInterval:  100 * time.Millisecond,
+		Community:     "public",
 		SecurityLevel: "authPriv",
 		AuthProtocol:  "SHA256",
 		PrivProtocol:  "AES128",

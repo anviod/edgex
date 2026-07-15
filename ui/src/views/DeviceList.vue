@@ -114,8 +114,8 @@
       </a-spin>
 
       <div class="list-detail-meta">
-        <span class="list-detail-meta__dot"></span>
-        <span class="list-detail-meta__text">通道 {{ channelId }} · {{ devices.length }} 台设备</span>
+        <span class="list-detail-meta__dot" :class="listDetailMetaDotClass"></span>
+        <span class="list-detail-meta__text">{{ listDetailMetaText }}</span>
       </div>
     </div>
 
@@ -225,6 +225,53 @@
             </a-col>
           </a-row>
         </template>
+
+        <template v-if="channelProtocol === 'ethercat'">
+          <a-form-item field="ecatPosition" label="从站位置" required>
+            <a-input-number v-model="form.ecatPosition" :min="1" :max="65535" placeholder="1" />
+            <template #extra>
+              EtherCAT 总线上的从站物理位置（1-based positional addressing）
+            </template>
+          </a-form-item>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item field="ecatVendorId" label="厂商 ID">
+                <a-input v-model="form.ecatVendorId" placeholder="0x00000002" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item field="ecatProductCode" label="产品代码">
+                <a-input v-model="form.ecatProductCode" placeholder="0x07D43052" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="8">
+              <a-form-item field="ecatTxPdoSize" label="TxPDO 大小 (字节)">
+                <a-input-number v-model="form.ecatTxPdoSize" :min="0" :max="65535" placeholder="16" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="ecatRxPdoSize" label="RxPDO 大小 (字节)">
+                <a-input-number v-model="form.ecatRxPdoSize" :min="0" :max="65535" placeholder="8" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item field="ecatAlias" label="别名地址">
+                <a-input-number v-model="form.ecatAlias" :min="0" :max="65535" placeholder="0" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-form-item field="ecatRunMode" label="运行模式">
+            <a-select v-model="form.ecatRunMode" placeholder="pdo">
+              <a-option value="pdo">PDO (过程数据)</a-option>
+              <a-option value="sdo">SDO (邮箱数据)</a-option>
+            </a-select>
+            <template #extra>
+              PDO 模式用于高速周期性数据交换；SDO 模式用于参数配置和诊断
+            </template>
+          </a-form-item>
+        </template>
         
         <template v-if="channelProtocol && channelProtocol.includes('modbus')">
           <a-form-item field="modbusSlaveId" label="从机ID" required>
@@ -297,18 +344,18 @@
         <template v-if="channelProtocol === 'bacnet-ip'">
           <a-row :gutter="16">
             <a-col :span="8">
-              <a-form-item field="bacnetDeviceInstance" label="实例ID" required>
-                <a-input-number v-model="form.bacnetDeviceInstance" placeholder="1001" />
+              <a-form-item field="bacnet_device_id" label="BACnet设备ID" required>
+                <a-input-number v-model="form.bacnet_device_id" placeholder="1001" />
               </a-form-item>
             </a-col>
             <a-col :span="10">
-              <a-form-item field="bacnetIp" label="IP地址">
-                <a-input v-model="form.bacnetIp" placeholder="192.168.1.100" />
+              <a-form-item field="ip" label="IP地址">
+                <a-input v-model="form.ip" placeholder="192.168.1.100" />
               </a-form-item>
             </a-col>
             <a-col :span="6">
-              <a-form-item field="bacnetPort" label="端口">
-                <a-input-number v-model="form.bacnetPort" placeholder="47808" />
+              <a-form-item field="port" label="端口">
+                <a-input-number v-model="form.port" placeholder="47808" />
               </a-form-item>
             </a-col>
           </a-row>
@@ -564,18 +611,83 @@
           </template>
           点击"开始扫描"以发现网络中的设备。扫描可能需要10秒左右，请耐心等待。
         </a-alert>
-        
-        <a-space>
-          <a-button type="outline" status="primary" :loading="isScanning" :disabled="isScanning" @click="scanDevices">
-            <template #icon>
-              <icon-scan />
-            </template>
-            开始扫描
-          </a-button>
-          <a-text v-if="isScanning" type="secondary" style="line-height: 32px;">{{ scanStatus }}</a-text>
-        </a-space>
-        
 
+        <a-row :gutter="[24, 16]" align="center">
+          <a-col :span="8">
+            <a-form-item label="本机IP" style="margin-bottom:0">
+              <a-input v-model="scanInterface" placeholder="自动获取" :disabled="isScanning" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="8" v-if="channelProtocol === 'bacnet-ip'">
+            <a-form-item label="远程目标IP" style="margin-bottom:0">
+              <a-input v-model="scanTargetIP" placeholder="例: 192.168.3.115" :disabled="isScanning" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-space>
+              <a-button type="outline" status="primary" :loading="isScanning" :disabled="isScanning" @click="scanDevices">
+                <template #icon>
+                  <icon-scan />
+                </template>
+                开始扫描
+              </a-button>
+              <a-button type="outline" :disabled="isScanning" @click="autoFillLocalIP">
+                自动获取本机IP
+              </a-button>
+            </a-space>
+          </a-col>
+        </a-row>
+        <a-text v-if="isScanning" type="secondary" style="line-height: 32px;">{{ scanStatus }}</a-text>
+        
+        <!-- 预配置设备输入区域 -->
+        <div v-if="channelProtocol === 'bacnet-ip'" class="preconfigured-devices-section">
+          <div class="section-header">
+            <span class="section-title">预配置设备</span>
+            <a-button type="text" size="mini" @click="addPreconfiguredDevice">
+              <template #icon><IconPlus /></template>
+              添加
+            </a-button>
+          </div>
+          <a-table :data="preconfiguredDevices" :columns="preconfigColumns" size="small">
+            <template #bacnet_device_id="{ record }">
+              <a-input v-model="record.bacnet_device_id" size="mini" placeholder="BACnet设备ID" />
+            </template>
+            <template #ip="{ record }">
+              <a-input v-model="record.ip" size="mini" placeholder="IP地址" />
+            </template>
+            <template #port="{ record }">
+              <a-input-number v-model="record.port" size="mini" :min="1" :max="65535" placeholder="端口" />
+            </template>
+            <template #action="{ record, rowIndex }">
+              <a-button type="text" size="mini" status="danger" @click="removePreconfiguredDevice(rowIndex)">
+                <IconDelete />
+              </a-button>
+            </template>
+          </a-table>
+        </div>
+
+        <!-- 两步扫描结果展示 -->
+        <div v-if="scanPhaseResults && !isScanning" class="scan-phase-results">
+          <div v-for="(phase, phaseKey) in scanPhaseResults" :key="phaseKey" class="scan-phase-block">
+            <div class="phase-header">
+              <IconCheckCircle v-if="phase.success !== false" :size="16" style="color: rgb(var(--success-6));" />
+              <IconCloseCircle v-else :size="16" style="color: rgb(var(--danger-6));" />
+              <span class="phase-title">{{ phase.title || phase.name || phaseKey }}</span>
+            </div>
+            <div v-if="phase.results && phase.results.length" class="phase-items">
+              <div v-for="(item, idx) in phase.results" :key="idx" class="phase-item">
+                <span :class="item.success !== false ? 'text-success' : 'text-danger'">
+                  {{ item.success !== false ? '✓' : '✗' }}
+                </span>
+                <span class="phase-device-info">
+                  Device {{ item.bacnet_device_id }} IP={{ item.ip }} Port={{ item.port }}
+                </span>
+                <span v-if="item.message" class="phase-message">— {{ item.message }}</span>
+              </div>
+            </div>
+            <div v-if="phase.summary" class="phase-summary">{{ phase.summary }}</div>
+          </div>
+        </div>
         
         <a-table 
           :columns="scanColumns" 
@@ -622,6 +734,10 @@ import request from '@/utils/request'
 import { devicePointsRoutePath, channelDeviceApiPath } from '@/utils/deviceRoute'
 import { generateShortId } from '@/utils/shortId'
 import { formatProtocolTag } from '@/utils/protocolLabel'
+import {
+  formatListDetailMetaText,
+  getListDetailMetaDotClass,
+} from '@/utils/channelMetrics'
 import { base64ToUint8Array, uint8ArrayToHex, detectFileType, downloadBytes } from '@/utils/decode'
 import HistoryModal from '@/components/HistoryModal.vue'
 
@@ -629,9 +745,16 @@ const route = useRoute()
 const router = useRouter()
 const devices = ref([])
 const channelInfo = ref(null)
+const channelMetrics = ref(null)
 const loading = ref(false)
 const channelId = route.params.channelId
 const channelProtocol = computed(() => channelInfo.value?.protocol || '')
+const listDetailMetaText = computed(() => formatListDetailMetaText({
+  channelId,
+  deviceCount: devices.value.length,
+  metrics: channelMetrics.value,
+}))
+const listDetailMetaDotClass = computed(() => getListDetailMetaDotClass(channelMetrics.value))
 const channelOpcUaEndpoint = computed(() => {
   const cfg = channelInfo.value?.config || {}
   return cfg.url || cfg.endpoint || ''
@@ -755,10 +878,10 @@ const getConfigValue = (device, field) => {
     }
   }
   if (field === 'instance_id') {
-    return config.bacnetDeviceInstance || config.device_id || config.InstanceID || config.instance_id || '-'
+    return config.bacnet_device_id || '-'
   }
   if (field === 'ip') {
-    return config.bacnetIp || config.ip || '-'
+    return config.ip || '-'
   }
   if (field === 'vendor_model') {
     const vendor = config.vendor_name || '-'
@@ -778,9 +901,9 @@ const defaultForm = {
   dlt645AutoPointsEnabled: true,
   modbusSlaveId: 1,
   startAddressMode: 0,
-  bacnetDeviceInstance: 0,
-  bacnetIp: '',
-  bacnetPort: 47808,
+  bacnet_device_id: '',
+  ip: '',
+  port: 47808,
   knxIndividualAddress: '',
   pnioDeviceName: '',
   pnioIp: '',
@@ -793,6 +916,13 @@ const defaultForm = {
   pnioProperties: '',
   pnioInputLength: 0,
   pnioOutputLength: 0,
+  ecatPosition: 1,
+  ecatVendorId: '',
+  ecatProductCode: '',
+  ecatTxPdoSize: 16,
+  ecatRxPdoSize: 8,
+  ecatAlias: 0,
+  ecatRunMode: 'pdo',
   config: {},
   storageEnable: false,
   storageStrategy: 'interval',
@@ -912,12 +1042,15 @@ const parseAutoPointsRange = (config) => {
 const fetchDevices = async () => {
   loading.value = true
   try {
-    const chanData = await request.get(`/api/channels/${channelId}`)
+    const [chanData, devData, metricsData] = await Promise.all([
+      request.get(`/api/channels/${channelId}`),
+      request.get(`/api/channels/${channelId}/devices`, { params: { include_points: 'false' } }),
+      request.get(`/api/channels/${channelId}/metrics`).catch(() => null),
+    ])
     channelInfo.value = chanData
-
-    const devData = await request.get(`/api/channels/${channelId}/devices`)
     devices.value = devData
-    
+    channelMetrics.value = metricsData
+
     selected.value = []
     selectAll.value = false
   } catch (e) {
@@ -935,10 +1068,19 @@ const toggleSelectAll = (val) => {
   }
 }
 
-const openDialog = (item = null) => {
+const openDialog = async (item = null) => {
   if (item) {
+    let source = item
+    if (!Array.isArray(item.points)) {
+      try {
+        source = await request.get(channelDeviceApiPath(channelId, item.id))
+      } catch (e) {
+        Message.error('获取设备详情失败: ' + e.message)
+        return
+      }
+    }
     isEdit.value = true
-    let config = item.config || {}
+    let config = source.config || {}
     if (typeof config === 'string') {
       try {
         config = JSON.parse(config)
@@ -948,16 +1090,16 @@ const openDialog = (item = null) => {
     }
     const storage = item.storage || {}
     form.value = {
-      ...item,
+      ...source,
       config: config,
       configStr: JSON.stringify(config, null, 2),
       dlt645Address: config.station_address || config.address || '',
       dlt645AutoPointsEnabled: config.auto_points_enabled !== false,
       modbusSlaveId: config.slave_id || 1,
       startAddressMode: config.start_address || config.address_base || 0,
-      bacnetDeviceInstance: config.bacnetDeviceInstance || config.device_id || config.InstanceID || config.instance_id || 0,
-      bacnetIp: config.bacnetIp || config.ip || '',
-      bacnetPort: config.bacnetPort || config.port || 47808,
+      bacnet_device_id: config.bacnet_device_id || '',
+      ip: config.ip || '',
+      port: config.port || 47808,
       knxIndividualAddress: config.knx_individual_addr || config.individual_address || '',
       pnioDeviceName: config.device_name || config.deviceName || '',
       pnioIp: config.ip || '',
@@ -1036,15 +1178,12 @@ const saveDevice = async () => {
       delete config.auto_points_range
     }
   } else if (channelProtocol.value === 'bacnet-ip') {
-    config.device_id = form.value.bacnetDeviceInstance
-    config.bacnetDeviceInstance = form.value.bacnetDeviceInstance
-    if (form.value.bacnetIp) {
-      config.ip = form.value.bacnetIp
-      config.bacnetIp = form.value.bacnetIp
+    config.bacnet_device_id = parseInt(form.value.bacnet_device_id)
+    if (form.value.ip) {
+      config.ip = form.value.ip
     }
-    if (form.value.bacnetPort) {
-      config.port = form.value.bacnetPort
-      config.bacnetPort = form.value.bacnetPort
+    if (form.value.port) {
+      config.port = form.value.port
     }
   } else if (channelProtocol.value === 'opc-ua') {
     Object.assign(config, inheritOpcUaConfigFromChannel(form.value.config))
@@ -1067,6 +1206,14 @@ const saveDevice = async () => {
     if (form.value.pnioProperties) config.properties = form.value.pnioProperties
     if (form.value.pnioInputLength) config.input_length = form.value.pnioInputLength
     if (form.value.pnioOutputLength) config.output_length = form.value.pnioOutputLength
+  } else if (channelProtocol.value === 'ethercat') {
+    config.position = form.value.ecatPosition
+    if (form.value.ecatVendorId) config.vendor_id = form.value.ecatVendorId
+    if (form.value.ecatProductCode) config.product_code = form.value.ecatProductCode
+    if (form.value.ecatTxPdoSize) config.tx_pdo_size = form.value.ecatTxPdoSize
+    if (form.value.ecatRxPdoSize) config.rx_pdo_size = form.value.ecatRxPdoSize
+    if (form.value.ecatAlias) config.alias = form.value.ecatAlias
+    if (form.value.ecatRunMode) config.run_mode = form.value.ecatRunMode
   }
 
   const payload = {
@@ -1086,8 +1233,16 @@ const saveDevice = async () => {
   
   if (isEdit.value) {
     const original = devices.value.find(d => d.id === form.value.id)
-    if (original) {
+    if (original?.points?.length) {
       payload.points = original.points
+    } else {
+      try {
+        const full = await request.get(channelDeviceApiPath(channelId, form.value.id))
+        payload.points = full.points || []
+      } catch (e) {
+        Message.error('获取设备点位失败: ' + e.message)
+        return
+      }
     }
   }
 
@@ -1175,11 +1330,29 @@ const selectAllScan = ref(false)
 const isAddingDevices = ref(false)
 const interfaces = ref([])
 const scanInterface = ref(null)
+const scanTargetIP = ref('')
+
+const preconfiguredDevices = ref([
+  { bacnet_device_id: '1234', ip: '192.168.3.115', port: 47810 },
+  { bacnet_device_id: '2228316', ip: '192.168.3.115', port: 58494 },
+  { bacnet_device_id: '2228317', ip: '192.168.3.115', port: 64339 },
+  { bacnet_device_id: '2228318', ip: '192.168.3.115', port: 54304 },
+  { bacnet_device_id: '2228319', ip: '192.168.3.115', port: 58301 }
+])
+
+const preconfigColumns = [
+  { title: 'BACnet设备ID', slotName: 'bacnet_device_id', width: 140 },
+  { title: 'IP地址', slotName: 'ip', width: 160 },
+  { title: '端口', slotName: 'port', width: 100 },
+  { title: '操作', slotName: 'action', width: 80 }
+]
+
+const scanPhaseResults = ref(null)
 
 const scanStatus = ref('')
 const scanTimeout = ref(null)
 
-const scanRowKeyForItem = (item) => String(item?.endpoint || item?.device_id || '')
+const scanRowKeyForItem = (item) => String(item?.endpoint || item?.bacnet_device_id || '')
 
 const enrichScanResults = (items) => {
   return (items || []).map((item) => ({
@@ -1196,13 +1369,21 @@ const normalizeScanResults = (res) => {
   return enrichScanResults(items)
 }
 
+const addPreconfiguredDevice = () => {
+  preconfiguredDevices.value.push({ bacnet_device_id: '', ip: '', port: 47808 })
+}
+
+const removePreconfiguredDevice = (index) => {
+  preconfiguredDevices.value.splice(index, 1)
+}
+
 const getSelectedScanDevices = () => {
   const keySet = new Set((selectedScanDevices.value || []).map((k) => String(k)))
   return scanResults.value.filter((item) => keySet.has(item.scan_row_key))
 }
 
 const buildScannedDevicePayload = (scanItem) => {
-  const instanceId = scanItem.device_id
+  const instanceId = scanItem.bacnet_device_id
   let id = ''
   let name = ''
   let config = {}
@@ -1211,8 +1392,7 @@ const buildScannedDevicePayload = (scanItem) => {
     id = instanceId != null ? `bacnet-${instanceId}` : ''
     name = scanItem.object_name || scanItem.model_name || (instanceId != null ? String(instanceId) : '')
     config = {
-      device_id: instanceId,
-      bacnetDeviceInstance: instanceId,
+      bacnet_device_id: instanceId,
       ip: scanItem.ip,
       port: scanItem.port,
       vendor_name: scanItem.vendor_name,
@@ -1253,23 +1433,42 @@ const fetchInterfaces = async () => {
   }
 }
 
+const autoFillLocalIP = async () => {
+  try {
+    const res = await request.get('/api/system/network/interfaces')
+    if (res && Array.isArray(res) && res.length > 0) {
+      // Use first non-loopback IPv4 interface
+      const iface = res.find(i => i.ip && i.ip !== '127.0.0.1')
+      scanInterface.value = iface ? iface.ip : (res[0].ip || '')
+      Message.success(`已自动获取本机IP: ${scanInterface.value}`)
+    }
+  } catch (e) {
+    Message.error('获取本机IP失败')
+  }
+}
+
 const openScanDialog = () => {
   scanDialog.value = true
   scanResults.value = []
   selectedScanDevices.value = []
   selectAllScan.value = false
+  scanPhaseResults.value = null
   
   if (channelProtocol.value === 'bacnet-ip') {
-    const configuredIP = channelInfo.value?.config?.ip
+    const config = channelInfo.value?.config || {}
+    // Fill interface_ip from channel config or auto-detect
+    const configuredIP = config.interface_ip || config.ip
     if (configuredIP && configuredIP !== '0.0.0.0') {
       scanInterface.value = configuredIP
     } else {
       scanInterface.value = null
     }
+    // Fill target_ip from channel config
+    scanTargetIP.value = config.target_ip || ''
     fetchInterfaces()
   } else if (channelProtocol.value === 'opc-ua') {
-    // For OPC-UA, we don't need network interfaces, but we might need to prompt for endpoint
     scanInterface.value = null
+    scanTargetIP.value = ''
   }
 }
 
@@ -1277,6 +1476,7 @@ const scanDevices = async () => {
   isScanning.value = true
   scanResults.value = []
   selectedScanDevices.value = []
+  scanPhaseResults.value = null
   scanStatus.value = '正在准备扫描...'
   
   let stopMessage = null
@@ -1314,8 +1514,24 @@ const scanDevices = async () => {
     
     // 构建扫描参数
     const scanParams = {}
-    if (channelProtocol.value === 'bacnet-ip' && scanInterface.value) {
-      scanParams.interface_ip = scanInterface.value
+    if (channelProtocol.value === 'bacnet-ip') {
+      if (scanInterface.value) {
+        scanParams.interface_ip = scanInterface.value
+      }
+      if (scanTargetIP.value) {
+        scanParams.target_ip = scanTargetIP.value
+      }
+      // 添加预配置设备
+      const preconfigured = preconfiguredDevices.value
+        .filter(d => d.bacnet_device_id && d.ip)
+        .map(d => ({
+          bacnet_device_id: parseInt(d.bacnet_device_id),
+          ip: d.ip,
+          port: parseInt(d.port) || 47808
+        }))
+      if (preconfigured.length > 0) {
+        scanParams.preconfigured_devices = preconfigured
+      }
     } else if (channelProtocol.value === 'opc-ua') {
       const ep = channelOpcUaEndpoint.value
       if (ep) {
@@ -1323,9 +1539,10 @@ const scanDevices = async () => {
       }
     }
     
-    // 增加超时设置
+    // BACnet scan: WhoIs(10s) + Unicast(10s) + Enrich(6s/dev) can exceed 30s.
+    // Backend allows 45s, so frontend must match.
     const res = await request.post(`/api/channels/${channelId}/scan`, scanParams, {
-      timeout: 30000 // 30秒超时
+      timeout: 45000 // 45秒超时，与后端 ScanChannel timeout 对齐
     })
     
     console.log('扫描响应:', res)
@@ -1333,6 +1550,13 @@ const scanDevices = async () => {
     // 计算扫描耗时
     const scanTime = Math.round((Date.now() - startTime) / 1000)
     scanStatus.value = '扫描完成'
+    
+    // 提取扫描阶段信息
+    let phaseData = res?.discovery_phase || null
+    if (phaseData && !Array.isArray(phaseData) && (phaseData.results || phaseData.summary)) {
+      phaseData = { '扫描阶段': phaseData }
+    }
+    scanPhaseResults.value = phaseData
     
     // 处理后端响应格式 - 后端直接返回设备数组
     scanResults.value = normalizeScanResults(res)
@@ -1459,7 +1683,7 @@ const scanColumns = computed(() => {
     ]
   } else {
     return [
-      { title: 'Device ID', dataIndex: 'device_id', width: 150 },
+      { title: 'BACnet设备ID', dataIndex: 'bacnet_device_id', width: 150 },
       { title: 'IP 地址', dataIndex: 'ip', width: 150 },
       { title: '端口', dataIndex: 'port', width: 100 },
       { title: '厂商', dataIndex: 'vendor_name', width: 200 },
@@ -1478,5 +1702,61 @@ onMounted(() => {
 
 <style scoped>
 /* v3.0 — styles in src/styles/ */
+
+.preconfigured-devices-section {
+  margin-top: 8px;
+}
+.preconfigured-devices-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.preconfigured-devices-section .section-title {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--color-text-1);
+}
+.scan-phase-results {
+  background: var(--color-fill-2);
+  border-radius: 4px;
+  padding: 12px 16px;
+}
+.scan-phase-block {
+  margin-bottom: 12px;
+}
+.scan-phase-block:last-child {
+  margin-bottom: 0;
+}
+.phase-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.phase-items {
+  padding-left: 22px;
+}
+.phase-item {
+  line-height: 1.8;
+  font-size: 13px;
+  color: var(--color-text-2);
+}
+.phase-item .text-success {
+  color: rgb(var(--success-6));
+  margin-right: 4px;
+}
+.phase-item .text-danger {
+  color: rgb(var(--danger-6));
+  margin-right: 4px;
+}
+.phase-summary {
+  margin-top: 6px;
+  padding-left: 22px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-1);
+}
 </style>
 

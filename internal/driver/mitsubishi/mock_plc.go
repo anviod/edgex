@@ -8,10 +8,10 @@ import (
 
 // MockPLC is a minimal MC Protocol 3E TCP server for unit tests.
 type MockPLC struct {
-	mu       sync.Mutex
-	ln       net.Listener
-	wordMem  map[string]map[int]uint16
-	bitMem   map[string]map[int]byte
+	mu      sync.Mutex
+	ln      net.Listener
+	wordMem map[string]map[int]uint16
+	bitMem  map[string]map[int]byte
 }
 
 func NewMockPLC() *MockPLC {

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/edgex/internal/model"
 	"github.com/anviod/edgex/internal/pkg/dataformat"
 )
@@ -87,7 +87,24 @@ func (s *PointScheduler) Read(ctx context.Context, points []model.Point) (map[st
 	}
 
 	var firstErr error
+
+	// Total time budget for all chunks (including fallback reads).
+	// This prevents a single slow/offline device from blocking the scheduler
+	// and starving other devices that share the same BACnet client.
+	totalBudget := 8 * time.Second
+	deadline := time.Now().Add(totalBudget)
+	// Also respect caller's context deadline if it's sooner.
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
+	}
+
 	for i := 0; i < len(mpd.Objects); i += batchSize {
+		// Check if we've exceeded our time budget
+		if time.Now().After(deadline) {
+			log.Printf("[WARN] Scheduler Read time budget exhausted, aborting remaining chunks")
+			break
+		}
+
 		end := i + batchSize
 		if end > len(mpd.Objects) {
 			end = len(mpd.Objects)
@@ -97,30 +114,45 @@ func (s *PointScheduler) Read(ctx context.Context, points []model.Point) (map[st
 			Objects: mpd.Objects[i:end],
 		}
 
-		// User Requirement: Batch Read Timeout = 500ms
-		resp, err := s.client.ReadMultiPropertyWithTimeout(s.targetDevice, chunk, 500*time.Millisecond)
+		// Batch Read Timeout = 3s (aligned with scan's ReadProperty timeout).
+		// Device 1234 room-simulator responds within 1-2s; 500ms was too short.
+		resp, err := s.client.ReadMultiPropertyWithTimeout(s.targetDevice, chunk, 3*time.Second)
 		if err != nil {
 			// Set firstErr if this is the first error
 			if firstErr == nil {
 				firstErr = err
 			}
 
-			// Optimization: If batch read timed out, single reads will likely timeout too.
-			// Abort fallback to save time (User requirement: < 3s).
-			if strings.Contains(err.Error(), "timeout") {
-				log.Printf("[WARN] Batch read timed out, skipping fallback to prevent cascade delay.")
-				break
+			// Fallback: Try reading individual properties.
+			// Some devices (Yabe simulators, Go room-simulator on non-standard ports)
+			// respond to ReadProperty (single) but not ReadMultiProperty (batch).
+			// 某些设备（Yabe 模拟器、非标准端口的 Go room-simulator）响应单点 ReadProperty
+			// 但不响应批量 ReadMultiProperty，因此必须执行单点回退。
+			preCount := len(result)
+			isTimeout := strings.Contains(err.Error(), "timed out")
+			if isTimeout {
+				log.Printf("[WARN] Batch read timed out, falling back to single ReadProperty (3s per point)...")
 			}
 
-			//			log.Printf("[WARN] BACnet Read chunk %d failed: %v. Attempting fallback to ReadProperty (Single)...", i/batchSize, err)
-
-			// Fallback: Try reading individual properties
-			preCount := len(result)
-			// User Requirement: Single Read Timeout = 200ms
-			s.readSinglePropertiesWithTimeout(chunk, pointMap, result, 200*time.Millisecond)
-			if len(result) > preCount {
-				log.Printf("[INFO] Fallback ReadProperty recovered %d points", len(result)-preCount)
-				// err = nil // Do not fully clear error if not all recovered
+			// Calculate remaining time budget for single-point fallback.
+			remaining := time.Until(deadline)
+			if remaining <= 0 {
+				log.Printf("[WARN] No time budget left for single-point fallback, aborting")
+				break
+			}
+			// Single point timeout: min of 3s or remaining budget divided by points in chunk.
+			perPoint := 3 * time.Second
+			pointCount := len(chunk.Objects)
+			if pointCount > 0 {
+				maxPerPoint := remaining / time.Duration(pointCount)
+				if maxPerPoint < perPoint {
+					perPoint = maxPerPoint
+				}
+			}
+			s.readSinglePropertiesWithTimeout(chunk, pointMap, result, perPoint)
+			recovered := len(result) - preCount
+			if recovered > 0 {
+				log.Printf("[INFO] Fallback ReadProperty recovered %d points", recovered)
 			} else {
 				// Abort remaining chunks if this one failed completely (likely device offline)
 				// This prevents long blocking times (e.g. 50s) when device is down

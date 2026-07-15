@@ -5,7 +5,7 @@ const MODBUS_ADVANCED = {
   max_retries: 3,
   retry_interval: 100,
   instruction_interval: 10,
-  start_address: 1,
+  start_address: 0,
   byte_order_4: 'ABCD',
 }
 
@@ -32,7 +32,8 @@ export const CHANNEL_DEFAULT_CONFIGS = {
     ...MODBUS_ADVANCED,
   },
   'bacnet-ip': {
-    ip: '0.0.0.0',
+    interface_ip: '',
+    target_ip: '',
     port: 47808,
   },
   'opc-ua': {
@@ -91,6 +92,13 @@ export const CHANNEL_DEFAULT_CONFIGS = {
     timeout: 3000,
     max_retries: 3,
     heartbeat_interval: 30000,
+    simulation: false,
+  },
+  'ethercat': {
+    local_interface: 'eth0',
+    cycle_time_us: 1000,
+    timeout: 3000,
+    max_retries: 3,
     simulation: false,
   },
   'mitsubishi-slmp': {

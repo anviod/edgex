@@ -65,7 +65,7 @@ func TestConnectionManager_RecordFailureBackoffAndDead(t *testing.T) {
 	cm := NewConnectionManager("test-backoff")
 	defer cm.Close()
 
-	cm.SetBackoffParams(10*time.Millisecond, time.Second, 2.0)
+	cm.SetBackoffParams(100*time.Millisecond, time.Second, 2.0)
 	cm.SetMaxRetries(3)
 	cm.RecordSuccess()
 
@@ -83,8 +83,13 @@ func TestConnectionManager_RecordFailureBackoffAndDead(t *testing.T) {
 			t.Fatalf("attempt %d: state = %v, want Retrying", i+1, cm.GetState())
 		}
 	}
-	if backoffs[1] < backoffs[0] {
-		t.Fatalf("backoff should grow: %v -> %v", backoffs[0], backoffs[1])
+	// Exponential base (200ms, 400ms) plus 1–50ms jitter; compare ranges, not raw values (see s7/connection_manager_test.go).
+	wantMin := []time.Duration{200 * time.Millisecond, 400 * time.Millisecond}
+	wantMax := []time.Duration{250 * time.Millisecond, 450 * time.Millisecond}
+	for i, b := range backoffs {
+		if b < wantMin[i] || b > wantMax[i] {
+			t.Fatalf("attempt %d: backoff %v outside [%v, %v]", i+1, b, wantMin[i], wantMax[i])
+		}
 	}
 
 	shouldRetry, backoff := cm.RecordFailure()
@@ -375,4 +380,30 @@ func TestRegisterDriver_GetDriver(t *testing.T) {
 	if ok {
 		t.Fatal("GetDriver for unknown name should return ok=false")
 	}
+}
+
+func TestConnectionManager_BackgroundLoop(t *testing.T) {
+	cm := NewConnectionManager("bg-test")
+	ran := make(chan struct{}, 1)
+
+	cm.StartBackgroundLoop(func(ctx context.Context) {
+		select {
+		case ran <- struct{}{}:
+		default:
+		}
+		<-ctx.Done()
+	})
+
+	select {
+	case <-ran:
+	case <-time.After(time.Second):
+		t.Fatal("background loop did not start")
+	}
+
+	cm.StopBackgroundLoop()
+
+	cm.StartBackgroundLoop(func(ctx context.Context) {
+		<-ctx.Done()
+	})
+	cm.StopBackgroundLoop()
 }

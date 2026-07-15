@@ -66,11 +66,14 @@ func TestSoak_ScanEngineStability(t *testing.T) {
 
 	se.Run()
 	time.Sleep(warmup)
-	memStart := captureMemSnapshot()
+	settleHeapForMeasurement()
+	memStart := captureStableMemSnapshot()
+	se.GetMetrics().ResetWindow()
 
 	time.Sleep(duration)
 	se.Stop()
-	memEnd := captureMemSnapshot()
+	settleHeapForMeasurement()
+	memEnd := captureFinalMemSnapshot()
 
 	snap := se.GetMetrics().Snapshot()
 	executed, _ := snap["tasks_executed"].(uint64)
@@ -82,7 +85,7 @@ func TestSoak_ScanEngineStability(t *testing.T) {
 	if executed > 0 {
 		failRate = float64(failed) / float64(executed)
 	}
-	memDrift := memoryDriftPct(memStart, memEnd)
+	memPassed, memDrift := memoryDriftGateLogged(t, memStart, memEnd)
 
 	gates := []productionGate{
 		{
@@ -104,7 +107,7 @@ func TestSoak_ScanEngineStability(t *testing.T) {
 		},
 		{
 			Name:   "memory_drift_under_5pct",
-			Passed: memDrift <= prodGateMemDriftMaxPct,
+			Passed: memPassed,
 			Value:  memDrift,
 			Limit:  prodGateMemDriftMaxPct,
 		},

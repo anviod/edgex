@@ -1,42 +1,42 @@
 <section class="hero-section">
+  <div class="hero-banner__glow" aria-hidden="true"></div>
   <div class="shell shell--wide">
     <div class="hero-banner">
       <div class="hero-grid">
         <div class="hero-copy">
           <div class="hero-copy__header">
             <div class="eyebrow">Expert Knowledge Base</div>
-            <h2>Edgex 专家知识库</h2>
+            <h2>EdgeX 专家知识库</h2>
           </div>
-          <p class="hero-tagline">工业边缘网关技术文档，覆盖南向协议驱动、采集架构、北向集成与边缘计算实施参考。</p>
-          <p class="hero-subline">Go · 单文件部署 · 多架构 · Windows · Linux · macOS</p>
+          <p class="hero-tagline">工业边缘网关 — 打通 OT ↔ IT，13种标准工业协议(覆盖85%工业场景)、边缘规则与北向多通道，以工业级 SLA 与 Soak 长稳验证保障现场长期可靠运行。</p>
+          <p class="hero-subline">无依赖运行 · AI 协同 · 裸机/systemd · x86 / ARM</p>
           <div class="hero-actions">
             <a class="button-link button-link--primary" href="guide/产品说明.html">产品说明</a>
-            <a class="button-link button-link--secondary" href="DEVELOPMENT_PRINCIPLES.html">开发原则与验收标准</a>
-            <a class="button-link button-link--secondary" href="ROADMAP.html">分阶段开发路线图</a>
-            <a class="button-link button-link--secondary" href="RELEASE_GATE.html">版本发布门禁</a>
+            <a class="button-link button-link--secondary" href="architecture/index.html">架构设计</a>
+            <a class="button-link button-link--secondary" href="testing/index.html">测试验证</a>
             <a class="button-link button-link--secondary" href="guide/USER_MANUAL.html">用户手册</a>
             <a class="button-link button-link--secondary" href="drivers/index.html">设备驱动</a>
-            <a class="button-link button-link--secondary" href="architecture/index.html">架构设计</a>
+            <a class="button-link button-link--secondary" href="TODO/AI协同组件规划.html">AI Copilot</a>
           </div>
         </div>
 
         <aside class="hero-aside">
           <ul class="hero-stack">
             <li class="hero-stack__item">
+              <strong>工业级稳定</strong>
+              <span>指标门控 · Soak 长稳回归 · CI 五项工业基线 · lag P95 &lt;100ms · diagnostics API</span>
+            </li>
+            <li class="hero-stack__item">
               <strong>南向采集</strong>
-              <span>Modbus · BACnet · OPC UA · S7 · EtherNet/IP · FINS · SNMP · IEC 104 · DL/T645 · Mitsubishi MC · Profinet IO · KNXnet/IP</span>
+              <span>Modbus · BACnet · OPC UA · S7 · EtherNet/IP · FINS · SNMP · IEC 104 · DL/T645 · Mitsubishi MC · Profinet IO · KNXnet/IP · EtherCAT</span>
             </li>
             <li class="hero-stack__item">
               <strong>ScanEngine / ShadowCore</strong>
-              <span>自适应采集优化 · 真实/虚拟影子设备 · 纯内存运行时快照</span>
+              <span>EDF 调度 · 统计 SLA diagnostics · COW 快照 · ShadowIngress 批量写入 · 真实/虚拟影子设备</span>
             </li>
             <li class="hero-stack__item">
               <strong>北向集成</strong>
-              <span>MQTT · Sparkplug B · OPC UA Server · EdgeOS</span>
-            </li>
-            <li class="hero-stack__item">
-              <strong>边缘计算</strong>
-              <span>规则引擎 · 虚拟影子设备 · 跨设备聚合 · 场景编排</span>
+              <span>MQTT · Sparkplug B · OPC UA Server · EdgeOS（主控大脑）</span>
             </li>
           </ul>
         </aside>
@@ -101,7 +101,7 @@
       <div>
         <div class="section-kicker">核心文档入口</div>
         <h2>快速导航</h2>
-        <p>按实施场景整理技术资料 — 产品规格、部署运维、驱动开发、架构设计与路线规划。</p>
+        <p>按实施场景整理技术资料 — 产品规格、用户手册、驱动开发、架构设计与路线规划。</p>
       </div>
     </div>
 
@@ -109,21 +109,21 @@
       <article class="feature-card">
         <span class="feature-card__tag">产品</span>
         <h3>产品指南</h3>
-        <p>产品概览、核心优势、功能一览与快速开始，了解 EdgeX 边缘网关全貌。</p>
+        <p>产品概览、工业级 SLA、协议能力与部署指南 — 能力详解与场景示意。</p>
         <div class="feature-card__links">
           <a class="mini-link" href="guide/产品说明.html">产品说明</a>
           <a class="mini-link" href="guide/USER_MANUAL.html">用户手册</a>
-          <a class="mini-link" href="guide/EDGE_COMPUTING_BEST_PRACTICES.html">最佳实践</a>
+          <a class="mini-link" href="testing/index.html">SLA 测试报告</a>
         </div>
       </article>
 
       <article class="feature-card">
         <span class="feature-card__tag">驱动</span>
         <h3>设备驱动</h3>
-        <p>南向采集驱动的设计、测试、优化与故障分析，覆盖 12 种工业协议。</p>
+        <p>南向采集驱动的设计、测试、优化与故障分析，覆盖 13 种工业协议。2026-07-12 全量 `-short` 复测 22/22 PASS（含 EtherCAT）。</p>
         <div class="feature-card__links">
           <a class="mini-link" href="drivers/index.html">驱动总览</a>
-          <a class="mini-link" href="testing/南向驱动测试报告.html">测试报告</a>
+          <a class="mini-link" href="testing/南向驱动测试报告.html">测试报告 (2026-07-12)</a>
           <a class="mini-link" href="drivers/index_en.html">Drivers (EN)</a>
         </div>
       </article>
@@ -131,10 +131,12 @@
       <article class="feature-card">
         <span class="feature-card__tag">架构</span>
         <h3>架构与边缘计算</h3>
-        <p>ScanEngine 智能采集、ShadowCore 影子设备、Virtual Shadow Engine 虚拟影子设备、规则引擎与边缘计算场景设计。</p>
+        <p>ScanEngine SLA 调度（EDF/CB/diagnostics）、ShadowCore COW 快照、ShadowIngress 批量写入、Virtual Shadow 与规则引擎。</p>
         <div class="feature-card__links">
           <a class="mini-link" href="architecture/index.html">架构设计</a>
+          <a class="mini-link" href="edge/边缘网关架构设计总览.html">架构总览</a>
           <a class="mini-link" href="edge/index.html">边缘计算</a>
+          <a class="mini-link" href="TODO/SLA评估.html">SLA 评估</a>
           <a class="mini-link" href="architecture/6. 影子设备设计.html">影子设备</a>
         </div>
       </article>
@@ -147,7 +149,8 @@
           <a class="mini-link" href="ROADMAP.html">分阶段路线图</a>
           <a class="mini-link" href="development_plan/index.html">计划总览</a>
           <a class="mini-link" href="development_plan/drivers/采集驱动ICE104开发.html">IEC 104</a>
-          <a class="mini-link" href="development_plan/sync/基于go-libp2p%20同步通信规划方案.html">多节点同步</a>
+          <a class="mini-link" href="TODO/基于go-libp2p%20同步通信规划方案.html">多节点同步</a>
+          <a class="mini-link" href="TODO/AI协同组件规划.html">AI 规划</a>
         </div>
       </article>
     </div>
@@ -164,13 +167,26 @@
       </div>
     </div>
 
-    <div class="doc-zones">
+    <div class="doc-zones doc-zones--wide">
       <div class="doc-zone">
-        <h3>产品与部署</h3>
+        <h3>战略与治理</h3>
+        <ul>
+          <li><a href="DEVELOPMENT_PRINCIPLES.html">开发原则与验收标准</a></li>
+          <li><a href="ROADMAP.html">分阶段开发路线图</a></li>
+          <li><a href="RELEASE_GATE.html">版本发布门禁</a></li>
+          <li><a href="[TODO]边缘计算南向采集优化方案2026第三季度.html">Q3 采集优化方案</a></li>
+          <li><a href="[TODO]边缘计算南向采集优化方案2026第二季度.html">Q2 采集优化方案（归档）</a></li>
+        </ul>
+      </div>
+      <div class="doc-zone">
+        <h3>产品与用户手册</h3>
         <ul>
           <li><a href="guide/index.html">产品指南</a></li>
-          <li><a href="deployment/index.html">部署指南</a></li>
-          <li><a href="deployment/QUICK_REFERENCE.html">快速参考</a></li>
+          <li><a href="guide/PRODUCT.zh-CN.html">产品手册（精简）</a></li>
+          <li><a href="guide/产品说明.html">产品说明</a></li>
+          <li><a href="guide/产品说明.html#更新记录">更新记录（最近重点）</a></li>
+          <li><a href="guide/USER_MANUAL.html">用户手册</a></li>
+          <li><a href="guide/USER_MANUAL.html#安装指南">安装与升级（deb / rpm）</a></li>
           <li><a href="operations/index.html">运维文档</a></li>
         </ul>
       </div>
@@ -178,34 +194,54 @@
         <h3>采集与驱动</h3>
         <ul>
           <li><a href="drivers/index.html">驱动总览</a></li>
+          <li><a href="drivers/index_en.html">Drivers (EN)</a></li>
           <li><a href="drivers/MODBUS_OPTIMIZATION.html">Modbus 优化</a></li>
           <li><a href="drivers/BACnet_设计说明.html">BACnet</a></li>
           <li><a href="drivers/OPC_UA_Design.html">OPC UA</a></li>
+          <li><a href="drivers/PLC_S7.html">S7</a></li>
+          <li><a href="drivers/SNMP.html">SNMP</a></li>
+          <li><a href="testing/南向驱动测试报告.html">南向驱动测试报告</a></li>
         </ul>
       </div>
       <div class="doc-zone">
-        <h3>架构与计算</h3>
+        <h3>架构与边缘计算</h3>
         <ul>
-          <li><a href="DEVELOPMENT_PRINCIPLES.html">开发原则与验收标准</a></li>
-          <li><a href="ROADMAP.html">分阶段开发路线图</a></li>
-          <li><a href="RELEASE_GATE.html">版本发布门禁</a></li>
           <li><a href="architecture/index.html">架构设计</a></li>
           <li><a href="edge/index.html">边缘计算</a></li>
+          <li><a href="edge/边缘网关架构设计总览.html">边缘网关架构总览</a></li>
+          <li><a href="architecture/6. 影子设备设计.html">影子设备设计</a></li>
+          <li><a href="TODO/ScanEngine重构方案.html">ScanEngine 重构方案</a></li>
+          <li><a href="TODO/SLA评估.html">ScanEngine SLA 评估</a></li>
           <li><a href="northbound/index.html">北向数据</a></li>
-          <li><a href="testing/index.html">测试验证</a></li>
-          <li><a href="testing/工业验证测试报告模板.html">工业验证测试报告模板</a></li>
-          <li><a href="testing/南向驱动测试报告.html">南向驱动测试报告</a></li>
-          <li><a href="drivers/index_en.html">Drivers (EN)</a></li>
+          <li><a href="edgeos/index.html">EdgeOS 集成</a></li>
         </ul>
       </div>
       <div class="doc-zone">
-        <h3>集成与规范</h3>
+        <h3>测试与验证</h3>
         <ul>
-          <li><a href="edgeos/index.html">EdgeOS 集成</a></li>
-          <li><a href="edgeos/EdgeX通信协议规范(MQTT-NATS).html">EdgeOS 通信规范</a></li>
-          <li><a href="deployment/INTEGRATION_GUIDE.html">集成指南</a></li>
+          <li><a href="testing/index.html">测试验证索引</a></li>
+          <li><a href="testing/南向驱动测试报告.html">南向驱动测试报告 (2026-07-12)</a></li>
+          <li><a href="testing/压力测试报告.html">压力测试报告 · Mac 万 Tag 复测</a></li>
+          <li><a href="testing/Q3_10k_tag_benchmark_2026Q3.html">Q3 万 Tag 压测</a></li>
+          <li><a href="testing/southbound-driver-test-report.html">Southbound Test (EN)</a></li>
+          <li><a href="testing/工业验证测试报告模板.html">工业验证报告模板</a></li>
+          <li><a href="testing/sla_completion_report_2026Q3.html">SLA 完成报告 2026Q3</a></li>
+          <li><a href="testing/q3_phase_abcd_verification_2026-07-04.html">Q3 Phase A–D 复测</a></li>
+          <li><a href="testing/CI与发布门禁对照.html">CI 与发布门禁对照</a></li>
+        </ul>
+      </div>
+      <div class="doc-zone">
+        <h3>规划与集成</h3>
+        <ul>
+          <li><a href="development_plan/index.html">开发计划总览</a></li>
+          <li><a href="TODO/index.html">TODO 规划索引</a></li>
+          <li><a href="TODO/AI协同组件规划.html">AI助手规划</a></li>
+          <li><a href="TODO/联机测试方案.html">联机测试方案</a></li>
+          <li><a href="TODO/基于go-libp2p%20同步通信规划方案.html">多节点同步 (libp2p)</a></li>
+          <li><a href="edgeos/EdgeX通信协议规范%28MQTT-NATS%29.html">EdgeOS 通信规范</a></li>
           <li><a href="operations/样式参考.html">UI 样式参考</a></li>
           <li><a href="API/index.html">API 文档</a></li>
+          <li><a href="en/index.html">Documentation (EN)</a></li>
         </ul>
       </div>
     </div>
@@ -250,44 +286,28 @@
       </thead>
       <tbody>
         <tr>
-          <td>Omron FINS TCP/UDP 驱动</td>
-          <td>欧姆龙 PLC FINS 协议，TCP/UDP 双模式，支持 CIO/D/W/H/EM 等区域批量读写</td>
-          <td style="color: #1565c0; font-weight: 500;">2026-06</td>
-          <td>驱动开发组</td>
+          <td>工业验证 Phase 2</td>
+          <td>各协议联机长跑（24h/72h）、断网恢复与 PLC 重启场景，统一工业验证报告归档</td>
+          <td style="color: #1565c0; font-weight: 500;">2026-09</td>
+          <td>质量保障组</td>
           <td><span class="priority-badge priority-badge--high">高</span></td>
-          <td><span class="status-badge status-badge--done">已完成</span></td>
+          <td><span class="status-badge status-badge--progress">进行中</span></td>
         </tr>
         <tr>
-          <td>SNMP v2c/v3 驱动</td>
-          <td>简单网络管理协议，v2c community 与 v3 USM 认证加密，网络设备 OID 采集</td>
-          <td style="color: #1565c0; font-weight: 500;">2026-06</td>
-          <td>驱动开发组</td>
-          <td><span class="priority-badge priority-badge--high">高</span></td>
-          <td><span class="status-badge status-badge--done">已完成</span></td>
-        </tr>
-        <tr>
-          <td>IEC 60870-5-104 驱动 M1</td>
-          <td>电力自动化通信协议，TCP 链路、总召唤、自发上报、单点遥控</td>
-          <td style="color: #1565c0; font-weight: 500;">2026-06</td>
-          <td>驱动开发组</td>
-          <td><span class="priority-badge priority-badge--high">高</span></td>
-          <td><span class="status-badge status-badge--done">M1 已完成</span></td>
-        </tr>
-        <tr>
-          <td>ScanEngine 采集优化</td>
-          <td>RTT/MTU/Gap 管理器、设备画像、批量读取调度与通道质量监控</td>
-          <td style="color: #1565c0; font-weight: 500;">2026-06</td>
+          <td>ARMv7 板端验收</td>
+          <td>目标网关硬件 2h/72h 长跑、Shadow 读路径与 ScanEngine SLA 板端复验</td>
+          <td style="color: #1565c0; font-weight: 500;">2026-09</td>
           <td>平台架构组</td>
           <td><span class="priority-badge priority-badge--high">高</span></td>
-          <td><span class="status-badge status-badge--done">已完成</span></td>
+          <td><span class="status-badge status-badge--progress">进行中</span></td>
         </tr>
         <tr>
-          <td>DL/T 645-2007 驱动</td>
-          <td>多功能电能表通信协议，支持数据读取、参数配置、事件记录采集</td>
-          <td style="color: #1565c0; font-weight: 500;">2026-06</td>
-          <td>驱动开发组</td>
-          <td><span class="priority-badge priority-badge--high">高</span></td>
-          <td><span class="status-badge status-badge--done">已完成</span></td>
+          <td>ShadowCore 跨通道聚合</td>
+          <td>虚拟影子跨通道引用、多源点位聚合与公式依赖图扩展</td>
+          <td style="color: #1565c0; font-weight: 500;">2026-09</td>
+          <td>平台架构组</td>
+          <td><span class="priority-badge priority-badge--medium">中</span></td>
+          <td><span class="status-badge status-badge--progress">进行中</span></td>
         </tr>
         <tr>
           <td>多节点同步通信</td>
@@ -341,12 +361,12 @@
           <td><span class="status-badge status-badge--pending">待启动</span></td>
         </tr>
         <tr>
-          <td>ShadowCore 增强</td>
-          <td>虚拟影子设备扩展、跨通道数据聚合</td>
+          <td>万点级吞吐优化</td>
+          <td>真实驱动 10k Tag 压测、Pipeline 批合并与 100k points/s 吞吐路径评估</td>
           <td style="color: #4a148c; font-weight: 500;">2026-12</td>
           <td>平台架构组</td>
-          <td><span class="priority-badge priority-badge--medium">中</span></td>
-          <td><span class="status-badge status-badge--research">预研中</span></td>
+          <td><span class="priority-badge priority-badge--high">高</span></td>
+          <td><span class="status-badge status-badge--pending">待启动</span></td>
         </tr>
       </tbody>
     </table>
@@ -390,74 +410,163 @@
           <div class="milestone-date">2026-06 发布</div>
         </div>
       </div>
-      <div class="milestone-item milestone-item--new">
-        <div class="milestone-dot milestone-dot--new"></div>
+      <div class="milestone-item">
+        <div class="milestone-dot"></div>
         <div>
           <div class="milestone-title">Omron FINS</div>
           <div class="milestone-date">2026-06 发布</div>
         </div>
       </div>
-      <div class="milestone-item milestone-item--new">
-        <div class="milestone-dot milestone-dot--new"></div>
+      <div class="milestone-item">
+        <div class="milestone-dot"></div>
         <div>
           <div class="milestone-title">SNMP v2c/v3</div>
           <div class="milestone-date">2026-06 发布</div>
         </div>
       </div>
-      <div class="milestone-item milestone-item--new">
-        <div class="milestone-dot milestone-dot--new"></div>
+      <div class="milestone-item">
+        <div class="milestone-dot"></div>
         <div>
           <div class="milestone-title">IEC 104 M1</div>
           <div class="milestone-date">2026-06 发布</div>
         </div>
       </div>
-      <div class="milestone-item milestone-item--new">
-        <div class="milestone-dot milestone-dot--new"></div>
+      <div class="milestone-item">
+        <div class="milestone-dot"></div>
         <div>
           <div class="milestone-title">ConnectionManager</div>
           <div class="milestone-date">2026-06 发布</div>
         </div>
       </div>
-      <div class="milestone-item milestone-item--new">
-        <div class="milestone-dot milestone-dot--new"></div>
+      <div class="milestone-item">
+        <div class="milestone-dot"></div>
         <div>
           <div class="milestone-title">采集健康检测</div>
           <div class="milestone-date">2026-06 发布</div>
         </div>
       </div>
-      <div class="milestone-item milestone-item--new">
-        <div class="milestone-dot milestone-dot--new"></div>
+      <div class="milestone-item">
+        <div class="milestone-dot"></div>
         <div>
           <div class="milestone-title">ScanEngine 采集优化</div>
           <div class="milestone-date">2026-06 发布</div>
         </div>
       </div>
-      <div class="milestone-item milestone-item--new">
-        <div class="milestone-dot milestone-dot--new"></div>
+      <div class="milestone-item">
+        <div class="milestone-dot"></div>
         <div>
           <div class="milestone-title">DL/T645-2007</div>
           <div class="milestone-date">2026-06 发布</div>
         </div>
       </div>
-      <div class="milestone-item milestone-item--new">
-        <div class="milestone-dot milestone-dot--new"></div>
+      <div class="milestone-item">
+        <div class="milestone-dot"></div>
         <div>
           <div class="milestone-title">Mitsubishi SLMP</div>
           <div class="milestone-date">2026-06 发布</div>
         </div>
       </div>
-      <div class="milestone-item milestone-item--new">
-        <div class="milestone-dot milestone-dot--new"></div>
+      <div class="milestone-item">
+        <div class="milestone-dot"></div>
         <div>
           <div class="milestone-title">Profinet IO</div>
+          <div class="milestone-date">2026-06 发布</div>
+        </div>
+      </div>
+      <div class="milestone-item">
+        <div class="milestone-dot"></div>
+        <div>
+          <div class="milestone-title">KNXnet/IP</div>
           <div class="milestone-date">2026-06 发布</div>
         </div>
       </div>
       <div class="milestone-item milestone-item--new">
         <div class="milestone-dot milestone-dot--new"></div>
         <div>
-          <div class="milestone-title">KNXnet/IP</div>
-          <div class="milestone-date">2026-06 发布</div>
+          <div class="milestone-title">Q3 南向采集闭环</div>
+          <div class="milestone-date">2026-07 发布</div>
+        </div>
+      </div>
+      <div class="milestone-item milestone-item--new">
+        <div class="milestone-dot milestone-dot--new"></div>
+        <div>
+          <div class="milestone-title">SLA 调度达标</div>
+          <div class="milestone-date">2026-07 发布</div>
+        </div>
+      </div>
+      <div class="milestone-item milestone-item--new">
+        <div class="milestone-dot milestone-dot--new"></div>
+        <div>
+          <div class="milestone-title">ShadowCore 性能优化</div>
+          <div class="milestone-date">2026-07 发布</div>
+        </div>
+      </div>
+      <div class="milestone-item milestone-item--new">
+        <div class="milestone-dot milestone-dot--new"></div>
+        <div>
+          <div class="milestone-title">北向统一重连</div>
+          <div class="milestone-date">2026-07 发布</div>
+        </div>
+      </div>
+      <div class="milestone-item milestone-item--new">
+        <div class="milestone-dot milestone-dot--new"></div>
+        <div>
+          <div class="milestone-title">Dashboard v3 UI</div>
+          <div class="milestone-date">2026-07 发布</div>
+        </div>
+      </div>
+      <div class="milestone-item milestone-item--new">
+        <div class="milestone-dot milestone-dot--new"></div>
+        <div>
+          <div class="milestone-title">版本发布门禁</div>
+          <div class="milestone-date">2026-07 发布</div>
+        </div>
+      </div>
+      <div class="milestone-item milestone-item--new">
+        <div class="milestone-dot milestone-dot--new"></div>
+        <div>
+          <div class="milestone-title">虚拟影子设备体验</div>
+          <div class="milestone-date">2026-07 发布</div>
+        </div>
+      </div>
+
+      <div class="milestone-item milestone-item--new">
+        <div class="milestone-dot milestone-dot--new"></div>
+        <div>
+          <div class="milestone-title">EtherCAT M1</div>
+          <div class="milestone-date">2026-07 发布 · PDO/SDO · 模拟模式 · 87.8% 覆盖</div>
+        </div>
+      </div>
+
+      <div class="milestone-item milestone-item--new">
+        <div class="milestone-dot milestone-dot--new"></div>
+        <div>
+          <div class="milestone-title">南向驱动 22/22 回归</div>
+          <div class="milestone-date">2026-07-12 · `-short` 全绿 · 含 EtherCAT</div>
+        </div>
+      </div>
+
+      <div class="milestone-item milestone-item--new">
+        <div class="milestone-dot milestone-dot--new"></div>
+        <div>
+          <div class="milestone-title">Mac 万 Tag 复测</div>
+          <div class="milestone-date">2026-07-12 · lag P95 1.56ms · G007 986/s</div>
+        </div>
+      </div>
+
+      <div class="milestone-item milestone-item--new">
+        <div class="milestone-dot milestone-dot--new"></div>
+        <div>
+          <div class="milestone-title">热路径单测补强</div>
+          <div class="milestone-date">2026-07-12 · core 80% · ai_agent 91.4%</div>
+        </div>
+      </div>
+
+      <div class="milestone-item milestone-item--new">
+        <div class="milestone-dot milestone-dot--new"></div>
+        <div>
+          <div class="milestone-title">AI 助手 Copilot</div>
+          <div class="milestone-date">2026-07 MVP · 协议逆向 · 热路径单测已补</div>
         </div>
       </div>
     </div>
@@ -484,6 +593,7 @@
         <a href="ROADMAP.html">分阶段开发路线图</a>
         <a href="RELEASE_GATE.html">版本发布门禁</a>
         <a href="testing/工业验证测试报告模板.html">工业验证报告模板</a>
+        <a href="testing/index.html">测试验证</a>
         <a href="guide/产品说明.html">产品介绍</a>
         <a href="guide/USER_MANUAL.html">用户手册</a>
         <a href="drivers/index.html">设备驱动</a>
@@ -496,8 +606,9 @@
         <a href="drivers/SNMP.html">SNMP</a>
         <a href="drivers/MODBUS_OPTIMIZATION.html">Modbus</a>
         <a href="drivers/EtherNet_IP驱动真实通信实现方案.html">EtherNet/IP</a>
-        <a href="deployment/INTEGRATION_GUIDE.html">集成指南</a>
         <a href="operations/index.html">运维</a>
+        <a href="en/index.html">Documentation (EN)</a>
+        <a href="drivers/index_en.html">Drivers (EN)</a>
       </div>
     </div>
   </div>

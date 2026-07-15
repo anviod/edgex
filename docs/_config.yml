@@ -8,11 +8,14 @@ kramdown:
   hard_wrap: false
 name: EdgeX 知识库
 description: EdgeX 工业边缘网关专家知识库 — 南向驱动、架构设计与运维文档
+lang: zh-CN
+url: https://anviod.github.io
+baseurl: /edgex
 
 # 主题设置
 remote_theme: pages-themes/cayman@v0.2.0
 plugins:
-  - jekyll-remote-theme  # 添加远程主题支持
+  - jekyll-remote-theme
   - jekyll-seo-tag
   - jekyll-sitemap
 
@@ -26,11 +29,12 @@ nav:
     url: /guide/
   - title: 设备驱动
     url: /drivers/
+  - title: 测试验证
+    url: /testing/
   - title: 边缘计算
     url: /edge/
   - title: 开发计划
     url: /development_plan/
-
 
 # 页面配置
 permalink: /:path/:basename.html
@@ -41,12 +45,13 @@ defaults:
     values:
       layout: default
 
-# 排除文件
+# 排除文件（内部归档、构建脚本与重复副本，不发布到 GitHub Pages）
 exclude:
   - Gemfile
   - Gemfile.lock
   - README.md
   - README_CN.md
-  - TODO/
-  - "[TODO]边缘计算南向采集优化方案2026第三季度.md"
-  - "[TODO]边缘计算南向采集优化方案2026第二季度.md"
+  - scripts/
+  - done/
+  - man/
+  - deployment/index.md

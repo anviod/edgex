@@ -11,17 +11,18 @@ import (
 )
 
 const (
-	BucketConfigVersion   = "ConfigVersion"
-	BucketChannels        = "Channels"
-	BucketDevices         = "Devices"
-	BucketNorthbound      = "Northbound"
-	BucketEdgeRules       = "EdgeRules"
-	BucketSystem          = "System"
-	BucketUsers           = "Users"
-	BucketServer          = "Server"
-	BucketVirtualShadows  = "VirtualShadows"
-	ConfigVersionKey      = "version"
-	ConfigVersionValue    = "1.0"
+	BucketConfigVersion  = "ConfigVersion"
+	BucketChannels       = "Channels"
+	BucketDevices        = "Devices"
+	BucketNorthbound     = "Northbound"
+	BucketEdgeRules      = "EdgeRules"
+	BucketSystem         = "System"
+	BucketUsers          = "Users"
+	BucketServer         = "Server"
+	BucketVirtualShadows = "VirtualShadows"
+	BucketAICopilot      = "ai_copilot"
+	ConfigVersionKey     = "version"
+	ConfigVersionValue   = "1.0"
 )
 
 type ConfigStore struct {
@@ -40,6 +41,7 @@ func NewConfigStore(db *bbolt.DB) (*ConfigStore, error) {
 			BucketUsers,
 			BucketServer,
 			BucketVirtualShadows,
+			BucketAICopilot,
 		}
 		for _, bucket := range buckets {
 			if _, err := tx.CreateBucketIfNotExists([]byte(bucket)); err != nil {
@@ -187,6 +189,19 @@ func (cs *ConfigStore) LoadSystem() (*model.SystemConfig, error) {
 		return nil, err
 	}
 	return &config, nil
+}
+
+func (cs *ConfigStore) SaveAICopilotSettings(settings model.AICopilotSettings) error {
+	return cs.saveJSON(BucketAICopilot, "settings", settings)
+}
+
+func (cs *ConfigStore) LoadAICopilotSettings() (*model.AICopilotSettings, error) {
+	var settings model.AICopilotSettings
+	err := cs.loadJSON(BucketAICopilot, "settings", &settings)
+	if err != nil {
+		return nil, err
+	}
+	return &settings, nil
 }
 
 func (cs *ConfigStore) SaveUsers(users []model.UserConfig) error {
@@ -519,13 +534,13 @@ func (cs *ConfigStore) SaveAllConfig(server model.ServerConfig, channels []model
 }
 
 type ConfigExport struct {
-	Server     model.ServerConfig     `json:"server"`
-	Channels   []model.Channel        `json:"channels"`
-	Devices    map[string]model.Device `json:"devices"`
-	Northbound model.NorthboundConfig `json:"northbound"`
-	EdgeRules  []model.EdgeRule       `json:"edge_rules"`
-	System     model.SystemConfig     `json:"system"`
-	Users      []model.UserConfig     `json:"users"`
+	Server         model.ServerConfig                `json:"server"`
+	Channels       []model.Channel                   `json:"channels"`
+	Devices        map[string]model.Device           `json:"devices"`
+	Northbound     model.NorthboundConfig            `json:"northbound"`
+	EdgeRules      []model.EdgeRule                  `json:"edge_rules"`
+	System         model.SystemConfig                `json:"system"`
+	Users          []model.UserConfig                `json:"users"`
 	VirtualShadows []model.VirtualShadowDeviceConfig `json:"virtual_shadows"`
 }
 

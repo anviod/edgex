@@ -6,8 +6,8 @@ import (
 
 // GapOptimizer Gap优化器
 type GapOptimizer struct {
-	gapData     map[string]int
-	mu          sync.RWMutex
+	gapData map[string]int
+	mu      sync.RWMutex
 }
 
 // NewGapOptimizer 创建Gap优化器
@@ -21,7 +21,7 @@ func NewGapOptimizer() *GapOptimizer {
 func (g *GapOptimizer) OptimizeGap(deviceID string, mtu int, rtt int64) int {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	
+
 	// 基础Gap值，根据MTU计算
 	baseGap := mtu / 2
 	if baseGap < 16 {
@@ -29,7 +29,7 @@ func (g *GapOptimizer) OptimizeGap(deviceID string, mtu int, rtt int64) int {
 	} else if baseGap > 256 {
 		baseGap = 256
 	}
-	
+
 	// 根据RTT调整Gap
 	var adjustedGap int
 	if rtt < 100000 { // RTT < 100ms，使用较大的Gap
@@ -39,14 +39,14 @@ func (g *GapOptimizer) OptimizeGap(deviceID string, mtu int, rtt int64) int {
 	} else {
 		adjustedGap = baseGap
 	}
-	
+
 	// 确保Gap在合理范围内
 	if adjustedGap < 8 {
 		adjustedGap = 8
 	} else if adjustedGap > 512 {
 		adjustedGap = 512
 	}
-	
+
 	g.gapData[deviceID] = adjustedGap
 	return adjustedGap
 }
@@ -55,7 +55,7 @@ func (g *GapOptimizer) OptimizeGap(deviceID string, mtu int, rtt int64) int {
 func (g *GapOptimizer) GetCurrentGap(deviceID string) int {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
-	
+
 	if gap, exists := g.gapData[deviceID]; exists {
 		return gap
 	}
@@ -66,14 +66,14 @@ func (g *GapOptimizer) GetCurrentGap(deviceID string) int {
 func (g *GapOptimizer) SetGap(deviceID string, gap int) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	
+
 	// 确保Gap在合理范围内
 	if gap < 8 {
 		gap = 8
 	} else if gap > 512 {
 		gap = 512
 	}
-	
+
 	g.gapData[deviceID] = gap
 }
 
@@ -81,6 +81,6 @@ func (g *GapOptimizer) SetGap(deviceID string, gap int) {
 func (g *GapOptimizer) ClearGapData(deviceID string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	
+
 	delete(g.gapData, deviceID)
 }

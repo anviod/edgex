@@ -360,6 +360,13 @@ func (d *ModbusDriver) GetConnectionMetrics() (connectionSeconds int64, reconnec
 	return 0, 0, "", "", time.Time{}
 }
 
+// ScheduleReconnect schedules a reconnection attempt for the Modbus driver.
+func (d *ModbusDriver) ScheduleReconnect(ctx context.Context, timeout time.Duration) {
+	if d.transport != nil {
+		d.transport.ScheduleReconnect()
+	}
+}
+
 func (d *ModbusDriver) GetMetrics() model.ChannelMetrics {
 	connSec, reconCount, localAddr, remoteAddr, lastDisc := d.GetConnectionMetrics()
 

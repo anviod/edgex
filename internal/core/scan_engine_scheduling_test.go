@@ -135,3 +135,31 @@ func TestAddTask_AutoPhaseOffsetStaggered(t *testing.T) {
 		t.Fatalf("taskB phase offset %v out of [0, %v)", taskB.PhaseOffset, interval)
 	}
 }
+
+func TestRescheduleTask_PhaseOffsetDoesNotAccumulate(t *testing.T) {
+	se := NewScanEngine(ScanEngineConfig{JitterBound: 0})
+	interval := time.Second
+	phase := 200 * time.Millisecond
+	base := time.Date(2026, 7, 4, 10, 0, 0, 0, time.UTC)
+
+	task := &ScanTask{
+		ID:              "task_phase",
+		Interval:        interval,
+		PhaseOffset:     phase,
+		LastScheduledAt: base.Add(phase),
+		NextRun:         base.Add(phase),
+	}
+
+	for i := 0; i < 5; i++ {
+		completedAt := task.LastScheduledAt.Add(10 * time.Millisecond)
+		se.rescheduleTask(task, completedAt)
+	}
+
+	task.mu.RLock()
+	defer task.mu.RUnlock()
+
+	want := base.Add(phase + 5*interval)
+	if !task.LastScheduledAt.Equal(want) {
+		t.Fatalf("LastScheduledAt = %v, want %v (phase offset must not accumulate)", task.LastScheduledAt, want)
+	}
+}

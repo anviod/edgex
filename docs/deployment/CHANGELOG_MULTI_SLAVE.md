@@ -2,6 +2,8 @@
 layout: default
 ---
 
+> **历史变更记录（2026-01-21）**：本文记录多从站 Modbus 初版交付。**2026-06 起**采集调度已迁移至 **ScanEngine** + **ChannelManager**；下文 §4 所述 `device_manager.go` **已被 superseded**。现行参考：[集成指南](INTEGRATION_GUIDE.html)、[架构总览](../edge/边缘网关架构设计总览.html)、[Modbus 驱动](../drivers/边缘网关Modbus优化.html)。
+
 # 项目更新总结 (2026-01-21)
 
 ## 🎯 完成内容
@@ -60,18 +62,16 @@ func (d *ModbusDriver) ReadMultipleSlaves(ctx context.Context,
 
 **行数变更**：+65 行
 
-### 4. 设备管理器 (`internal/core/device_manager.go`)
+### 4. 采集调度（2026-01 位于 `internal/core/device_manager.go`，**2026-06 已 superseded**）
+
+> 现行：`ChannelManager` + **ScanEngine** 调度各 Device 的 `ReadPoints`；Modbus 多从站为同通道下多 Device + `config.slave_id`。`device_manager.go` 已删除。
 
 ```go
-// 增强方法：支持两种采集模式
+// 2026-01 历史（device_manager.go，已移除）
 func (dm *DeviceManager) collect(dev *model.Device, d drv.Driver, node *DeviceNodeTemplate)
 
-// 新增辅助方法：读取单个 Slave
 func (dm *DeviceManager) readPointsForSlave(d drv.Driver, slaveID uint8, 
     points []model.Point, ctx context.Context) (map[string]model.Value, error)
-
-// 包导入改进：避免命名冲突
-import drv "github.com/anviod/edgex/internal/driver"
 ```
 
 **行数变更**：~50 行
@@ -85,7 +85,7 @@ import drv "github.com/anviod/edgex/internal/driver"
 | `MULTI_SLAVE_GUIDE.md` | 9.7 KB | 完整实现指南 |
 | `MULTI_SLAVE_IMPLEMENTATION_SUMMARY.md` | 8.0 KB | 实现总结 |
 | `QUICK_START_MULTI_SLAVE.md` | 3.6 KB | 快速开始指南 |
-| `config_multi_slave.yaml` | 3.1 KB | 配置示例 |
+| [test/README.md](../../test/README.md) | — | v2 配置参考；legacy 归档于 `test/legacy/` |
 
 ### 技术文档
 
@@ -150,7 +150,7 @@ PASS: TestSortAddressInfos
 - [x] 扩展数据模型（SlaveDevice）
 - [x] 扩展驱动接口（SetSlaveID）
 - [x] 实现 Modbus 驱动支持
-- [x] 更新设备管理器逻辑
+- [x] 更新采集调度逻辑（2026-01 device_manager；**2026-06 已由 ScanEngine 替代**）
 - [x] 编写完整文档
 - [x] 编译验证
 - [x] 单元测试通过
@@ -266,7 +266,7 @@ devices:
 ### 快速学习
 
 1. 阅读 `QUICK_START_MULTI_SLAVE.md` (5 分钟)
-2. 查看 `config_multi_slave.yaml` (5 分钟)
+2. 阅读 [test/README.md](../../test/README.md) 了解配置参考与 `test/legacy/` 归档 (5 分钟)
 3. 运行示例 (5 分钟)
 
 ### 深入学习

@@ -10,7 +10,7 @@ import (
 
 type mockStressDriver struct{}
 
-func (d *mockStressDriver) Init(cfg model.DriverConfig) error             { return nil }
+func (d *mockStressDriver) Init(cfg model.DriverConfig) error           { return nil }
 func (d *mockStressDriver) Connect(ctx context.Context) error           { return nil }
 func (d *mockStressDriver) Disconnect() error                           { return nil }
 func (d *mockStressDriver) Health() driver.HealthStatus                 { return driver.HealthStatusGood }

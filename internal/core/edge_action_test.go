@@ -114,7 +114,7 @@ func TestEdgeAction_FrequencyLimit(t *testing.T) {
 	env := map[string]any{}
 
 	// 1st Execution: Should pass
-	em.executeActions(ruleID, actions, val, env)
+	em.executeActions(model.EdgeRule{ID: ruleID}, actions, val, env, nil)
 	time.Sleep(10 * time.Millisecond) // Wait for goroutine
 
 	if mockWriter.WriteCount != 1 {
@@ -122,7 +122,7 @@ func TestEdgeAction_FrequencyLimit(t *testing.T) {
 	}
 
 	// 2nd Execution (Immediate): Should be skipped
-	em.executeActions(ruleID, actions, val, env)
+	em.executeActions(model.EdgeRule{ID: ruleID}, actions, val, env, nil)
 	time.Sleep(10 * time.Millisecond)
 
 	if mockWriter.WriteCount != 1 {
@@ -133,7 +133,7 @@ func TestEdgeAction_FrequencyLimit(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// 3rd Execution: Should pass
-	em.executeActions(ruleID, actions, val, env)
+	em.executeActions(model.EdgeRule{ID: ruleID}, actions, val, env, nil)
 	time.Sleep(10 * time.Millisecond)
 
 	if mockWriter.WriteCount != 2 {

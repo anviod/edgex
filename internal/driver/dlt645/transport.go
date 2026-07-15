@@ -61,7 +61,7 @@ func defaultLinkFactory(cfg transportConfig) (frameLink, error) {
 		if cfg.ip == "" {
 			return nil, fmt.Errorf("DLT645 TCP: IP address not configured")
 		}
-		addr := fmt.Sprintf("%s:%d", cfg.ip, cfg.port)
+		addr := net.JoinHostPort(cfg.ip, fmt.Sprintf("%d", cfg.port))
 		conn, err := net.DialTimeout("tcp", addr, cfg.timeout)
 		if err != nil {
 			return nil, err

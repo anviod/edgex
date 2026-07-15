@@ -23,6 +23,6 @@ hero_buttons:
 
 - [认证 API](Authentication_CN.html)
 - [通道设备管理](Channel_Device_Management_CN.html)
-- [边缘计算 API](Edge_Computing_CN.html)
+- [边缘计算 API](Edge_Computing_CN.html) — 规则 CRUD、运行时状态、指标与日志接口
 - [北向配置 API](Northbound_Configuration_CN.html)
 - [系统管理 API](System_Management_CN.html)

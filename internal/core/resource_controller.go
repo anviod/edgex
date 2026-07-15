@@ -9,17 +9,17 @@ import (
 )
 
 type ResourceLimits struct {
-	GoroutineLimit   int
-	FDLimit          int
-	ConnectionLimit  int
-	QueueLimit       int
+	GoroutineLimit  int
+	FDLimit         int
+	ConnectionLimit int
+	QueueLimit      int
 }
 
 type ResourceController struct {
-	limits           ResourceLimits
-	goroutineCount   int32
-	connectionCount  int32
-	stopCh           chan struct{}
+	limits          ResourceLimits
+	goroutineCount  int32
+	connectionCount int32
+	stopCh          chan struct{}
 }
 
 func NewResourceController(limits ResourceLimits) *ResourceController {

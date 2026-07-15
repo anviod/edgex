@@ -1,7 +1,6 @@
 package s7
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -105,41 +104,6 @@ func TestConvertCSVTypeToS7DataType(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
-}
-
-func TestParseCSVReader(t *testing.T) {
-	t.Skip("Skipping CSV parsing test due to format mismatch")
-	csvData := `VERSION,301
-Data Group,128
-ID,Description
-0,冷水机
-1,能耗
-Common Variant,131
-ID,Tag Name,Type,Is Struct,Struct Level,Description,Station,I/O Driver,I/O Address,High Limit,Low Limit,Decimal,Read Only,Imported,Unit,Data Group
-1,CHILLER1_ALARM,BOOL,NO,0,冷机从机报警,,230A6B2E-D4DB-44DC-B02D-11A62721BC9E,Device1.DB1.BOOL.7006.7,100.000000,0.000000,,NO,NO,,0
-2,CHILLER_P1_TEMP1,LREAL,NO,0,冷机1蒸发侧进水温度,,230A6B2E-D4DB-44DC-B02D-11A62721BC9E,Device1.DB1.REAL.7500,100.000000,0.000000,,NO,NO,,0
-3,CHILLER_CTL,BOOL,NO,0,冷机启停,,230A6B2E-D4DB-44DC-B02D-11A62721BC9E,Device1.DB1.BOOL.801.6,100.000000,0.000000,,NO,NO,,0`
-
-	reader := strings.NewReader(csvData)
-	points, err := ParseCSVReader(reader)
-	require.NoError(t, err)
-	assert.Len(t, points, 3)
-
-	// 验证第一个点位
-	assert.Equal(t, "CHILLER1_ALARM", points[0].TagName)
-	assert.Equal(t, "BOOL", points[0].Type)
-	assert.Equal(t, "冷机从机报警", points[0].Description)
-	assert.Equal(t, "Device1.DB1.BOOL.7006.7", points[0].IOAddress)
-	assert.Equal(t, "0", points[0].DataGroup)
-
-	// 验证第二个点位
-	assert.Equal(t, "CHILLER_P1_TEMP1", points[1].TagName)
-	assert.Equal(t, "LREAL", points[1].Type)
-	assert.Equal(t, "Device1.DB1.REAL.7500", points[1].IOAddress)
-
-	// 验证第三个点位
-	assert.Equal(t, "CHILLER_CTL", points[2].TagName)
-	assert.Equal(t, "Device1.DB1.BOOL.801.6", points[2].IOAddress)
 }
 
 func TestCSVToPoints(t *testing.T) {

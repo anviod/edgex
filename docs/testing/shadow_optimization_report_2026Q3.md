@@ -75,6 +75,21 @@ ScanEngine 采集路径：`IngestDirect` → ring buffer → 定时/满缓冲 fl
 
 REST/写点路径仍直写 `ShadowCore.WriteShadowDevice`（低延迟）。
 
+
+## 7. 2026-07-04 复测（darwin/amd64，Go 1.26）
+
+命令与 Phase A–D 总表见 [q3_phase_abcd_verification_2026-07-04.md](q3_phase_abcd_verification_2026-07-04.html)。
+
+| 项目 | 结果 |
+|------|------|
+| Shadow 单测（Ingress/COW/Worker Pool/10k stress） | ✅ PASS |
+| `TestStress_ShadowRingBuffer_10kThroughput` | **14.86ms**，~**673k tags/sec**（2026-07-04 二轮） |
+| `TestStress_VirtualShadow_10kRefresh`（新增） | **119.8ms**，~**83.5k source tags/sec**；100 虚拟设备 × 100 map 点 |
+| `GetShadowDevice` bench | ~**254–295 ns/op**，2 allocs |
+| `GetShadowDevice_COW` | ~**105–107 ns/op**，1 alloc |
+| `ApplyShadowWrites_10kTags` | ~**10.6–11.7 ms/op** |
+| `BenchmarkShadowIngress_Ingest`（`-tags=integration`） | ~**1.7–2.1 µs/op**，10 allocs |
+
 ## 6. 相关文件
 
 | 文件 | 说明 |
@@ -91,7 +106,7 @@ REST/写点路径仍直写 `ShadowCore.WriteShadowDevice`（低延迟）。
 
 - WriteShadowDevice 单点写 alloc 略增（worker pool 入队 + COW map 合并）；高写频场景收益在 goroutine 稳定与批量路径
 - ARMv7 板端需交叉编译后复跑 benchmark 验证对齐与真实 P99
-- Virtual shadow 路径尚未 COW（低优先级）
+- Virtual shadow 10k 刷新压测已覆盖（`TestStress_VirtualShadow_10kRefresh`）；Virtual shadow 路径尚未 COW（低优先级）
 
 ## 8. SLA Phase B 补充（2026-07-02）
 

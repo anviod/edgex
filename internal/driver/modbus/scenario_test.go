@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/anviod/edgex/internal/model"
 	"github.com/anviod/edgex/internal/driver"
+	"github.com/anviod/edgex/internal/model"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -241,6 +241,9 @@ func TestScenario_ConcurrentAccess(t *testing.T) {
 }
 
 func TestScenario_RecoveryFromDead(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skips 2-minute Dead cooldown under -short")
+	}
 	cm := driver.NewConnectionManager("modbus")
 	defer cm.Close()
 	cm.SetMaxRetries(3)

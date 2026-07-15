@@ -27,7 +27,7 @@ type ScanEngineConfig struct {
 type ScanTaskStatus int
 
 const (
-	ScanTaskStatusIdle     ScanTaskStatus = iota
+	ScanTaskStatusIdle ScanTaskStatus = iota
 	ScanTaskStatusRunning
 	ScanTaskStatusDegraded
 	ScanTaskStatusStopped
@@ -162,25 +162,28 @@ type CollectFinalizeFunc func(deviceID string, result *ExecuteResult)
 const antiStarvationWarnInterval = 60 * time.Second
 
 type ScanEngine struct {
-	tasks           map[string]*ScanTask
-	priorityQueue   *PriorityQueue
-	executionLayer  *ExecutionLayer
-	resourceCtrl    *ResourceController
-	shadowCore      *ShadowCore
-	shadowIngress   *ShadowIngress
-	pointDegrade    *PointDegradationManager
-	collectFinalize CollectFinalizeFunc
-	metrics         *ScanEngineMetrics
-	adaptiveThrottle *AdaptiveThrottle
-	gcMonitor       *GCMonitor
-	config          ScanEngineConfig
-	ticker          *time.Ticker
-	running         bool
-	stopCh          chan struct{}
-	wg              sync.WaitGroup
-	mu              sync.RWMutex
-	taskIDCounter   int
-	overdueWarnAt   map[string]time.Time
+	tasks             map[string]*ScanTask
+	priorityQueue     *PriorityQueue
+	executionLayer    *ExecutionLayer
+	resourceCtrl      *ResourceController
+	shadowCore        *ShadowCore
+	shadowIngress     *ShadowIngress
+	pointDegrade      *PointDegradationManager
+	collectFinalize   CollectFinalizeFunc
+	metrics           *ScanEngineMetrics
+	adaptiveThrottle  *AdaptiveThrottle
+	gcMonitor         *GCMonitor
+	feedbackAgg       *FeedbackAggregator
+	feedbackPending   map[string]*ScanTask
+	feedbackPendingMu sync.Mutex
+	config            ScanEngineConfig
+	ticker            *time.Ticker
+	running           bool
+	stopCh            chan struct{}
+	wg                sync.WaitGroup
+	mu                sync.RWMutex
+	taskIDCounter     int
+	overdueWarnAt     map[string]time.Time
 }
 
 func NewScanEngine(config ScanEngineConfig) *ScanEngine {
@@ -208,22 +211,28 @@ func NewScanEngine(config ScanEngineConfig) *ScanEngine {
 	config.JitterBound = taskJitterBound(config.JitterBound)
 
 	se := &ScanEngine{
-		tasks:         make(map[string]*ScanTask),
-		overdueWarnAt: make(map[string]time.Time),
-		priorityQueue: &PriorityQueue{},
-		executionLayer: NewExecutionLayer(),
+		tasks:           make(map[string]*ScanTask),
+		feedbackPending: make(map[string]*ScanTask),
+		overdueWarnAt:   make(map[string]time.Time),
+		priorityQueue:   &PriorityQueue{},
+		executionLayer:  NewExecutionLayer(),
 		resourceCtrl: NewResourceController(ResourceLimits{
 			GoroutineLimit:  config.GoroutineLimit,
 			ConnectionLimit: config.ConnectionLimit,
 			QueueLimit:      config.MaxQueueSize,
 		}),
 		shadowCore: nil,
-		metrics:    &ScanEngineMetrics{},
-		config:     config,
-		stopCh:     make(chan struct{}),
+		metrics: &ScanEngineMetrics{
+			lagSamples: make([]int64, 0, scanLagSampleCap),
+		},
+		config: config,
+		stopCh: make(chan struct{}),
 	}
 
 	se.adaptiveThrottle = NewAdaptiveThrottle(se.metrics)
+	se.feedbackAgg = NewFeedbackAggregator(2*time.Second, func(deviceKey string, stats AggregatedStats) {
+		se.applyAggregatedFeedback(deviceKey, stats)
+	})
 	se.gcMonitor = NewGCMonitor(func(pauseMaxMs float64) {
 		if se.executionLayer != nil {
 			se.executionLayer.ReduceBackpressureRate(gcBackpressureRateFactor)
@@ -252,6 +261,10 @@ func (se *ScanEngine) Run() {
 
 	if se.executionLayer != nil {
 		se.executionLayer.Start()
+	}
+
+	if se.feedbackAgg != nil {
+		se.feedbackAgg.Start()
 	}
 
 	if se.gcMonitor != nil {
@@ -290,6 +303,10 @@ func (se *ScanEngine) Stop() {
 		se.gcMonitor.Stop()
 	}
 
+	if se.feedbackAgg != nil {
+		se.feedbackAgg.Stop()
+	}
+
 	se.resourceCtrl.Stop()
 	if se.executionLayer != nil {
 		se.executionLayer.Stop()
@@ -300,10 +317,23 @@ func (se *ScanEngine) Stop() {
 	zap.L().Info("[ScanEngine] 调度引擎已停止")
 }
 
+func (se *ScanEngine) fallbackTickInterval() time.Duration {
+	tick := se.config.TickInterval
+	if se.config.MaxQueueSize <= 0 {
+		return tick
+	}
+	loadRatio := float64(se.GetPendingTaskCount()) / float64(se.config.MaxQueueSize)
+	if loadRatio > 0.7 {
+		return 50 * time.Millisecond
+	}
+	return tick
+}
+
 func (se *ScanEngine) dispatchLoop() {
 	defer se.wg.Done()
 
-	fallback := time.NewTicker(se.config.TickInterval)
+	fallbackTick := se.fallbackTickInterval()
+	fallback := time.NewTicker(fallbackTick)
 	defer fallback.Stop()
 
 	var wakeTimer *time.Timer
@@ -361,6 +391,10 @@ func (se *ScanEngine) dispatchLoop() {
 		case <-fallback.C:
 			se.processReadyTasks()
 			scheduleWake()
+			if newTick := se.fallbackTickInterval(); newTick != fallbackTick {
+				fallbackTick = newTick
+				fallback.Reset(fallbackTick)
+			}
 		}
 	}
 }
@@ -390,8 +424,6 @@ func (se *ScanEngine) processReadyTasks() {
 		)
 	}
 
-	se.enforceHardJitterClamp(now)
-
 	for {
 		task := se.popReadyTaskEDF(now)
 		if task == nil {
@@ -402,7 +434,7 @@ func (se *ScanEngine) processReadyTasks() {
 			se.mu.Lock()
 			heap.Push(se.priorityQueue, task)
 			se.mu.Unlock()
-			continue
+			break
 		}
 
 		if task.GetStatus() == ScanTaskStatusStopped {
@@ -412,6 +444,10 @@ func (se *ScanEngine) processReadyTasks() {
 		se.resourceCtrl.Acquire()
 		go se.executeTaskAsync(task)
 	}
+
+	// Clamp only tasks still queued after dispatch; avoids counting a miss
+	// for work dispatched in the same tick.
+	se.enforceHardJitterClamp(time.Now())
 
 	se.enforceAntiStarvation(now)
 }
@@ -462,7 +498,7 @@ func (se *ScanEngine) enforceHardJitterClamp(now time.Time) {
 		if task.GetStatus() != ScanTaskStatusIdle {
 			continue
 		}
-		se.metrics.RecordMissDeadline()
+		se.metrics.RecordMissDeadlineForChannel(taskShadowChannelID(task))
 		se.boostPriorityOnMiss(task)
 		task.NextRun = now
 		task.LastScheduledAt = now
@@ -546,11 +582,31 @@ func (se *ScanEngine) executeTaskAsync(task *ScanTask) {
 			se.adaptiveThrottle.UpdateDeviceRTT(task.DeviceKey, float64(rttMicros)/1000.0)
 		}
 	}
-	se.metrics.RecordExecute(result != nil && result.Success, lagMicros)
+	se.metrics.RecordExecuteForChannel(taskShadowChannelID(task), result != nil && result.Success, lagMicros)
 
 	se.applyCollectToShadow(task, result)
 
-	se.updateTaskState(task, result)
+	if result != nil && (result.Success || errors.Is(result.Error, ErrCircuitOpen)) {
+		se.updateTaskState(task, result)
+	} else if se.feedbackAgg != nil {
+		se.feedbackPendingMu.Lock()
+		se.feedbackPending[task.DeviceKey] = task
+		se.feedbackPendingMu.Unlock()
+		var failErr error
+		if result != nil {
+			failErr = result.Error
+		}
+		se.feedbackAgg.Submit(FeedbackEvent{
+			DeviceKey: task.DeviceKey,
+			TaskID:    task.ID,
+			Success:   false,
+			Err:       failErr,
+			At:        time.Now(),
+			LagMicros: lagMicros,
+		})
+	} else {
+		se.updateTaskState(task, result)
+	}
 
 	if se.collectFinalize != nil {
 		se.collectFinalize(task.DeviceKey, result)
@@ -595,22 +651,20 @@ func (se *ScanEngine) rescheduleTask(task *ScanTask, completedAt time.Time) {
 	next := anchor.Add(interval)
 	jitterBound := taskJitterBound(se.config.JitterBound)
 
+	channelID := taskShadowChannelID(task)
 	for next.Before(completedAt) {
 		if !task.DeadlineAt.IsZero() && completedAt.After(task.DeadlineAt) {
-			se.metrics.RecordMissDeadline()
+			se.metrics.RecordMissDeadlineForChannel(channelID)
 			se.boostPriorityOnMiss(task)
 		}
 		drift := completedAt.Sub(next)
 		if drift > 0 {
-			se.metrics.RecordDrift(drift.Microseconds())
+			se.metrics.RecordDriftForChannel(channelID, drift.Microseconds())
 		}
 		next = next.Add(interval)
 	}
 
 	jitter := taskDeterministicJitter(task.ID, jitterBound)
-	if task.PhaseOffset != 0 {
-		next = next.Add(task.PhaseOffset)
-	}
 
 	task.LastScheduledAt = next
 	task.NextRun = next.Add(jitter)
@@ -789,6 +843,78 @@ func (se *ScanEngine) markDeviceShadowBad(deviceKey, channelID string) {
 			Source: "channel_offline",
 		},
 	})
+}
+
+func (se *ScanEngine) applyAggregatedFeedback(deviceKey string, stats AggregatedStats) {
+	se.feedbackPendingMu.Lock()
+	task := se.feedbackPending[deviceKey]
+	delete(se.feedbackPending, deviceKey)
+	se.feedbackPendingMu.Unlock()
+	if task == nil {
+		return
+	}
+	se.updateTaskStateAggregated(task, stats)
+}
+
+func (se *ScanEngine) updateTaskStateAggregated(task *ScanTask, stats AggregatedStats) {
+	task.mu.Lock()
+
+	if stats.FailCount == 0 {
+		task.ConsecutiveSuccess += stats.SuccessCount
+		task.ConsecutiveFailures = 0
+		task.LastSuccess = time.Now()
+		task.FailRate = 0
+		task.Status = ScanTaskStatusIdle
+		if task.BaseInterval > 0 && task.Interval != task.BaseInterval {
+			task.Interval = task.BaseInterval
+		}
+		if stats.SuccessCount > 0 && task.Priority < 10 {
+			task.Priority++
+		}
+	} else {
+		task.ConsecutiveFailures += stats.FailCount
+		task.ConsecutiveSuccess = 0
+		task.LastFailure = time.Now()
+		task.FailRate = stats.FailRate
+
+		if stats.FailCount >= 3 && se.taskDegradeOnFailure(task) {
+			shift := task.ConsecutiveFailures - 3
+			if shift > 6 {
+				shift = 6
+			}
+			newInterval := task.Interval * (1 << shift)
+			if newInterval > 64*time.Second {
+				newInterval = 64 * time.Second
+			}
+			if task.BaseInterval > 0 && newInterval < task.BaseInterval {
+				newInterval = task.BaseInterval
+			}
+			if newInterval < time.Millisecond {
+				newInterval = time.Millisecond
+			}
+			if newInterval != task.Interval {
+				zap.L().Warn("[降级] 窗口内失败率过高，调整采集间隔",
+					zap.String("taskID", task.ID),
+					zap.String("deviceKey", task.DeviceKey),
+					zap.Int("failCount", stats.FailCount),
+					zap.Float64("failRate", stats.FailRate),
+					zap.Duration("oldInterval", task.Interval),
+					zap.Duration("newInterval", newInterval),
+				)
+				task.Interval = newInterval
+				task.Status = ScanTaskStatusDegraded
+			}
+		}
+		if task.Priority > 1 {
+			task.Priority--
+		}
+	}
+	applyAdaptive := se.adaptiveThrottle != nil
+	task.mu.Unlock()
+
+	if applyAdaptive {
+		se.adaptiveThrottle.ApplyInterval(task)
+	}
 }
 
 func (se *ScanEngine) updateTaskState(task *ScanTask, result *ExecuteResult) {
@@ -1094,6 +1220,12 @@ func (se *ScanEngine) UpdateTaskPriority(deviceKey string, priority int) {
 	}
 }
 
+func (se *ScanEngine) IsRunning() bool {
+	se.mu.RLock()
+	defer se.mu.RUnlock()
+	return se.running
+}
+
 func (se *ScanEngine) GetActiveTaskCount() int {
 	se.mu.RLock()
 	defer se.mu.RUnlock()
@@ -1107,6 +1239,8 @@ func (se *ScanEngine) GetActiveTaskCount() int {
 }
 
 func (se *ScanEngine) GetPendingTaskCount() int {
+	se.mu.RLock()
+	defer se.mu.RUnlock()
 	return len(*se.priorityQueue)
 }
 
@@ -1191,9 +1325,7 @@ func (se *ScanEngine) OperationalSnapshot() map[string]any {
 	out["serial_queue_depth"] = se.executionLayer.GetSerialQueueDepths()
 	if bp := se.executionLayer.GetBackpressure(); bp != nil {
 		out["backpressure_reject_total"] = bp.RejectTotal()
-	}
-	if pc := se.executionLayer.GetProtocolCongestion(); pc != nil {
-		out["protocol_congestion_enabled"] = true
+		out["throttle_reject_by_reason"] = bp.RejectByReason()
 	}
 	return out
 }

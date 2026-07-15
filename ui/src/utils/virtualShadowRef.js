@@ -38,11 +38,35 @@ export function newVirtualDeviceForm() {
   return {
     id: '',
     name: '',
-    channel_id: '',
     description: '',
     enable: true,
     points: []
   }
+}
+
+/** 返回重复的非空 point_id -> 积木索引列表（仅 length > 1 的项） */
+export function findDuplicatePointIds(points) {
+  const byId = new Map()
+  for (let i = 0; i < (points || []).length; i++) {
+    const id = points[i]?.point_id?.trim()
+    if (!id) continue
+    if (!byId.has(id)) byId.set(id, [])
+    byId.get(id).push(i)
+  }
+  const dupes = new Map()
+  for (const [id, indices] of byId) {
+    if (indices.length > 1) dupes.set(id, indices)
+  }
+  return dupes
+}
+
+/** 所有涉及重复的积木索引（升序） */
+export function flattenDuplicatePointIndices(dupesMap) {
+  const set = new Set()
+  for (const indices of dupesMap.values()) {
+    for (const i of indices) set.add(i)
+  }
+  return [...set].sort((a, b) => a - b)
 }
 
 /** 将扁平点位源列表聚合为设备维度 */
@@ -107,21 +131,42 @@ export function sourceFromRef(ref, sources) {
 export const DRAG_MIME = 'application/vnd.edgex.virtual-shadow-points+json'
 
 export function encodeDragRefs(refs) {
-  return JSON.stringify({ refs: Array.isArray(refs) ? refs : [refs] })
+  return encodeDragPayload({ refs })
 }
 
 export function decodeDragRefs(dataTransfer) {
+  return decodeDragPayload(dataTransfer).refs
+}
+
+/** @param {{ refs?: string[], device?: object|null }} payload */
+export function encodeDragPayload({ refs, device } = {}) {
+  const list = Array.isArray(refs) ? refs : refs ? [refs] : []
+  return JSON.stringify({ refs: list, device: device || null })
+}
+
+function parseDragPayloadJson(raw) {
+  if (!raw) return null
   try {
-    const raw = dataTransfer.getData(DRAG_MIME)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed?.refs) && parsed.refs.length) return parsed.refs
-    }
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    const refs = Array.isArray(parsed.refs) ? parsed.refs : []
+    const device = parsed.device && typeof parsed.device === 'object' ? parsed.device : null
+    if (refs.length || device) return { refs, device }
   } catch (_) {
     /* ignore */
   }
+  return null
+}
+
+/** @returns {{ refs: string[], device: object|null }} */
+export function decodeDragPayload(dataTransfer) {
+  if (!dataTransfer) return { refs: [], device: null }
+  const fromMime = parseDragPayloadJson(dataTransfer.getData(DRAG_MIME))
+  if (fromMime) return fromMime
+  const fromPlain = parseDragPayloadJson(dataTransfer.getData('text/plain'))
+  if (fromPlain) return fromPlain
   const plain = dataTransfer.getData('text/plain')
-  return plain ? [plain] : []
+  return { refs: plain ? [plain] : [], device: null }
 }
 
 /** 兼容直接数组或 { data: [] } 响应 */
@@ -129,6 +174,14 @@ export function normalizeArrayResponse(res) {
   if (Array.isArray(res)) return res
   if (res?.data && Array.isArray(res.data)) return res.data
   return []
+}
+
+/** Device.state: 0=Online, 1=Unstable, 2=Offline, 3=Quarantine */
+export function isDeviceOnline(dev) {
+  if (!dev) return false
+  if (typeof dev.online === 'boolean') return dev.online
+  const state = dev.state
+  return state === 0 || state === 1
 }
 
 export function mapDeviceToSummary(dev, channelId, channelName) {
@@ -139,7 +192,9 @@ export function mapDeviceToSummary(dev, channelId, channelName) {
     channel_name: channelName || channelId,
     device_id: dev.id,
     device_name: dev.name || dev.id,
-    point_count: Array.isArray(points) ? points.length : 0
+    point_count: Array.isArray(points) ? points.length : 0,
+    online: isDeviceOnline(dev),
+    state: dev?.state ?? 2
   }
 }
 

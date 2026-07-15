@@ -16,15 +16,15 @@ type stubChannelDriver struct {
 }
 
 func (s *stubChannelDriver) Init(_ model.DriverConfig) error { return nil }
-func (s *stubChannelDriver) Connect(_ context.Context) error   { return nil }
-func (s *stubChannelDriver) Disconnect() error                 { return nil }
+func (s *stubChannelDriver) Connect(_ context.Context) error { return nil }
+func (s *stubChannelDriver) Disconnect() error               { return nil }
 func (s *stubChannelDriver) ReadPoints(_ context.Context, _ []model.Point) (map[string]model.Value, error) {
 	return nil, nil
 }
 func (s *stubChannelDriver) WritePoint(_ context.Context, _ model.Point, _ any) error { return nil }
-func (s *stubChannelDriver) Health() drv.HealthStatus                                   { return s.health }
-func (s *stubChannelDriver) SetSlaveID(_ uint8) error                                   { return nil }
-func (s *stubChannelDriver) SetDeviceConfig(_ map[string]any) error                     { return nil }
+func (s *stubChannelDriver) Health() drv.HealthStatus                                 { return s.health }
+func (s *stubChannelDriver) SetSlaveID(_ uint8) error                                 { return nil }
+func (s *stubChannelDriver) SetDeviceConfig(_ map[string]any) error                   { return nil }
 func (s *stubChannelDriver) GetConnectionMetrics() (int64, int64, string, string, time.Time) {
 	return 0, 0, "", "", time.Time{}
 }
@@ -200,7 +200,28 @@ func TestFinalizeScanCollect_BadPointQualityKeepsDeviceOnline(t *testing.T) {
 	}
 }
 
-func TestCollectContextFromExecuteResult_TransportSuccessIgnoresPointQuality(t *testing.T) {
+func TestFinalizeScanCollect_AllBadPointsMarksOffline(t *testing.T) {
+	cm := newTestChannelManager()
+	cm.scanEngineAdapter.scanEngine.AddTask("dev-1", "modbus-tcp", 1*time.Second, 5, []string{"p1", "p2", "p3"}, nil)
+
+	node := cm.stateManager.GetNode("dev-1")
+	node.Runtime.State = NodeStateOnline
+
+	cm.finalizeScanCollect("dev-1", &ExecuteResult{
+		Success: true,
+		Values: map[string]model.Value{
+			"p1": {PointID: "p1", Quality: "Bad", Value: nil},
+			"p2": {PointID: "p2", Quality: "Bad", Value: nil},
+			"p3": {PointID: "p3", Quality: "Bad", Value: nil},
+		},
+	})
+
+	if node.Runtime.State != NodeStateOffline {
+		t.Fatalf("expected offline when all points are Bad, got %d", node.Runtime.State)
+	}
+}
+
+func TestCollectContextFromExecuteResult_CountsPointQuality(t *testing.T) {
 	ctx := collectContextFromExecuteResult(&ExecuteResult{
 		Success: true,
 		Values: map[string]model.Value{
@@ -208,8 +229,19 @@ func TestCollectContextFromExecuteResult_TransportSuccessIgnoresPointQuality(t *
 			"p2": {Quality: "Good"},
 		},
 	}, 2)
-	if ctx.SuccessCmd != 2 || ctx.FailCmd != 0 {
-		t.Fatalf("expected transport success for all returned values, got success=%d fail=%d", ctx.SuccessCmd, ctx.FailCmd)
+	if ctx.SuccessCmd != 1 || ctx.FailCmd != 1 {
+		t.Fatalf("expected quality-based success=1 fail=1, got success=%d fail=%d", ctx.SuccessCmd, ctx.FailCmd)
+	}
+
+	allBad := collectContextFromExecuteResult(&ExecuteResult{
+		Success: true,
+		Values: map[string]model.Value{
+			"p1": {Quality: "Bad"},
+			"p2": {Quality: "Bad"},
+		},
+	}, 2)
+	if allBad.SuccessCmd != 0 || allBad.FailCmd != 2 {
+		t.Fatalf("expected all bad success=0 fail=2, got success=%d fail=%d", allBad.SuccessCmd, allBad.FailCmd)
 	}
 }
 

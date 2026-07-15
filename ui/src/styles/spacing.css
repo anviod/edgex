@@ -175,11 +175,6 @@
   row-gap: var(--space-6) !important;
 }
 
-.mode-legend {
-  gap: var(--space-4) !important;
-  margin-bottom: var(--space-6);
-}
-
 /* ═══════════════════════════════════════
    Cards — internal flow（gap 16px）
    ═══════════════════════════════════════ */

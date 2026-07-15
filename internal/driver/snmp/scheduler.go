@@ -96,10 +96,10 @@ func (s *SNMPScheduler) GetStats() (totalRequests, successCount, failureCount in
 }
 
 type pointGroup struct {
-	key      string
+	key       string
 	community string
-	points   []model.Point
-	oids     []string
+	points    []model.Point
+	oids      []string
 }
 
 func (s *SNMPScheduler) groupPoints(points []model.Point) []pointGroup {

@@ -54,3 +54,17 @@
 ---
 
 *Phase D 交付后 B6 确定性调度由 20% → 约 85%（EDF + clamp 已实现；板端 P99 书面验证待现场）。*
+
+---
+
+## 5. 2026-07-04 复测
+
+| 测试 | 结果 | 备注 |
+|------|------|------|
+| EDF / clamp / miss 提权单测 | ✅ PASS | `scan_engine_edf_test.go` |
+| `TestSoak_ScanEngineShortGate` 30s | ✅ PASS | miss_deadline **0**；lag P95 **1.66ms** |
+| `make bench-q3` | ✅ PASS | 60s 窗口 **miss_deadline=0**；lag P95 **1.25ms** 仍远优于 100ms |
+
+**解读：** Phase D hard jitter clamp 在 dispatch 前误计同 tick 可派发任务的 miss；修复后将 clamp 移至 dispatch 之后，Q3 gate 连续复跑 **miss=0**。
+
+*详见 [q3_phase_abcd_verification_2026-07-04.md](q3_phase_abcd_verification_2026-07-04.html)*

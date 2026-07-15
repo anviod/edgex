@@ -1,6 +1,7 @@
 package modbus
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -193,4 +194,92 @@ func TestAddressBase(t *testing.T) {
 	}
 
 	fmt.Println("TestAddressBase passed successfully")
+}
+
+// TestParseAddress_UnderflowFix 验证 addressBase > addrInt 时 uint16 下溢问题已修复
+// 对应 bug：当 addressBase=1 且地址为 "0" 时，
+// 原代码 uint16(0)-1=65535，int(65535)>0 导致下溢检测失效，
+// 最终 hr_0 读取失败（Bad），后续点位整体错位 1 个寄存器。
+func TestParseAddress_UnderflowFix(t *testing.T) {
+	decoder := NewPointDecoder("ABCD", 0, 1) // addressBase = 1（1-based 寻址）
+
+	// 地址 0 < addressBase → 应 clamp 到 0，而非下溢到 65535
+	_, offset, err := decoder.ParseAddress("0")
+	if err != nil {
+		t.Fatalf("ParseAddress(\"0\") failed: %v", err)
+	}
+	if offset != 0 {
+		t.Errorf("addressBase=1, addr=0: expected offset 0, got %d (underflow bug!)", offset)
+	}
+
+	// 地址 1 == addressBase → 偏移 0
+	_, offset, err = decoder.ParseAddress("1")
+	if err != nil {
+		t.Fatalf("ParseAddress(\"1\") failed: %v", err)
+	}
+	if offset != 0 {
+		t.Errorf("addressBase=1, addr=1: expected offset 0, got %d", offset)
+	}
+
+	// 地址 2 > addressBase → 偏移 1
+	_, offset, err = decoder.ParseAddress("2")
+	if err != nil {
+		t.Fatalf("ParseAddress(\"2\") failed: %v", err)
+	}
+	if offset != 1 {
+		t.Errorf("addressBase=1, addr=2: expected offset 1, got %d", offset)
+	}
+
+	// 验证标准地址不受 addressBase 影响（40001 始终对应偏移 0）
+	_, offset, err = decoder.ParseAddress("40001")
+	if err != nil {
+		t.Fatalf("ParseAddress(\"40001\") failed: %v", err)
+	}
+	if offset != 0 {
+		t.Errorf("standard addr 40001: expected offset 0, got %d (addressBase should not apply)", offset)
+	}
+}
+
+// TestSchedulerRead_WithAddressBase 验证 addressBase>0 时批量读取不会发生错位
+// 复现场景：3 个点位，addressBase=1，点位地址 0/1/2
+// 预期：点位 0 被 clamp 到偏移 0（与点位 1 同位置）或被合理处理
+func TestSchedulerRead_WithAddressBase(t *testing.T) {
+	mock := newMockModbusTransport()
+	mock.connected = true
+	// 设备寄存器：偏移 0 = 100, 偏移 1 = 200, 偏移 2 = 300
+	mock.registers[0] = 100
+	mock.registers[1] = 200
+	mock.registers[2] = 300
+
+	dec := NewPointDecoder("ABCD", 0, 1) // addressBase = 1
+	s := NewPointScheduler(mock, dec, 125, 50, 0)
+
+	// 模拟用户创建的点位（地址为 "1"/"2"/"3"，即 1-based 寻址）
+	points := []model.Point{
+		{ID: "hr_1", Address: "1", DataType: "uint16", RegisterType: model.RegHolding},
+		{ID: "hr_2", Address: "2", DataType: "uint16", RegisterType: model.RegHolding},
+		{ID: "hr_3", Address: "3", DataType: "uint16", RegisterType: model.RegHolding},
+	}
+	results, err := s.Read(context.Background(), points)
+	if err != nil {
+		t.Fatalf("Read failed: %v", err)
+	}
+
+	// hr_1 (addr=1, base=1 → offset=0) 应读到 register 0 = 100
+	if results["hr_1"].Value != uint16(100) {
+		t.Errorf("hr_1: expected 100, got %v", results["hr_1"].Value)
+	}
+	if results["hr_1"].Quality != "Good" {
+		t.Errorf("hr_1: expected Good, got %s", results["hr_1"].Quality)
+	}
+
+	// hr_2 (addr=2, base=1 → offset=1) 应读到 register 1 = 200
+	if results["hr_2"].Value != uint16(200) {
+		t.Errorf("hr_2: expected 200, got %v", results["hr_2"].Value)
+	}
+
+	// hr_3 (addr=3, base=1 → offset=2) 应读到 register 2 = 300
+	if results["hr_3"].Value != uint16(300) {
+		t.Errorf("hr_3: expected 300, got %v", results["hr_3"].Value)
+	}
 }

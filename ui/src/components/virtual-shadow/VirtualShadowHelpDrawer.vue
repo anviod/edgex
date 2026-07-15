@@ -145,7 +145,6 @@
             <li><strong>映射优先</strong>：仅需转发的点位用映射模式，比公式更直观且开销更低。</li>
             <li><strong>命名规范</strong>：设备 ID 使用字母开头（如 <code>virtual-pump-sum</code>）；点位 ID 简短且唯一，避免与真实点位混淆。</li>
             <li><strong>避免循环依赖</strong>：公式只能引用真实影子或其它已存在来源，不可引用本设备自身的虚拟点位。</li>
-            <li><strong>通道归属</strong>：<code>channel_id</code> 决定虚拟设备在系统中的逻辑分组，通常选主要数据来源通道。</li>
             <li><strong>拓扑变更</strong>：修改通道/设备/点位后引擎会自动重载；若来源点位被删除，对应虚拟点位 quality 会降级，需及时修正配置。</li>
             <li><strong>调试顺序</strong>：保存后在列表展开行或「查看值」抽屉确认运行时值，再接入边缘计算规则或北向推送。</li>
           </ol>
@@ -186,11 +185,6 @@ const deviceFields = [
     label: '名称',
     example: '双泵流量汇总',
     desc: '列表与详情中的显示名称；留空则使用设备 ID。',
-  },
-  {
-    label: '所属通道',
-    example: 'modbus-tcp-01',
-    desc: '虚拟设备的逻辑归属通道；同时用于左侧源设备检索时的默认通道筛选。',
   },
   {
     label: '描述',

@@ -63,7 +63,6 @@ func (s *Server) generateDeviceRegisters(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"device_id":     dev.ID,
 		"points_count":  len(dev.Points),
-		"points":        dev.Points,
 		"register_type": regType.ShortString(),
 		"function_code": fc,
 	})
@@ -325,8 +324,14 @@ func (s *Server) batchCreateModbusSlaves(c *fiber.Ctx) error {
 
 	resp := fiber.Map{
 		"created": len(result.Created),
-		"devices": result.Created,
 		"skipped": result.Skipped,
+	}
+	if len(result.Created) > 0 {
+		summaries := make([]model.Device, len(result.Created))
+		for i, d := range result.Created {
+			summaries[i] = d.WithPointsSummary()
+		}
+		resp["devices"] = summaries
 	}
 	if len(result.Errors) > 0 {
 		resp["warnings"] = result.Errors
