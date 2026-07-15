@@ -137,7 +137,7 @@ func main() {
 	zap.L().Info("Logger initialized", zap.String("level", cfg.Server.LogLevel), zap.String("file", "logs/gateway.edgex.log"))
 	zap.L().Info("Build info",
 		zap.String("version", model.Version),
-		zap.String("build_time", model.BuildTime),
+		zap.String("build_time", model.FormatBuildTime()),
 		zap.String("commit_id", model.CommitID),
 	)
 

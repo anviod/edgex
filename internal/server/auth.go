@@ -278,7 +278,7 @@ func (s *Server) handleGetSystemInfo(c *fiber.Ctx) error {
 		"data": fiber.Map{
 			"name":      cfg.Hostname.Name,
 			"softVer":   model.Version,
-			"buildTime": model.BuildTime,
+			"buildTime": model.FormatBuildTime(),
 			"commitID":  model.CommitID,
 		},
 	})
