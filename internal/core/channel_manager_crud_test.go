@@ -321,8 +321,10 @@ func TestChannelManager_AddDevices_SinglePersist(t *testing.T) {
 	}
 
 	saves := 0
+	saveDone := make(chan struct{})
 	cm.saveFunc = func(channels []model.Channel) error {
 		saves++
+		saveDone <- struct{}{}
 		return nil
 	}
 
@@ -338,6 +340,8 @@ func TestChannelManager_AddDevices_SinglePersist(t *testing.T) {
 	if len(created) != 2 {
 		t.Fatalf("created = %d, want 2", len(created))
 	}
+	// Wait for async save to complete
+	<-saveDone
 	if saves != 1 {
 		t.Fatalf("saveChannels calls = %d, want 1", saves)
 	}

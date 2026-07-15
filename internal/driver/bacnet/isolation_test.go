@@ -1,4 +1,4 @@
-//go:build integration
+﻿//go:build integration
 
 package bacnet
 
@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	bacnetlib "github.com/anviod/bacnet"
 	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/edgex/internal/model"
 )
@@ -118,7 +119,7 @@ func TestDeviceIsolation(t *testing.T) {
 	}
 
 	d := NewBACnetDriver().(*BACnetDriver)
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) {
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) {
 		return mock, nil
 	}
 	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})

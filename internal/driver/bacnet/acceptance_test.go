@@ -1,4 +1,4 @@
-//go:build ignore
+﻿//go:build ignore
 
 package bacnet
 
@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 
+	bacnetlib "github.com/anviod/bacnet"
 	"github.com/anviod/bacnet/btypes"
 )
 
@@ -28,7 +29,7 @@ func TestAcceptance_DeviceDiscovery(t *testing.T) {
 
 	d := NewBACnetDriver().(*BACnetDriver)
 	// d.targetDeviceID = 1234 // Removed
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) {
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) {
 		return mockClient, nil
 	}
 

@@ -530,7 +530,7 @@ func TestAdaptiveThrottle_UpdateDeviceRTT(t *testing.T) {
 }
 
 func TestGetDeviceID(t *testing.T) {
-	id, ok := getDeviceID(map[string]any{"device_id": float64(42)})
+	id, ok := getDeviceID(map[string]any{"bacnet_device_id": float64(42)})
 	if !ok || id != 42 {
 		t.Fatalf("getDeviceID = (%d, %v)", id, ok)
 	}

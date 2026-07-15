@@ -26,6 +26,26 @@
   --header-glass: rgba(248, 249, 250, 0.92);
 }
 
+/* Citation superscript in hero */
+.citation-sup {
+  color: var(--gold, #c5a059);
+  text-decoration: none;
+  font-size: 0.65em;
+  vertical-align: super;
+  line-height: 1;
+  margin-left: 0.1em;
+  cursor: help;
+}
+.citation-sup:hover {
+  text-decoration: underline;
+}
+
+/* Footnote section on landing page */
+.landing-section--footnotes {
+  padding-top: 0;
+  padding-bottom: 2rem;
+}
+
 * {
   box-sizing: border-box;
 }

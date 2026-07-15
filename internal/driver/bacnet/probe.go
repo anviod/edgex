@@ -1,10 +1,11 @@
-package bacnet
+﻿package bacnet
 
 import (
 	"net"
 	"strconv"
 	"time"
 
+	bacnetlib "github.com/anviod/bacnet"
 	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/bacnet/datalink"
 
@@ -13,22 +14,15 @@ import (
 
 const defaultBACnetPort = discoveryListenPort
 
-// commonProbePorts are tried (after the configured hint) when Who-Is misses a device.
-// Matches the reference driver_workflow / four_device_acceptance port-scan fallback.
-var commonProbePorts = []int{
-	47808, 47810, 47811, 47812, 47809,
-	58494, 64339, 54304, 61663, 50958,
-}
-
 // whoIsDiscoverDevice locates a BACnet device using broadcast Who-Is.
 // Broadcast is used exclusively (no unicast Destination) so the external library
 // preserves the I-Am source address, including ephemeral UDP ports.
-func (d *BACnetDriver) whoIsDiscoverDevice(client Client, deviceID int, ip string, portHint int) (btypes.Device, bool) {
+func (d *BACnetDriver) whoIsDiscoverDevice(client bacnetlib.Client, deviceID int, ip string, portHint int) (btypes.Device, bool) {
 	if client == nil {
 		return btypes.Device{}, false
 	}
 
-	whois := &WhoIsOpts{Low: deviceID, High: deviceID}
+	whois := &bacnetlib.WhoIsOpts{Low: deviceID, High: deviceID}
 	devices, err := client.WhoIs(whois)
 	if dev, ok := matchWhoIsDevice(devices, err, deviceID); ok {
 		return dev, true
@@ -93,7 +87,7 @@ func buildDirectDevice(deviceID int, ip string, port int) (btypes.Device, bool) 
 
 // verifyDeviceObjectName confirms a candidate address with ReadProperty(Object_Name).
 // This is the reference flow's unicast fallback when Who-Is misses non-standard ports.
-func verifyDeviceObjectName(client Client, deviceID int, ip string, port int, timeout time.Duration) (btypes.Device, bool) {
+func verifyDeviceObjectName(client bacnetlib.Client, deviceID int, ip string, port int, timeout time.Duration) (btypes.Device, bool) {
 	if client == nil {
 		return btypes.Device{}, false
 	}
@@ -123,33 +117,34 @@ func verifyDeviceObjectName(client Client, deviceID int, ip string, port int, ti
 	return dev, true
 }
 
-func portsToProbe(hint int) []int {
-	seen := make(map[int]struct{}, len(commonProbePorts)+1)
-	out := make([]int, 0, len(commonProbePorts)+1)
-	add := func(p int) {
-		if p <= 0 {
-			return
-		}
-		if _, ok := seen[p]; ok {
-			return
-		}
-		seen[p] = struct{}{}
-		out = append(out, p)
-	}
-	add(hint)
-	for _, p := range commonProbePorts {
-		add(p)
-	}
-	return out
-}
-
-// locateDeviceAddress resolves a device via Who-Is, then ReadProperty port-scan fallback.
-// Mirrors Phase 1 of the bacnet driver_workflow_test reference.
-func (d *BACnetDriver) locateDeviceAddress(client Client, deviceID int, ip string, portHint int) (btypes.Device, bool) {
+// locateDeviceAddress resolves a device via strict two-step discovery:
+//   Step 1: Direct ReadProperty verification using user-provided DeviceID+IP+Port.
+//   Step 2: Broadcast WhoIs on standard BACnet port 47808 for undiscovered devices.
+// locateDeviceAddress 通过严格的两步流程发现设备：
+//   步骤1：使用用户提供的 DeviceID+IP+Port 直接 ReadProperty 验证。
+//   步骤2：对未发现的设备，使用标准 BACnet 默认端口 47808 广播 WhoIs。
+func (d *BACnetDriver) locateDeviceAddress(client bacnetlib.Client, deviceID int, ip string, portHint int) (btypes.Device, bool) {
 	if client == nil {
 		return btypes.Device{}, false
 	}
 
+	// Step 1: Direct ReadProperty verification with user-provided port.
+	// 步骤1：使用用户提供的端口信息直接 ReadProperty 验证。
+	if ip != "" && portHint > 0 {
+		if verified, ok := verifyDeviceObjectName(client, deviceID, ip, portHint, probeVerifyTimeout); ok {
+			zap.L().Info("BACnet device verified via direct ReadProperty",
+				zap.Int("device_id", deviceID),
+				zap.String("ip", ip),
+				zap.Int("port", portHint))
+			return verified, true
+		}
+	}
+
+	// Step 2: Broadcast WhoIs discovery on standard BACnet port 47808.
+	// 步骤2：使用广播方式（47808端口）进行 WhoIs 扫描。
+	// If user-provided port is unreachable (e.g. device reboot changed port),
+	// automatically degrade to broadcast discovery.
+	// 若用户提供的端口无法通信（如设备重启更换了端口），自动降级到广播扫描。
 	if found, ok := d.whoIsDiscoverDevice(client, deviceID, ip, portHint); ok {
 		resolvedIP := deviceIPFromAddr(found, ip)
 		resolvedPort := devicePortFromAddr(found)
@@ -165,21 +160,6 @@ func (d *BACnetDriver) locateDeviceAddress(client Client, deviceID int, ip strin
 		// Who-Is 已返回设备；即使 Object_Name 探测失败仍保留结果
 		//（某些设备在特定条件下不返回该属性）。
 		return found, true
-	}
-
-	if ip == "" {
-		return btypes.Device{}, false
-	}
-
-	for _, port := range portsToProbe(portHint) {
-		if verified, ok := verifyDeviceObjectName(client, deviceID, ip, port, probeVerifyTimeout); ok {
-			zap.L().Info("BACnet device located via ReadProperty port scan",
-				zap.Int("device_id", deviceID),
-				zap.String("ip", ip),
-				zap.Int("port", port))
-			return verified, true
-		}
-		time.Sleep(100 * time.Millisecond)
 	}
 
 	return btypes.Device{}, false

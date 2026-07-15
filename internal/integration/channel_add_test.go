@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/anviod/edgex/internal/core"
-	_ "github.com/anviod/bacnet"
+	_ "github.com/anviod/edgex/internal/driver/bacnet"
 	_ "github.com/anviod/edgex/internal/driver/dlt645"
 	_ "github.com/anviod/edgex/internal/driver/ethernetip"
 	_ "github.com/anviod/edgex/internal/driver/ice104"

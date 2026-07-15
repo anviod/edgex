@@ -1,4 +1,4 @@
-package bacnet
+﻿package bacnet
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	bacnetlib "github.com/anviod/bacnet"
 	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/edgex/internal/model"
 )
@@ -127,7 +128,7 @@ func TestBACnet_MultiDevice_Scheduling(t *testing.T) {
 	// 2. Setup Driver
 	d := NewBACnetDriver().(*BACnetDriver)
 	// Inject Mock Factory
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) {
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) {
 		return mockClient, nil
 	}
 

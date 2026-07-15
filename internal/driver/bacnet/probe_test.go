@@ -1,4 +1,4 @@
-//go:build integration
+﻿//go:build integration
 
 package bacnet
 
@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	bacnetlib "github.com/anviod/bacnet"
 	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/bacnet/datalink"
 	"github.com/anviod/edgex/internal/model"
@@ -94,7 +95,7 @@ func TestProbeDevice_UpdatesStalePort(t *testing.T) {
 	}
 
 	d := NewBACnetDriver().(*BACnetDriver)
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) { return mock, nil }
 	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
 	d.Connect(context.Background())
 	defer d.Disconnect()
@@ -156,7 +157,7 @@ func TestReadPoints_TriggersRecoveryAfterFailures(t *testing.T) {
 	mock.SmartMockClient.Values = map[string]interface{}{"2228319:2:1": float32(319.0)}
 
 	d := NewBACnetDriver().(*BACnetDriver)
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) { return mock, nil }
 	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
 	d.Connect(context.Background())
 	defer d.Disconnect()

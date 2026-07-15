@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	bacnetlib "github.com/anviod/bacnet"
 	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/edgex/internal/model"
 	"github.com/anviod/edgex/internal/pkg/dataformat"
@@ -32,7 +33,7 @@ type PointWriteRequest struct {
 
 // PointScheduler implements the scheduling logic for BACnet points
 type PointScheduler struct {
-	client              Client
+	client              bacnetlib.Client
 	targetDevice        btypes.Device
 	groupThreshold      uint16
 	instructionInterval time.Duration
@@ -43,7 +44,7 @@ type PointScheduler struct {
 	mu          sync.Mutex
 }
 
-func NewPointScheduler(client Client, targetDevice btypes.Device, groupThreshold uint16, instructionInterval time.Duration, cooldownDuration time.Duration, useDataformat bool) *PointScheduler {
+func NewPointScheduler(client bacnetlib.Client, targetDevice btypes.Device, groupThreshold uint16, instructionInterval time.Duration, cooldownDuration time.Duration, useDataformat bool) *PointScheduler {
 	if groupThreshold == 0 {
 		groupThreshold = 20 // Default reasonable batch size
 	}

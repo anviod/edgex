@@ -1,4 +1,4 @@
-//go:build integration
+﻿//go:build integration
 
 package bacnet
 
@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	bacnetlib "github.com/anviod/bacnet"
 	"github.com/anviod/bacnet/btypes"
 )
 
@@ -79,7 +80,7 @@ func TestBACnetDriver_Scan_MultiInterface(t *testing.T) {
 	}
 
 	// 3. Mock clientFactory
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) {
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) {
 		client := &MockScanClient{
 			BoundIP: cb.Ip,
 		}

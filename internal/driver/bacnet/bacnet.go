@@ -1,4 +1,4 @@
-package bacnet
+﻿package bacnet
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"time"
 
 	drv "github.com/anviod/edgex/internal/driver"
+	bacnetlib "github.com/anviod/bacnet"
 	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/bacnet/btypes/null"
 	"github.com/anviod/bacnet/datalink"
@@ -63,14 +64,14 @@ const (
 
 type BACnetDriver struct {
 	config               model.DriverConfig
-	client               Client
+	client               bacnetlib.Client
 	scheduler            *PointScheduler
 	mu                   sync.RWMutex
 	useDataformatDecoder bool
 	connMgr              *drv.ConnectionManager
 
 	// Factory for creating clients (injectable for testing)
-	clientFactory func(cb *ClientBuilder) (Client, error)
+	clientFactory func(cb *bacnetlib.ClientBuilder) (bacnetlib.Client, error)
 
 	// Interface settings
 	interfaceIP   string
@@ -126,7 +127,7 @@ func NewBACnetDriver() drv.Driver {
 		interfaceIP:       "0.0.0.0", // Default IP
 		subnetCIDR:        24,        // Default CIDR
 		connected:         false,
-		clientFactory:     NewClient,
+		clientFactory:     bacnetlib.NewClient,
 		connMgr:           drv.NewConnectionManager("bacnet-ip"),
 		historicalObjects: make(map[int]map[string]ObjectResult),
 		deviceContexts:    make(map[int]*DeviceContext),
@@ -225,7 +226,7 @@ func (d *BACnetDriver) connectOnce(ctx context.Context) error {
 	d.mu.Unlock()
 
 	// Step 2: Create new client outside lock (involves UDP socket bind).
-	cb := &ClientBuilder{
+	cb := &bacnetlib.ClientBuilder{
 		Ip:         ifaceIP,
 		Port:       connectPort,
 		SubnetCIDR: subnetCIDR,
@@ -256,7 +257,7 @@ func (d *BACnetDriver) connectOnce(ctx context.Context) error {
 
 // startEphemeralClient starts a bounded BACnet receive loop for discovery/scan APIs.
 // Call the returned stop function when the session completes.
-func startEphemeralClient(client Client) (stop func(), err error) {
+func startEphemeralClient(client bacnetlib.Client) (stop func(), err error) {
 	if client == nil {
 		return nil, fmt.Errorf("bacnet client is nil")
 	}
@@ -279,8 +280,8 @@ func (d *BACnetDriver) SetBACnetAddressNotifier(notifier drv.BACnetAddressNotifi
 }
 
 func (d *BACnetDriver) discoverDevice(deviceID int, ip string, port int) error {
-	// Use full strategy chain: WhoIs → ReadProperty port-scan → direct fallback
-	// 使用完整策略链：WhoIs → ReadProperty 端口扫描 → 直连回退
+	// Use strategy: direct ReadProperty → broadcast WhoIs → direct fallback
+	// 使用策略：直接 ReadProperty → 广播 WhoIs → 直连回退
 	if d.client == nil {
 		return fmt.Errorf("BACnet client not connected")
 	}
@@ -519,11 +520,11 @@ func (d *BACnetDriver) checkRecovery(deviceID int) {
 // Returns true if probe succeeded, false if failed.
 // probeDevice 执行完整的设备探测策略链：
 // 1. WhoIs 广播 → 2. ReadProperty 多端口扫描回退
-func (d *BACnetDriver) probeDevice(client Client, deviceID int, ip string, port int) bool {
+func (d *BACnetDriver) probeDevice(client bacnetlib.Client, deviceID int, ip string, port int) bool {
 	zap.L().Debug("Probing BACnet device", zap.Int("device_id", deviceID), zap.String("ip", ip), zap.Int("port", port))
 
-	// Use full locateDeviceAddress strategy chain (WhoIs → port-scan)
-	// 使用完整的 locateDeviceAddress 策略链（WhoIs → 端口扫描）
+	// Use locateDeviceAddress strategy (direct ReadProperty → broadcast WhoIs)
+	// 使用 locateDeviceAddress 策略（直接 ReadProperty → 广播 WhoIs）
 	if found, ok := d.locateDeviceAddress(client, deviceID, ip, port); ok {
 		d.applyDiscoveredDevice(deviceID, ip, port, found)
 		zap.L().Info("BACnet device probe successful",
@@ -1008,7 +1009,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 		// 如果指定了 interface_ip，创建临时客户端绑定到该网卡
 		if v, ok := params["interface_ip"]; ok {
 			if ifaceIP, ok := v.(string); ok && ifaceIP != "" {
-				cb := &ClientBuilder{
+				cb := &bacnetlib.ClientBuilder{
 					Ip:         ifaceIP,
 					Port:       discoveryListenPort,
 					SubnetCIDR: defaultSubnetCIDR,
@@ -1123,7 +1124,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 	d.mu.Unlock()
 
 	if readerClient == nil {
-		cb := &ClientBuilder{
+		cb := &bacnetlib.ClientBuilder{
 			Ip:         localIP,
 			Port:       discoveryListenPort,
 			SubnetCIDR: defaultSubnetCIDR,
@@ -1189,7 +1190,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 			defer wg.Done()
 			scanClient := defaultClient
 			if scanClient == nil {
-				cb := &ClientBuilder{
+				cb := &bacnetlib.ClientBuilder{
 					Ip:         localIP,
 					Port:       discoveryListenPort,
 					SubnetCIDR: defaultSubnetCIDR,
@@ -1204,7 +1205,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 				scanClient = cli
 			}
 
-			whois := &WhoIsOpts{Low: low, High: high}
+			whois := &bacnetlib.WhoIsOpts{Low: low, High: high}
 			devices, err := scanClient.WhoIs(whois)
 			if err != nil {
 				zap.L().Debug("[Strategy1] Standard broadcast WhoIs returned error", zap.Error(err))
@@ -1241,7 +1242,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 
 				scanClient := defaultClient
 				if scanClient == nil {
-					cb := &ClientBuilder{
+					cb := &bacnetlib.ClientBuilder{
 						Ip:         localIP,
 						Port:       discoveryListenPort,
 						SubnetCIDR: defaultSubnetCIDR,
@@ -1255,7 +1256,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 					scanClient = cli
 				}
 
-				whois := &WhoIsOpts{Low: low, High: high, Destination: subnetDest}
+				whois := &bacnetlib.WhoIsOpts{Low: low, High: high, Destination: subnetDest}
 				devices, err := scanClient.WhoIs(whois)
 				if err != nil {
 					return
@@ -1278,7 +1279,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 			defer wg.Done()
 			scanClient := defaultClient
 			if scanClient == nil {
-				cb := &ClientBuilder{
+				cb := &bacnetlib.ClientBuilder{
 					Ip:         localIP,
 					Port:       discoveryListenPort,
 					SubnetCIDR: defaultSubnetCIDR,
@@ -1293,7 +1294,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 				scanClient = cli
 			}
 
-			whois := &WhoIsOpts{Low: low, High: high}
+			whois := &bacnetlib.WhoIsOpts{Low: low, High: high}
 			devices, err := scanClient.WhoIs(whois)
 			if err != nil {
 				zap.L().Debug("[Step2] Standard broadcast WhoIs returned error", zap.Error(err))
@@ -1537,7 +1538,7 @@ func parsePreconfiguredDevices(params map[string]any) []preconfiguredDevice {
 	return out
 }
 
-func readPropertyString(client Client, dev btypes.Device, propID btypes.PropertyType, timeout time.Duration) string {
+func readPropertyString(client bacnetlib.Client, dev btypes.Device, propID btypes.PropertyType, timeout time.Duration) string {
 	if client == nil {
 		return ""
 	}

@@ -10,8 +10,10 @@ import (
 
 func TestChannelManager_AddDeviceAndPoint_PersistViaSaveFunc(t *testing.T) {
 	var saved []model.Channel
+	saveCh := make(chan struct{})
 	cm := NewChannelManager(nil, func(channels []model.Channel) error {
 		saved = channels
+		saveCh <- struct{}{}
 		return nil
 	})
 	defer cm.cancel()
@@ -49,6 +51,7 @@ func TestChannelManager_AddDeviceAndPoint_PersistViaSaveFunc(t *testing.T) {
 		t.Fatalf("AddPoint: %v", err)
 	}
 
+	<-saveCh // wait for async save
 	if len(saved) == 0 {
 		t.Fatal("saveFunc was never called")
 	}
@@ -156,8 +159,10 @@ func TestChannelManager_AddDevice_RejectsEmptyID(t *testing.T) {
 
 func TestChannelManager_AddPoint_PersistsWhenIntervalInvalid(t *testing.T) {
 	var saved []model.Channel
+	saveCh := make(chan struct{})
 	cm := NewChannelManager(nil, func(channels []model.Channel) error {
 		saved = channels
+		saveCh <- struct{}{}
 		return nil
 	})
 	defer cm.cancel()
@@ -185,6 +190,7 @@ func TestChannelManager_AddPoint_PersistsWhenIntervalInvalid(t *testing.T) {
 		t.Fatalf("AddPoint: %v", err)
 	}
 
+	<-saveCh // wait for async save
 	if len(saved) == 0 || len(saved[0].Devices[0].Points) != 1 {
 		t.Fatalf("expected point to be saved despite invalid interval, saved=%v", saved)
 	}

@@ -1,4 +1,4 @@
-//go:build integration
+﻿//go:build integration
 
 package bacnet
 
@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	bacnetlib "github.com/anviod/bacnet"
 	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/edgex/internal/model"
 )
@@ -36,7 +37,7 @@ func TestCrosstalkVerification(t *testing.T) {
 	// 2. Initialize Driver
 	d := NewBACnetDriver().(*BACnetDriver)
 	// Inject Mock Factory
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) {
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) {
 		return mock, nil
 	}
 

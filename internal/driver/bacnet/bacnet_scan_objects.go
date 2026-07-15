@@ -1,4 +1,4 @@
-package bacnet
+﻿package bacnet
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	bacnetlib "github.com/anviod/bacnet"
 	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/bacnet/btypes/units"
 	"github.com/anviod/bacnet/datalink"
@@ -119,7 +120,7 @@ func (d *BACnetDriver) ScanObjects(ctx context.Context, config map[string]any) (
 // with fallback to PropObjectList reading for compatibility.
 // scanDeviceObjectsEx 扩展扫描函数，使用库 Objects() API 获取对象列表和名称，
 // 失败时降级为 PropObjectList 读取
-func (d *BACnetDriver) scanDeviceObjectsEx(client Client, devID int, deep bool, devIP string, devPort int) (any, error) {
+func (d *BACnetDriver) scanDeviceObjectsEx(client bacnetlib.Client, devID int, deep bool, devIP string, devPort int) (any, error) {
 	var dev btypes.Device
 
 	d.mu.Lock()
@@ -164,7 +165,7 @@ func (d *BACnetDriver) scanDeviceObjectsEx(client Client, devID int, deep bool, 
 		dev = cachedDev
 	} else {
 		zap.L().Info("scanDeviceObjects: Discovering device via WhoIs", zap.Int("device_id", devID))
-		whois := &WhoIsOpts{Low: devID, High: devID}
+		whois := &bacnetlib.WhoIsOpts{Low: devID, High: devID}
 		devices, err := client.WhoIs(whois)
 		if err != nil || len(devices) == 0 {
 			time.Sleep(500 * time.Millisecond)
@@ -258,7 +259,7 @@ func (d *BACnetDriver) scanDeviceObjectsEx(client Client, devID int, deep bool, 
 // ReadPropertyWithTimeout(3s) when batch read fails (e.g., Yabe simulators).
 // enrichObjects 批量读取 Description、Units（深度模式含 PresentValue 等），
 // ReadMultiProperty 失败时降级为逐点 ReadPropertyWithTimeout(3s)
-func (d *BACnetDriver) enrichObjects(client Client, dev btypes.Device, objectIDs []btypes.ObjectID, nameMap map[string]string, deep bool, devID int) []ObjectResult {
+func (d *BACnetDriver) enrichObjects(client bacnetlib.Client, dev btypes.Device, objectIDs []btypes.ObjectID, nameMap map[string]string, deep bool, devID int) []ObjectResult {
 	chunkSize := 10
 	concurrency := 6
 	sem := make(chan struct{}, concurrency)
@@ -474,7 +475,7 @@ func (d *BACnetDriver) enrichObjects(client Client, dev btypes.Device, objectIDs
 // scanObjectsViaPropList is the fallback scan method using PropObjectList with ArrayAll.
 // Used when client.Objects() fails (e.g., device doesn't support standard object list reading).
 // scanObjectsViaPropList 降级扫描方法，使用 PropObjectList ArrayAll 读取对象列表
-func (d *BACnetDriver) scanObjectsViaPropList(client Client, dev btypes.Device, devID int, deep bool) (any, error) {
+func (d *BACnetDriver) scanObjectsViaPropList(client bacnetlib.Client, dev btypes.Device, devID int, deep bool) (any, error) {
 	zap.L().Info("Reading ObjectList via PropObjectList ArrayAll", zap.Int("device_id", devID))
 	pd := btypes.PropertyData{
 		Object: btypes.Object{
@@ -567,7 +568,7 @@ func (d *BACnetDriver) scanObjectsViaPropList(client Client, dev btypes.Device, 
 // readObjectNames batch-reads PropObjectName for a list of objects.
 // Falls back to individual ReadPropertyWithTimeout(3s) when batch read fails.
 // readObjectNames 批量读取对象名称，ReadMultiProperty 失败时降级为逐点读取
-func (d *BACnetDriver) readObjectNames(client Client, dev btypes.Device, objectIDs []btypes.ObjectID, devID int) map[string]string {
+func (d *BACnetDriver) readObjectNames(client bacnetlib.Client, dev btypes.Device, objectIDs []btypes.ObjectID, devID int) map[string]string {
 	nameMap := make(map[string]string)
 	chunkSize := 10
 	concurrency := 6

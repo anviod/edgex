@@ -262,8 +262,10 @@ func TestOpcUa_AddDevice_IDNamePreserved(t *testing.T) {
 // ============================================================
 func TestOpcUa_AddDevice_PersistedViaSaveFunc(t *testing.T) {
 	var saved []model.Channel
+	saveCh := make(chan struct{})
 	cm := NewChannelManager(nil, func(channels []model.Channel) error {
 		saved = channels
+		saveCh <- struct{}{}
 		return nil
 	})
 	defer cm.cancel()
@@ -322,6 +324,7 @@ func TestOpcUa_AddDevice_PersistedViaSaveFunc(t *testing.T) {
 	assert.True(t, devices[0].Storage.Enable)
 	assert.Equal(t, "interval", devices[0].Storage.Strategy)
 
+	<-saveCh // wait for async save
 	require.Len(t, saved, 1)
 	require.Len(t, saved[0].Devices, 1)
 	assert.Equal(t, deviceID, saved[0].Devices[0].ID)
@@ -422,8 +425,10 @@ func TestOpcUa_ScanChannel_InheritsChannelURL(t *testing.T) {
 
 func TestOpcUa_AddDevice_InheritsChannelEndpoint(t *testing.T) {
 	var saved []model.Channel
+	saveCh := make(chan struct{})
 	cm := NewChannelManager(nil, func(channels []model.Channel) error {
 		saved = channels
+		saveCh <- struct{}{}
 		return nil
 	})
 	defer cm.cancel()
@@ -452,6 +457,7 @@ func TestOpcUa_AddDevice_InheritsChannelEndpoint(t *testing.T) {
 	}
 	err := cm.AddDevice(channelID, dev)
 	require.NoError(t, err)
+	<-saveCh // wait for async save
 	require.Len(t, saved, 1)
 	require.Len(t, saved[0].Devices, 1)
 	assert.Equal(t, channelURL, saved[0].Devices[0].Config["endpoint"])

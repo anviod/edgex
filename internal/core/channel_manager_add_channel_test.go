@@ -121,8 +121,10 @@ func TestChannelManager_AddChannel_NilConfig(t *testing.T) {
 
 func TestChannelManager_AddChannel_WithDevices(t *testing.T) {
 	var saved []model.Channel
+	saveCh := make(chan struct{}, 1)
 	cm := NewChannelManager(nil, func(channels []model.Channel) error {
 		saved = channels
+		saveCh <- struct{}{}
 		return nil
 	})
 	defer cm.cancel()
@@ -147,6 +149,7 @@ func TestChannelManager_AddChannel_WithDevices(t *testing.T) {
 	if err := cm.AddChannel(ch); err != nil {
 		t.Fatalf("AddChannel: %v", err)
 	}
+	<-saveCh // wait for async save
 	if len(saved) != 1 || len(saved[0].Devices) != 1 || len(saved[0].Devices[0].Points) != 1 {
 		t.Fatalf("unexpected saved state: %+v", saved)
 	}

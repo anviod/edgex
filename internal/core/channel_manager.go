@@ -2364,20 +2364,9 @@ func (cm *ChannelManager) saveChannels() error {
 	for _, c := range cm.channels {
 		channels = append(channels, *c)
 	}
-	totalPoints := 0
-	for _, c := range channels {
-		for _, d := range c.Devices {
-			totalPoints += len(d.Points)
-		}
-	}
 
 	// Save asynchronously to avoid holding cm.mu during disk I/O.
-	// The save is best-effort; failures are logged but not returned.
 	go func() {
-		zap.L().Debug("Saving channels config",
-			zap.Int("channels", len(channels)),
-			zap.Int("total_points", totalPoints),
-		)
 		if err := cm.saveFunc(channels); err != nil {
 			zap.L().Warn("Failed to save config", zap.Error(err))
 		}

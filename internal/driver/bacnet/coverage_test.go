@@ -1,4 +1,4 @@
-package bacnet
+﻿package bacnet
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	bacnetlib "github.com/anviod/bacnet"
 	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/bacnet/datalink"
 	"github.com/anviod/edgex/internal/driver"
@@ -92,7 +93,7 @@ func TestWritePoint(t *testing.T) {
 	}
 
 	d := NewBACnetDriver().(*BACnetDriver)
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) {
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) {
 		return mock, nil
 	}
 	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
@@ -189,7 +190,7 @@ func TestRecoveryLogic(t *testing.T) {
 	// Setup Driver
 	mock := &CoverageMockClient{}
 	d := NewBACnetDriver().(*BACnetDriver)
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) {
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) {
 		return mock, nil
 	}
 	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
@@ -294,7 +295,7 @@ func TestScanCoverage(t *testing.T) {
 	}
 
 	d := NewBACnetDriver().(*BACnetDriver)
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) {
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) {
 		return mock, nil
 	}
 	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
@@ -394,7 +395,7 @@ func TestReadDevicePropStr(t *testing.T) {
 	}
 
 	d := NewBACnetDriver().(*BACnetDriver)
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) {
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) {
 		return mock, nil
 	}
 	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
@@ -467,7 +468,7 @@ func TestClientMethodsCoverage(t *testing.T) {
 	}
 
 	// Create real client
-	cli, err := NewClient(&ClientBuilder{DataLink: mockDL})
+	cli, err := bacnetlib.NewClient(&bacnetlib.ClientBuilder{DataLink: mockDL})
 	if err != nil {
 		t.Fatalf("NewClient failed: %v", err)
 	}
@@ -610,7 +611,7 @@ func TestMiscUtils(t *testing.T) {
 
 func TestClientObjectsCoverage(t *testing.T) {
 	mockDL := &MockDataLink{}
-	cli, _ := NewClient(&ClientBuilder{DataLink: mockDL})
+	cli, _ := bacnetlib.NewClient(&bacnetlib.ClientBuilder{DataLink: mockDL})
 	go cli.ClientRun()
 	defer cli.Close()
 
@@ -632,7 +633,7 @@ func TestClientObjectsCoverage(t *testing.T) {
 func TestGetMetricsAndConnectionMetrics(t *testing.T) {
 	mock := &CoverageMockClient{}
 	d := NewBACnetDriver().(*BACnetDriver)
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) { return mock, nil }
 	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
 	d.Connect(context.Background())
 	defer d.Disconnect()
@@ -738,7 +739,7 @@ func TestScanObjects(t *testing.T) {
 	}
 
 	d := NewBACnetDriver().(*BACnetDriver)
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) { return mock, nil }
 	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
 	d.Connect(context.Background())
 	defer d.Disconnect()
@@ -775,7 +776,7 @@ func TestWritePointDataTypes(t *testing.T) {
 	}
 
 	d := NewBACnetDriver().(*BACnetDriver)
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) { return mock, nil }
 	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
 	d.Connect(context.Background())
 	defer d.Disconnect()
@@ -834,7 +835,7 @@ func TestObjectCopyHelper(t *testing.T) {
 
 func TestClientIsRunning(t *testing.T) {
 	mockDL := &MockDataLink{}
-	cli, err := NewClient(&ClientBuilder{DataLink: mockDL})
+	cli, err := bacnetlib.NewClient(&bacnetlib.ClientBuilder{DataLink: mockDL})
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
@@ -908,7 +909,7 @@ func TestCheckRecoveryFailurePath(t *testing.T) {
 	}
 
 	d := NewBACnetDriver().(*BACnetDriver)
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) { return mock, nil }
 	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
 	d.Connect(context.Background())
 	defer d.Disconnect()
@@ -988,7 +989,7 @@ func TestReadPointsWithSmartMockScheduler(t *testing.T) {
 	}
 
 	d := NewBACnetDriver().(*BACnetDriver)
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) { return mock, nil }
 	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
 	d.Connect(context.Background())
 	defer d.Disconnect()
@@ -1040,7 +1041,7 @@ func TestReadPointsPerDeviceWithMock(t *testing.T) {
 	}
 
 	d := NewBACnetDriver().(*BACnetDriver)
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) { return mock, nil }
 	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
 	d.Connect(context.Background())
 	defer d.Disconnect()
@@ -1073,7 +1074,7 @@ func TestReadPointsPerDeviceWithMock(t *testing.T) {
 func TestDriverHealthAndMetricsWithMock(t *testing.T) {
 	mock := &CoverageMockClient{}
 	d := NewBACnetDriver().(*BACnetDriver)
-	d.clientFactory = func(cb *ClientBuilder) (Client, error) { return mock, nil }
+	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) { return mock, nil }
 	d.Init(model.DriverConfig{ChannelID: "health", Config: map[string]any{"ip": "0.0.0.0"}})
 	d.Connect(context.Background())
 	defer d.Disconnect()

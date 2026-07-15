@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/anviod/bacnet"
+	_ "github.com/anviod/edgex/internal/driver/bacnet"
 	"github.com/anviod/edgex/internal/model"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +29,6 @@ func TestBACnet_AddDeviceFromScanPayload(t *testing.T) {
 		"interval": "10s",
 		"enable": true,
 		"config": {
-			"device_id": 2228316,
 			"bacnet_device_id": 2228316,
 			"ip": "192.168.3.106",
 			"port": 54103,
@@ -49,7 +48,7 @@ func TestBACnet_AddDeviceFromScanPayload(t *testing.T) {
 	got := cm.GetChannelDevices(channelID)
 	require.Len(t, got, 1)
 	require.Equal(t, "bacnet-2228316", got[0].ID)
-	require.Equal(t, 2228316, got[0].Config["device_id"])
+	require.Equal(t, 2228316, got[0].Config["bacnet_device_id"])
 }
 
 func TestBACnet_AddDeviceFromScanPayload_DuplicateInstance(t *testing.T) {
@@ -70,7 +69,7 @@ func TestBACnet_AddDeviceFromScanPayload_DuplicateInstance(t *testing.T) {
 		Interval: model.Duration(10 * time.Second),
 		Enable:   true,
 		Config: map[string]any{
-			"device_id": 2228316,
+			"bacnet_device_id": 2228316,
 		},
 	}
 	require.NoError(t, cm.AddDevice(channelID, existing))
@@ -81,10 +80,9 @@ func TestBACnet_AddDeviceFromScanPayload_DuplicateInstance(t *testing.T) {
 		Interval: model.Duration(10 * time.Second),
 		Enable:   true,
 		Config: map[string]any{
-			"device_id":            2228316,
-			"bacnetDeviceInstance": 2228316,
-			"ip":                   "192.168.3.106",
-			"port":                 54103,
+			"bacnet_device_id": 2228316,
+			"ip":              "192.168.3.106",
+			"port":            54103,
 		},
 	}
 	err := cm.AddDevice(channelID, scanDev)
@@ -92,7 +90,7 @@ func TestBACnet_AddDeviceFromScanPayload_DuplicateInstance(t *testing.T) {
 	require.Contains(t, err.Error(), "Instance ID 2228316 already exists")
 }
 
-func TestBACnet_AddDeviceFromScanPayload_DuplicateInstance_BacnetDeviceInstanceOnly(t *testing.T) {
+func TestBACnet_AddDeviceFromScanPayload_DuplicateInstance_BacnetDeviceID(t *testing.T) {
 	cm := NewChannelManager(nil, nil)
 	channelID := "bacnet-ch"
 	ch := &model.Channel{
@@ -110,7 +108,7 @@ func TestBACnet_AddDeviceFromScanPayload_DuplicateInstance_BacnetDeviceInstanceO
 		Interval: model.Duration(10 * time.Second),
 		Enable:   true,
 		Config: map[string]any{
-			"bacnetDeviceInstance": 2228316,
+			"bacnet_device_id": 2228316,
 		},
 	}
 	require.NoError(t, cm.AddDevice(channelID, existing))
@@ -121,8 +119,7 @@ func TestBACnet_AddDeviceFromScanPayload_DuplicateInstance_BacnetDeviceInstanceO
 		Interval: model.Duration(10 * time.Second),
 		Enable:   true,
 		Config: map[string]any{
-			"device_id":            2228316,
-			"bacnetDeviceInstance": 2228316,
+			"bacnet_device_id": 2228316,
 		},
 	}
 	err := cm.AddDevice(channelID, scanDev)
@@ -149,10 +146,9 @@ func TestBACnet_BatchAddDevicesFromScanPayload(t *testing.T) {
 			Interval: model.Duration(10 * time.Second),
 			Enable:   true,
 			Config: map[string]any{
-				"device_id":            id,
-				"bacnetDeviceInstance": id,
-				"ip":                   "192.168.3.106",
-				"port":                 47808,
+				"bacnet_device_id": id,
+				"ip":              "192.168.3.106",
+				"port":            47808,
 			},
 		}
 		require.NoError(t, cm.AddDevice(channelID, dev))
