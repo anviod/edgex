@@ -6,7 +6,6 @@ dist: ./dist
 before:
   hooks:
     - go mod tidy
-    - bash -c "sed -i 's/\\r$//' scripts/*.sh edgex.sh"
     - npm run build --prefix ./ui
 
 builds:

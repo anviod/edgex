@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/bacnet/btypes"
 )
 
 // acceptance_test.go implements tests based on "BACnet 驱动采集测试与验收标准清单.md"

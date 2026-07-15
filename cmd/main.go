@@ -292,6 +292,7 @@ func main() {
 	startDataPlane := func() {
 		go func() {
 			current := cfgManager.GetConfig()
+			var wg sync.WaitGroup
 			for _, chConfig := range current.Channels {
 				ch := chConfig
 
@@ -301,11 +302,16 @@ func main() {
 					continue
 				}
 
-				err = cm.StartChannel(ch.ID)
-				if err != nil {
-					zap.L().Error("Failed to start channel", zap.String("channel", ch.Name), zap.Error(err))
-				}
+				// 并行启动每个通道，避免 Modbus 60s cooldown 阻塞 BACnet
+				wg.Add(1)
+				go func(ch model.Channel) {
+					defer wg.Done()
+					if err := cm.StartChannel(ch.ID); err != nil {
+						zap.L().Error("Failed to start channel", zap.String("channel", ch.Name), zap.Error(err))
+					}
+				}(ch)
 			}
+			wg.Wait()
 			zap.L().Info("All channels initialization completed")
 
 			nbm.Start()

@@ -1,3 +1,5 @@
+//go:build integration
+
 package bacnet
 
 import (
@@ -7,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/edgex/internal/model"
 )
 
@@ -51,7 +53,7 @@ func (m *IsolationMockClient) ReadPropertyWithTimeout(dest btypes.Device, rp bty
 	if delay > 0 {
 		if delay > timeout {
 			time.Sleep(timeout)
-			return rp, context.DeadlineExceeded
+			return rp, fmt.Errorf("receive timed out")
 		}
 		time.Sleep(delay)
 	}
@@ -71,7 +73,7 @@ func (m *IsolationMockClient) ReadMultiPropertyWithTimeout(dev btypes.Device, rp
 	if delay > 0 {
 		if delay > timeout {
 			time.Sleep(timeout)
-			return btypes.MultiplePropertyData{}, context.DeadlineExceeded
+			return btypes.MultiplePropertyData{}, fmt.Errorf("receive timed out")
 		}
 		time.Sleep(delay)
 	}
@@ -85,6 +87,17 @@ func (m *IsolationMockClient) ReadMultiPropertyWithTimeout(dev btypes.Device, rp
 
 func (m *IsolationMockClient) WhoIs(wh *WhoIsOpts) ([]btypes.Device, error) {
 	return m.SmartMockClient.WhoIs(wh)
+}
+
+func (m *IsolationMockClient) SubscribeCOV(device btypes.Device, data btypes.SubscribeCOVData) error {
+	return nil
+}
+func (m *IsolationMockClient) CancelSubscribeCOV(device btypes.Device, processID uint32, objectID btypes.ObjectID) error {
+	return nil
+}
+
+func (m *IsolationMockClient) WaitCOVNotification(processIDFilter int64, timeout time.Duration) (btypes.COVNotification, error) {
+	return btypes.COVNotification{}, fmt.Errorf("not implemented")
 }
 
 func TestDeviceIsolation(t *testing.T) {

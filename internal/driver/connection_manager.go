@@ -281,16 +281,11 @@ func (cm *ConnectionManager) CanRetry() (canRetry bool, waitTime time.Duration) 
 		remaining := cm.coolDownUntil.Sub(time.Now())
 		if remaining <= 0 {
 			cm.state = StateRetrying
-			if cm.retryCount >= cm.maxRetries {
-				cm.state = StateDead
-				cm.enterCoolDown()
-				remaining = cm.coolDownUntil.Sub(time.Now())
-				return true, remaining
-			}
+			cm.retryCount = 0 // 重置重试计数，给新一轮连接尝试机会
 			if !tryAcquireGlobalReconnectSlot() {
 				return true, 1 * time.Second
 			}
-			return true, cm.calculateBackoff(cm.retryCount)
+			return true, 0
 		}
 		return true, remaining
 	default:
@@ -432,7 +427,8 @@ func (cm *ConnectionManager) EnsureConnected(ctx context.Context, connect Connec
 		lastErr = err
 		shouldRetry, _ := cm.RecordFailure()
 		if !shouldRetry {
-			return fmt.Errorf("[%s] connection failed, entering coolDown: %w", cm.driverName, err)
+			// 进入 coolDown，不退出循环，让 CanRetry 处理 StateDead 等待
+			continue
 		}
 	}
 }

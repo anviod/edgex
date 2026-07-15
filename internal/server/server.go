@@ -1198,7 +1198,7 @@ func (s *Server) getDevicePoints(c *fiber.Ctx) error {
 	}
 
 	// 设置API请求超时，避免长时间阻塞
-	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.Context(), 5*time.Second)
 	defer cancel()
 
 	// 使用带超时的上下文获取点位数据
@@ -1424,6 +1424,16 @@ func (s *Server) getRealtimeValues(c *fiber.Ctx) error {
 		}
 	}
 
+	// Fast path: when a specific deviceID is requested but no shadow device
+	// exists for it, return an empty map immediately instead of falling through
+	// to GetAllValues() which scans the entire runtime DB and can block if the
+	// DB is locked by a scheduler write. This keeps the endpoint under 5ms.
+	// 快速路径：指定了 deviceID 但无影子设备时，立即返回空 map，
+	// 避免 GetAllValues() 全库扫描被 DB 写锁阻塞。
+	if deviceID != "" {
+		return c.JSON(map[string]any{})
+	}
+
 	if s.storage == nil {
 		return c.Status(503).JSON(fiber.Map{"error": "storage not available"})
 	}
@@ -1437,13 +1447,10 @@ func (s *Server) getRealtimeValues(c *fiber.Ctx) error {
 		return c.JSON(vals)
 	}
 
-	// 按 ChannelID/DeviceID 过滤
+	// 按 ChannelID 过滤（deviceID 已由快速路径处理）
 	filtered := make(map[string]model.Value)
 	for k, v := range vals {
 		if channelID != "" && v.ChannelID != channelID {
-			continue
-		}
-		if deviceID != "" && v.DeviceID != deviceID {
 			continue
 		}
 		filtered[k] = v

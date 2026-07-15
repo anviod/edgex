@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
+	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/edgex/internal/model"
 )
 
@@ -38,6 +38,16 @@ func (m *MultiDeviceMockClient) WhoIs(wh *WhoIsOpts) ([]btypes.Device, error) {
 		}
 	}
 	return found, nil
+}
+
+// SubscribeCOV registers for COV notifications (stub for external lib compatibility)
+func (m *MultiDeviceMockClient) SubscribeCOV(device btypes.Device, data btypes.SubscribeCOVData) error {
+	return nil
+}
+
+// CancelSubscribeCOV cancels a COV subscription (stub for external lib compatibility)
+func (m *MultiDeviceMockClient) CancelSubscribeCOV(device btypes.Device, processID uint32, objectID btypes.ObjectID) error {
+	return nil
 }
 
 func (m *MultiDeviceMockClient) ReadProperty(dest btypes.Device, rp btypes.PropertyData) (btypes.PropertyData, error) {
@@ -215,4 +225,8 @@ func TestBACnet_MultiDevice_Scheduling(t *testing.T) {
 	if ctxCount != 2 {
 		t.Errorf("Expected 2 device contexts, got %d", ctxCount)
 	}
+}
+
+func (m *MultiDeviceMockClient) WaitCOVNotification(processIDFilter int64, timeout time.Duration) (btypes.COVNotification, error) {
+	return btypes.COVNotification{}, fmt.Errorf("not implemented")
 }

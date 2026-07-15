@@ -153,7 +153,7 @@ func startFakeENIPServer(t *testing.T) (net.Listener, string, int) {
 			default:
 				t.Errorf("unexpected command: 0x%02x", cmd)
 				return
-		}
+			}
 
 			response := make([]byte, 24+len(specificData))
 			binary.LittleEndian.PutUint16(response[0:2], cmd)

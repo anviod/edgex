@@ -3,8 +3,8 @@ package bacnet
 import (
 	"testing"
 
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes/null"
+	"github.com/anviod/bacnet/btypes"
+	"github.com/anviod/bacnet/btypes/null"
 )
 
 func TestNormalizePresentValue(t *testing.T) {

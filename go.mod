@@ -4,6 +4,7 @@ go 1.26.4
 
 require (
 	github.com/anviod/EtherCAT v1.0.3
+	github.com/anviod/bacnet v0.0.5
 	github.com/anviod/ethernet-ip v0.0.6
 	github.com/anviod/fins v0.0.0-20260623041119-337148808ff7
 	github.com/anviod/gos7 v0.0.1
@@ -28,7 +29,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/thinkgos/go-iecp5 v1.0.0
 	go.etcd.io/bbolt v1.5.0-rc.0
-	go.uber.org/zap v1.27.1
+	go.uber.org/zap v1.28.0
 	golang.org/x/net v0.50.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/time v0.14.0

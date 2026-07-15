@@ -32,6 +32,10 @@
                                 <template #icon><IconPlus /></template>
                                 添加规则
                             </a-button>
+                            <a-button type="outline" size="small" @click="openJsonImport">
+                                <template #icon><IconUpload /></template>
+                                JSON导入
+                            </a-button>
                             <a-button type="text" size="small" class="help-trigger-btn" @click="helpVisible = true">
                                 <template #icon><IconQuestionCircle /></template>
                                 帮助说明
@@ -574,6 +578,87 @@
             </template>
         </a-modal>
 
+        <!-- JSON Import Dialog -->
+        <a-modal v-model:visible="jsonImportVisible" title="JSON 导入规则" width="700px" :ok-text="jsonImportPreview.length > 0 ? `导入 ${jsonImportPreview.length} 条规则` : '导入'" @ok="executeJsonImport" :ok-button-props="{ disabled: jsonImportPreview.length === 0 }">
+            <div class="json-import-area">
+                <div class="json-import-tabs">
+                    <a-radio-group v-model="jsonImportMode" type="button" size="small">
+                        <a-radio value="paste">粘贴 JSON</a-radio>
+                        <a-radio value="file">上传文件</a-radio>
+                    </a-radio-group>
+                </div>
+
+                <div v-if="jsonImportMode === 'paste'" class="mt-3">
+                    <a-textarea
+                        v-model="jsonImportContent"
+                        placeholder='粘贴 JSON 规则内容，支持单条规则或规则数组。例如：
+[
+  {
+    "name": "温度报警",
+    "type": "threshold",
+    "enable": true,
+    "priority": 0,
+    "trigger_mode": "always",
+    "check_interval": "10s",
+    "sources": [{"channel_id": "...", "device_id": "...", "point_id": "...", "alias": "t1"}],
+    "condition": "t1 > 80",
+    "actions": [{"type": "mqtt", "topic": "alarm", "payload": "温度过高"}]
+  }
+]'
+                        :rows="12"
+                        class="code-input rect-input"
+                        @input="onJsonInputChange"
+                    />
+                </div>
+
+                <div v-else class="mt-3">
+                    <div class="json-upload-area" @dragover.prevent @drop.prevent="handleJsonFileDrop">
+                        <a-upload
+                            :auto-upload="false"
+                            :show-file-list="false"
+                            accept=".json"
+                            @change="handleJsonFileSelect"
+                            draggable
+                        >
+                            <template #upload-button>
+                                <div class="json-upload-trigger">
+                                    <IconUpload :size="32" class="json-upload-icon" />
+                                    <div class="json-upload-text">点击或拖拽 JSON 文件到此处</div>
+                                    <div class="json-upload-hint">支持 .json 文件，单条规则或规则数组</div>
+                                </div>
+                            </template>
+                        </a-upload>
+                        <div v-if="jsonFileName" class="json-upload-file-info">
+                            <IconFile class="json-file-icon" />
+                            <span>{{ jsonFileName }}</span>
+                            <a-button type="text" size="mini" status="danger" @click="clearJsonFile">移除</a-button>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="jsonImportError" class="mt-3">
+                    <a-alert type="error" :title="jsonImportError" closable @close="jsonImportError = ''" />
+                </div>
+
+                <div v-if="jsonImportPreview.length > 0" class="mt-4">
+                    <div class="json-import-preview-header">
+                        <span class="json-import-preview-title">预览 ({{ jsonImportPreview.length }} 条规则)</span>
+                        <a-button type="text" size="small" @click="clearJsonImport">清空</a-button>
+                    </div>
+                    <div class="json-import-preview-list">
+                        <div v-for="(rule, index) in jsonImportPreview" :key="index" class="json-import-preview-item">
+                            <span class="json-import-preview-index">#{{ index + 1 }}</span>
+                            <span class="json-import-preview-name">{{ rule.name || '(未命名)' }}</span>
+                            <a-tag :color="getRuleTypeTagColor(rule.type)" size="small">{{ formatRuleType(rule.type) }}</a-tag>
+                            <a-tag :color="rule.enable !== false ? 'green' : 'red'" size="small">{{ rule.enable !== false ? '启用' : '禁用' }}</a-tag>
+                            <span class="json-import-preview-source">{{ rule.sources?.length || 0 }} 个数据源</span>
+                            <span class="json-import-preview-action">{{ rule.actions?.length || 0 }} 个动作</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a-modal>
+
         <EdgeComputeHelpDrawer v-model:visible="helpVisible" />
 
         <EdgeRecordFilterModal
@@ -767,7 +852,7 @@ import {
 } from '@arco-design/web-vue'
 import {
   IconPlus, IconEdit, IconDelete, IconRefresh, IconDownload, IconCode, IconInfoCircle, IconBook, IconArrowDown, IconQuestionCircle, IconFilter,
-  IconStorage, IconHistory, IconClockCircle
+  IconStorage, IconHistory, IconClockCircle, IconUpload, IconFile
 } from '@arco-design/web-vue/es/icon'
 import ActionEditor from '@/components/ActionEditor.vue'
 import EdgeComputeHelpDrawer from '@/components/edge-compute/EdgeComputeHelpDrawer.vue'
@@ -970,6 +1055,15 @@ const toggleRuleSelection = (ruleId, checked) => {
 const dialog = ref(false)
 const helpVisible = ref(false)
 const editingRule = ref(false)
+
+// JSON Import State
+const jsonImportVisible = ref(false)
+const jsonImportMode = ref('paste')
+const jsonImportContent = ref('')
+const jsonImportPreview = ref([])
+const jsonImportError = ref('')
+const jsonFileName = ref('')
+
 // Northbound Config for Actions
 const northboundConfig = ref({ mqtt: [], http: [] })
 
@@ -1613,6 +1707,182 @@ const saveRule = async () => {
     } catch (e) {
         showMessage('保存失败: ' + e.message, 'error')
     }
+}
+
+// ── JSON Import ──
+
+const getRuleTypeTagColor = (type) => {
+    const map = { threshold: 'red', calculation: 'arcoblue', window: 'orange', state: 'green' }
+    return map[type] || 'gray'
+}
+
+// 校验单条规则 JSON 结构
+const validateJsonRule = (rule, index) => {
+    if (!rule || typeof rule !== 'object') {
+        return `第 ${index + 1} 条规则不是有效的 JSON 对象`
+    }
+    if (!rule.name || !rule.name.trim()) {
+        return `第 ${index + 1} 条规则缺少 name 字段`
+    }
+    const validTypes = ['threshold', 'calculation', 'window', 'state']
+    if (rule.type && !validTypes.includes(rule.type)) {
+        return `第 ${index + 1} 条规则 type 无效: "${rule.type}"，有效值为: ${validTypes.join(', ')}`
+    }
+    return null
+}
+
+// 解析并校验 JSON 内容
+const parseJsonRules = (raw) => {
+    if (!raw || !raw.trim()) {
+        return { error: '请输入 JSON 内容', rules: [] }
+    }
+    let parsed
+    try {
+        parsed = JSON.parse(raw)
+    } catch (e) {
+        return { error: `JSON 解析失败: ${e.message}`, rules: [] }
+    }
+
+    let rules = []
+    if (Array.isArray(parsed)) {
+        rules = parsed
+    } else if (typeof parsed === 'object' && parsed !== null) {
+        rules = [parsed]
+    } else {
+        return { error: 'JSON 格式不支持，请提供规则对象或规则数组', rules: [] }
+    }
+
+    if (rules.length === 0) {
+        return { error: '未找到任何规则数据', rules: [] }
+    }
+
+    // 校验每条规则
+    for (let i = 0; i < rules.length; i++) {
+        const err = validateJsonRule(rules[i], i)
+        if (err) {
+            return { error: err, rules: [] }
+        }
+    }
+
+    return { error: null, rules }
+}
+
+// 文本粘贴模式：内容变化时自动解析预览
+const onJsonInputChange = () => {
+    const { error, rules } = parseJsonRules(jsonImportContent.value)
+    jsonImportError.value = error || ''
+    jsonImportPreview.value = error ? [] : rules
+}
+
+// 打开 JSON 导入弹窗
+const openJsonImport = () => {
+    jsonImportVisible.value = true
+    jsonImportMode.value = 'paste'
+    jsonImportContent.value = ''
+    jsonImportPreview.value = []
+    jsonImportError.value = ''
+    jsonFileName.value = ''
+}
+
+// 清除 JSON 导入内容
+const clearJsonImport = () => {
+    jsonImportContent.value = ''
+    jsonImportPreview.value = []
+    jsonImportError.value = ''
+    jsonFileName.value = ''
+}
+
+// 文件拖拽处理
+const handleJsonFileDrop = (e) => {
+    const files = e.dataTransfer?.files
+    if (files && files.length > 0) {
+        readJsonFile(files[0])
+    }
+}
+
+// 文件选择处理 (Arco Upload @change 回调签名: (fileItemList, fileItem))
+const handleJsonFileSelect = (fileItemList, fileItem) => {
+    const item = fileItem || (Array.isArray(fileItemList) ? fileItemList[0] : null)
+    const file = item?.file || item?.originFile
+    if (file) {
+        readJsonFile(file)
+    }
+}
+
+// 读取 JSON 文件
+const readJsonFile = (file) => {
+    if (!file.name.endsWith('.json')) {
+        jsonImportError.value = '请选择 .json 文件'
+        return
+    }
+    jsonFileName.value = file.name
+    jsonImportError.value = ''
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+        jsonImportContent.value = e.target.result
+        const { error, rules } = parseJsonRules(jsonImportContent.value)
+        jsonImportError.value = error || ''
+        jsonImportPreview.value = error ? [] : rules
+    }
+    reader.onerror = () => {
+        jsonImportError.value = '文件读取失败'
+    }
+    reader.readAsText(file)
+}
+
+// 清除已选文件
+const clearJsonFile = () => {
+    jsonFileName.value = ''
+    jsonImportContent.value = ''
+    jsonImportPreview.value = []
+    jsonImportError.value = ''
+}
+
+// 执行批量导入
+const executeJsonImport = async () => {
+    if (jsonImportPreview.value.length === 0) {
+        showMessage('没有可导入的规则', 'warning')
+        return
+    }
+
+    let successCount = 0
+    let failCount = 0
+
+    for (const rule of jsonImportPreview.value) {
+        try {
+            // 填充默认值，确保规则结构完整
+            const payload = {
+                name: rule.name,
+                type: rule.type || 'threshold',
+                enable: rule.enable !== false,
+                priority: rule.priority ?? 0,
+                trigger_mode: rule.trigger_mode || 'always',
+                check_interval: rule.check_interval || '',
+                sources: rule.sources || [],
+                trigger_logic: rule.trigger_logic || 'EXPR',
+                condition: rule.condition || '',
+                expression: rule.expression || '',
+                window: rule.window || { type: 'sliding', size: '10s', aggr_func: 'avg' },
+                state: rule.state || { duration: '0s', count: 0 },
+                actions: rule.actions || []
+            }
+            await request.post('/api/edge/rules', payload)
+            successCount++
+        } catch (e) {
+            failCount++
+            console.error(`导入规则 "${rule.name}" 失败:`, e)
+        }
+    }
+
+    if (failCount === 0) {
+        showMessage(`成功导入 ${successCount} 条规则`, 'success')
+    } else {
+        showMessage(`导入完成: ${successCount} 条成功, ${failCount} 条失败`, 'warning')
+    }
+
+    jsonImportVisible.value = false
+    fetchRules()
 }
 
 const handleBatchEnable = async (status) => {

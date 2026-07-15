@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/anviod/edgex/internal/driver"
 	"github.com/anviod/edgex/internal/model"
 )
@@ -242,6 +244,9 @@ func (el *ExecutionLayer) serialOuterTimeout(task *ScanTask) time.Duration {
 func (el *ExecutionLayer) executeSerial(task *ScanTask) *ExecuteResult {
 	d := el.GetDriver(task.DeviceKey)
 	if d == nil {
+		zap.L().Warn("ExecutionLayer: driver not found for device",
+			zap.String("device_key", task.DeviceKey),
+			zap.String("protocol", task.Protocol))
 		return &ExecuteResult{Success: false, Error: ErrDriverNotFound}
 	}
 
@@ -285,6 +290,9 @@ func (el *ExecutionLayer) executeSerial(task *ScanTask) *ExecuteResult {
 func (el *ExecutionLayer) executeParallel(task *ScanTask) *ExecuteResult {
 	d := el.GetDriver(task.DeviceKey)
 	if d == nil {
+		zap.L().Warn("ExecutionLayer: driver not found for device",
+			zap.String("device_key", task.DeviceKey),
+			zap.String("protocol", task.Protocol))
 		return &ExecuteResult{Success: false, Error: ErrDriverNotFound}
 	}
 
@@ -292,8 +300,10 @@ func (el *ExecutionLayer) executeParallel(task *ScanTask) *ExecuteResult {
 		return &ExecuteResult{Success: false, Error: ErrRateLimited}
 	}
 
-	resultChan := make(chan *ExecuteResult, 1)
 	points := el.loadPoints(task)
+	points = el.filterPoints(task, points)
+
+	resultChan := make(chan *ExecuteResult, 1)
 
 	if !el.workerPool.Submit(func() {
 		defer el.backpressure.Release(task.DeviceKey)

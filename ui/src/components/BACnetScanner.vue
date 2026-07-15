@@ -161,7 +161,7 @@ const emit = defineEmits(['update:visible', 'refresh-points'])
 const deviceInstanceLabel = computed(() => {
   const config = props.deviceInfo?.config
   if (!config) return '-'
-  const id = config.device_id ?? config.bacnetDeviceInstance ?? config.InstanceID ?? config.instance_id
+  const id = config.bacnet_device_id ?? config.device_id ?? config.bacnetDeviceInstance ?? config.InstanceID ?? config.instance_id
   return id != null ? String(id) : '-'
 })
 
@@ -226,8 +226,11 @@ const handleScan = async () => {
     }
     
     // 提取设备实例ID（如果有）
+    // bacnet_device_id: BACnet 通信使用的真实设备实例 ID
     let targetDeviceId = null
-    if (props.deviceInfo?.config?.device_id) {
+    if (props.deviceInfo?.config?.bacnet_device_id) {
+      targetDeviceId = props.deviceInfo.config.bacnet_device_id
+    } else if (props.deviceInfo?.config?.device_id) {
       targetDeviceId = props.deviceInfo.config.device_id
     } else if (props.deviceInfo?.config?.instance_id) {
       targetDeviceId = props.deviceInfo.config.instance_id
@@ -243,7 +246,7 @@ const handleScan = async () => {
     }
 
     if (targetDeviceId === undefined || targetDeviceId === null || targetDeviceId === '') {
-      showMessage('无法获取设备实例ID (config.instance_id 或 device_id)', 'error')
+      showMessage('无法获取设备实例ID (config.bacnet_device_id 或 device_id)', 'error')
       return
     }
 

@@ -1239,6 +1239,8 @@ func (se *ScanEngine) GetActiveTaskCount() int {
 }
 
 func (se *ScanEngine) GetPendingTaskCount() int {
+	se.mu.RLock()
+	defer se.mu.RUnlock()
 	return len(*se.priorityQueue)
 }
 

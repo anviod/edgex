@@ -1,3 +1,5 @@
+//go:build integration
+
 package bacnet
 
 import (
@@ -8,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
-	"github.com/anviod/edgex/internal/driver/bacnet/datalink"
+	"github.com/anviod/bacnet/btypes"
+	"github.com/anviod/bacnet/datalink"
 	"github.com/anviod/edgex/internal/model"
 )
 
@@ -40,7 +42,14 @@ func (m *portTrackingMockClient) WhoIs(wh *WhoIsOpts) ([]btypes.Device, error) {
 	return m.SmartMockClient.WhoIs(wh)
 }
 
-func TestWhoIsDiscoverDevice_PrefersStandardPort(t *testing.T) {
+func (m *portTrackingMockClient) SubscribeCOV(device btypes.Device, data btypes.SubscribeCOVData) error {
+	return nil
+}
+func (m *portTrackingMockClient) CancelSubscribeCOV(device btypes.Device, processID uint32, objectID btypes.ObjectID) error {
+	return nil
+}
+
+func TestWhoIsDiscoverDevice_BroadcastPreservesPort(t *testing.T) {
 	newPort := 54321
 	addr := datalink.IPPortToAddress(net.ParseIP("192.168.3.119"), newPort)
 	mock := &portTrackingMockClient{
@@ -54,16 +63,19 @@ func TestWhoIsDiscoverDevice_PrefersStandardPort(t *testing.T) {
 	d := NewBACnetDriver().(*BACnetDriver)
 	found, ok := d.whoIsDiscoverDevice(mock, 2228319, "192.168.3.119", 49152)
 	if !ok {
-		t.Fatal("expected discovery via standard BACnet port")
+		t.Fatal("expected discovery via broadcast WhoIs")
 	}
+	// The ephemeral port must be preserved from the I-Am response,
+	// not overwritten by a unicast Destination address.
 	if devicePortFromAddr(found) != newPort {
 		t.Fatalf("expected discovered port %d, got %d", newPort, devicePortFromAddr(found))
 	}
 
+	// Verify broadcast WhoIs was used (Destination == nil, port tracked as 0)
 	mock.mu.Lock()
 	defer mock.mu.Unlock()
-	if len(mock.whoIsPorts) == 0 || mock.whoIsPorts[0] != defaultBACnetPort {
-		t.Fatalf("expected first WhoIs on port %d, got %v", defaultBACnetPort, mock.whoIsPorts)
+	if len(mock.whoIsPorts) == 0 || mock.whoIsPorts[0] != 0 {
+		t.Fatalf("expected broadcast WhoIs (port 0), got %v", mock.whoIsPorts)
 	}
 }
 
@@ -136,7 +148,7 @@ func TestReadPoints_TriggersRecoveryAfterFailures(t *testing.T) {
 		}}, nil
 	}
 	mock.ReadMultiPropertyFunc = func(dev btypes.Device, rp btypes.MultiplePropertyData) (btypes.MultiplePropertyData, error) {
-		return btypes.MultiplePropertyData{}, fmt.Errorf("read timeout")
+		return btypes.MultiplePropertyData{}, fmt.Errorf("receive timed out")
 	}
 	mock.SmartMockClient.Devices = map[int]btypes.Device{
 		2228319: {DeviceID: 2228319, Ip: "192.168.3.119", Port: 49152, Addr: *datalink.IPPortToAddress(net.ParseIP("192.168.3.119"), 49152)},
@@ -179,4 +191,8 @@ func TestReadPoints_TriggersRecoveryAfterFailures(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("expected recovery probe after repeated read failures")
 	}
+}
+
+func (m *portTrackingMockClient) WaitCOVNotification(processIDFilter int64, timeout time.Duration) (btypes.COVNotification, error) {
+	return btypes.COVNotification{}, fmt.Errorf("not implemented")
 }

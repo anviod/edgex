@@ -522,12 +522,25 @@
 
         <!-- BACnet IP Config -->
         <div v-if="dialog.form.protocol === 'bacnet-ip'" class="config-section">
-          <a-form-item field="config.ip" label="IP地址">
-            <a-input v-model="dialog.form.config.ip" placeholder="0.0.0.0 (默认)" />
-          </a-form-item>
-          <a-form-item field="config.port" label="端口">
-            <a-input-number v-model="dialog.form.config.port" :min="1" :max="65535" placeholder="47808 (默认)" />
-          </a-form-item>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="12">
+              <a-form-item field="config.interface_ip" label="本机IP (绑定)">
+                <a-input v-model="dialog.form.config.interface_ip" placeholder="自动获取" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item field="config.target_ip" label="远程目标IP">
+                <a-input v-model="dialog.form.config.target_ip" placeholder="例: 192.168.3.115" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="[24, 16]" class="field-grid">
+            <a-col :span="12">
+              <a-form-item field="config.port" label="端口">
+                <a-input-number v-model="dialog.form.config.port" :min="1" :max="65535" placeholder="47808 (默认)" />
+              </a-form-item>
+            </a-col>
+          </a-row>
           <div class="advanced-block">
             <div class="modal-section__title modal-section__title--sub">加密参数 (可选)</div>
           <a-form-item field="config.key" label="密钥">

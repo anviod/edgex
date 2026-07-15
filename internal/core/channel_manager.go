@@ -663,12 +663,20 @@ func (cm *ChannelManager) StartChannel(channelID string) error {
 		return nil
 	}
 
-	// 连接驱动
-	err := d.Connect(cm.ctx)
+	// 连接驱动 — 使用超时 context 避免 Modbus 离线设备无限阻塞
+	// 启动阶段每个通道最多等待 10s，超时后异步重连
+	connectCtx, cancel := context.WithTimeout(cm.ctx, 10*time.Second)
+	defer cancel()
+
+	err := d.Connect(connectCtx)
 	if err != nil {
 		cm.markChannelDevicesOffline(channelID)
 		zap.L().Error("Failed to connect driver for channel", zap.String("channel", ch.Name), zap.Error(err))
-		return err
+		// 调度异步重连（不阻塞启动流程）
+		if sched, ok := d.(drv.ReconnectScheduler); ok {
+			sched.ScheduleReconnect(cm.ctx, 5*time.Minute)
+		}
+		return nil
 	}
 	//zap.L().Info("Driver connected for channel", zap.String("channel", ch.Name))
 
@@ -905,6 +913,15 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 
 	cm.mu.RUnlock() // 释放 ChannelManager 锁
 
+	// Fast path: device has zero configured points — return immediately without
+	// touching the driver mutex or initiating any network I/O. This prevents
+	// UI-wide timeouts when users click into devices that have not yet been
+	// configured with points.
+	// 快速路径：设备无配置点位时立即返回，不获取驱动锁、不发起网络通信。
+	if len(pointsCopy) == 0 {
+		return []model.PointData{}, nil
+	}
+
 	// 优先从影子设备快照读取（ScanEngine 周期写入）
 	if cm.shadowCore != nil {
 		if points, ok := cm.getDevicePointsFromShadow(foundDev, slaveID, channelID); ok {
@@ -912,27 +929,35 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 		}
 	}
 
-	// 4. 互斥锁保护驱动访问
+	// 4. Prepare driver config under driverMus (fast, no I/O),
+	// then release driverMus before network I/O to avoid blocking peers.
 	if okMu {
 		mu.Lock()
-		defer mu.Unlock()
-	}
-
-	// 设置从机 ID（如果是 Modbus）
-	if slaveIDVal != nil {
-		if slaveIDUint, ok := slaveIDVal.(float64); ok {
-			d.SetSlaveID(uint8(slaveIDUint))
-		} else if slaveIDInt, ok := slaveIDVal.(int); ok {
-			d.SetSlaveID(uint8(slaveIDInt))
+		if slaveIDVal != nil {
+			if slaveIDUint, ok := slaveIDVal.(float64); ok {
+				d.SetSlaveID(uint8(slaveIDUint))
+			} else if slaveIDInt, ok := slaveIDVal.(int); ok {
+				d.SetSlaveID(uint8(slaveIDInt))
+			}
 		}
+		configCopy := buildDriverDeviceConfig(ch, foundDev.Config, map[string]any{
+			"_internal_device_id": devID,
+		})
+		d.SetDeviceConfig(configCopy)
+		mu.Unlock()
+	} else {
+		if slaveIDVal != nil {
+			if slaveIDUint, ok := slaveIDVal.(float64); ok {
+				d.SetSlaveID(uint8(slaveIDUint))
+			} else if slaveIDInt, ok := slaveIDVal.(int); ok {
+				d.SetSlaveID(uint8(slaveIDInt))
+			}
+		}
+		configCopy := buildDriverDeviceConfig(ch, foundDev.Config, map[string]any{
+			"_internal_device_id": devID,
+		})
+		d.SetDeviceConfig(configCopy)
 	}
-
-	// 设置设备配置 (BACnet 等需要 IP/Port)
-	// For BACnet, add _internal_device_id to map string device ID to BACnet instance ID
-	configCopy := buildDriverDeviceConfig(ch, foundDev.Config, map[string]any{
-		"_internal_device_id": devID,
-	})
-	d.SetDeviceConfig(configCopy)
 
 	// Ensure DeviceID is set on points for the driver
 	for i := range pointsCopy {
@@ -1298,26 +1323,28 @@ func (cm *ChannelManager) WritePoint(channelID, deviceID, pointID string, value 
 	// Ensure DeviceID is set
 	targetPoint.DeviceID = dev.ID
 
-	// 互斥锁保护驱动访问
+	// Prepare driver config under driverMus (fast, no I/O),
+	// then release driverMus before network I/O to avoid blocking peers.
+	prepareDriverConfig := func() {
+		if slaveID, ok := dev.Config["slave_id"]; ok {
+			if slaveIDUint, ok := slaveID.(float64); ok {
+				d.SetSlaveID(uint8(slaveIDUint))
+			} else if slaveIDInt, ok := slaveID.(int); ok {
+				d.SetSlaveID(uint8(slaveIDInt))
+			}
+		}
+		config := buildDriverDeviceConfig(ch, dev.Config, map[string]any{
+			"_internal_device_id": dev.ID,
+		})
+		d.SetDeviceConfig(config)
+	}
 	if okMu {
 		mu.Lock()
-		defer mu.Unlock()
+		prepareDriverConfig()
+		mu.Unlock()
+	} else {
+		prepareDriverConfig()
 	}
-
-	// 设置从机 ID（如果是 Modbus）
-	if slaveID, ok := dev.Config["slave_id"]; ok {
-		if slaveIDUint, ok := slaveID.(float64); ok {
-			d.SetSlaveID(uint8(slaveIDUint))
-		} else if slaveIDInt, ok := slaveID.(int); ok {
-			d.SetSlaveID(uint8(slaveIDInt))
-		}
-	}
-
-	// 设置设备配置
-	config := buildDriverDeviceConfig(ch, dev.Config, map[string]any{
-		"_internal_device_id": dev.ID,
-	})
-	d.SetDeviceConfig(config)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -1326,7 +1353,17 @@ func (cm *ChannelManager) WritePoint(channelID, deviceID, pointID string, value 
 		return err
 	}
 
-	cm.publishWrittenValue(channelID, deviceID, pointID, value)
+	// Extract the actual written value from the map format (e.g. {"value": 3.14, "priority": 16})
+	// used by BACnet and other protocols that support priority writes.
+	// 从 map 格式中提取实际写入值（BACnet 等协议使用 {"value": x, "priority": n} 格式），
+	// 避免将整个 map 发布到 ShadowCache 导致 UI 显示异常。
+	actualValue := value
+	if valMap, ok := value.(map[string]any); ok {
+		if v, ok := valMap["value"]; ok {
+			actualValue = v
+		}
+	}
+	cm.publishWrittenValue(channelID, deviceID, pointID, actualValue)
 	return nil
 }
 
@@ -1410,26 +1447,28 @@ func (cm *ChannelManager) ReadPoint(channelID, deviceID, pointID string) (model.
 	// Ensure DeviceID is set
 	targetPoint.DeviceID = dev.ID
 
-	// 互斥锁保护驱动访问
+	// Prepare driver config under driverMus (fast, no I/O),
+	// then release driverMus before network I/O to avoid blocking peers.
+	prepareDriverConfig := func() {
+		if slaveID, ok := dev.Config["slave_id"]; ok {
+			if slaveIDUint, ok := slaveID.(float64); ok {
+				d.SetSlaveID(uint8(slaveIDUint))
+			} else if slaveIDInt, ok := slaveID.(int); ok {
+				d.SetSlaveID(uint8(slaveIDInt))
+			}
+		}
+		config := buildDriverDeviceConfig(ch, dev.Config, map[string]any{
+			"_internal_device_id": dev.ID,
+		})
+		d.SetDeviceConfig(config)
+	}
 	if okMu {
 		mu.Lock()
-		defer mu.Unlock()
+		prepareDriverConfig()
+		mu.Unlock()
+	} else {
+		prepareDriverConfig()
 	}
-
-	// 设置从机 ID（如果是 Modbus）
-	if slaveID, ok := dev.Config["slave_id"]; ok {
-		if slaveIDUint, ok := slaveID.(float64); ok {
-			d.SetSlaveID(uint8(slaveIDUint))
-		} else if slaveIDInt, ok := slaveID.(int); ok {
-			d.SetSlaveID(uint8(slaveIDInt))
-		}
-	}
-
-	// 设置设备配置
-	config := buildDriverDeviceConfig(ch, dev.Config, map[string]any{
-		"_internal_device_id": dev.ID,
-	})
-	d.SetDeviceConfig(config)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -1478,7 +1517,6 @@ func (cm *ChannelManager) Shutdown() {
 func (cm *ChannelManager) ScanChannel(channelID string, params map[string]any) (any, error) {
 	cm.mu.RLock()
 	d, okDrv := cm.drivers[channelID]
-	mu, okMu := cm.driverMus[channelID]
 	ch, okCh := cm.channels[channelID]
 	cm.mu.RUnlock()
 
@@ -1505,6 +1543,27 @@ func (cm *ChannelManager) ScanChannel(channelID string, params map[string]any) (
 			}
 		}
 		params["existing_device_ids"] = existingIDs
+
+		// Inject interface_ip and target_ip from channel config if not already specified
+		if _, has := params["interface_ip"]; !has {
+			if ip, ok := ch.Config["interface_ip"].(string); ok && ip != "" {
+				params["interface_ip"] = ip
+			} else if ip, ok := ch.Config["ip"].(string); ok && ip != "" && ip != "0.0.0.0" {
+				params["interface_ip"] = ip
+			}
+		}
+		if _, has := params["target_ip"]; !has {
+			if tip, ok := ch.Config["target_ip"].(string); ok && tip != "" {
+				params["target_ip"] = tip
+			}
+		}
+
+		// Inject preconfigured_devices from channel config if not already specified
+		if _, has := params["preconfigured_devices"]; !has {
+			if pcd, ok := ch.Config["preconfigured_devices"]; ok && pcd != nil {
+				params["preconfigured_devices"] = pcd
+			}
+		}
 	}
 
 	if okCh && ch.Protocol == "opc-ua" {
@@ -1514,12 +1573,14 @@ func (cm *ChannelManager) ScanChannel(channelID string, params map[string]any) (
 		}
 	}
 
-	if okMu {
-		mu.Lock()
-		defer mu.Unlock()
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// Scan may take a long time; do NOT hold driverMus during Scan.
+	// Scan is a discovery operation (WhoIs/ReadProperty) that uses its own
+	// ephemeral client. Holding driverMus would block all ReadPoint/WritePoint
+	// on the same channel for up to 45 seconds.
+	// NOTE: BACnet Scan involves WhoIs broadcast (~10s) + Unicast fallback (~10s)
+	// + per-device ReadProperty Enrich (~6s/device). For 2 devices this can exceed 30s.
+	// The UI axios timeout is 45s, so we allow 45s server-side to avoid false timeouts.
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 
 	return scanner.Scan(ctx, params)
@@ -1529,7 +1590,6 @@ func (cm *ChannelManager) ScanChannel(channelID string, params map[string]any) (
 func (cm *ChannelManager) ScanDevice(channelID, deviceID string, params map[string]any) (any, error) {
 	cm.mu.RLock()
 	d, okDrv := cm.drivers[channelID]
-	mu, okMu := cm.driverMus[channelID]
 	ch, okCh := cm.channels[channelID]
 	cm.mu.RUnlock()
 
@@ -1562,15 +1622,27 @@ func (cm *ChannelManager) ScanDevice(channelID, deviceID string, params map[stri
 	// Inject protocol-specific device ID into params
 	// For BACnet, we need "device_id" (int)
 	if ch.Protocol == "bacnet-ip" {
-		// 优先使用 instance_id，其次 device_id
-		if v, ok := targetDev.Config["instance_id"]; ok {
-			params["device_id"] = v
+		// bacnet_device_id: BACnet 通信使用的真实设备实例 ID（最高优先级）
+		// 其次使用 instance_id，最后使用 device_id
+		// 同时设置 params["device_id"] 和 params["bacnet_device_id"] 确保兼容
+		var bacnetID any
+		if v, ok := targetDev.Config["bacnet_device_id"]; ok {
+			bacnetID = v
+		} else if v, ok := targetDev.Config["instance_id"]; ok {
+			bacnetID = v
 		} else if v, ok := targetDev.Config["device_id"]; ok {
-			params["device_id"] = v
+			bacnetID = v
 		}
-		// Also pass IP if available (for unicast optimization)
+		if bacnetID != nil {
+			params["device_id"] = bacnetID
+			params["bacnet_device_id"] = bacnetID
+		}
+		// Pass IP and port for direct device addressing (bypasses WhoIs broadcast)
 		if v, ok := targetDev.Config["ip"]; ok {
 			params["ip"] = v
+		}
+		if v, ok := targetDev.Config["port"]; ok {
+			params["port"] = v
 		}
 	} else if ch.Protocol == "opc-ua" {
 		merged := model.MergeOpcUaDeviceConfig(ch.Config, targetDev.Config)
@@ -1579,12 +1651,13 @@ func (cm *ChannelManager) ScanDevice(channelID, deviceID string, params map[stri
 		}
 	}
 
-	if okMu {
-		mu.Lock()
-		defer mu.Unlock()
-	}
+	// NOTE: We intentionally do NOT hold the per-channel driver mutex (mu) during
+	// ScanObjects. The scan is a read-only operation; holding the lock for up to
+	// 60s blocks all ReadPoint/WritePoint/GetDevicePoints calls on the same
+	// channel, causing UI-wide timeouts. The driver's internal mutex (d.mu)
+	// protects shared state.
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Increased timeout for object scan
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	return scanner.ScanObjects(ctx, params)
@@ -1639,6 +1712,40 @@ func (cm *ChannelManager) appendDeviceLocked(ch *model.Channel, channelID string
 
 	if _, ok := cm.drivers[channelID]; ok && ch.Enable && dev.Enable {
 		newDev := &ch.Devices[len(ch.Devices)-1]
+
+		// BACnet: notify driver of device config so it can discover the device
+		// and create the scheduler (device context). Without this, ReadPoints/WritePoint
+		// fail with "scheduler not initialized".
+		// BACnet 驱动需要 SetDeviceConfig 来发现设备并创建调度器上下文，
+		// 否则 ReadPoints/WritePoint 会因 "scheduler not initialized" 失败。
+		if ch.Protocol == "bacnet-ip" {
+			d := cm.drivers[channelID]
+			driverConfig := make(map[string]any)
+			if dev.Config != nil {
+				for k, v := range dev.Config {
+					driverConfig[k] = v
+				}
+			}
+			driverConfig["_internal_device_id"] = dev.ID
+			// Use bacnet_device_id if present; instance_id is an alias for bacnet_device_id
+			// bacnet_device_id/instance_id 用于真实设备通信，device_id 用于系统内部管理
+			if _, hasBacnetID := driverConfig["bacnet_device_id"]; !hasBacnetID {
+				if v, ok := driverConfig["instance_id"]; ok {
+					driverConfig["bacnet_device_id"] = v
+				} else {
+					parts := strings.Split(dev.ID, "-")
+					if len(parts) > 0 {
+						if id, err := strconv.Atoi(parts[len(parts)-1]); err == nil {
+							driverConfig["bacnet_device_id"] = id
+						}
+					}
+				}
+			}
+			if err := d.SetDeviceConfig(driverConfig); err != nil {
+				zap.L().Warn("BACnet SetDeviceConfig failed", zap.String("device", dev.Name), zap.Error(err))
+			}
+		}
+
 		if err := cm.registerDeviceToScanEngine(ch, newDev); err != nil {
 			zap.L().Error("Failed to register device to ScanEngine", zap.String("device", dev.Name), zap.Error(err))
 		} else {
@@ -1745,6 +1852,12 @@ func (cm *ChannelManager) BatchAddModbusSlaves(channelID string, slaveStart, sla
 		fc = regType.FunctionCode()
 	}
 
+	// Collect devices to register after the loop (avoid per-device lock nesting inside cm.mu write lock).
+	type pendingReg struct {
+		dev *model.Device
+	}
+	var pendingRegs []pendingReg
+
 	for slave := slaveStart; slave <= slaveEnd; slave++ {
 		devID := fmt.Sprintf("modbus-slave-%d", slave)
 		if _, exists := existingID[devID]; exists {
@@ -1781,11 +1894,7 @@ func (cm *ChannelManager) BatchAddModbusSlaves(channelID string, slaveStart, sla
 		cm.tagRegistry.RegisterFromDevice(ch.ID, newDev)
 
 		if _, ok := cm.drivers[channelID]; ok && ch.Enable && dev.Enable {
-			if err := cm.registerDeviceToScanEngine(ch, newDev); err != nil {
-				zap.L().Error("Failed to register device to ScanEngine",
-					zap.String("device", dev.Name), zap.Error(err))
-				result.Errors = append(result.Errors, fmt.Sprintf("slave %d register: %v", slave, err))
-			}
+			pendingRegs = append(pendingRegs, pendingReg{dev: newDev})
 		}
 
 		result.Created = append(result.Created, dev)
@@ -1797,16 +1906,43 @@ func (cm *ChannelManager) BatchAddModbusSlaves(channelID string, slaveStart, sla
 		return result, fmt.Errorf("%s", result.Errors[0])
 	}
 
+	var saveErr error
 	if err := cm.saveChannels(); err != nil {
-		return result, err
+		saveErr = err
 	}
 
-	if shouldActivate {
-		cm.scanEngineAdapter.Start()
-		cm.tryConnectChannel(channelID)
+	// Register protocol once, then batch-register all pending devices.
+	// Registration holds ScanEngineAdapter.mu/ScanEngine/ExecutionLayer locks
+	// (nested inside cm.mu write lock — acceptable since these are short in-memory ops).
+	// The expensive TCP connect (tryConnectChannel) is deferred to a goroutine
+	// that runs AFTER cm.mu is released via defer.
+	registeredDevices := make([]*model.Device, 0, len(pendingRegs))
+	if len(pendingRegs) > 0 {
+		cm.registerProtocolToScanEngine(ch.Protocol)
+		for _, pr := range pendingRegs {
+			if err := cm.registerDeviceToScanEngine(ch, pr.dev); err != nil {
+				zap.L().Error("Failed to register device to ScanEngine",
+					zap.String("device", pr.dev.Name), zap.Error(err))
+				result.Errors = append(result.Errors, fmt.Sprintf("device %s register: %v", pr.dev.Name, err))
+			} else {
+				registeredDevices = append(registeredDevices, pr.dev)
+			}
+		}
 	}
 
 	cm.notifyTopologyChange()
+
+	// tryConnectChannel performs synchronous TCP connect with 10s timeout —
+	// launch as goroutine so it runs AFTER cm.mu write lock is released via defer.
+	if shouldActivate && len(registeredDevices) > 0 {
+		cm.scanEngineAdapter.Start()
+		cid := channelID
+		go cm.tryConnectChannel(cid)
+	}
+
+	if saveErr != nil {
+		return result, saveErr
+	}
 	return result, nil
 }
 
@@ -1878,20 +2014,26 @@ func (cm *ChannelManager) AddPoints(channelID, deviceID string, points []model.P
 
 	dev := &ch.Devices[idx]
 
-	// 预检查：ID 冲突 & 校验
+	// Build existing ID set for O(N+M) conflict detection instead of O(N*M) nested loop.
+	existingIDs := make(map[string]struct{}, len(dev.Points))
+	for i := range dev.Points {
+		existingIDs[dev.Points[i].ID] = struct{}{}
+	}
+
+	// Pre-check: ID conflict & validate
 	for i := range points {
 		if err := model.EnsurePointID(&points[i]); err != nil {
 			return err
 		}
 
-		// ID 冲突检测
-		for _, existing := range dev.Points {
-			if existing.ID == points[i].ID {
-				return fmt.Errorf("point %s already exists", points[i].ID)
-			}
+		if _, exists := existingIDs[points[i].ID]; exists {
+			return fmt.Errorf("point %s already exists", points[i].ID)
 		}
 
-		// 协议级校验
+		// Mark as seen to catch duplicates within the same batch
+		existingIDs[points[i].ID] = struct{}{}
+
+		// Protocol-level validation
 		if err := cm.validatePoint(ch, &points[i]); err != nil {
 			return err
 		}
@@ -2122,6 +2264,16 @@ func (cm *ChannelManager) UpdateDevice(channelID string, dev *model.Device) erro
 	// 格式化配置
 	sanitizeDeviceConfig(dev.Config)
 
+	// Preserve points and storage from existing device — PUT device update
+	// only modifies device-level fields (name, enable, interval, config),
+	// not points or storage which are managed via separate API endpoints.
+	// 保留已有点位和存储配置 — 设备 PUT 更新仅修改设备级字段
+	//（名称、启用、间隔、配置），点位和存储通过独立 API 管理。
+	dev.Points = oldDev.Points
+	if dev.Storage.Enable == false && oldDev.Storage.Enable {
+		dev.Storage = oldDev.Storage
+	}
+
 	// 替换
 	ch.Devices[idx] = *dev
 
@@ -2200,45 +2352,56 @@ func (cm *ChannelManager) RemoveDevices(channelID string, deviceIDs []string) er
 	return cm.saveChannels()
 }
 
-// saveChannels 辅助方法：保存所有通道配置
+// saveChannels 辅助方法：保存所有通道配置。
+// NOTE: Caller must hold cm.mu.Lock. This method copies the channel data
+// and delegates to saveFunc in a goroutine so the lock is not held during I/O.
 func (cm *ChannelManager) saveChannels() error {
-	if cm.saveFunc != nil {
-		channels := make([]model.Channel, 0, len(cm.channels))
-		for _, c := range cm.channels {
-			channels = append(channels, *c)
-		}
-		// Debug: log format/word_order for points being saved to help troubleshoot persistence issues
-		for _, c := range channels {
-			for _, d := range c.Devices {
-				for _, p := range d.Points {
-					zap.L().Debug("Saving point config",
-						zap.String("channel", c.ID),
-						zap.String("device", d.ID),
-						zap.String("point", p.ID),
-						zap.String("format", p.Format),
-						zap.String("word_order", p.WordOrder),
-					)
-				}
-			}
-		}
-		if err := cm.saveFunc(channels); err != nil {
-			zap.L().Warn("Failed to save config", zap.Error(err))
-			return err
+	if cm.saveFunc == nil {
+		return nil
+	}
+	// Copy channel data under caller's lock
+	channels := make([]model.Channel, 0, len(cm.channels))
+	for _, c := range cm.channels {
+		channels = append(channels, *c)
+	}
+	totalPoints := 0
+	for _, c := range channels {
+		for _, d := range c.Devices {
+			totalPoints += len(d.Points)
 		}
 	}
+
+	// Save asynchronously to avoid holding cm.mu during disk I/O.
+	// The save is best-effort; failures are logged but not returned.
+	go func() {
+		zap.L().Debug("Saving channels config",
+			zap.Int("channels", len(channels)),
+			zap.Int("total_points", totalPoints),
+		)
+		if err := cm.saveFunc(channels); err != nil {
+			zap.L().Warn("Failed to save config", zap.Error(err))
+		}
+	}()
 	return nil
 }
 
-// getDeviceID Helper to extract BACnet device instance ID from config.
+// getDeviceID extracts the BACnet device instance ID used for communication.
+// Only bacnet_device_id is used for BACnet communication.
+// device_id is the system management UUID and must NOT be used for communication.
 func getDeviceID(config map[string]any) (int, bool) {
 	if config == nil {
 		return 0, false
 	}
-	for _, key := range []string{"device_id", "bacnetDeviceInstance", "instance_id", "InstanceID"} {
-		if v, ok := config[key]; ok {
-			if id, ok := coerceConfigInt(v); ok {
-				return id, true
-			}
+	// Primary: bacnet_device_id — the authoritative BACnet instance ID for communication
+	if v, ok := config["bacnet_device_id"]; ok {
+		if id, ok := coerceConfigInt(v); ok {
+			return id, true
+		}
+	}
+	// Fallback: instance_id — alias for bacnet_device_id (backward compatibility)
+	if v, ok := config["instance_id"]; ok {
+		if id, ok := coerceConfigInt(v); ok {
+			return id, true
 		}
 	}
 	return 0, false
@@ -2296,16 +2459,10 @@ func sanitizeDeviceConfig(config map[string]any) {
 	if config == nil {
 		return
 	}
-	// 处理 device_id (防止 float64 科学计数法保存)
-	if val, ok := config["device_id"]; ok {
+	// 处理 bacnet_device_id (防止 float64 科学计数法保存)
+	if val, ok := config["bacnet_device_id"]; ok {
 		if id, ok := coerceConfigInt(val); ok {
-			config["device_id"] = id
-		}
-	}
-	// 处理 bacnetDeviceInstance
-	if val, ok := config["bacnetDeviceInstance"]; ok {
-		if id, ok := coerceConfigInt(val); ok {
-			config["bacnetDeviceInstance"] = id
+			config["bacnet_device_id"] = id
 		}
 	}
 	// 处理 network_number

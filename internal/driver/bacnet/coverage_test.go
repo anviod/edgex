@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/anviod/bacnet/btypes"
+	"github.com/anviod/bacnet/datalink"
 	"github.com/anviod/edgex/internal/driver"
-	"github.com/anviod/edgex/internal/driver/bacnet/btypes"
-	"github.com/anviod/edgex/internal/driver/bacnet/datalink"
 	"github.com/anviod/edgex/internal/model"
 )
 
@@ -36,6 +36,13 @@ func (m *CoverageMockClient) ReadProperty(dest btypes.Device, rp btypes.Property
 		return m.ReadPropertyFunc(dest, rp)
 	}
 	return m.SmartMockClient.ReadProperty(dest, rp)
+}
+
+func (m *CoverageMockClient) ReadPropertyWithTimeout(dest btypes.Device, rp btypes.PropertyData, timeout time.Duration) (btypes.PropertyData, error) {
+	if m.ReadPropertyFunc != nil {
+		return m.ReadPropertyFunc(dest, rp)
+	}
+	return m.SmartMockClient.ReadPropertyWithTimeout(dest, rp, timeout)
 }
 
 func (m *CoverageMockClient) ReadMultiProperty(dev btypes.Device, rp btypes.MultiplePropertyData) (btypes.MultiplePropertyData, error) {

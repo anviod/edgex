@@ -215,7 +215,7 @@ func (t *ModbusTransport) IsReconnectExhausted() bool {
 	return t.connMgr.GetState() == StateDead
 }
 
-func (t *ModbusTransport) scheduleReconnect() {
+func (t *ModbusTransport) ScheduleReconnect() {
 	timeout := t.timeout * time.Duration(t.maxRetries)
 	if timeout <= 0 {
 		timeout = 30 * time.Second
@@ -258,7 +258,7 @@ func (t *ModbusTransport) ProbeConnection() {
 	if err != nil {
 		t.RecordFailure(err)
 		if t.collectFailCount.Load() >= t.maxFailCount {
-			t.scheduleReconnect()
+			t.ScheduleReconnect()
 		}
 	} else {
 		t.RecordSuccess()

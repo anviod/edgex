@@ -1188,6 +1188,133 @@
   word-break: break-word;
 }
 
+/* ── JSON Import Dialog ── */
+
+.json-import-area {
+  display: flex;
+  flex-direction: column;
+}
+
+.json-import-tabs {
+  display: flex;
+  justify-content: center;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.json-import-area .code-input {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.json-upload-area {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  text-align: center;
+  transition: border-color 0.2s;
+  background: var(--surface-1);
+}
+
+.json-upload-area:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.json-upload-trigger {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.json-upload-icon {
+  color: var(--text-tertiary);
+}
+
+.json-upload-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.json-upload-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.json-upload-file-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.json-file-icon {
+  color: var(--primary);
+  font-size: 16px;
+}
+
+.json-import-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.json-import-preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.json-import-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.json-import-preview-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.json-import-preview-index {
+  color: var(--text-tertiary);
+  font-weight: 600;
+  min-width: 28px;
+}
+
+.json-import-preview-name {
+  flex: 1;
+  color: var(--text-primary);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.json-import-preview-source,
+.json-import-preview-action {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .edge-scene-detail code {
   font-size: 12px;
   word-break: break-all;
