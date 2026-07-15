@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	drv "github.com/anviod/edgex/internal/driver"
 	bacnetlib "github.com/anviod/bacnet"
 	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/bacnet/btypes/null"
 	"github.com/anviod/bacnet/datalink"
+	drv "github.com/anviod/edgex/internal/driver"
 	"github.com/anviod/edgex/internal/model"
 
 	"go.uber.org/zap"
@@ -467,6 +467,12 @@ func (d *BACnetDriver) scheduleDeviceRecovery(deviceID int) {
 		return
 	}
 
+	// 隔离期内不重复触发恢复 / Skip recovery while device is in isolation
+	if time.Now().Before(devCtx.IsolationUntil) {
+		d.mu.Unlock()
+		return
+	}
+
 	devCtx.LastDiscovery = time.Now()
 	client := d.client
 	currentIP := devCtx.Config.IP
@@ -492,9 +498,10 @@ func (d *BACnetDriver) scheduleDeviceRecovery(deviceID int) {
 			return nil
 		}
 
-		zap.L().Warn("BACnet auto-recovery failed, extending isolation", zap.Int("device_id", deviceID))
+		zap.L().Warn("BACnet auto-recovery failed, entering isolation", zap.Int("device_id", deviceID))
 		d.mu.Lock()
-		if devCtx, ok := d.deviceContexts[deviceID]; ok && devCtx.State == DeviceStateIsolated {
+		if devCtx, ok := d.deviceContexts[deviceID]; ok {
+			devCtx.State = DeviceStateIsolated
 			backoff := d.calculateBackoff(devCtx.IsolationCount + 1)
 			jitter := time.Duration(rand.Intn(5000)) * time.Millisecond
 			totalBackoff := backoff + jitter
@@ -503,7 +510,7 @@ func (d *BACnetDriver) scheduleDeviceRecovery(deviceID int) {
 			}
 			devCtx.IsolationUntil = time.Now().Add(totalBackoff)
 			devCtx.IsolationCount++
-			zap.L().Warn("BACnet isolation extended", zap.Int("device_id", deviceID), zap.Duration("backoff", totalBackoff), zap.Int("isolation_count", devCtx.IsolationCount))
+			zap.L().Warn("BACnet isolation set", zap.Int("device_id", deviceID), zap.Duration("backoff", totalBackoff), zap.Int("isolation_count", devCtx.IsolationCount))
 		}
 		d.mu.Unlock()
 		return fmt.Errorf("bacnet probe failed for device %d", deviceID)

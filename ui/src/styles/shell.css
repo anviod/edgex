@@ -199,8 +199,11 @@ body {
 }
 
 .status-text {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .version-info {
@@ -226,7 +229,6 @@ body {
 .version-value {
   font-size: 10px;
   color: var(--text-secondary);
-  max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
