@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -78,6 +79,17 @@ type PointRecord struct {
 
 func objectTypeName(t btypes.ObjectType) string {
 	return t.String()
+}
+
+func isPollableType(t btypes.ObjectType) bool {
+	switch t {
+	case btypes.AnalogInput, btypes.AnalogOutput, btypes.AnalogValue,
+		btypes.BinaryInput, btypes.BinaryOutput, btypes.BinaryValue,
+		btypes.MultiStateInput, btypes.MultiStateOutput, btypes.MultiStateValue:
+		return true
+	default:
+		return false
+	}
 }
 
 func isWritableType(t btypes.ObjectType) bool {
@@ -346,6 +358,14 @@ func TestBACnetDriver_FullWorkflow(t *testing.T) {
 	t.Log("  Phase 5: Real-time Polling (3 rounds)")
 	t.Log("═══════════════════════════════════════════════════")
 
+	// Build pollable point list (Device/CharacterString don't support PresentValue)
+	var pollablePoints []PointRecord
+	for _, pt := range allPoints {
+		if isPollableType(pt.ObjType) {
+			pollablePoints = append(pollablePoints, pt)
+		}
+	}
+
 	const pollRounds = 3
 	pollSuccess := 0
 	pollChanges := 0
@@ -354,11 +374,11 @@ func TestBACnetDriver_FullWorkflow(t *testing.T) {
 	roundValues := make([]map[string]float64, pollRounds)
 
 	for round := 0; round < pollRounds; round++ {
-		t.Logf("[Phase 5] Round %d/%d — reading all points...", round+1, pollRounds)
+		t.Logf("[Phase 5] Round %d/%d — reading %d pollable points...", round+1, pollRounds, len(pollablePoints))
 		roundValues[round] = make(map[string]float64)
 		roundOK := 0
 
-		for _, pt := range allPoints {
+		for _, pt := range pollablePoints {
 			rec, ok := deviceRecords[pt.DeviceID]
 			if !ok {
 				continue
@@ -391,7 +411,7 @@ func TestBACnetDriver_FullWorkflow(t *testing.T) {
 	}
 
 	// Detect changes between rounds
-	for _, pt := range allPoints {
+	for _, pt := range pollablePoints {
 		key := fmt.Sprintf("%d:%s:%d", pt.DeviceID, objectTypeName(pt.ObjType), pt.Instance)
 		for round := 1; round < pollRounds; round++ {
 			v1, ok1 := roundValues[round-1][key]
@@ -404,9 +424,9 @@ func TestBACnetDriver_FullWorkflow(t *testing.T) {
 		}
 	}
 
-	if pollSuccess < totalRegistered*pollRounds {
-		t.Errorf("Phase 5: not all points read in all rounds (got %d, expected %d)",
-			pollSuccess, totalRegistered*pollRounds)
+	if pollSuccess < len(pollablePoints)*pollRounds {
+		t.Errorf("Phase 5: not all pollable points read in all rounds (got %d, expected %d)",
+			pollSuccess, len(pollablePoints)*pollRounds)
 	}
 	t.Logf("Phase 5 result: %d points read across %d rounds, %d points with value changes",
 		pollSuccess, pollRounds, pollChanges)
@@ -429,23 +449,29 @@ func TestBACnetDriver_FullWorkflow(t *testing.T) {
 		}
 
 		// Parse the object key (e.g. "AnalogValue:2")
-		var objType btypes.ObjectType
-		var objInst btypes.ObjectInstance
-		n, _ := fmt.Sscanf(wt.ObjectKey, "%*s:%d", &objInst)
-		if n != 1 {
+		parts := strings.SplitN(wt.ObjectKey, ":", 2)
+		if len(parts) != 2 {
 			t.Errorf("[Phase 6] Invalid object key format: %s", wt.ObjectKey)
 			continue
 		}
+		var objType btypes.ObjectType
+		objInst := btypes.ObjectInstance(0)
+		if _, err := fmt.Sscanf(parts[1], "%d", &objInst); err != nil {
+			t.Errorf("[Phase 6] Invalid instance in key: %s", wt.ObjectKey)
+			continue
+		}
 		// Determine type from string prefix
-		switch {
-		case len(wt.ObjectKey) >= len("AnalogValue") && wt.ObjectKey[:len("AnalogValue")] == "AnalogValue":
+		switch parts[0] {
+		case "AnalogValue":
 			objType = btypes.AnalogValue
-		case len(wt.ObjectKey) >= len("BinaryValue") && wt.ObjectKey[:len("BinaryValue")] == "BinaryValue":
+		case "BinaryValue":
 			objType = btypes.BinaryValue
-		case len(wt.ObjectKey) >= len("AnalogOutput") && wt.ObjectKey[:len("AnalogOutput")] == "AnalogOutput":
+		case "AnalogOutput":
 			objType = btypes.AnalogOutput
-		case len(wt.ObjectKey) >= len("BinaryOutput") && wt.ObjectKey[:len("BinaryOutput")] == "BinaryOutput":
+		case "BinaryOutput":
 			objType = btypes.BinaryOutput
+		case "MultiStateValue":
+			objType = btypes.MultiStateValue
 		default:
 			t.Errorf("[Phase 6] Unknown object type in key: %s", wt.ObjectKey)
 			continue
@@ -573,7 +599,7 @@ func TestBACnetDriver_FullWorkflow(t *testing.T) {
 	t.Logf("  Phase 4 点位注册: PASS %d 个点位", totalRegistered)
 
 	p5Status := "PASS"
-	if pollSuccess < totalRegistered*pollRounds {
+	if pollSuccess < len(pollablePoints)*pollRounds {
 		p5Status = "FAIL"
 	}
 	t.Logf("  Phase 5 实时轮询: %s %d 个点位中有 %d 个变化", statusIcon(p5Status == "PASS"), totalRegistered, pollChanges)

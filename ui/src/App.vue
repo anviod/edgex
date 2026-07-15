@@ -48,17 +48,10 @@
       <div class="sidebar-footer">
         <div v-if="!drawerRail" class="sidebar-status">
           <span class="status-indicator"></span>
-          <span class="status-text">{{ systemVersion }}</span>
+          <span class="status-text">已连接</span>
         </div>
         <div v-if="!drawerRail" class="version-info">
-          <div class="version-row">
-            <span class="version-label">Build</span>
-            <span class="version-value">{{ buildTime || 'unknown' }}</span>
-          </div>
-          <div class="version-row">
-            <span class="version-label">Commit</span>
-            <span class="version-value mono">{{ commitID || 'unknown' }}</span>
-          </div>
+          <span class="version-value">{{ systemVersion }}</span>
         </div>
         <button class="collapse-btn" @click="drawerRail = !drawerRail">
           <icon-arrow-left v-if="!drawerRail" :size="14" />
@@ -207,6 +200,10 @@ const fetchSystemInfo = async () => {
       systemVersion.value = `v${res.data.softVer || 'dev'}`
       buildTime.value = res.data.buildTime || ''
       commitID.value = res.data.commitID || ''
+      // Merge version info into a single line
+      if (buildTime.value || commitID.value) {
+        systemVersion.value += ` | ${buildTime.value.split('T')[0]} | ${commitID.value.slice(0, 7)}`
+      }
     }
   } catch (e) {
     console.error('获取系统信息失败:', e)
