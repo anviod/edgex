@@ -189,6 +189,7 @@ func TestScenario_BackoffUpperBound(t *testing.T) {
 }
 
 func TestScenario_RecoveryAfterCoolDown(t *testing.T) {
+	t.Skip("skips 2-minute Dead cooldown; covered by driver.TestConnectionManager_CanRetryAllStates/DeadAfterCoolDownExpires")
 	cm := driver.NewConnectionManager("opcua")
 	defer cm.Close()
 	cm.SetMaxRetries(3)

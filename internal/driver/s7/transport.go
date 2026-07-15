@@ -301,110 +301,106 @@ func (t *S7Transport) parseConfig() {
 	}
 }
 
-// Connect 建立S7 TCP连接
+// Connect 建立S7 TCP连接。拨号与退避在 Transport.mu 外执行，避免拖慢整通道。
 func (t *S7Transport) Connect(ctx context.Context) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	if t.connected.Load() {
 		return nil
 	}
-
 	if t.ip == "" {
 		return fmt.Errorf("S7 transport: IP address not configured")
 	}
 
-	addr := fmt.Sprintf("%s:%d", t.ip, t.port)
-	t.remoteAddr = addr
-
 	if t.connMgr != nil {
-		t.connMgr.SetState(StateConnecting)
+		return t.connMgr.EnsureConnected(ctx, func(ctx context.Context) error {
+			return t.connectOnce(ctx)
+		})
 	}
 
 	var lastErr error
-	attempt := 0
-
-	for {
+	for attempt := 0; attempt <= t.maxRetries; attempt++ {
 		if attempt > 0 {
-			if t.connMgr != nil {
-				canRetry, wait := t.connMgr.CanRetry()
-				if !canRetry {
-					return fmt.Errorf("S7 transport: connection retry limit exceeded")
-				}
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-time.After(wait):
-				}
-				zap.L().Info("[S7] Retrying connection",
-					zap.Int("attempt", attempt),
-					zap.Duration("backoff", wait),
-					zap.String("addr", addr),
-				)
-			} else {
-				wait := t.calculateBackoff(attempt)
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-time.After(wait):
-				}
+			wait := t.calculateBackoff(attempt)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(wait):
 			}
 		}
-
-		handler := t.handlerFactory(addr, t.rack, t.slot, t.connType)
-		handler.SetTimeout(t.timeout)
-		handler.SetIdleTimeout(t.collectCycle * 2)
-
-		if err := handler.Connect(); err != nil {
+		if err := t.connectOnce(ctx); err != nil {
 			lastErr = err
-			zap.L().Warn("[S7] Connection failed",
-				zap.Error(err),
-				zap.Int("attempt", attempt),
-				zap.String("addr", addr),
-				zap.String("plcType", t.plcType),
-			)
-			handler.Close()
-
-			if t.connMgr != nil {
-				shouldRetry, _ := t.connMgr.RecordFailure()
-				if !shouldRetry {
-					return fmt.Errorf("S7 transport: connection failed, entering coolDown state: %w", lastErr)
-				}
-			}
-
-			attempt++
-			if t.connMgr == nil && attempt > t.maxRetries {
-				return fmt.Errorf("S7 transport: connection failed after %d attempts: %w", t.maxRetries+1, lastErr)
-			}
 			continue
 		}
-
-		t.handler = handler
-		t.client = t.clientFactory(handler)
-		t.connected.Store(true)
-		t.connectTime = time.Now()
-		t.reconnectCount.Add(1)
-		t.collectFailCount.Store(0)
-
-		t.localAddr = t.getLocalAddr()
-
-		if t.connMgr != nil {
-			t.connMgr.RecordSuccess()
-		}
-
-		zap.L().Info("[S7] TCP connection established",
-			zap.String("addr", addr),
-			zap.Int("rack", t.rack),
-			zap.Int("slot", t.slot),
-			zap.Int("connType", t.connType),
-			zap.Duration("timeout", t.timeout),
-			zap.String("plcType", t.plcType),
-			zap.Int("maxFailCount", int(t.maxFailCount)),
-			zap.Duration("collectCycle", t.collectCycle),
-		)
-
 		return nil
 	}
+	return fmt.Errorf("S7 transport: connection failed after %d attempts: %w", t.maxRetries+1, lastErr)
+}
+
+func (t *S7Transport) connectOnce(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if t.connected.Load() {
+		return nil
+	}
+
+	addr := fmt.Sprintf("%s:%d", t.ip, t.port)
+	handler := t.handlerFactory(addr, t.rack, t.slot, t.connType)
+	handler.SetTimeout(t.timeout)
+	handler.SetIdleTimeout(t.collectCycle * 2)
+
+	if err := handler.Connect(); err != nil {
+		zap.L().Warn("[S7] Connection failed",
+			zap.Error(err),
+			zap.String("addr", addr),
+			zap.String("plcType", t.plcType),
+		)
+		handler.Close()
+		return err
+	}
+
+	client := t.clientFactory(handler)
+
+	t.mu.Lock()
+	if t.connected.Load() {
+		t.mu.Unlock()
+		handler.Close()
+		return nil
+	}
+	if t.handler != nil {
+		t.handler.Close()
+	}
+	t.handler = handler
+	t.client = client
+	t.connected.Store(true)
+	t.connectTime = time.Now()
+	t.reconnectCount.Add(1)
+	t.collectFailCount.Store(0)
+	t.remoteAddr = addr
+	t.localAddr = t.getLocalAddr()
+	t.mu.Unlock()
+
+	zap.L().Info("[S7] TCP connection established",
+		zap.String("addr", addr),
+		zap.Int("rack", t.rack),
+		zap.Int("slot", t.slot),
+		zap.Int("connType", t.connType),
+		zap.Duration("timeout", t.timeout),
+		zap.String("plcType", t.plcType),
+	)
+	return nil
+}
+
+func (t *S7Transport) scheduleReconnect() {
+	if t.connMgr == nil {
+		return
+	}
+	timeout := t.timeout * time.Duration(t.maxRetries+1)
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	t.connMgr.ScheduleReconnect(context.Background(), timeout, func(ctx context.Context) error {
+		return t.connectOnce(ctx)
+	})
 }
 
 // calculateBackoff 计算指数退避时间
@@ -561,9 +557,14 @@ func (t *S7Transport) getLocalAddr() string {
 	return ""
 }
 
-// withRetry 带重试的操作执行
+// withRetry 带重试的操作执行。链路级错误只异步重连，禁止在热路径同步 dial。
 func (t *S7Transport) withRetry(ctx context.Context, fn func(client gos7.Client) error) error {
 	var lastErr error
+
+	if !t.connected.Load() {
+		t.scheduleReconnect()
+		return fmt.Errorf("S7: not connected")
+	}
 
 	for i := 0; i <= t.maxRetries; i++ {
 		if i > 0 {
@@ -573,12 +574,9 @@ func (t *S7Transport) withRetry(ctx context.Context, fn func(client gos7.Client)
 				return ctx.Err()
 			case <-time.After(wait):
 			}
-		}
-
-		if !t.connected.Load() {
-			if err := t.Connect(ctx); err != nil {
-				lastErr = err
-				continue
+			if !t.connected.Load() {
+				t.scheduleReconnect()
+				return fmt.Errorf("S7: not connected")
 			}
 		}
 
@@ -588,7 +586,8 @@ func (t *S7Transport) withRetry(ctx context.Context, fn func(client gos7.Client)
 
 		if client == nil {
 			lastErr = fmt.Errorf("S7 client is nil")
-			continue
+			t.scheduleReconnect()
+			break
 		}
 
 		err := fn(client)
@@ -602,13 +601,15 @@ func (t *S7Transport) withRetry(ctx context.Context, fn func(client gos7.Client)
 
 		isNetworkError := containsAny(errMsg, "timeout", "connection", "broken pipe", "reset", "eof")
 		if isNetworkError {
-			zap.L().Warn("[S7] Network error",
+			zap.L().Warn("[S7] Network error — async reconnect",
 				zap.Error(err),
 				zap.Int("attempt", i),
 				zap.String("remoteAddr", t.remoteAddr),
-				zap.String("localAddr", t.localAddr),
 			)
 			t.RecordFailure(err)
+			_ = t.Disconnect()
+			t.scheduleReconnect()
+			break
 		}
 	}
 

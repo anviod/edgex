@@ -462,3 +462,12 @@ func (d *ModbusDriver) calculateQualityScore() int {
 func (d *ModbusDriver) GetConnectionController() *core.ConnectionController {
 	return d.connController
 }
+
+// BindLinkMutex injects channelMu into ConnectionManager for shared-link reconnect.
+func (d *ModbusDriver) BindLinkMutex(mu *sync.Mutex) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.transport != nil && d.transport.connMgr != nil {
+		d.transport.connMgr.SetLinkMutex(mu)
+	}
+}

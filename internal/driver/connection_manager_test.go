@@ -182,8 +182,9 @@ func TestConnectionManager_CanRetryAllStates(t *testing.T) {
 		if !can {
 			t.Fatal("expected canRetry=true after coolDown expires")
 		}
-		if wait <= 0 {
-			t.Fatalf("expected positive backoff after coolDown, got %v", wait)
+		// After coolDown, retryCount is reset so the next attempt is immediate (wait=0).
+		if wait != 0 {
+			t.Fatalf("expected wait=0 after coolDown expires (fresh retry window), got %v", wait)
 		}
 		if cm.GetState() != StateRetrying {
 			t.Fatalf("state = %v, want Retrying after coolDown", cm.GetState())

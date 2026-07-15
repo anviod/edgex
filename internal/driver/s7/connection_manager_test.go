@@ -252,6 +252,8 @@ func TestGetStatus(t *testing.T) {
 }
 
 func TestCanRetry_CoolDownExpired(t *testing.T) {
+	t.Skip("skips 2-minute Dead cooldown sleep; covered by driver.TestConnectionManager_CanRetryAllStates/DeadAfterCoolDownExpires")
+
 	cm := driver.NewConnectionManager("s7-1200")
 	defer cm.Close()
 

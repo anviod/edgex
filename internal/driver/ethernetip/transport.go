@@ -128,18 +128,14 @@ func (t *ENIPTransport) parseConfig() {
 }
 
 func (t *ENIPTransport) Connect(ctx context.Context) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	if t.connected.Load() {
 		return nil
 	}
-
-	if t.tcp != nil {
-		t.tcp.Close()
-		t.tcp = nil
+	if t.ip == "" {
+		return fmt.Errorf("ENIP transport: IP address not configured")
 	}
 
+	// Dial / backoff must not hold Transport.mu (peer I/O and Disconnect).
 	return t.connMgr.EnsureConnected(ctx, func(ctx context.Context) error {
 		return t.connectOnce(ctx)
 	})
@@ -154,13 +150,13 @@ func (t *ENIPTransport) connectOnce(ctx context.Context) error {
 		return fmt.Errorf("ENIP transport: IP address not configured")
 	}
 
-	t.remoteAddr = fmt.Sprintf("%s:%d", t.ip, t.port)
+	remoteAddr := fmt.Sprintf("%s:%d", t.ip, t.port)
 
 	tcp, err := t.tcpFactory(t.ip, nil)
 	if err != nil {
 		zap.L().Warn("[ENIP] Failed to create ENIP client",
 			zap.Error(err),
-			zap.String("addr", t.remoteAddr),
+			zap.String("addr", remoteAddr),
 		)
 		return fmt.Errorf("failed to create ENIP client: %w", err)
 	}
@@ -168,20 +164,32 @@ func (t *ENIPTransport) connectOnce(ctx context.Context) error {
 	if err := tcp.Connect(); err != nil {
 		zap.L().Warn("[ENIP] Connection failed",
 			zap.Error(err),
-			zap.String("addr", t.remoteAddr),
+			zap.String("addr", remoteAddr),
 		)
+		tcp.Close()
 		return fmt.Errorf("ENIP connection failed: %w", err)
 	}
 
+	t.mu.Lock()
+	if t.connected.Load() {
+		t.mu.Unlock()
+		tcp.Close()
+		return nil
+	}
+	if t.tcp != nil {
+		t.tcp.Close()
+	}
 	t.tcp = tcp
 	t.connected.Store(true)
 	t.connectTime = time.Now()
 	t.reconnectCount.Add(1)
+	t.remoteAddr = remoteAddr
 	t.localAddr = t.getLocalAddr()
 	t.lastActivityTime.Store(time.Now())
+	t.mu.Unlock()
 
 	zap.L().Info("[ENIP] TCP connection established",
-		zap.String("addr", t.remoteAddr),
+		zap.String("addr", remoteAddr),
 		zap.Int("slot", t.slot),
 		zap.Duration("timeout", t.timeout),
 	)

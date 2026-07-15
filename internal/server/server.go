@@ -86,7 +86,12 @@ type Server struct {
 }
 
 func NewServer(cm *core.ChannelManager, st *storage.Storage, pl *core.DataPipeline, nbm *core.NorthboundManager, ecm *core.EdgeComputeManager, sm *core.SystemManager, dsm *core.DeviceStorageManager, cfgManager *config.ConfigManager, syncManager *syncpkg.SyncManager, logBroadcaster *logger.LogBroadcaster) *Server {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		// Long scan/browse/export work must use async job APIs, not stretch these.
+	})
 	app.Use(cors.New())
 
 	hub := newHub()
@@ -218,7 +223,11 @@ func (s *Server) SwitchPort(newPort int) error {
 		s.logger.Warn("Shutdown old server failed", zap.Error(err))
 	}
 
-	newApp := fiber.New()
+	newApp := fiber.New(fiber.Config{
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	})
 	newApp.Use(cors.New())
 	s.app = newApp
 	s.setupRoutes()
@@ -413,6 +422,8 @@ func (s *Server) setupRoutes() {
 	api.Put("/channels/:channelId", s.updateChannel)
 	api.Delete("/channels/:channelId", s.removeChannel)
 	api.Post("/channels/:channelId/scan", s.scanChannel)
+	api.Get("/jobs/:jobId", s.getAsyncJob)
+	api.Delete("/jobs/:jobId", s.cancelAsyncJob)
 	api.Get("/channels/:channelId/metrics", s.getChannelMetrics) // 通道监控指标
 	api.Get("/diagnostics/scan-engine", s.getScanEngineDiagnostics)
 	api.Get("/diagnostics/soak", s.getSoakMonitor)
@@ -767,24 +778,6 @@ func (s *Server) removeChannel(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.SendStatus(200)
-}
-
-func (s *Server) scanChannel(c *fiber.Ctx) error {
-	id := c.Params("channelId")
-	zap.L().Info("Received Scan request for channel", zap.String("channel_id", id))
-
-	var params map[string]any
-	if len(c.Body()) > 0 {
-		if err := c.BodyParser(&params); err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "Invalid JSON body"})
-		}
-	}
-
-	result, err := s.cm.ScanChannel(id, params)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"message": err.Error()})
-	}
-	return c.JSON(result)
 }
 
 // getNorthboundConfig 获取北向配置

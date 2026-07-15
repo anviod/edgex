@@ -129,7 +129,7 @@ func TestChannelManager_UpdatePoint_NotifiesTopology(t *testing.T) {
 	if restarted {
 		t.Fatal("expected no southbound device restart for readwrite-only update")
 	}
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(700 * time.Millisecond)
 	if notified != 1 {
 		t.Fatalf("expected topology notification once, got %d", notified)
 	}

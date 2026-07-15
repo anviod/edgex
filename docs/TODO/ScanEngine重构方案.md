@@ -973,7 +973,7 @@ ScanEngineAdapter 注册设备时将 `channelMu` 与 `channelID` 注入 `task.Pa
 
 | 参数 | 值 | 说明 | 代码 |
 |------|-----|------|------|
-| MaxGlobalReconnectRate | **10 次/s** | 滑动 1s 窗口内全局限流 | `driver/connection_manager.go`、`core/connection_controller.go` |
+| MaxGlobalReconnectRate | **10 次/s** | 滑动 1s 窗口内全局限流（单一 Owner） | `driver/reconnect_limiter.go`（经 `ConnectionManager`） |
 | Single-flight | 是 | `ScheduleReconnect` 同一通道不并行 dial | ConnectionManager |
 | 指数退避 | 5s → 15s → 30s → 60s → 120s | `calculateBackOffInterval` | `connection_controller.go` |
 
@@ -1109,7 +1109,7 @@ type Driver interface {
 2. **禁止 Driver 内 `go reconnect()` 自循环**：OPC UA、EtherNet/IP 等待迁移至 `ScheduleReconnect`。
 3. **Transport 禁止独立退避循环**：`withRetry` 只做有限次读写重试；链路级退避交给 `ConnectionManager`。
 4. **channelMu 与重连互斥**：共享链路协议在 `ExecutionLayer.readPoints` 持锁期间执行 I/O；`ScheduleReconnect` 的 `connectOnce` 同样在 Transport `mu` 内执行，避免与读写并发。
-5. **全局限流**：`MaxGlobalReconnectRate = 10/s`，`driver` 与 `core` 包内各自维护计数器（待后续合并为单例）。
+5. **全局限流**：`MaxGlobalReconnectRate = 10/s`，**仅**由 `driver.ConnectionManager`（`reconnect_limiter.go`）维护；`core.ConnectionController` 不得再持有并行计数器。
 
 #### 5.3.3 状态机与退避参数
 

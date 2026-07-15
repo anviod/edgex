@@ -233,6 +233,7 @@ import { IconScan, IconSearch } from '@arco-design/web-vue/es/icon'
 import request from '@/utils/request'
 import { channelDeviceApiPath } from '@/utils/deviceRoute'
 import { formatProtocolTag } from '@/utils/protocolLabel'
+import { postScanAndWait } from '@/utils/asyncJob'
 
 const ROOT_KEY = '__root__'
 
@@ -579,10 +580,11 @@ const startScan = async () => {
 
   try {
     const payload = { mode: 'fast' }
-    const res = await request.post(
+    const res = await postScanAndWait(
+      request,
       channelDeviceApiPath(props.channelId, props.deviceId, 'scan'),
       payload,
-      { timeout: 180000 }
+      { timeoutMs: 190000 }
     )
 
     if (!Array.isArray(res)) {

@@ -128,6 +128,7 @@ import {
 import request from '@/utils/request'
 import { showMessage } from '../composables/useGlobalState'
 import { formatProtocolTag } from '../utils/protocolLabel'
+import { postScanAndWait } from '@/utils/asyncJob'
 
 const props = defineProps({
   visible: {
@@ -255,7 +256,12 @@ const handleScan = async () => {
       payload.device_id = parseInt(targetDeviceId)
     }
 
-    const res = await request.post(`/api/channels/${props.channelId}/devices/${props.deviceId}/scan`, payload, { timeout: 60000 })
+    const res = await postScanAndWait(
+      request,
+      `/api/channels/${props.channelId}/devices/${props.deviceId}/scan`,
+      payload,
+      { timeoutMs: 70000 }
+    )
     
     if (Array.isArray(res)) {
       if (res.length === 0) {

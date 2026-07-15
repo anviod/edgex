@@ -12,31 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	globalReconnectMu       sync.Mutex
-	globalReconnectCount    int
-	globalReconnectLastTime time.Time
-	MaxGlobalReconnectRate  = 10
-)
-
-func tryAcquireGlobalReconnectSlot() bool {
-	globalReconnectMu.Lock()
-	defer globalReconnectMu.Unlock()
-
-	now := time.Now()
-	if now.Sub(globalReconnectLastTime) > time.Second {
-		globalReconnectCount = 0
-		globalReconnectLastTime = now
-	}
-
-	if globalReconnectCount >= MaxGlobalReconnectRate {
-		return false
-	}
-
-	globalReconnectCount++
-	return true
-}
-
 const connectingMinBackoff = 200 * time.Millisecond
 
 func ensureConnectingMinBackoff(state ConnState, wait time.Duration) time.Duration {
@@ -105,6 +80,10 @@ type ConnectionManager struct {
 	bgMu     sync.Mutex
 	bgCancel context.CancelFunc
 	bgDone   chan struct{}
+
+	// linkMu is the shared-link channelMu (driverMus). Held only around dial/
+	// install (not during backoff sleep) so reconnect cannot race I/O.
+	linkMu *sync.Mutex
 }
 
 func NewConnectionManager(driverName string) *ConnectionManager {
@@ -418,7 +397,7 @@ func (cm *ConnectionManager) EnsureConnected(ctx context.Context, connect Connec
 
 		cm.SetState(StateConnecting)
 
-		err := connect(ctx)
+		err := cm.runConnect(ctx, connect)
 		if err == nil {
 			cm.RecordSuccess()
 			return nil
@@ -427,10 +406,33 @@ func (cm *ConnectionManager) EnsureConnected(ctx context.Context, connect Connec
 		lastErr = err
 		shouldRetry, _ := cm.RecordFailure()
 		if !shouldRetry {
-			// 进入 coolDown，不退出循环，让 CanRetry 处理 StateDead 等待
+			// CoolDown: only park inside EnsureConnected when the caller gave a
+			// deadline (ScheduleReconnect). Background/unlimited ctx must return
+			// immediately — otherwise offline config errors hang forever.
+			if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+				return lastErr
+			}
 			continue
 		}
 	}
+}
+
+// SetLinkMutex binds the shared-link channelMu so dial/install is serialized with I/O.
+func (cm *ConnectionManager) SetLinkMutex(mu *sync.Mutex) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+	cm.linkMu = mu
+}
+
+func (cm *ConnectionManager) runConnect(ctx context.Context, connect ConnectFunc) error {
+	cm.mu.Lock()
+	linkMu := cm.linkMu
+	cm.mu.Unlock()
+	if linkMu != nil {
+		linkMu.Lock()
+		defer linkMu.Unlock()
+	}
+	return connect(ctx)
 }
 
 // ScheduleReconnect starts an asynchronous reconnect guarded by single-flight.

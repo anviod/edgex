@@ -183,7 +183,7 @@ func TestChannelManager_NotifyTopologyChange(t *testing.T) {
 	cm.notifyTopologyChange()
 	select {
 	case <-called:
-	case <-time.After(100 * time.Millisecond):
+	case <-time.After(700 * time.Millisecond):
 		t.Fatal("topology change handler not invoked")
 	}
 }

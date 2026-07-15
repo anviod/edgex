@@ -91,6 +91,16 @@ func TestModbusProtocol_VariableLatencyIsolation(t *testing.T) {
 	d1 := newModbusDriver(t, sim, "ch-latency", "dev-1", 1)
 	d2 := newModbusDriver(t, sim, "ch-latency", "dev-2", 2)
 
+	// Hot-path ReadPoints no longer dials; Connect must establish the link first.
+	if err := d1.Connect(context.Background()); err != nil {
+		t.Fatalf("connect fast slave: %v", err)
+	}
+	defer d1.Disconnect()
+	if err := d2.Connect(context.Background()); err != nil {
+		t.Fatalf("connect slow slave: %v", err)
+	}
+	defer d2.Disconnect()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -107,12 +117,14 @@ func TestModbusProtocol_VariableLatencyIsolation(t *testing.T) {
 	slowCtx, slowCancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer slowCancel()
 	start := time.Now()
-	_, err = d2.ReadPoints(slowCtx, []model.Point{{
+	v2, err := d2.ReadPoints(slowCtx, []model.Point{{
 		ID: "p2", Address: "40001", DataType: "INT16",
 	}})
 	elapsed := time.Since(start)
-	if err == nil && elapsed < 2*time.Second {
-		t.Fatalf("slow slave should be delayed by injected latency, elapsed=%s err=%v", elapsed, err)
+	// Scheduler returns Quality=Bad (often with err=nil) when the 3s slave latency
+	// exceeds the short deadline; Good within the deadline would violate isolation.
+	if err == nil && v2["p2"].Quality == "Good" {
+		t.Fatalf("slow slave should not succeed under 3s latency within short deadline, elapsed=%s", elapsed)
 	}
 }
 

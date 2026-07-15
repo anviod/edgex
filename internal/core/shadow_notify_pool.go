@@ -107,8 +107,17 @@ func (p *shadowNotifyPool) Enqueue(deviceID string, points map[string]model.Shad
 	select {
 	case p.queues[idx] <- notifyJob{deviceID: deviceID, points: points}:
 	default:
-		// Backpressure: async inline rather than spawn unbounded goroutines or block writers.
-		go p.handler(deviceID, points)
+		// Prefer freshest snapshot: drop one pending job and enqueue latest.
+		// Never spawn unbounded goroutines under backpressure (causes GC storms).
+		select {
+		case <-p.queues[idx]:
+		default:
+		}
+		select {
+		case p.queues[idx] <- notifyJob{deviceID: deviceID, points: points}:
+		default:
+			// Still full — drop this notify.
+		}
 	}
 }
 

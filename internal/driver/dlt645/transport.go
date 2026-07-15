@@ -91,64 +91,80 @@ func defaultLinkFactory(cfg transportConfig) (frameLink, error) {
 }
 
 func (t *DLT645Transport) Connect(ctx context.Context) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	if t.connected.Load() {
+		return nil
+	}
+	if t.cfg.mode == connTCP && t.cfg.ip == "" {
+		return fmt.Errorf("DLT645 TCP: IP address not configured")
+	}
 
+	if t.connMgr != nil {
+		return t.connMgr.EnsureConnected(ctx, func(ctx context.Context) error {
+			return t.connectOnce(ctx)
+		})
+	}
+
+	var lastErr error
+	for attempt := 0; attempt <= t.cfg.maxRetries; attempt++ {
+		if err := t.connectOnce(ctx); err != nil {
+			lastErr = err
+			continue
+		}
+		return nil
+	}
+	return fmt.Errorf("DLT645 transport: connection failed after %d attempts: %w", t.cfg.maxRetries+1, lastErr)
+}
+
+func (t *DLT645Transport) connectOnce(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	if t.connected.Load() {
 		return nil
 	}
 
-	if t.connMgr != nil {
-		t.connMgr.SetState(driver.StateConnecting)
+	link, err := t.linkFactory(t.cfg)
+	if err != nil {
+		return err
 	}
 
-	var lastErr error
-	for attempt := 0; ; attempt++ {
-		if attempt > 0 {
-			canRetry, wait := t.connMgr.CanRetry()
-			if !canRetry {
-				return fmt.Errorf("DLT645 transport: connection retry limit exceeded: %w", lastErr)
-			}
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(wait):
-			}
-		}
-
-		link, err := t.linkFactory(t.cfg)
-		if err != nil {
-			lastErr = err
-			if t.connMgr != nil {
-				shouldRetry, _ := t.connMgr.RecordFailure()
-				if !shouldRetry {
-					return fmt.Errorf("DLT645 transport: connection failed: %w", lastErr)
-				}
-			} else if attempt >= t.cfg.maxRetries {
-				return fmt.Errorf("DLT645 transport: connection failed after %d attempts: %w", attempt+1, lastErr)
-			}
-			continue
-		}
-
-		t.link = link
-		t.connected.Store(true)
-		t.connectTime = time.Now()
-		t.reconnectCount.Add(1)
-		t.collectFailCount.Store(0)
-		t.remoteAddr = t.cfg.remoteAddr()
-		t.localAddr = t.resolveLocalAddr()
-
-		if t.connMgr != nil {
-			t.connMgr.RecordSuccess()
-		}
-
-		zap.L().Info("[DLT645] Connection established",
-			zap.String("remote", t.remoteAddr),
-			zap.String("mode", t.modeLabel()),
-			zap.Duration("timeout", t.cfg.timeout),
-		)
+	t.mu.Lock()
+	if t.connected.Load() {
+		t.mu.Unlock()
+		_ = link.Close()
 		return nil
 	}
+	if t.link != nil {
+		_ = t.link.Close()
+	}
+	t.link = link
+	t.connected.Store(true)
+	t.connectTime = time.Now()
+	t.reconnectCount.Add(1)
+	t.collectFailCount.Store(0)
+	t.remoteAddr = t.cfg.remoteAddr()
+	t.localAddr = t.resolveLocalAddr()
+	t.mu.Unlock()
+
+	zap.L().Info("[DLT645] Connection established",
+		zap.String("remote", t.remoteAddr),
+		zap.String("mode", t.modeLabel()),
+		zap.Duration("timeout", t.cfg.timeout),
+	)
+	return nil
+}
+
+func (t *DLT645Transport) scheduleReconnect() {
+	if t.connMgr == nil {
+		return
+	}
+	timeout := t.cfg.timeout * time.Duration(t.cfg.maxRetries+1)
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	t.connMgr.ScheduleReconnect(context.Background(), timeout, func(ctx context.Context) error {
+		return t.connectOnce(ctx)
+	})
 }
 
 func (t *DLT645Transport) modeLabel() string {
@@ -288,10 +304,8 @@ func (t *DLT645Transport) transact(ctx context.Context, request []byte) ([]byte,
 		}
 
 		if !t.connected.Load() {
-			if err := t.Connect(ctx); err != nil {
-				lastErr = err
-				continue
-			}
+			t.scheduleReconnect()
+			return nil, fmt.Errorf("DLT645: not connected")
 		}
 
 		t.mu.Lock()
@@ -299,7 +313,8 @@ func (t *DLT645Transport) transact(ctx context.Context, request []byte) ([]byte,
 		t.mu.Unlock()
 		if link == nil {
 			lastErr = fmt.Errorf("DLT645 link not available")
-			continue
+			t.scheduleReconnect()
+			break
 		}
 
 		t.waitSendInterval()

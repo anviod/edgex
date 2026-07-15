@@ -3,6 +3,7 @@ package dlt645
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/anviod/edgex/internal/driver"
@@ -175,4 +176,11 @@ func (d *DLT645Driver) calculateQualityScore(successRate float64) int {
 		score = 100
 	}
 	return score
+}
+
+// BindLinkMutex injects channelMu into ConnectionManager for shared-link reconnect.
+func (d *DLT645Driver) BindLinkMutex(mu *sync.Mutex) {
+	if d.transport != nil && d.transport.connMgr != nil {
+		d.transport.connMgr.SetLinkMutex(mu)
+	}
 }

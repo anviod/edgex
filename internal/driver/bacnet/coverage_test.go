@@ -907,6 +907,9 @@ func TestCheckRecoveryFailurePath(t *testing.T) {
 	mock.WhoIsFunc = func(wh *WhoIsOpts) ([]btypes.Device, error) {
 		return nil, fmt.Errorf("network down")
 	}
+	mock.ReadPropertyFunc = func(dest btypes.Device, rp btypes.PropertyData) (btypes.PropertyData, error) {
+		return btypes.PropertyData{}, fmt.Errorf("network down")
+	}
 
 	d := NewBACnetDriver().(*BACnetDriver)
 	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) { return mock, nil }
@@ -917,14 +920,27 @@ func TestCheckRecoveryFailurePath(t *testing.T) {
 	devID := 9001
 	d.mu.Lock()
 	d.deviceContexts[devID] = &DeviceContext{
-		State:         DeviceStateIsolated,
-		Config:        DeviceConfig{IP: "192.168.1.99", Port: 47808},
+		State: DeviceStateIsolated,
+		// Empty address disables probeDevice's configured-IP last resort so
+		// WhoIs/ReadProperty failures remain a real recovery failure.
+		Config:        DeviceConfig{IP: "", Port: 0},
 		LastDiscovery: time.Now().Add(-2 * time.Minute),
 	}
 	d.mu.Unlock()
 
 	d.checkRecovery(devID)
-	time.Sleep(200 * time.Millisecond)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		d.mu.Lock()
+		ctx := d.deviceContexts[devID]
+		state := ctx.State
+		count := ctx.IsolationCount
+		d.mu.Unlock()
+		if state == DeviceStateIsolated && count > 0 {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 
 	d.mu.Lock()
 	ctx := d.deviceContexts[devID]

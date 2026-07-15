@@ -221,9 +221,8 @@ func (t *ModbusTransport) ScheduleReconnect() {
 		timeout = 30 * time.Second
 	}
 
+	// connectOnce dials outside Transport.mu; only the client pointer swap is locked.
 	t.connMgr.ScheduleReconnect(context.Background(), timeout, func(ctx context.Context) error {
-		t.mu.Lock()
-		defer t.mu.Unlock()
 		return t.connectOnce(ctx)
 	})
 }
@@ -237,23 +236,23 @@ func (t *ModbusTransport) NeedProbeCheck() bool {
 }
 
 func (t *ModbusTransport) ProbeConnection() {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	if !t.connected.Load() {
 		return
 	}
 
-	_, cancel := context.WithTimeout(context.Background(), t.timeout)
+	client := t.getClient()
+	if client == nil && t.readCoilHook == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), t.timeout)
 	defer cancel()
 
 	var err error
 	if t.readCoilHook != nil {
-		_, err = t.readCoilHook(context.Background(), 0)
-	} else if t.client != nil {
-		_, err = t.client.ReadCoil(0)
+		_, err = t.readCoilHook(ctx, 0)
 	} else {
-		return
+		_, err = client.ReadCoil(0)
 	}
 	if err != nil {
 		t.RecordFailure(err)
@@ -266,20 +265,13 @@ func (t *ModbusTransport) ProbeConnection() {
 }
 
 func (t *ModbusTransport) Connect(ctx context.Context) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	if t.connected.Load() {
 		zap.L().Debug("[Modbus] Connect skipped: already connected")
 		return nil
 	}
 
-	if t.client != nil {
-		zap.L().Info("[Modbus] Closing existing TCP client before reconnect")
-		_ = t.client.Close()
-		t.client = nil
-	}
-
+	// Never hold Transport.mu across dial / backoff — that stalls peers on the
+	// shared link and turns offline devices into channel-wide freezes.
 	return t.connMgr.EnsureConnected(ctx, func(ctx context.Context) error {
 		return t.connectOnce(ctx)
 	})
@@ -371,9 +363,31 @@ func (t *ModbusTransport) connectOnce(ctx context.Context) error {
 		return err
 	}
 
-	t.client = client
+	// Resolve local address before taking mu (may dial UDP briefly).
+	remoteAddr := url
+	if strings.HasPrefix(remoteAddr, "tcp://") {
+		remoteAddr = strings.TrimPrefix(remoteAddr, "tcp://")
+	} else if strings.HasPrefix(remoteAddr, "rtuovertcp://") {
+		remoteAddr = strings.TrimPrefix(remoteAddr, "rtuovertcp://")
+	}
+	localAddr := getLocalAddr(client)
+	if localAddr == "" {
+		if strings.Contains(url, "://") && !strings.HasPrefix(url, "rtu://") {
+			hostPort := remoteAddr
+			udpConn, err := net.DialTimeout("udp", hostPort, 1*time.Second)
+			if err == nil {
+				localAddr, _, _ = net.SplitHostPort(udpConn.LocalAddr().String())
+				udpConn.Close()
+			} else {
+				localAddr = "Local IP: (Auto)"
+			}
+		} else {
+			localAddr = "Serial Port"
+		}
+	}
+
+	var sid uint8 = 1
 	if slaveID, ok := t.cfg.Config["slave_id"]; ok {
-		var sid uint8
 		switch v := slaveID.(type) {
 		case int:
 			sid = uint8(v)
@@ -381,46 +395,25 @@ func (t *ModbusTransport) connectOnce(ctx context.Context) error {
 			sid = uint8(v)
 		case uint8:
 			sid = v
-		default:
-			sid = 1
 		}
-		t.client.SetUnitId(sid)
 	}
 
+	t.mu.Lock()
+	if t.connected.Load() {
+		t.mu.Unlock()
+		_ = client.Close()
+		return nil
+	}
+	if t.client != nil {
+		_ = t.client.Close()
+	}
+	t.client = client
+	t.client.SetUnitId(sid)
 	t.connected.Store(true)
 	t.connectTime = time.Now()
-
-	if t.client != nil {
-		t.remoteAddr = url
-		if strings.HasPrefix(t.remoteAddr, "tcp://") {
-			t.remoteAddr = strings.TrimPrefix(t.remoteAddr, "tcp://")
-		} else if strings.HasPrefix(t.remoteAddr, "rtuovertcp://") {
-			t.remoteAddr = strings.TrimPrefix(t.remoteAddr, "rtuovertcp://")
-		}
-
-		t.localAddr = getLocalAddr(t.client)
-		if t.localAddr == "" {
-			if strings.Contains(url, "://") && !strings.HasPrefix(url, "rtu://") {
-				hostPort := url
-				if strings.HasPrefix(url, "tcp://") {
-					hostPort = strings.TrimPrefix(url, "tcp://")
-				} else if strings.HasPrefix(url, "rtuovertcp://") {
-					hostPort = strings.TrimPrefix(url, "rtuovertcp://")
-				}
-
-				udpConn, err := net.DialTimeout("udp", hostPort, 1*time.Second)
-				if err == nil {
-					localAddr, _, _ := net.SplitHostPort(udpConn.LocalAddr().String())
-					t.localAddr = localAddr
-					udpConn.Close()
-				} else {
-					t.localAddr = "Local IP: (Auto)"
-				}
-			} else {
-				t.localAddr = "Serial Port"
-			}
-		}
-	}
+	t.remoteAddr = remoteAddr
+	t.localAddr = localAddr
+	t.mu.Unlock()
 
 	if t.metricsRecorder != nil && t.channelID != "" {
 		t.metricsRecorder.RecordConnectionStart(t.channelID)
@@ -519,10 +512,11 @@ func (t *ModbusTransport) withRetry(ctx context.Context, fn func() (any, error))
 	var lastErr error
 	startTime := time.Now()
 
+	// Hot path must not dial: offline / reconnect is owned by ScheduleReconnect
+	// so a single dead slave cannot stall Scan/API on EnsureConnected backoff.
 	if !t.connected.Load() {
-		if err := t.Connect(ctx); err != nil {
-			return nil, err
-		}
+		t.ScheduleReconnect()
+		return nil, fmt.Errorf("modbus: not connected")
 	}
 
 	for i := 0; i <= t.maxRetries; i++ {
@@ -578,23 +572,17 @@ func (t *ModbusTransport) withRetry(ctx context.Context, fn func() (any, error))
 		}
 
 		if !isProtocolError {
-			zap.L().Warn("[Modbus] Network/link error detected, forcing disconnect to ensure clean session before reconnect",
+			zap.L().Warn("[Modbus] Network/link error: disconnect and async reconnect (no sync dial on hot path)",
 				zap.String("error", errMsg),
 			)
 			t.RecordFailure(err)
 			_ = t.Disconnect()
-			if i < t.maxRetries {
-				if err := t.Connect(ctx); err != nil {
-					lastErr = err
-					break
-				}
-				continue
-			}
-		} else {
-			zap.L().Debug("[Modbus] Protocol error detected, keeping TCP connection alive for other devices on same bus",
-				zap.String("error", errMsg),
-			)
+			t.ScheduleReconnect()
+			break
 		}
+		zap.L().Debug("[Modbus] Protocol error detected, keeping TCP connection alive for other devices on same bus",
+			zap.String("error", errMsg),
+		)
 	}
 	return nil, lastErr
 }

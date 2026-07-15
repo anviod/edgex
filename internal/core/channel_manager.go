@@ -32,24 +32,27 @@ type ChannelStatus struct {
 
 // ChannelManager 管理所有采集通道及其下的设备
 type ChannelManager struct {
-	channels              map[string]*model.Channel // channel.id -> channel
-	drivers               map[string]drv.Driver     // channel.id -> driver
-	driverMus             map[string]*sync.Mutex    // channel.id -> mutex for driver access
-	pipeline              *DataPipeline
-	stateManager          *CommunicationManageTemplate
-	deviceAdapterManager  *DeviceAdapterManager
-	protocolRegistry      *ProtocolAdapterRegistry
-	scanEngineAdapter     *ScanEngineAdapter
-	shadowCore            *ShadowCore
-	mu                    sync.RWMutex
-	ctx                   context.Context
-	cancel                context.CancelFunc
-	saveFunc              func([]model.Channel) error
-	statusHandler         func(deviceID string, status int)
-	topologyChangeHandler func()
-	tagRegistry           *TagRegistry
-	pointDegradation      *PointDegradationManager
-	soakMonitor           *SoakMonitor
+	channels               map[string]*model.Channel // channel.id -> channel
+	drivers                map[string]drv.Driver     // channel.id -> driver
+	driverMus              map[string]*sync.Mutex    // channel.id -> mutex for driver access
+	pipeline               *DataPipeline
+	stateManager           *CommunicationManageTemplate
+	deviceAdapterManager   *DeviceAdapterManager
+	protocolRegistry       *ProtocolAdapterRegistry
+	scanEngineAdapter      *ScanEngineAdapter
+	shadowCore             *ShadowCore
+	mu                     sync.RWMutex
+	ctx                    context.Context
+	cancel                 context.CancelFunc
+	saveFunc               func([]model.Channel) error
+	statusHandler          func(deviceID string, status int)
+	topologyChangeHandler  func()
+	topologyDebounceMu     sync.Mutex
+	topologyDebounceTimer  *time.Timer
+	tagRegistry            *TagRegistry
+	pointDegradation       *PointDegradationManager
+	soakMonitor            *SoakMonitor
+	jobs                   *AsyncJobManager
 }
 
 func NewChannelManager(pipeline *DataPipeline, saveFunc func([]model.Channel) error) *ChannelManager {
@@ -79,6 +82,7 @@ func NewChannelManager(pipeline *DataPipeline, saveFunc func([]model.Channel) er
 		saveFunc:             saveFunc,
 		tagRegistry:          NewTagRegistry(),
 		pointDegradation:     NewPointDegradationManager(),
+		jobs:                 NewAsyncJobManager(),
 	}
 
 	scanEngine.SetCollectFinalize(cm.finalizeScanCollect)
@@ -352,14 +356,20 @@ func (cm *ChannelManager) SetTopologyChangeHandler(h func()) {
 }
 
 func (cm *ChannelManager) notifyTopologyChange() {
-	go func() {
+	const debounce = 400 * time.Millisecond
+	cm.topologyDebounceMu.Lock()
+	defer cm.topologyDebounceMu.Unlock()
+	if cm.topologyDebounceTimer != nil {
+		cm.topologyDebounceTimer.Stop()
+	}
+	cm.topologyDebounceTimer = time.AfterFunc(debounce, func() {
 		cm.mu.RLock()
 		handler := cm.topologyChangeHandler
 		cm.mu.RUnlock()
 		if handler != nil {
 			handler()
 		}
-	}()
+	})
 }
 
 // parseTime 解析时间字符串
@@ -482,6 +492,7 @@ func (cm *ChannelManager) AddChannel(ch *model.Channel) error {
 	}
 	cm.drivers[ch.ID] = d
 	cm.driverMus[ch.ID] = &sync.Mutex{}
+	cm.bindDriverLinkMutex(ch.ID, d)
 	cm.wireBACnetAddressNotifier(ch.ID, d)
 	cm.stateManager.RegisterNode(ch.ID, ch.Name)
 
@@ -490,18 +501,8 @@ func (cm *ChannelManager) AddChannel(ch *model.Channel) error {
 		cm.stateManager.RegisterNode(dev.ID, dev.Name)
 	}
 
-	// Persist
-	if cm.saveFunc != nil {
-		channels := make([]model.Channel, 0, len(cm.channels))
-		for _, c := range cm.channels {
-			channels = append(channels, *c)
-		}
-		// Since map iteration order is random, this might reshuffle channels in config.
-		// For now it's acceptable, or we can maintain order if needed.
-		if err := cm.saveFunc(channels); err != nil {
-			zap.L().Warn("Failed to save config after adding channel", zap.Error(err))
-		}
-	}
+	// Persist asynchronously — never block CRUD on bbolt I/O while holding cm.mu.
+	_ = cm.saveChannels()
 
 	//	zap.L().Info("Channel added", zap.String("channel", ch.Name), zap.String("protocol", ch.Protocol), zap.Int("device_count", len(ch.Devices)))
 	cm.notifyTopologyChange()
@@ -553,6 +554,7 @@ func (cm *ChannelManager) UpdateChannel(ch *model.Channel) error {
 	if _, ok := cm.driverMus[ch.ID]; !ok {
 		cm.driverMus[ch.ID] = &sync.Mutex{}
 	}
+	cm.bindDriverLinkMutex(ch.ID, d)
 	cm.wireBACnetAddressNotifier(ch.ID, d)
 
 	// Register all devices in state manager
@@ -560,16 +562,8 @@ func (cm *ChannelManager) UpdateChannel(ch *model.Channel) error {
 		cm.stateManager.RegisterNode(dev.ID, dev.Name)
 	}
 
-	// 4. Persist
-	if cm.saveFunc != nil {
-		channels := make([]model.Channel, 0, len(cm.channels))
-		for _, c := range cm.channels {
-			channels = append(channels, *c)
-		}
-		if err := cm.saveFunc(channels); err != nil {
-			zap.L().Warn("Failed to save config after updating channel", zap.Error(err))
-		}
-	}
+	// 4. Persist asynchronously
+	_ = cm.saveChannels()
 
 	zap.L().Info("Channel updated", zap.String("channel", ch.Name))
 	cm.notifyTopologyChange()
@@ -592,20 +586,21 @@ func (cm *ChannelManager) RemoveChannel(channelID string) error {
 	delete(cm.drivers, channelID)
 	delete(cm.driverMus, channelID)
 
-	// 2. Persist
-	if cm.saveFunc != nil {
-		channels := make([]model.Channel, 0, len(cm.channels))
-		for _, c := range cm.channels {
-			channels = append(channels, *c)
-		}
-		if err := cm.saveFunc(channels); err != nil {
-			zap.L().Warn("Failed to save config after removing channel", zap.Error(err))
-		}
-	}
-
+	_ = cm.saveChannels()
 	zap.L().Info("Channel removed", zap.String("channel_id", channelID))
 	cm.notifyTopologyChange()
 	return nil
+}
+
+// bindDriverLinkMutex wires channelMu into ConnectionManager for shared-link drivers.
+func (cm *ChannelManager) bindDriverLinkMutex(channelID string, d drv.Driver) {
+	mu := cm.driverMus[channelID]
+	if mu == nil || d == nil {
+		return
+	}
+	if binder, ok := d.(drv.LinkMutexBinder); ok {
+		binder.BindLinkMutex(mu)
+	}
 }
 
 // registerDeviceToScanEngine 将设备注册到 ScanEngine（使用通道已连接的驱动与完整点位配置）。
@@ -663,22 +658,19 @@ func (cm *ChannelManager) StartChannel(channelID string) error {
 		return nil
 	}
 
-	// 连接驱动 — 使用超时 context 避免 Modbus 离线设备无限阻塞
-	// 启动阶段每个通道最多等待 10s，超时后异步重连
-	connectCtx, cancel := context.WithTimeout(cm.ctx, 10*time.Second)
-	defer cancel()
-
-	err := d.Connect(connectCtx)
-	if err != nil {
-		cm.markChannelDevicesOffline(channelID)
-		zap.L().Error("Failed to connect driver for channel", zap.String("channel", ch.Name), zap.Error(err))
-		// 调度异步重连（不阻塞启动流程）
-		if sched, ok := d.(drv.ReconnectScheduler); ok {
-			sched.ScheduleReconnect(cm.ctx, 5*time.Minute)
+	// Connect asynchronously — never dial on the API/request path. Offline
+	// devices and backoff sleeps must not freeze StartChannel / UI.
+	go func(driver drv.Driver, chID, chName string) {
+		connectCtx, cancel := context.WithTimeout(cm.ctx, 10*time.Second)
+		defer cancel()
+		if err := driver.Connect(connectCtx); err != nil {
+			cm.markChannelDevicesOffline(chID)
+			zap.L().Error("Failed to connect driver for channel", zap.String("channel", chName), zap.Error(err))
+			if sched, ok := driver.(drv.ReconnectScheduler); ok {
+				sched.ScheduleReconnect(cm.ctx, 5*time.Minute)
+			}
 		}
-		return nil
-	}
-	//zap.L().Info("Driver connected for channel", zap.String("channel", ch.Name))
+	}(d, channelID, ch.Name)
 
 	// 注册协议类型到ScanEngine
 	cm.registerProtocolToScanEngine(ch.Protocol)
@@ -699,7 +691,6 @@ func (cm *ChannelManager) StartChannel(channelID string) error {
 	// 启动ScanEngine（仅第一次启动）
 	cm.scanEngineAdapter.Start()
 
-	//zap.L().Info("Channel started", zap.String("channel", ch.Name), zap.Int("device_count", len(ch.Devices)))
 	return nil
 }
 
@@ -856,21 +847,16 @@ func (cm *ChannelManager) GetDevice(channelID, deviceID string) *model.Device {
 	return nil
 }
 
-// GetDevicePoints 获取指定设备的所有点位数据
+// GetDevicePoints 获取指定设备的所有点位数据（优先 Shadow；缺失时返回 Uncertain 元数据，绝不在 API 路径 live 读）。
 func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.PointData, error) {
 	cm.mu.RLock()
 
-	// 1. 获取 Channel 和 Driver
 	ch, ok := cm.channels[channelID]
-	d, okDrv := cm.drivers[channelID]
-	mu, okMu := cm.driverMus[channelID]
-
-	if !ok || !okDrv {
+	if !ok {
 		cm.mu.RUnlock()
 		return nil, fmt.Errorf("channel not found")
 	}
 
-	// 2. 查找设备 (直接在 map/slice 中查找，避免 GetDevice 的锁开销和指针逃逸问题)
 	var foundDev *model.Device
 	for i := range ch.Devices {
 		if ch.Devices[i].ID == deviceID {
@@ -878,19 +864,17 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 			break
 		}
 	}
-
 	if foundDev == nil {
 		cm.mu.RUnlock()
 		return nil, fmt.Errorf("device not found")
 	}
 
-	// 3. 复制必要的数据 (避免持有锁进行 IO，也避免竞态条件)
 	pointsCopy := make([]model.Point, len(foundDev.Points))
 	copy(pointsCopy, foundDev.Points)
+	devCopy := *foundDev
+	devCopy.Points = pointsCopy
 
 	slaveIDVal := foundDev.Config["slave_id"]
-	devID := foundDev.ID
-	// 提前复制 slave_id 值，避免释放锁后指针无效
 	slaveID := uint8(0)
 	if slaveIDVal != nil {
 		switch val := slaveIDVal.(type) {
@@ -908,89 +892,24 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 			}
 		}
 	}
-	// 获取节点以便后续根据读取结果更新状态
-	node := cm.stateManager.GetNode(devID)
 
-	cm.mu.RUnlock() // 释放 ChannelManager 锁
+	cm.mu.RUnlock()
 
-	// Fast path: device has zero configured points — return immediately without
-	// touching the driver mutex or initiating any network I/O. This prevents
-	// UI-wide timeouts when users click into devices that have not yet been
-	// configured with points.
-	// 快速路径：设备无配置点位时立即返回，不获取驱动锁、不发起网络通信。
 	if len(pointsCopy) == 0 {
 		return []model.PointData{}, nil
 	}
 
-	// 优先从影子设备快照读取（ScanEngine 周期写入）
 	if cm.shadowCore != nil {
-		if points, ok := cm.getDevicePointsFromShadow(foundDev, slaveID, channelID); ok {
+		if points, ok := cm.getDevicePointsFromShadow(&devCopy, slaveID, channelID); ok {
 			return points, nil
 		}
 	}
 
-	// 4. Prepare driver config under driverMus (fast, no I/O),
-	// then release driverMus before network I/O to avoid blocking peers.
-	if okMu {
-		mu.Lock()
-		if slaveIDVal != nil {
-			if slaveIDUint, ok := slaveIDVal.(float64); ok {
-				d.SetSlaveID(uint8(slaveIDUint))
-			} else if slaveIDInt, ok := slaveIDVal.(int); ok {
-				d.SetSlaveID(uint8(slaveIDInt))
-			}
-		}
-		configCopy := buildDriverDeviceConfig(ch, foundDev.Config, map[string]any{
-			"_internal_device_id": devID,
-		})
-		d.SetDeviceConfig(configCopy)
-		mu.Unlock()
-	} else {
-		if slaveIDVal != nil {
-			if slaveIDUint, ok := slaveIDVal.(float64); ok {
-				d.SetSlaveID(uint8(slaveIDUint))
-			} else if slaveIDInt, ok := slaveIDVal.(int); ok {
-				d.SetSlaveID(uint8(slaveIDInt))
-			}
-		}
-		configCopy := buildDriverDeviceConfig(ch, foundDev.Config, map[string]any{
-			"_internal_device_id": devID,
-		})
-		d.SetDeviceConfig(configCopy)
-	}
-
-	// Ensure DeviceID is set on points for the driver
-	for i := range pointsCopy {
-		pointsCopy[i].DeviceID = devID
-	}
-
-	// 读取点位数据
-	timeout := 5 * time.Second
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	results, err := d.ReadPoints(ctx, pointsCopy)
-	if err != nil {
-		zap.L().Warn("Failed to read points for device", zap.String("device_id", deviceID), zap.Error(err))
-		// Don't return error, return points with Bad quality so user can still manage them
-	}
-
-	// 转换为 PointData 格式
+	// Shadow miss: config metadata only — never live-read on REST/UI path.
 	points := make([]model.PointData, 0, len(pointsCopy))
 	now := time.Now()
-
-	// 构建结果 map 以便快速查找
-	resultMap := make(map[string]model.Value)
-	if results != nil {
-		for _, result := range results {
-			resultMap[result.PointID] = result
-		}
-	}
-
-	// 按配置顺序返回点位数据
 	for _, point := range pointsCopy {
-		pd := model.PointData{
+		points = append(points, model.PointData{
 			ID:           point.ID,
 			Name:         point.Name,
 			SlaveID:      slaveID,
@@ -1000,30 +919,11 @@ func (cm *ChannelManager) GetDevicePoints(channelID, deviceID string) ([]model.P
 			DataType:     point.DataType,
 			Unit:         point.Unit,
 			Timestamp:    now,
-			Quality:      "Bad", // Default to Bad if read failed
-			Value:        0.0,
+			Quality:      "Uncertain",
+			Value:        nil,
 			ReadWrite:    point.ReadWrite,
-		}
-
-		// 从结果中获取实际读取的值
-		if result, exists := resultMap[point.ID]; exists {
-			pd.Value = result.Value
-			pd.Quality = result.Quality
-			if !result.TS.IsZero() {
-				pd.Timestamp = result.TS
-				pd.CollectedAt = result.TS
-			}
-		}
-
-		points = append(points, pd)
+		})
 	}
-
-	// 根据读点结果立即修正设备状态（Good 点位计成功，全 Bad 计失败）
-	if node != nil {
-		execResult := &ExecuteResult{Success: err == nil, Values: results, Error: err}
-		cm.stateManager.FinalizeCollect(node, collectContextFromExecuteResult(execResult, len(pointsCopy)))
-	}
-
 	return points, nil
 }
 
@@ -1290,7 +1190,6 @@ func (cm *ChannelManager) WritePoint(channelID, deviceID, pointID string, value 
 	cm.mu.RLock()
 	ch, ok := cm.channels[channelID]
 	d, okDrv := cm.drivers[channelID]
-	mu, okMu := cm.driverMus[channelID]
 	cm.mu.RUnlock()
 
 	if !ok || !okDrv {
@@ -1323,9 +1222,10 @@ func (cm *ChannelManager) WritePoint(channelID, deviceID, pointID string, value 
 	// Ensure DeviceID is set
 	targetPoint.DeviceID = dev.ID
 
-	// Prepare driver config under driverMus (fast, no I/O),
-	// then release driverMus before network I/O to avoid blocking peers.
-	prepareDriverConfig := func() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := cm.withDriverIO(channelID, ch.Protocol, func() error {
 		if slaveID, ok := dev.Config["slave_id"]; ok {
 			if slaveIDUint, ok := slaveID.(float64); ok {
 				d.SetSlaveID(uint8(slaveIDUint))
@@ -1337,19 +1237,9 @@ func (cm *ChannelManager) WritePoint(channelID, deviceID, pointID string, value 
 			"_internal_device_id": dev.ID,
 		})
 		d.SetDeviceConfig(config)
-	}
-	if okMu {
-		mu.Lock()
-		prepareDriverConfig()
-		mu.Unlock()
-	} else {
-		prepareDriverConfig()
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := d.WritePoint(ctx, targetPoint, value); err != nil {
+		return d.WritePoint(ctx, targetPoint, value)
+	})
+	if err != nil {
 		return err
 	}
 
@@ -1418,7 +1308,6 @@ func (cm *ChannelManager) ReadPoint(channelID, deviceID, pointID string) (model.
 	cm.mu.RLock()
 	ch, ok := cm.channels[channelID]
 	d, okDrv := cm.drivers[channelID]
-	mu, okMu := cm.driverMus[channelID]
 	cm.mu.RUnlock()
 
 	if !ok || !okDrv {
@@ -1447,9 +1336,11 @@ func (cm *ChannelManager) ReadPoint(channelID, deviceID, pointID string) (model.
 	// Ensure DeviceID is set
 	targetPoint.DeviceID = dev.ID
 
-	// Prepare driver config under driverMus (fast, no I/O),
-	// then release driverMus before network I/O to avoid blocking peers.
-	prepareDriverConfig := func() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var results map[string]model.Value
+	err := cm.withDriverIO(channelID, ch.Protocol, func() error {
 		if slaveID, ok := dev.Config["slave_id"]; ok {
 			if slaveIDUint, ok := slaveID.(float64); ok {
 				d.SetSlaveID(uint8(slaveIDUint))
@@ -1461,19 +1352,10 @@ func (cm *ChannelManager) ReadPoint(channelID, deviceID, pointID string) (model.
 			"_internal_device_id": dev.ID,
 		})
 		d.SetDeviceConfig(config)
-	}
-	if okMu {
-		mu.Lock()
-		prepareDriverConfig()
-		mu.Unlock()
-	} else {
-		prepareDriverConfig()
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	results, err := d.ReadPoints(ctx, []model.Point{targetPoint})
+		var readErr error
+		results, readErr = d.ReadPoints(ctx, []model.Point{targetPoint})
+		return readErr
+	})
 	if err != nil {
 		return model.Value{}, err
 	}
@@ -1499,6 +1381,9 @@ func (cm *ChannelManager) ReadPoint(channelID, deviceID, pointID string) (model.
 // Shutdown 关闭所有通道
 func (cm *ChannelManager) Shutdown() {
 	cm.cancel()
+	if cm.jobs != nil {
+		cm.jobs.Stop()
+	}
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
@@ -1513,8 +1398,89 @@ func (cm *ChannelManager) Shutdown() {
 	}
 }
 
-// ScanChannel 扫描通道下的设备
-func (cm *ChannelManager) ScanChannel(channelID string, params map[string]any) (any, error) {
+// Jobs returns the async job manager used for scan/browse APIs.
+func (cm *ChannelManager) Jobs() *AsyncJobManager {
+	return cm.jobs
+}
+
+func scanChannelTimeout(protocol string) time.Duration {
+	switch protocol {
+	case "bacnet-ip":
+		return 45 * time.Second
+	case "opc-ua":
+		return 45 * time.Second
+	default:
+		return 45 * time.Second
+	}
+}
+
+func scanDeviceTimeout(protocol string) time.Duration {
+	switch protocol {
+	case "opc-ua":
+		return 180 * time.Second
+	case "bacnet-ip":
+		return 60 * time.Second
+	default:
+		return 45 * time.Second
+	}
+}
+
+// StartScanChannelJob submits channel device discovery as an async job.
+func (cm *ChannelManager) StartScanChannelJob(channelID string, params map[string]any) (*AsyncJob, error) {
+	cm.mu.RLock()
+	_, okDrv := cm.drivers[channelID]
+	ch, okCh := cm.channels[channelID]
+	cm.mu.RUnlock()
+	if !okDrv {
+		return nil, fmt.Errorf("channel driver not found")
+	}
+	protocol := ""
+	if okCh {
+		protocol = ch.Protocol
+	}
+	timeout := scanChannelTimeout(protocol)
+	paramsCopy := copyScanParams(params)
+	return cm.jobs.Submit(AsyncJobScanChannel, channelID, "", func(ctx context.Context) (any, error) {
+		jobCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		return cm.ScanChannel(jobCtx, channelID, paramsCopy)
+	}), nil
+}
+
+// StartScanDeviceJob submits device object/point browse as an async job.
+func (cm *ChannelManager) StartScanDeviceJob(channelID, deviceID string, params map[string]any) (*AsyncJob, error) {
+	cm.mu.RLock()
+	_, okDrv := cm.drivers[channelID]
+	ch, okCh := cm.channels[channelID]
+	cm.mu.RUnlock()
+	if !okDrv || !okCh {
+		return nil, fmt.Errorf("channel or driver not found")
+	}
+	timeout := scanDeviceTimeout(ch.Protocol)
+	paramsCopy := copyScanParams(params)
+	return cm.jobs.Submit(AsyncJobScanDevice, channelID, deviceID, func(ctx context.Context) (any, error) {
+		jobCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		return cm.ScanDevice(jobCtx, channelID, deviceID, paramsCopy)
+	}), nil
+}
+
+func copyScanParams(params map[string]any) map[string]any {
+	if params == nil {
+		return make(map[string]any)
+	}
+	out := make(map[string]any, len(params))
+	for k, v := range params {
+		out[k] = v
+	}
+	return out
+}
+
+// ScanChannel 扫描通道下的设备。ctx 应由调用方设置超时（API job 或 sync 路径）。
+func (cm *ChannelManager) ScanChannel(ctx context.Context, channelID string, params map[string]any) (any, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	cm.mu.RLock()
 	d, okDrv := cm.drivers[channelID]
 	ch, okCh := cm.channels[channelID]
@@ -1576,18 +1542,15 @@ func (cm *ChannelManager) ScanChannel(channelID string, params map[string]any) (
 	// Scan may take a long time; do NOT hold driverMus during Scan.
 	// Scan is a discovery operation (WhoIs/ReadProperty) that uses its own
 	// ephemeral client. Holding driverMus would block all ReadPoint/WritePoint
-	// on the same channel for up to 45 seconds.
-	// NOTE: BACnet Scan involves WhoIs broadcast (~10s) + Unicast fallback (~10s)
-	// + per-device ReadProperty Enrich (~6s/device). For 2 devices this can exceed 30s.
-	// The UI axios timeout is 45s, so we allow 45s server-side to avoid false timeouts.
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	defer cancel()
-
+	// on the same channel for the full discovery window.
 	return scanner.Scan(ctx, params)
 }
 
-// ScanDevice 扫描设备下的对象（点位）
-func (cm *ChannelManager) ScanDevice(channelID, deviceID string, params map[string]any) (any, error) {
+// ScanDevice 扫描设备下的对象（点位）。ctx 应由调用方设置超时（OPC UA Browse 可达 180s）。
+func (cm *ChannelManager) ScanDevice(ctx context.Context, channelID, deviceID string, params map[string]any) (any, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	cm.mu.RLock()
 	d, okDrv := cm.drivers[channelID]
 	ch, okCh := cm.channels[channelID]
@@ -1652,14 +1615,8 @@ func (cm *ChannelManager) ScanDevice(channelID, deviceID string, params map[stri
 	}
 
 	// NOTE: We intentionally do NOT hold the per-channel driver mutex (mu) during
-	// ScanObjects. The scan is a read-only operation; holding the lock for up to
-	// 60s blocks all ReadPoint/WritePoint/GetDevicePoints calls on the same
-	// channel, causing UI-wide timeouts. The driver's internal mutex (d.mu)
-	// protects shared state.
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+	// ScanObjects. Holding the lock for a long Browse blocks ReadPoint/WritePoint
+	// on the same channel. The driver's internal mutex protects shared state.
 	return scanner.ScanObjects(ctx, params)
 }
 
@@ -2350,6 +2307,25 @@ func (cm *ChannelManager) RemoveDevices(channelID string, deviceIDs []string) er
 	ch.Devices = newDevices
 
 	return cm.saveChannels()
+}
+
+// withDriverIO serializes shared-link REST I/O with Scan via channelMu (driverMus).
+// Non-shared protocols still serialize config mutation on the per-channel mutex
+// for a short critical section that includes the I/O call (5s bounded by caller ctx).
+func (cm *ChannelManager) withDriverIO(channelID, protocol string, fn func() error) error {
+	cm.mu.RLock()
+	mu := cm.driverMus[channelID]
+	cm.mu.RUnlock()
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	} else if isSharedLinkProtocol(protocol) {
+		zap.L().Warn("shared-link write/read without channelMu",
+			zap.String("channel_id", channelID),
+			zap.String("protocol", protocol),
+		)
+	}
+	return fn()
 }
 
 // saveChannels 辅助方法：保存所有通道配置。

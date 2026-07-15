@@ -936,7 +936,8 @@ func (nm *NorthboundManager) updateHTTPClients(oldConfigs, newConfigs []model.HT
 	}
 }
 
-// RebuildOPCUAServers 重建所有已启用的 OPC UA Server 地址空间（仅重启北向 OPC UA 服务，不影响网关主进程与南向采集）。
+// RebuildOPCUAServers 同步所有已启用 OPC UA Server 的地址空间（默认不停服；
+// 结构性配置变更才 Stop+Start）。不影响网关主进程与南向采集。
 func (nm *NorthboundManager) RebuildOPCUAServers() {
 	nm.mu.RLock()
 	type rebuildItem struct {
@@ -955,15 +956,15 @@ func (nm *NorthboundManager) RebuildOPCUAServers() {
 	nm.mu.RUnlock()
 
 	for _, item := range items {
-		if err := item.srv.UpdateConfig(item.cfg); err != nil {
-			log.Printf("Failed to rebuild OPC UA server [%s]: %v", item.cfg.Name, err)
+		if err := item.srv.SyncAddressSpace(); err != nil {
+			log.Printf("Failed to sync OPC UA server [%s]: %v", item.cfg.Name, err)
 		} else {
-			log.Printf("OPC UA server [%s] address space rebuilt", item.cfg.Name)
+			log.Printf("OPC UA server [%s] address space synced", item.cfg.Name)
 		}
 	}
 }
 
-// SyncOPCUAServer 重建指定 OPC UA Server 的地址空间（同步南向点位读写权限等变更）。
+// SyncOPCUAServer 同步指定 OPC UA Server 的地址空间（南向点位映射等变更）。
 func (nm *NorthboundManager) SyncOPCUAServer(id string) error {
 	nm.mu.RLock()
 	var cfg model.OPCUAConfig
@@ -997,8 +998,8 @@ func (nm *NorthboundManager) SyncOPCUAServer(id string) error {
 		return nil
 	}
 
-	if err := srv.UpdateConfig(cfg); err != nil {
-		return fmt.Errorf("rebuild OPC UA server [%s]: %w", cfg.Name, err)
+	if err := srv.SyncAddressSpace(); err != nil {
+		return fmt.Errorf("sync OPC UA server [%s]: %w", cfg.Name, err)
 	}
 	log.Printf("OPC UA server [%s] address space synced", cfg.Name)
 	return nil

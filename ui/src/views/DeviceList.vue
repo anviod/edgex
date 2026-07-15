@@ -734,6 +734,7 @@ import request from '@/utils/request'
 import { devicePointsRoutePath, channelDeviceApiPath } from '@/utils/deviceRoute'
 import { generateShortId } from '@/utils/shortId'
 import { formatProtocolTag } from '@/utils/protocolLabel'
+import { postScanAndWait } from '@/utils/asyncJob'
 import {
   formatListDetailMetaText,
   getListDetailMetaDotClass,
@@ -1539,10 +1540,9 @@ const scanDevices = async () => {
       }
     }
     
-    // BACnet scan: WhoIs(10s) + Unicast(10s) + Enrich(6s/dev) can exceed 30s.
-    // Backend allows 45s, so frontend must match.
-    const res = await request.post(`/api/channels/${channelId}/scan`, scanParams, {
-      timeout: 45000 // 45秒超时，与后端 ScanChannel timeout 对齐
+    // BACnet/OPC UA scan can run long; backend returns a job and we poll.
+    const res = await postScanAndWait(request, `/api/channels/${channelId}/scan`, scanParams, {
+      timeoutMs: 60000
     })
     
     console.log('扫描响应:', res)

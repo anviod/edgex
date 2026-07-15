@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/anviod/edgex/internal/model"
@@ -65,6 +66,12 @@ type BACnetAddressNotifySetter interface {
 // schedule background reconnects without blocking startup.
 type ReconnectScheduler interface {
 	ScheduleReconnect(ctx context.Context, timeout time.Duration)
+}
+
+// LinkMutexBinder lets ChannelManager inject the per-channel channelMu into
+// ConnectionManager so shared-link reconnect dial/install cannot race I/O.
+type LinkMutexBinder interface {
+	BindLinkMutex(mu *sync.Mutex)
 }
 
 // Factory function type for creating drivers

@@ -613,13 +613,15 @@ func TestWithRetry(t *testing.T) {
 		err := transport.Connect(context.Background())
 		require.NoError(t, err)
 
-		// 测试withRetry
+		// Network errors must not sync-redial on the hot path — fail once and async reconnect.
 		err = transport.withRetry(context.Background(), func(client gos7.Client) error {
 			buf := make([]byte, 1)
 			return client.AGReadMB(0, 1, buf)
 		})
-		assert.NoError(t, err)
-		assert.Equal(t, 2, callCount)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "connection timeout")
+		assert.Equal(t, 1, callCount)
+		assert.False(t, transport.IsConnected())
 	})
 
 	t.Run("failure after max retries", func(t *testing.T) {

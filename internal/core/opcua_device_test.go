@@ -351,7 +351,7 @@ func TestOpcUa_ScanChannel_DefaultEndpoints(t *testing.T) {
 	cm.drivers[channelID] = mockDriver
 	cm.driverMus[channelID] = &sync.Mutex{}
 
-	results, err := cm.ScanChannel(channelID, nil)
+	results, err := cm.ScanChannel(context.Background(), channelID, nil)
 	require.NoError(t, err)
 
 	resultList, ok := results.([]map[string]any)
@@ -385,7 +385,7 @@ func TestOpcUa_ScanChannel_WithEndpoint(t *testing.T) {
 	cm.driverMus[channelID] = &sync.Mutex{}
 
 	endpoint := "opc.tcp://192.168.1.200:4840"
-	results, err := cm.ScanChannel(channelID, map[string]any{"endpoint": endpoint})
+	results, err := cm.ScanChannel(context.Background(), channelID, map[string]any{"endpoint": endpoint})
 	require.NoError(t, err)
 
 	resultList, ok := results.([]map[string]any)
@@ -414,7 +414,7 @@ func TestOpcUa_ScanChannel_InheritsChannelURL(t *testing.T) {
 	cm.drivers[channelID] = mockDriver
 	cm.driverMus[channelID] = &sync.Mutex{}
 
-	results, err := cm.ScanChannel(channelID, nil)
+	results, err := cm.ScanChannel(context.Background(), channelID, nil)
 	require.NoError(t, err)
 
 	resultList, ok := results.([]map[string]any)
@@ -492,7 +492,7 @@ func TestOpcUa_ScanDevice_InheritsChannelEndpoint(t *testing.T) {
 	cm.drivers[channelID] = mockDriver
 	cm.driverMus[channelID] = &sync.Mutex{}
 
-	results, err := cm.ScanDevice(channelID, deviceID, nil)
+	results, err := cm.ScanDevice(context.Background(), channelID, deviceID, nil)
 	require.NoError(t, err)
 
 	resultList, ok := results.([]map[string]any)
@@ -504,7 +504,7 @@ func TestOpcUa_ScanChannel_NoDriver(t *testing.T) {
 	cm, _, cleanup := createTestChannelManager(t)
 	defer cleanup()
 
-	_, err := cm.ScanChannel("nonexistent-channel", nil)
+	_, err := cm.ScanChannel(context.Background(), "nonexistent-channel", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "channel driver not found")
 }
@@ -542,7 +542,7 @@ func TestOpcUa_ScanDevice_Points(t *testing.T) {
 	cm.drivers[channelID] = mockDriver
 	cm.driverMus[channelID] = &sync.Mutex{}
 
-	results, err := cm.ScanDevice(channelID, deviceID, nil)
+	results, err := cm.ScanDevice(context.Background(), channelID, deviceID, nil)
 	require.NoError(t, err)
 
 	resultList, ok := results.([]map[string]any)
@@ -577,7 +577,7 @@ func TestOpcUa_ScanDevice_DeviceNotFound(t *testing.T) {
 	cm.drivers[channelID] = mockDriver
 	cm.driverMus[channelID] = &sync.Mutex{}
 
-	_, err := cm.ScanDevice(channelID, "nonexistent-device", nil)
+	_, err := cm.ScanDevice(context.Background(), channelID, "nonexistent-device", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "device not found")
 }
@@ -617,7 +617,7 @@ func TestOpcUa_ScanDevice_ConfigMerged(t *testing.T) {
 	cm.drivers[channelID] = mockDriver
 	cm.driverMus[channelID] = &sync.Mutex{}
 
-	results, err := cm.ScanDevice(channelID, deviceID, map[string]any{"root_node_id": "ns=2;s=CustomRoot"})
+	results, err := cm.ScanDevice(context.Background(), channelID, deviceID, map[string]any{"root_node_id": "ns=2;s=CustomRoot"})
 	require.NoError(t, err)
 
 	resultList, ok := results.([]map[string]any)

@@ -519,9 +519,120 @@ func (s *Server) UpdateConfig(cfg model.OPCUAConfig) error {
 	s.lifecycleMu.Lock()
 	defer s.lifecycleMu.Unlock()
 
-	s.stopLocked()
+	if RequiresServerRestart(s.config, cfg) {
+		s.stopLocked()
+		s.config = cfg
+		return s.startLocked()
+	}
+
 	s.config = cfg
-	return s.startLocked()
+	if s.srv == nil {
+		return s.startLocked()
+	}
+	return s.rebuildAddressSpaceInPlaceLocked()
+}
+
+// SyncAddressSpace refreshes OPC UA nodes from southbound topology without
+// stopping the TCP listener. Structural config changes still require UpdateConfig restart.
+func (s *Server) SyncAddressSpace() error {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+
+	if s.srv == nil {
+		if !s.config.Enable {
+			return nil
+		}
+		return s.startLocked()
+	}
+	return s.rebuildAddressSpaceInPlaceLocked()
+}
+
+// RequiresServerRestart reports whether northbound OPC UA must Stop+Start
+// (port/security/endpoint/auth/certs). Address-space / device-mapping changes do not.
+func RequiresServerRestart(oldCfg, newCfg model.OPCUAConfig) bool {
+	if oldCfg.Port != newCfg.Port {
+		return true
+	}
+	if oldCfg.Endpoint != newCfg.Endpoint {
+		return true
+	}
+	if oldCfg.SecurityPolicy != newCfg.SecurityPolicy {
+		return true
+	}
+	if oldCfg.SecurityMode != newCfg.SecurityMode {
+		return true
+	}
+	if oldCfg.TrustedCertPath != newCfg.TrustedCertPath {
+		return true
+	}
+	if oldCfg.ServerCertPEM != newCfg.ServerCertPEM || oldCfg.ServerKeyPEM != newCfg.ServerKeyPEM {
+		return true
+	}
+	if oldCfg.CertFile != newCfg.CertFile || oldCfg.KeyFile != newCfg.KeyFile {
+		return true
+	}
+	if !stringSlicesEqual(oldCfg.AuthMethods, newCfg.AuthMethods) {
+		return true
+	}
+	if !stringMapsEqual(oldCfg.Users, newCfg.Users) {
+		return true
+	}
+	if !stringSlicesEqual(oldCfg.TrustedCertsPEM, newCfg.TrustedCertsPEM) {
+		return true
+	}
+	return false
+}
+
+func stringSlicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func stringMapsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *Server) rebuildAddressSpaceInPlaceLocked() error {
+	nsURI := "http://edgex-gateway.com/opcua"
+	nsIndex := s.srv.NamespaceManager().Add(nsURI)
+	gatewayID := ua.ParseNodeID(fmt.Sprintf("ns=%d;s=G", nsIndex))
+	if node, ok := s.srv.NamespaceManager().FindNode(gatewayID); ok {
+		if err := s.srv.NamespaceManager().DeleteNode(node, true); err != nil {
+			zap.L().Warn("OPC UA delete gateway tree before rebuild",
+				zap.Error(err),
+				zap.String("component", "opcua-server"),
+			)
+		}
+	}
+
+	s.mu.Lock()
+	s.nodeMap = make(map[string]*server.VariableNode)
+	s.virtualDeviceIDs = make(map[string]struct{})
+	s.mu.Unlock()
+
+	if err := s.buildAddressSpace(); err != nil {
+		return err
+	}
+	zap.L().Info("OPC UA address space synced in-place",
+		zap.String("name", s.config.Name),
+		zap.String("component", "opcua-server"),
+	)
+	return nil
 }
 
 func (s *Server) Update(v model.Value) {

@@ -235,8 +235,17 @@ func (el *ExecutionLayer) serialQueueKey(task *ScanTask) string {
 func (el *ExecutionLayer) serialOuterTimeout(task *ScanTask) time.Duration {
 	readTimeout := el.executeTimeout(task)
 	if isSharedLinkProtocol(task.Protocol) {
-		// Allow several peers to queue on the same TCP/serial link.
-		return readTimeout * 16
+		// Allow a few peers to queue, but hard-cap so one offline slave
+		// cannot occupy an execution slot for tens of seconds (was ×16).
+		outer := readTimeout * 3
+		const maxOuter = 15 * time.Second
+		if outer > maxOuter {
+			outer = maxOuter
+		}
+		if outer < readTimeout {
+			return readTimeout
+		}
+		return outer
 	}
 	return readTimeout
 }
@@ -303,17 +312,20 @@ func (el *ExecutionLayer) executeParallel(task *ScanTask) *ExecuteResult {
 	points := el.loadPoints(task)
 	points = el.filterPoints(task, points)
 
+	timeout := el.executeTimeout(task)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
 	resultChan := make(chan *ExecuteResult, 1)
 
 	if !el.workerPool.Submit(func() {
 		defer el.backpressure.Release(task.DeviceKey)
 
-		values, err := el.readPoints(d, task, context.Background(), points)
-
-		if err != nil {
-			resultChan <- &ExecuteResult{Success: false, Error: err}
-		} else {
-			resultChan <- &ExecuteResult{Success: true, Values: values}
+		values, err := el.readPoints(d, task, ctx, points)
+		select {
+		case resultChan <- &ExecuteResult{Success: err == nil, Values: values, Error: err}:
+		case <-ctx.Done():
+			// Timed out already — discard late result to avoid poisoning state.
 		}
 	}) {
 		el.backpressure.Release(task.DeviceKey)
@@ -323,7 +335,7 @@ func (el *ExecutionLayer) executeParallel(task *ScanTask) *ExecuteResult {
 	select {
 	case result := <-resultChan:
 		return result
-	case <-time.After(el.executeTimeout(task)):
+	case <-ctx.Done():
 		return &ExecuteResult{Success: false, Error: ErrTimeout}
 	}
 }

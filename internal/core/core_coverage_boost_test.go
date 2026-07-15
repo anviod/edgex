@@ -181,7 +181,7 @@ func TestChannelManager_ScanChannel(t *testing.T) {
 	cm.drivers[channelID] = &scannerStubDriver{scanOut: []map[string]any{{"id": "dev-x"}}}
 	cm.driverMus[channelID] = &sync.Mutex{}
 
-	out, err := cm.ScanChannel(channelID, nil)
+	out, err := cm.ScanChannel(context.Background(), channelID, nil)
 	if err != nil {
 		t.Fatalf("ScanChannel: %v", err)
 	}
@@ -190,7 +190,7 @@ func TestChannelManager_ScanChannel(t *testing.T) {
 	}
 
 	cm.drivers[channelID] = &stubChannelDriver{}
-	if _, err := cm.ScanChannel(channelID, nil); err == nil {
+	if _, err := cm.ScanChannel(context.Background(), channelID, nil); err == nil {
 		t.Fatal("expected error when driver does not support scanning")
 	}
 }
@@ -306,14 +306,14 @@ func TestChannelManager_ScanDevice(t *testing.T) {
 	cm.drivers[channelID] = &objectScannerStubDriver{scannerStubDriver: scannerStubDriver{scanOut: []model.Point{{ID: "p1", Address: "0"}}}}
 	cm.driverMus[channelID] = &sync.Mutex{}
 
-	out, err := cm.ScanDevice(channelID, "dev-scan", map[string]any{"browse": true})
+	out, err := cm.ScanDevice(context.Background(), channelID, "dev-scan", map[string]any{"browse": true})
 	if err != nil {
 		t.Fatalf("ScanDevice: %v", err)
 	}
 	if out == nil {
 		t.Fatal("expected scan device result")
 	}
-	if _, err := cm.ScanDevice(channelID, "missing", nil); err == nil {
+	if _, err := cm.ScanDevice(context.Background(), channelID, "missing", nil); err == nil {
 		t.Fatal("expected error for missing device")
 	}
 }
