@@ -3,6 +3,7 @@
 package bacnet
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"net"
@@ -13,6 +14,7 @@ import (
 	bacnetlib "github.com/anviod/bacnet"
 	"github.com/anviod/bacnet/btypes"
 	"github.com/anviod/bacnet/datalink"
+	"github.com/anviod/edgex/internal/model"
 )
 
 // ---------------------------------------------------------------------------
@@ -20,7 +22,7 @@ import (
 // ---------------------------------------------------------------------------
 
 const (
-	workflowClientIP   = "192.168.3.230"
+	workflowClientIP   = "192.168.3.115"
 	workflowClientPort = 47815
 	workflowSubnetCIDR = 24
 	workflowMaxPDU     = 1476
@@ -40,6 +42,7 @@ var deviceConfigs = []deviceConfig{
 	{ID: 2228317, IP: workflowTargetIP, Port: 64339},
 	{ID: 2228318, IP: workflowTargetIP, Port: 54304},
 	{ID: 2228319, IP: workflowTargetIP, Port: 58301},
+	{ID: 2228320, IP: workflowTargetIP, Port: 50900},
 }
 
 type writeTarget struct {
@@ -120,6 +123,59 @@ func decodeFloatValue(val any) (float64, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Test: channel-level device discovery via Scan()
+// ---------------------------------------------------------------------------
+
+func TestBACnetDriver_ScanChannel(t *testing.T) {
+	d := NewBACnetDriver().(*BACnetDriver)
+	if err := d.Init(model.DriverConfig{
+		ChannelID: "bacnet-scan-test",
+		Protocol:  "bacnet-ip",
+		Config: map[string]any{
+			"interface_ip":   workflowClientIP,
+			"interface_port": confirmedListenPort,
+			"subnet_cidr":    workflowSubnetCIDR,
+		},
+	}); err != nil {
+		t.Fatalf("driver init failed: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	t.Log("=== BACnet Scan: broadcast WhoIs (Yabe-style) ===")
+	resultAny, err := d.Scan(ctx, map[string]any{})
+	if err != nil {
+		t.Fatalf("Scan failed: %v", err)
+	}
+	results, ok := resultAny.([]ScanResult)
+	if !ok {
+		t.Fatalf("unexpected result type: %T", resultAny)
+	}
+
+	t.Logf("Discovered %d device(s)", len(results))
+	for _, dev := range results {
+		t.Logf("  Device %d @ %s:%d", dev.DeviceID, dev.IP, dev.Port)
+	}
+
+	if len(results) == 0 {
+		t.Fatal("Scan returned 0 devices — expected at least 5")
+	}
+
+	// Verify broadcast-discoverable devices are present
+	foundIDs := make(map[int]bool)
+	for _, dev := range results {
+		foundIDs[dev.DeviceID] = true
+	}
+	for _, id := range []int{2228316, 2228317, 2228318, 2228319, 2228320} {
+		if !foundIDs[id] {
+			t.Errorf("Expected device %d not found", id)
+		}
+	}
+	t.Logf("OK: %d devices discovered via broadcast", len(results))
 }
 
 // ---------------------------------------------------------------------------

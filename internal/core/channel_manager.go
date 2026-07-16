@@ -1523,13 +1523,13 @@ func (cm *ChannelManager) ScanChannel(ctx context.Context, channelID string, par
 				params["target_ip"] = tip
 			}
 		}
-
-		// Inject preconfigured_devices from channel config if not already specified
-		if _, has := params["preconfigured_devices"]; !has {
-			if pcd, ok := ch.Config["preconfigured_devices"]; ok && pcd != nil {
-				params["preconfigured_devices"] = pcd
+		// Inject target_devices (unicast-verified device list) from channel config
+		if _, has := params["target_devices"]; !has {
+			if td, ok := ch.Config["target_devices"]; ok && td != nil {
+				params["target_devices"] = td
 			}
 		}
+
 	}
 
 	if okCh && ch.Protocol == "opc-ua" {

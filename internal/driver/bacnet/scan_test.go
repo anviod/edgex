@@ -1,4 +1,4 @@
-﻿//go:build integration
+//go:build integration
 
 package bacnet
 
@@ -23,27 +23,22 @@ func (m *MockScanClient) IsRunning() bool { return true }
 func (m *MockScanClient) ClientRun()      {}
 
 func (m *MockScanClient) WhoIs(wh *WhoIsOpts) ([]btypes.Device, error) {
-	// Return pre-configured devices
 	return m.Devices, nil
 }
 
-// SubscribeCOV registers for COV notifications (stub for external lib compatibility)
 func (m *MockScanClient) SubscribeCOV(device btypes.Device, data btypes.SubscribeCOVData) error {
 	return nil
 }
 
-// CancelSubscribeCOV cancels a COV subscription (stub for external lib compatibility)
 func (m *MockScanClient) CancelSubscribeCOV(device btypes.Device, processID uint32, objectID btypes.ObjectID) error {
 	return nil
 }
 
 func (m *MockScanClient) ReadProperty(dest btypes.Device, rp btypes.PropertyData) (btypes.PropertyData, error) {
-	// Return dummy property data
 	rp.Object.Properties[0].Data = "MockValue"
 	return rp, nil
 }
 
-// Stub other methods
 func (m *MockScanClient) WhatIsNetworkNumber() []*btypes.Address           { return nil }
 func (m *MockScanClient) IAm(dest btypes.Address, iam btypes.IAm) error    { return nil }
 func (m *MockScanClient) WhoIsRouterToNetwork() (resp *[]btypes.Address)   { return nil }
@@ -64,64 +59,32 @@ func (m *MockScanClient) ReadMultiPropertyWithTimeout(dev btypes.Device, rp btyp
 	return m.ReadMultiProperty(dev, rp)
 }
 
-func TestBACnetDriver_Scan_MultiInterface(t *testing.T) {
-	// 1. Mock getInterfaceIPs
-	originalGetInterfaceIPs := getInterfaceIPs
-	defer func() { getInterfaceIPs = originalGetInterfaceIPs }()
-
-	getInterfaceIPs = func() ([]string, error) {
-		return []string{"192.168.1.10", "10.0.0.10"}, nil
-	}
-
-	// 2. Setup Driver
+func TestBACnetDriver_Scan_Broadcast(t *testing.T) {
+	// 1. Setup driver with a specific interface IP
 	d := &BACnetDriver{
-		interfacePort: 47808,
+		interfaceIP:   "192.168.3.115",
+		interfacePort: confirmedListenPort,
 		subnetCIDR:    24,
+		client: &MockScanClient{
+			BoundIP: "192.168.3.115",
+		},
 	}
 
-	// 3. Mock clientFactory
+	// 2. Mock clientFactory for ephemeral scan client on 47808
 	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) {
-		client := &MockScanClient{
+		return &MockScanClient{
 			BoundIP: cb.Ip,
-		}
-
-		// Configure devices based on bound IP
-		if cb.Ip == "192.168.1.10" {
-			client.Devices = []btypes.Device{
-				{
-					DeviceID: 100,
-					Ip:       "192.168.1.50",
-					Port:     47808,
-				},
-			}
-		} else if cb.Ip == "10.0.0.10" {
-			client.Devices = []btypes.Device{
-				{
-					DeviceID: 200,
-					Ip:       "10.0.0.50",
-					Port:     47808,
-				},
-				// Duplicate device (reachable via both?)
-				{
-					DeviceID: 100, // Should be deduplicated
-					Ip:       "192.168.1.50",
-					Port:     47808,
-				},
-			}
-		}
-		return client, nil
+			Devices: []btypes.Device{
+				{DeviceID: 1234, Ip: "192.168.3.115", Port: 47810},
+				{DeviceID: 2228316, Ip: "192.168.3.115", Port: 58494},
+				{DeviceID: 2228317, Ip: "192.168.3.115", Port: 64339},
+			},
+		}, nil
 	}
 
-	// Also mock the default client for ReadProperty calls
-	d.client = &MockScanClient{
-		BoundIP: "0.0.0.0",
-	}
-
-	// 4. Run Scan
+	// 3. Run Scan (no device_id → device discovery mode)
 	ctx := context.Background()
-	params := map[string]any{}
-
-	resultAny, err := d.Scan(ctx, params)
+	resultAny, err := d.Scan(ctx, map[string]any{})
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -131,27 +94,26 @@ func TestBACnetDriver_Scan_MultiInterface(t *testing.T) {
 		t.Fatalf("Result is not []ScanResult, got %T", resultAny)
 	}
 
-	// 5. Verify Results
-	// We expect 2 unique devices: 100 and 200.
-	// Device 100 might appear twice in discovery but should be deduplicated.
-	if len(results) != 2 {
-		t.Errorf("Expected 2 devices, got %d", len(results))
+	// 4. Verify: 3 devices discovered
+	if len(results) != 3 {
+		t.Errorf("Expected 3 devices, got %d", len(results))
 	}
 
 	deviceMap := make(map[int]ScanResult)
 	for _, r := range results {
 		deviceMap[r.DeviceID] = r
-		// Verify Status is online
 		if r.Status != "online" {
 			t.Errorf("Device %d status expected online, got %s", r.DeviceID, r.Status)
 		}
+		if r.DiscoveryPhase != "broadcast" {
+			t.Errorf("Device %d discovery_phase expected broadcast, got %s", r.DeviceID, r.DiscoveryPhase)
+		}
 	}
 
-	if _, ok := deviceMap[100]; !ok {
-		t.Errorf("Device 100 not found")
-	}
-	if _, ok := deviceMap[200]; !ok {
-		t.Errorf("Device 200 not found")
+	for _, id := range []int{1234, 2228316, 2228317} {
+		if _, ok := deviceMap[id]; !ok {
+			t.Errorf("Device %d not found", id)
+		}
 	}
 }
 

@@ -153,7 +153,7 @@ const readFailureRecoveryThreshold = 3
 
 func NewBACnetDriver() drv.Driver {
 	return &BACnetDriver{
-		interfacePort:     47808,     // Default BACnet port
+		interfacePort:     confirmedListenPort, // 47809 — long-lived confirmed services, separate from discovery 47808
 		interfaceIP:       "0.0.0.0", // Default IP
 		subnetCIDR:        24,        // Default CIDR
 		connected:         false,
@@ -247,7 +247,7 @@ func (d *BACnetDriver) connectOnce(ctx context.Context) error {
 	}
 	d.connected = false
 
-	connectPort := discoveryListenPort // 47808
+	connectPort := confirmedListenPort // 47809 — separate from discovery port 47808
 	if d.interfacePort != 0 {
 		connectPort = d.interfacePort
 	}
@@ -1085,118 +1085,61 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 		return d.scanDeviceObjectsEx(scanClient, devID, deep, devIP, devPort)
 	}
 
-	// ── Device Discovery Mode (Yabe-style: scan all interfaces) ──
-	// ── 设备发现模式（Yabe 风格：遍历所有网卡扫描）──
+	// ── Device Discovery Mode: broadcast WhoIs on 47808 (Yabe-style) ──
+	// ── 设备发现模式：绑定 interface_ip:47808 广播 WhoIs（Yabe 方式）──
+	// NOTE: WhoIs broadcast MUST use port 47808. Devices only respond to
+	// standard BACnet discovery port; using the driver client (47809) returns 0.
 
-	// 1. Collect all local IPv4 interfaces
-	localNets, err := getAllLocalIPv4Nets()
+	scanIP := ""
+	if v, ok := params["interface_ip"]; ok {
+		scanIP, _ = v.(string)
+	}
+	if scanIP == "" {
+		d.mu.RLock()
+		scanIP = d.interfaceIP
+		d.mu.RUnlock()
+	}
+	if scanIP == "" || scanIP == "0.0.0.0" {
+		return nil, fmt.Errorf("interface_ip not configured — set it in channel config")
+	}
+
+	cb := &bacnetlib.ClientBuilder{
+		Ip:         scanIP,
+		Port:       discoveryListenPort, // 47808 — standard BACnet discovery port
+		SubnetCIDR: defaultSubnetCIDR,
+	}
+	scanClient, cliErr := clientFactory(cb)
+	if cliErr != nil {
+		return nil, fmt.Errorf("failed to create scan client on %s:%d: %w", scanIP, discoveryListenPort, cliErr)
+	}
+	stop, startErr := startEphemeralClient(scanClient)
+	if startErr != nil {
+		return nil, fmt.Errorf("failed to start scan client: %w", startErr)
+	}
+	defer stop()
+
+	zap.L().Info("BACnet Scan: broadcast WhoIs", zap.String("ip", scanIP), zap.Int("port", discoveryListenPort))
+
+	// Single broadcast WhoIs — Yabe does exactly this
+	devices, err := scanClient.WhoIs(&bacnetlib.WhoIsOpts{Low: 0, High: 4194303})
 	if err != nil {
-		return nil, fmt.Errorf("failed to enumerate local interfaces: %w", err)
-	}
-	if len(localNets) == 0 {
-		return nil, fmt.Errorf("no available IPv4 network interfaces found")
+		return nil, fmt.Errorf("WhoIs broadcast failed: %w", err)
 	}
 
-	var ifaceIPs []string
-	for _, n := range localNets {
-		ifaceIPs = append(ifaceIPs, n.IP.String())
-	}
-	zap.L().Info("BACnet Scan: scanning all local interfaces",
-		zap.Strings("interfaces", ifaceIPs),
-		zap.Int("port", discoveryListenPort))
+	zap.L().Info("BACnet Scan: WhoIs returned devices", zap.Int("count", len(devices)))
 
-	// 2. Ensure driver is connected (creates client on primary interface)
-	if err := d.Connect(ctx); err != nil {
-		return nil, fmt.Errorf("failed to connect BACnet driver: %w", err)
-	}
-
-	// 3. Get driver client info
-	d.mu.Lock()
-	driverClient := d.client
-	driverIP := d.interfaceIP
-	d.mu.Unlock()
-
-	// 4. Scan on every interface concurrently (Yabe behavior)
-	var allDevices []btypes.Device
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-
-	for _, ipnet := range localNets {
-		wg.Add(1)
-		go func(n *net.IPNet) {
-			defer wg.Done()
-			localIP := n.IP.String()
-			cidr := cidrPrefix(n.Mask)
-
-			var scanClient bacnetlib.Client
-			var isTemp bool
-
-			// Reuse driver's client if bound to this interface
-			if driverClient != nil && (driverIP == localIP || driverIP == "0.0.0.0") {
-				scanClient = driverClient
-			} else {
-				// Create temporary client on this interface
-				cb := &bacnetlib.ClientBuilder{
-					Ip:         localIP,
-					Port:       discoveryListenPort,
-					SubnetCIDR: cidr,
-				}
-				cli, err := clientFactory(cb)
-				if err != nil {
-					zap.L().Debug("Failed to create scan client",
-						zap.String("ip", localIP),
-						zap.Error(err))
-					return
-				}
-				stop, startErr := startEphemeralClient(cli)
-				if startErr != nil {
-					zap.L().Debug("Failed to start scan client",
-						zap.String("ip", localIP),
-						zap.Error(startErr))
-					return
-				}
-				defer stop()
-				scanClient = cli
-				isTemp = true
-			}
-
-			// Send WhoIs broadcast on this interface
-			whois := &bacnetlib.WhoIsOpts{Low: 0, High: 4194303}
-			devices, err := scanClient.WhoIs(whois)
-			if err != nil {
-				zap.L().Debug("WhoIs failed",
-					zap.String("ip", localIP),
-					zap.Bool("temp_client", isTemp),
-					zap.Error(err))
-				return
-			}
-
-			if len(devices) > 0 {
-				zap.L().Info("WhoIs found devices",
-					zap.String("ip", localIP),
-					zap.Int("count", len(devices)))
-				mu.Lock()
-				allDevices = append(allDevices, devices...)
-				mu.Unlock()
-			}
-		}(ipnet)
-	}
-
-	wg.Wait()
-
-	// 5. Deduplicate by DeviceID
+	// Deduplicate by DeviceID
 	uniqueDevices := make(map[int]btypes.Device)
-	for _, dev := range allDevices {
+	for _, dev := range devices {
 		existing, exists := uniqueDevices[dev.DeviceID]
 		if !exists || isBetterDeviceAddr(dev, existing) {
 			uniqueDevices[dev.DeviceID] = dev
 		}
 	}
 
-	zap.L().Info("Scan: deduplicated device count",
-		zap.Int("total", len(uniqueDevices)))
+	zap.L().Info("Scan: deduplicated device count", zap.Int("total", len(uniqueDevices)))
 
-	// 6. Enrich discovered devices with ReadProperty (use driver client)
+	// Build results — skip per-device ReadProperty enrichment to avoid slow I/O
 	results := make([]ScanResult, 0, len(uniqueDevices))
 	for _, dev := range uniqueDevices {
 		sr := ScanResult{
@@ -1208,16 +1151,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 			VendorID:       dev.Vendor,
 			Status:         "online",
 			DiscoveryPhase: "broadcast",
-		}
-		// Read object name using driver client if available
-		if dev.Ip != "" && dev.Port > 0 && driverClient != nil {
-			objectName := readPropertyString(driverClient, dev, btypes.PropObjectName, probeVerifyTimeout)
-			if objectName != "" {
-				sr.ObjectName = objectName
-			}
-		}
-		if sr.ObjectName == "" {
-			sr.ObjectName = fmt.Sprintf("BACnet Device %d", dev.DeviceID)
+			ObjectName:     fmt.Sprintf("BACnet Device %d", dev.DeviceID),
 		}
 		results = append(results, sr)
 	}
@@ -1240,7 +1174,7 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 }
 
 type ScanResult struct {
-	DeviceID        int    `json:"device_id"`
+	DeviceID        int    `json:"bacnet_device_id"`
 	IP              string `json:"ip"`
 	Port            int    `json:"port"`
 	Network         uint16 `json:"network_number"`
@@ -1254,7 +1188,7 @@ type ScanResult struct {
 	DiffStatus      string `json:"diff_status,omitempty"` // new, existing
 	Step1Verified   bool   `json:"step1_verified"`
 	Step2Discovered bool   `json:"step2_discovered"`
-	DiscoveryPhase  string `json:"discovery_phase"` // preconfigured, broadcast, both
+	DiscoveryPhase  string `json:"discovery_phase"` // broadcast
 }
 
 func parseExistingDeviceIDs(params map[string]any) map[int]struct{} {
@@ -1288,89 +1222,7 @@ func parseExistingDeviceIDs(params map[string]any) map[int]struct{} {
 	return out
 }
 
-type preconfiguredDevice struct {
-	DeviceID int    `json:"device_id"`
-	IP       string `json:"ip"`
-	Port     int    `json:"port"`
-}
 
-func parsePreconfiguredDevices(params map[string]any) []preconfiguredDevice {
-	var out []preconfiguredDevice
-	if params == nil {
-		return out
-	}
-	v, ok := params["preconfigured_devices"]
-	if !ok {
-		return out
-	}
-
-	switch devices := v.(type) {
-	case []preconfiguredDevice:
-		return devices
-	case []map[string]any:
-		for _, d := range devices {
-			pc := preconfiguredDevice{}
-			if id, ok := d["device_id"]; ok {
-				switch val := id.(type) {
-				case int:
-					pc.DeviceID = val
-				case float64:
-					pc.DeviceID = int(val)
-				}
-			}
-			if ip, ok := d["ip"]; ok {
-				if s, ok := ip.(string); ok {
-					pc.IP = s
-				}
-			}
-			if port, ok := d["port"]; ok {
-				switch val := port.(type) {
-				case int:
-					pc.Port = val
-				case float64:
-					pc.Port = int(val)
-				}
-			}
-			if pc.DeviceID > 0 && pc.IP != "" && pc.Port > 0 {
-				out = append(out, pc)
-			}
-		}
-	case []any:
-		for _, item := range devices {
-			switch d := item.(type) {
-			case preconfiguredDevice:
-				out = append(out, d)
-			case map[string]any:
-				pc := preconfiguredDevice{}
-				if id, ok := d["device_id"]; ok {
-					switch val := id.(type) {
-					case int:
-						pc.DeviceID = val
-					case float64:
-						pc.DeviceID = int(val)
-					}
-				}
-				if ip, ok := d["ip"]; ok {
-					if s, ok := ip.(string); ok {
-						pc.IP = s
-					}
-				}
-				if port, ok := d["port"]; ok {
-					switch val := port.(type) {
-					case int:
-						pc.Port = val
-					case float64:
-						pc.Port = int(val)
-					}
-				}
-				if pc.DeviceID > 0 && pc.IP != "" && pc.Port > 0 {
-					out = append(out, pc)
-				}
-			}
-		}
-	}
-	return out
-}
 
 func readPropertyString(client bacnetlib.Client, dev btypes.Device, propID btypes.PropertyType, timeout time.Duration) string {
 	if client == nil {

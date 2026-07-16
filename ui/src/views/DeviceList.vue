@@ -1326,10 +1326,26 @@ const scanTimeout = ref(null)
 const scanRowKeyForItem = (item) => String(item?.endpoint || item?.bacnet_device_id || '')
 
 const enrichScanResults = (items) => {
-  return (items || []).map((item) => ({
-    ...item,
-    scan_row_key: scanRowKeyForItem(item),
-  }))
+  // Build a set of existing device IDs for diff_status comparison
+  const existingIds = new Set()
+  ;(devices.value || []).forEach((d) => {
+    if (d.config?.bacnet_device_id != null) {
+      existingIds.add(Number(d.config.bacnet_device_id))
+    }
+  })
+
+  return (items || []).map((item) => {
+    const mappedDeviceId = item.bacnet_device_id ?? item.device_id ?? item.id
+    return {
+      ...item,
+      // Map backend field names to frontend expectations
+      bacnet_device_id: mappedDeviceId,
+      vendor_name: item.vendor_name ?? (item.vendor_id != null ? `Vendor ${item.vendor_id}` : ''),
+      model_name: item.model_name ?? item.object_name ?? '',
+      diff_status: existingIds.has(Number(mappedDeviceId)) ? 'existing' : 'new',
+      scan_row_key: String(item?.endpoint || mappedDeviceId || ''),
+    }
+  })
 }
 
 const normalizeScanResults = (res) => {

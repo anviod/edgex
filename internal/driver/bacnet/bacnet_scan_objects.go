@@ -228,9 +228,25 @@ func (d *BACnetDriver) scanDeviceObjectsEx(client bacnetlib.Client, devID int, d
 		return objectIDs[i].Instance < objectIDs[j].Instance
 	})
 
-	// Phase 2: Enrich with Description, Units (and deep mode properties)
-	// 增补 Description、Units（深度模式含 PresentValue、StatusFlags、Reliability）
-	results := d.enrichObjects(client, dev, objectIDs, nameMap, deep, devID)
+	// Phase 2: Enrich with Description, Units (only in deep mode)
+	// For normal mode, skip enrichment — Objects() already provides name, type, instance.
+	// This matches Yabe's fast scan behavior.
+	// 增补 Description、Units（仅深度模式），普通模式跳过以匹配 Yabe 快速扫描
+	var results []ObjectResult
+	if deep {
+		results = d.enrichObjects(client, dev, objectIDs, nameMap, deep, devID)
+	} else {
+		results = make([]ObjectResult, len(objectIDs))
+		for i, oid := range objectIDs {
+			key := fmt.Sprintf("%d:%d", oid.Type, oid.Instance)
+			results[i] = ObjectResult{
+				Type:     oid.Type.String(),
+				Instance: int(oid.Instance),
+				Name:     nameMap[key],
+				Writable: writableObjectTypes[oid.Type],
+			}
+		}
+	}
 
 	// Update historical cache
 	// 更新历史缓存
@@ -378,9 +394,9 @@ func (d *BACnetDriver) enrichObjects(client bacnetlib.Client, dev btypes.Device,
 				mpd.Objects[j] = obj
 			}
 
-			// Try batch read with 3s timeout
-			// 批量读取，3s 超时
-			resp, err := client.ReadMultiPropertyWithTimeout(dev, mpd, 3*time.Second)
+			// Try batch read with 2s timeout
+			// 批量读取，2s 超时
+			resp, err := client.ReadMultiPropertyWithTimeout(dev, mpd, 2*time.Second)
 			respMap := make(map[string]*btypes.Object)
 			if err == nil {
 				for i := range resp.Objects {
@@ -389,8 +405,8 @@ func (d *BACnetDriver) enrichObjects(client bacnetlib.Client, dev btypes.Device,
 					respMap[key] = obj
 				}
 			} else {
-				// Fallback: read each property individually with 3s timeout
-				// 降级：逐点逐属性读取，3s 超时（兼容 Yabe 等不支持 ReadMultiProperty 的设备）
+				// Fallback: read each property individually with 1s timeout
+				// 降级：逐点逐属性读取，1s 超时（兼容 Yabe 等不支持 ReadMultiProperty 的设备）
 				zap.L().Debug("ReadMultiProperty failed, falling back to individual reads",
 					zap.Int("device_id", devID), zap.Error(err))
 				for _, oid := range jb.Chunk {
@@ -415,7 +431,7 @@ func (d *BACnetDriver) enrichObjects(client bacnetlib.Client, dev btypes.Device,
 								},
 							},
 						}
-						if resProp, errProp := client.ReadPropertyWithTimeout(dev, pd, 3*time.Second); errProp == nil && len(resProp.Object.Properties) > 0 {
+						if resProp, errProp := client.ReadPropertyWithTimeout(dev, pd, 1*time.Second); errProp == nil && len(resProp.Object.Properties) > 0 {
 							obj.Properties = append(obj.Properties, resProp.Object.Properties[0])
 						}
 					}
