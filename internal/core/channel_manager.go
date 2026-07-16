@@ -1945,6 +1945,9 @@ func (cm *ChannelManager) AddPoint(channelID, deviceID string, point *model.Poin
 	// Add point
 	dev.Points = append(dev.Points, *point)
 
+	// Restart device to pick up the new point in the scan engine.
+	// UI should prefer AddPoints (batch) for bulk imports to avoid
+	// repeated unregister/register cycles.
 	return cm.restartDeviceLocked(ch, idx)
 }
 

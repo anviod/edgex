@@ -263,27 +263,38 @@ const handleScan = async () => {
       { timeoutMs: 70000 }
     )
     
+    // Normalize result: accept raw array, {devices: [...]}, or {data: [...]}
+    let items = []
     if (Array.isArray(res)) {
-      if (res.length === 0) {
-        showMessage('扫描结果为空', 'warning')
-      }
-      if (props.channelProtocol === 'opc-ua') {
-        // Flatten OPC UA tree for display
-        state.results = flattenOpcNodes(res)
-      } else {
-        // For BACnet (and others), process is_exists based on existing points in UI
-        state.results = res.map(item => {
-          if (props.channelProtocol === 'bacnet-ip') {
-               const key = `${item.type}:${item.instance}`
-               item.is_exists = props.existingAddresses.has(key)
-               item.unique_id = key
-               item.name = item.object_name || item.name
-          }
-          return item
-        })
-      }
+      items = res
+    } else if (res && Array.isArray(res.devices)) {
+      items = res.devices
+    } else if (res && Array.isArray(res.data)) {
+      items = res.data
+    } else if (res && Array.isArray(res.points)) {
+      items = res.points
     } else {
       showMessage('扫描结果格式错误', 'error')
+      return
+    }
+
+    if (items.length === 0) {
+      showMessage('扫描结果为空', 'warning')
+    }
+    if (props.channelProtocol === 'opc-ua') {
+      // Flatten OPC UA tree for display
+      state.results = flattenOpcNodes(items)
+    } else {
+      // For BACnet (and others), process is_exists based on existing points in UI
+      state.results = items.map(item => {
+        if (props.channelProtocol === 'bacnet-ip') {
+             const key = `${item.type}:${item.instance}`
+             item.is_exists = props.existingAddresses.has(key)
+             item.unique_id = key
+             item.name = item.object_name || item.name
+        }
+        return item
+      })
     }
   } catch (e) {
     showMessage('扫描失败: ' + e.message, 'error')
@@ -292,7 +303,7 @@ const handleScan = async () => {
   }
 }
 
-// 处理添加选定点位
+// 处理添加选定点位 — 批量导入，单次请求
 const handleAddSelected = async () => {
   if (state.selectedKeys.length === 0) return
   
@@ -303,12 +314,12 @@ const handleAddSelected = async () => {
   // Find selected objects based on selectedKeys
   const selectedObjects = state.results.filter(obj => state.selectedKeys.includes(obj.unique_id))
   
-  for (const obj of selectedObjects) {
-    let pointPayload = {}
+  // Build all point payloads into a single array for batch import
+  const pointPayloads = []
 
+  for (const obj of selectedObjects) {
     if (props.channelProtocol === 'opc-ua') {
       // OPC UA Point Mapping
-      // Skip non-variable nodes if desired, or let user decide (variables only usually)
       if (obj.type !== 'Variable') continue;
       
       let rw = 'R'
@@ -316,7 +327,6 @@ const handleAddSelected = async () => {
         rw = 'RW'
       }
       
-      // Map OPC UA DataType to System DataType
       let dt = (obj.data_type || 'Float').toLowerCase()
       if (dt.includes('bool')) dt = 'bool'
       else if (dt.includes('int16') || dt.includes('short')) dt = 'int16'
@@ -326,47 +336,53 @@ const handleAddSelected = async () => {
       else if (dt.includes('float')) dt = 'float32'
       else if (dt.includes('double')) dt = 'float64'
       else if (dt.includes('string')) dt = 'string'
-      else dt = 'float32' // Default fallback
+      else dt = 'float32'
 
-      pointPayload = {
-        id: obj.node_id, // Use NodeID as ID
+      pointPayloads.push({
+        id: obj.node_id,
         name: obj.display_name || obj.node_id,
         address: obj.node_id,
         datatype: dt,
         readwrite: rw,
-        unit: '', // Units not always available in browse
+        unit: '',
         scale: 1.0,
         offset: 0.0
-      }
+      })
     } else {
       // BACnet Point Mapping
-      // Determine Datatype
       let datatype = 'float32'
       if (obj.type.includes('Binary') || obj.type.includes('Bit')) datatype = 'bool'
       if (obj.type.includes('MultiState')) datatype = 'uint16'
       
-      // Determine RW
       let rw = 'R'
       if (obj.type.includes('Output') || obj.type.includes('Value')) rw = 'RW'
       
-      pointPayload = {
-        id: obj.name || `${obj.type}_${obj.instance}`.replace(/[\s:]+/g, '_'),
-        name: obj.description || `${obj.type} ${obj.instance}`,
+      // Use consistent ID format: type-instance (lowercase)
+      const pointId = `${obj.type.toLowerCase()}-${obj.instance}`
+      
+      pointPayloads.push({
+        id: pointId,
+        name: obj.name || obj.description || `${obj.type} ${obj.instance}`,
         address: `${obj.type}:${obj.instance}`,
         datatype: datatype,
         readwrite: rw,
         unit: obj.units || '',
         scale: 1.0,
         offset: 0.0
-      }
+      })
     }
+  }
 
+  if (pointPayloads.length > 0) {
     try {
-      await request.post(`/api/channels/${props.channelId}/devices/${props.deviceId}/points`, pointPayload)
-      successCount++
+      await request.post(
+        `/api/channels/${props.channelId}/devices/${props.deviceId}/points`,
+        pointPayloads
+      )
+      successCount = pointPayloads.length
     } catch (e) {
       console.error(e)
-      failCount++
+      failCount = pointPayloads.length
     }
   }
   

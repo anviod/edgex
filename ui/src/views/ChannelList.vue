@@ -1587,8 +1587,8 @@ const openMetricsDialog = async (channel) => {
 }
 
 const scanChannel = (channel) => {
-  // 实现设备扫描功能
-  console.log('Scan devices for channel:', channel)
+  // Navigate to device list page where device scanning is implemented
+  router.push(`/channels/${channel.id}/devices`)
 }
 
 const openBatchConfig = () => {
