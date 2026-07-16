@@ -18,3 +18,4 @@ dist/
 .github/
 build/
 test/
+vendor/

@@ -609,11 +609,17 @@
           <template #icon>
             <icon-info-circle />
           </template>
-          点击"开始扫描"以发现网络中的设备。扫描可能需要10秒左右，请耐心等待。
+          <strong>手动添加为主，WhoIs 扫描为辅。</strong>推荐优先使用「新增设备」按钮手动输入 DeviceID + IP + Port；
+          当端口未知时，可输入目标 IP 后点击「开始扫描」用 WhoIs 单播+广播组合发现。
         </a-alert>
 
         <a-row :gutter="[24, 16]" align="center">
-          <a-col :span="16">
+          <a-col :span="8">
+            <a-form-item label="目标 IP (WhoIs 补充)" style="margin-bottom:0">
+              <a-input v-model="scanTargetIP" placeholder="192.168.3.115" :disabled="isScanning" allow-clear />
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
             <a-form-item label="扫描网卡" style="margin-bottom:0">
               <a-select v-model="scanInterface" placeholder="自动选择全部可用网卡" :disabled="isScanning" allow-clear>
                 <a-option value="">全部网卡 (自动扫描)</a-option>
@@ -1303,13 +1309,7 @@ const interfaces = ref([])
 const scanInterface = ref(null)
 const scanTargetIP = ref('')
 
-const preconfiguredDevices = ref([
-  { bacnet_device_id: '1234', ip: '192.168.3.115', port: 47810 },
-  { bacnet_device_id: '2228316', ip: '192.168.3.115', port: 58494 },
-  { bacnet_device_id: '2228317', ip: '192.168.3.115', port: 64339 },
-  { bacnet_device_id: '2228318', ip: '192.168.3.115', port: 54304 },
-  { bacnet_device_id: '2228319', ip: '192.168.3.115', port: 58301 }
-])
+const preconfiguredDevices = ref([])
 
 const preconfigColumns = [
   { title: 'BACnet设备ID', slotName: 'bacnet_device_id', width: 140 },
@@ -1490,12 +1490,14 @@ const scanDevices = async () => {
     console.log('开始扫描设备，channelId:', channelId)
     console.log('扫描接口:', scanInterface.value)
     
-    // 构建扫描参数 — BACnet 后端自动遍历所有网卡，
-    // 前端仅在有明确选择时传递 interface_ip
+    // 构建扫描参数 — 手动添加为主，WhoIs 单播+广播作为补充
     const scanParams = {}
     if (channelProtocol.value === 'bacnet-ip') {
       if (scanInterface.value) {
         scanParams.interface_ip = scanInterface.value
+      }
+      if (scanTargetIP.value) {
+        scanParams.target_ip = scanTargetIP.value
       }
     } else if (channelProtocol.value === 'opc-ua') {
       const ep = channelOpcUaEndpoint.value

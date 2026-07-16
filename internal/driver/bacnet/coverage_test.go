@@ -298,7 +298,7 @@ func TestScanCoverage(t *testing.T) {
 	d.clientFactory = func(cb *bacnetlib.ClientBuilder) (Client, error) {
 		return mock, nil
 	}
-	d.Init(model.DriverConfig{Config: map[string]any{"ip": "0.0.0.0"}})
+	d.Init(model.DriverConfig{Config: map[string]any{"ip": "192.168.1.10"}})
 	d.Connect(context.Background())
 	defer d.Disconnect()
 

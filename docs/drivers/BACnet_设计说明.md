@@ -15,9 +15,10 @@ description: EdgeX BACnet 设计说明
 
 ## 三种读取模式
 
-- 发现：Who-Is/I-Am，全网广播 + 单播回退，填充厂商/型号
-- 轮询：ReadPropertyMultiple 优先，失败回退单点 ReadProperty；并发隔离
-- 订阅：配置 report_mode=cov 的点位优先尝试订阅；不支持则回退为轮询
+- **手动添加（Manual-Add）**：现场工程推荐方式。用户提供 DeviceID + IP + Port，驱动通过 ReadProperty(Object_Name) 验证可达性（超时 10s），验证通过后直接注册设备，跳过 WhoIs 发现流程。
+- **WhoIs 扫描（Supplement）**：端口未知时的补充手段。单播 WhoIs（向默认端口 47808）优先，广播 WhoIs 作为同网段兜底。扫描结果通过 ReadProperty(Object_Name) 富化设备名称。
+- **轮询**：ReadPropertyMultiple 优先，失败回退单点 ReadProperty；并发隔离
+- **订阅**：配置 report_mode=cov 的点位优先尝试订阅；不支持则回退为轮询
 
 ## 统一数据模型
 
@@ -48,6 +49,7 @@ description: EdgeX BACnet 设计说明
 ## 性能优化
 
 - 批量读取：默认分组阈值 20；避免 APDU 过大
+- MaxPDU：ClientBuilder 设置 MaxPDU=1476 (MaxAPDU)，避免分包开销
 - 并行化：设备级并发，互不阻塞
 - 快照返回：API 从快照返回，UI 无阻塞
 

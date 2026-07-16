@@ -27,9 +27,9 @@ const (
 )
 
 const (
-	probeVerifyTimeout   = 10 * time.Second
-	propertyReadTimeout  = 5 * time.Second
-	writeVerifyInterval  = 500 * time.Millisecond
-	batchReadTimeout     = 3 * time.Second
-	singleReadTimeout    = 5 * time.Second
+	probeVerifyTimeout  = 10 * time.Second // manual-add / device-add reachability probe (最佳实践 7.3: 远程 8-10s)
+	propertyReadTimeout = 5 * time.Second
+	writeVerifyInterval = 500 * time.Millisecond // write-then-read verification interval (最佳实践 5.2)
+	batchReadTimeout    = 3 * time.Second
+	singleReadTimeout   = 5 * time.Second
 )
