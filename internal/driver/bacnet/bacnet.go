@@ -1085,40 +1085,48 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 		return d.scanDeviceObjectsEx(scanClient, devID, deep, devIP, devPort)
 	}
 
-	// ── Device Discovery Mode: broadcast WhoIs on 47808 (Yabe-style) ──
-	// ── 设备发现模式：绑定 interface_ip:47808 广播 WhoIs（Yabe 方式）──
-	// NOTE: WhoIs broadcast MUST use port 47808. Devices only respond to
-	// standard BACnet discovery port; using the driver client (47809) returns 0.
+	// ── Device Discovery Mode: broadcast WhoIs (Yabe-style) ──
+	// ── 设备发现模式：广播 WhoIs（Yabe 方式）──
+	// Use the driver's own client if connected (avoids port conflicts on 47808).
+	// Real BACnet devices respond to WhoIs from any source port; only some
+	// simulators restrict responses to the standard 47808 port.
 
-	scanIP := ""
-	if v, ok := params["interface_ip"]; ok {
-		scanIP, _ = v.(string)
-	}
-	if scanIP == "" {
-		d.mu.RLock()
-		scanIP = d.interfaceIP
-		d.mu.RUnlock()
-	}
-	if scanIP == "" || scanIP == "0.0.0.0" {
-		return nil, fmt.Errorf("interface_ip not configured — set it in channel config")
+	scanClient := defaultClient
+
+	if scanClient == nil {
+		// Driver not connected — create ephemeral client on 47808
+		var stopScan func()
+		scanIP := ""
+		if v, ok := params["interface_ip"]; ok {
+			scanIP, _ = v.(string)
+		}
+		if scanIP == "" {
+			d.mu.RLock()
+			scanIP = d.interfaceIP
+			d.mu.RUnlock()
+		}
+		if scanIP == "" || scanIP == "0.0.0.0" {
+			return nil, fmt.Errorf("interface_ip not configured — set it in channel config")
+		}
+
+		cb := &bacnetlib.ClientBuilder{
+			Ip:         scanIP,
+			Port:       discoveryListenPort, // 47808
+			SubnetCIDR: defaultSubnetCIDR,
+		}
+		cli, cliErr := clientFactory(cb)
+		if cliErr != nil {
+			return nil, fmt.Errorf("failed to create scan client on %s:%d: %w", scanIP, discoveryListenPort, cliErr)
+		}
+		stopScan, startErr := startEphemeralClient(cli)
+		if startErr != nil {
+			return nil, fmt.Errorf("failed to start scan client: %w", startErr)
+		}
+		defer stopScan()
+		scanClient = cli
 	}
 
-	cb := &bacnetlib.ClientBuilder{
-		Ip:         scanIP,
-		Port:       discoveryListenPort, // 47808 — standard BACnet discovery port
-		SubnetCIDR: defaultSubnetCIDR,
-	}
-	scanClient, cliErr := clientFactory(cb)
-	if cliErr != nil {
-		return nil, fmt.Errorf("failed to create scan client on %s:%d: %w", scanIP, discoveryListenPort, cliErr)
-	}
-	stop, startErr := startEphemeralClient(scanClient)
-	if startErr != nil {
-		return nil, fmt.Errorf("failed to start scan client: %w", startErr)
-	}
-	defer stop()
-
-	zap.L().Info("BACnet Scan: broadcast WhoIs", zap.String("ip", scanIP), zap.Int("port", discoveryListenPort))
+	zap.L().Info("BACnet Scan: broadcast WhoIs", zap.Bool("using_driver_client", defaultClient != nil))
 
 	// Single broadcast WhoIs — Yabe does exactly this
 	devices, err := scanClient.WhoIs(&bacnetlib.WhoIsOpts{Low: 0, High: 4194303})
