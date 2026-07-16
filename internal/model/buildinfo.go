@@ -17,5 +17,5 @@ func FormatBuildTime() string {
 	if err != nil {
 		return BuildTime
 	}
-	return t.Local().Format("20060102150405")
+	return t.Local().Format("200601021504")
 }

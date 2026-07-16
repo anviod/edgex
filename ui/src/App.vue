@@ -52,6 +52,8 @@
         </div>
         <div v-if="!drawerRail" class="version-info">
           <span class="version-value">{{ systemVersion }}</span>
+          <span v-if="buildTime" class="version-buildtime">{{ buildTime }}</span>
+          <span v-if="commitID" class="version-commit">{{ commitID }}</span>
         </div>
         <button class="collapse-btn" @click="drawerRail = !drawerRail">
           <icon-arrow-left v-if="!drawerRail" :size="14" />
@@ -200,10 +202,6 @@ const fetchSystemInfo = async () => {
       systemVersion.value = `v${res.data.softVer || 'dev'}`
       buildTime.value = res.data.buildTime || ''
       commitID.value = res.data.commitID || ''
-      // Merge version info into a single line
-      if (buildTime.value || commitID.value) {
-        systemVersion.value += ` | ${buildTime.value.split('T')[0]} | ${commitID.value.slice(0, 7)}`
-      }
     }
   } catch (e) {
     console.error('获取系统信息失败:', e)

@@ -16,4 +16,5 @@ dist/
 .golangci-lint-cache/
 .gomodcache/
 .github/
-
+build/
+test/

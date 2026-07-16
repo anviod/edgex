@@ -145,33 +145,39 @@
 }
 
 .list-detail-page.point-list-container {
-  flex: 1;
-  min-height: calc(100vh - var(--header-height) - 2 * var(--page-padding-y));
+  flex: none;
+  min-height: auto;
 }
 
 .list-detail-page.point-list-container .list-detail-body {
-  flex: 1;
-  min-height: 0;
+  flex: none;
+  min-height: auto;
 }
 
 .list-detail-page.point-list-container .list-detail-spin {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
+  flex: none;
+  min-height: auto;
+  display: block;
 }
 
 .list-detail-page.point-list-container .list-detail-spin > .arco-spin-children {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
+  flex: none;
+  min-height: auto;
+  display: block;
 }
 
 .list-detail-page.point-list-container .table-container {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
+  flex: none;
+  min-height: auto;
+  overflow: visible;
+}
+
+/* 铺开展示后，底部状态栏不再需要 sticky，自然跟随内容流动 */
+.list-detail-page.point-list-container .terminal-info {
+  position: static;
+  margin-top: var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
 }
 
 .point-list-toolbar {
