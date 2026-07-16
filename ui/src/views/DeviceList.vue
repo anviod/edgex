@@ -613,14 +613,14 @@
         </a-alert>
 
         <a-row :gutter="[24, 16]" align="center">
-          <a-col :span="8">
-            <a-form-item label="本机IP" style="margin-bottom:0">
-              <a-input v-model="scanInterface" placeholder="自动获取" :disabled="isScanning" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8" v-if="channelProtocol === 'bacnet-ip'">
-            <a-form-item label="远程目标IP" style="margin-bottom:0">
-              <a-input v-model="scanTargetIP" placeholder="例: 192.168.3.115" :disabled="isScanning" />
+          <a-col :span="16">
+            <a-form-item label="扫描网卡" style="margin-bottom:0">
+              <a-select v-model="scanInterface" placeholder="自动选择全部可用网卡" :disabled="isScanning" allow-clear>
+                <a-option value="">全部网卡 (自动扫描)</a-option>
+                <a-option v-for="iface in interfaces" :key="iface.name" :value="iface.ip">
+                  {{ iface.name }} — {{ iface.ip }}
+                </a-option>
+              </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="8">
@@ -631,40 +631,10 @@
                 </template>
                 开始扫描
               </a-button>
-              <a-button type="outline" :disabled="isScanning" @click="autoFillLocalIP">
-                自动获取本机IP
-              </a-button>
             </a-space>
           </a-col>
         </a-row>
         <a-text v-if="isScanning" type="secondary" style="line-height: 32px;">{{ scanStatus }}</a-text>
-        
-        <!-- 预配置设备输入区域 -->
-        <div v-if="channelProtocol === 'bacnet-ip'" class="preconfigured-devices-section">
-          <div class="section-header">
-            <span class="section-title">预配置设备</span>
-            <a-button type="text" size="mini" @click="addPreconfiguredDevice">
-              <template #icon><IconPlus /></template>
-              添加
-            </a-button>
-          </div>
-          <a-table :data="preconfiguredDevices" :columns="preconfigColumns" size="small">
-            <template #bacnet_device_id="{ record }">
-              <a-input v-model="record.bacnet_device_id" size="mini" placeholder="BACnet设备ID" />
-            </template>
-            <template #ip="{ record }">
-              <a-input v-model="record.ip" size="mini" placeholder="IP地址" />
-            </template>
-            <template #port="{ record }">
-              <a-input-number v-model="record.port" size="mini" :min="1" :max="65535" placeholder="端口" />
-            </template>
-            <template #action="{ record, rowIndex }">
-              <a-button type="text" size="mini" status="danger" @click="removePreconfiguredDevice(rowIndex)">
-                <IconDelete />
-              </a-button>
-            </template>
-          </a-table>
-        </div>
 
         <!-- 两步扫描结果展示 -->
         <div v-if="scanPhaseResults && !isScanning" class="scan-phase-results">
@@ -1456,20 +1426,11 @@ const openScanDialog = () => {
   scanPhaseResults.value = null
   
   if (channelProtocol.value === 'bacnet-ip') {
-    const config = channelInfo.value?.config || {}
-    // Fill interface_ip from channel config or auto-detect
-    const configuredIP = config.interface_ip || config.ip
-    if (configuredIP && configuredIP !== '0.0.0.0') {
-      scanInterface.value = configuredIP
-    } else {
-      scanInterface.value = null
-    }
-    // Fill target_ip from channel config
-    scanTargetIP.value = config.target_ip || ''
+    // Default to "all interfaces" (empty string) — backend scans all automatically
+    scanInterface.value = ''
     fetchInterfaces()
   } else if (channelProtocol.value === 'opc-ua') {
     scanInterface.value = null
-    scanTargetIP.value = ''
   }
 }
 
@@ -1513,25 +1474,12 @@ const scanDevices = async () => {
     console.log('开始扫描设备，channelId:', channelId)
     console.log('扫描接口:', scanInterface.value)
     
-    // 构建扫描参数
+    // 构建扫描参数 — BACnet 后端自动遍历所有网卡，
+    // 前端仅在有明确选择时传递 interface_ip
     const scanParams = {}
     if (channelProtocol.value === 'bacnet-ip') {
       if (scanInterface.value) {
         scanParams.interface_ip = scanInterface.value
-      }
-      if (scanTargetIP.value) {
-        scanParams.target_ip = scanTargetIP.value
-      }
-      // 添加预配置设备
-      const preconfigured = preconfiguredDevices.value
-        .filter(d => d.bacnet_device_id && d.ip)
-        .map(d => ({
-          bacnet_device_id: parseInt(d.bacnet_device_id),
-          ip: d.ip,
-          port: parseInt(d.port) || 47808
-        }))
-      if (preconfigured.length > 0) {
-        scanParams.preconfigured_devices = preconfigured
       }
     } else if (channelProtocol.value === 'opc-ua') {
       const ep = channelOpcUaEndpoint.value

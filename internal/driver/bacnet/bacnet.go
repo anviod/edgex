@@ -55,6 +55,36 @@ var getInterfaceIPs = func() ([]string, error) {
 	return ips, nil
 }
 
+// getAllLocalIPv4Nets returns all local non-loopback IPv4 addresses with their CIDR prefix length.
+// This is used for scanning on all available network interfaces, matching Yabe's behavior.
+func getAllLocalIPv4Nets() ([]*net.IPNet, error) {
+	var nets []*net.IPNet
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	for _, i := range ifaces {
+		if i.Flags&net.FlagUp == 0 || i.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, _ := i.Addrs()
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok {
+				if ipnet.IP != nil && ipnet.IP.To4() != nil {
+					nets = append(nets, ipnet)
+				}
+			}
+		}
+	}
+	return nets, nil
+}
+
+// cidrPrefix returns the CIDR prefix length from an IPNet mask.
+func cidrPrefix(mask net.IPMask) int {
+	ones, _ := mask.Size()
+	return ones
+}
+
 const (
 	DeviceStateOnline   = 0
 	DeviceStateUnstable = 1
@@ -988,7 +1018,6 @@ func isBetterDeviceAddr(candidate, existing btypes.Device) bool {
 //   - device_id:    if set, triggers ScanObjects instead of device discovery
 func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, error) {
 	d.mu.Lock()
-	defaultInterfacePort := d.interfacePort
 	defaultSubnetCIDR := d.subnetCIDR
 	clientFactory := d.clientFactory
 	defaultClient := d.client
@@ -1056,346 +1085,144 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 		return d.scanDeviceObjectsEx(scanClient, devID, deep, devIP, devPort)
 	}
 
-	// ── Device Discovery Mode ──
-	// ── 设备发现模式 ──
+	// ── Device Discovery Mode (Yabe-style: scan all interfaces) ──
+	// ── 设备发现模式（Yabe 风格：遍历所有网卡扫描）──
 
-	// Resolve local binding IP (where we bind our UDP socket)
-	// 解析本地绑定 IP（我们绑定 UDP 套接字的位置）
-	localIP := ""
-	if v, ok := params["interface_ip"]; ok {
-		localIP, _ = v.(string)
+	// 1. Collect all local IPv4 interfaces
+	localNets, err := getAllLocalIPv4Nets()
+	if err != nil {
+		return nil, fmt.Errorf("failed to enumerate local interfaces: %w", err)
 	}
-	if localIP == "" {
-		localIP = d.interfaceIP
-	}
-	if localIP == "" || localIP == "0.0.0.0" {
-		if ips, err := getInterfaceIPs(); err == nil && len(ips) > 0 {
-			localIP = ips[0]
-		} else {
-			localIP = "0.0.0.0"
-		}
+	if len(localNets) == 0 {
+		return nil, fmt.Errorf("no available IPv4 network interfaces found")
 	}
 
-	// Resolve target IP (remote machine to scan)
-	// 解析目标 IP（要扫描的远程机器）
-	var targetIPs []string
-	if v, ok := params["target_ip"]; ok {
-		if ip, ok := v.(string); ok && ip != "" {
-			targetIPs = append(targetIPs, ip)
-		}
+	var ifaceIPs []string
+	for _, n := range localNets {
+		ifaceIPs = append(ifaceIPs, n.IP.String())
 	}
-	// Backward compat: interface_ip doubles as target when it's not a local interface
-	// 向后兼容：interface_ip 在不是本地网卡时也作为目标 IP
-	if v, ok := params["interface_ip"]; ok {
-		if ip, ok := v.(string); ok && ip != "" && ip != localIP {
-			found := false
-			for _, t := range targetIPs {
-				if t == ip {
-					found = true
-					break
-				}
-			}
-			if !found {
-				targetIPs = append(targetIPs, ip)
-			}
-		}
+	zap.L().Info("BACnet Scan: scanning all local interfaces",
+		zap.Strings("interfaces", ifaceIPs),
+		zap.Int("port", discoveryListenPort))
+
+	// 2. Ensure driver is connected (creates client on primary interface)
+	if err := d.Connect(ctx); err != nil {
+		return nil, fmt.Errorf("failed to connect BACnet driver: %w", err)
 	}
 
-	zap.L().Info("BACnet Scan: device discovery",
-		zap.String("local_ip", localIP),
-		zap.Strings("target_ips", targetIPs),
-		zap.Int("local_port", defaultInterfacePort))
-
-	// Device ID range for WhoIs
-	// WhoIs 设备 ID 范围
-	low := 0
-	high := 4194303
-	if v, ok := params["low_limit"]; ok {
-		if val, ok := v.(int); ok {
-			low = val
-		} else if val, ok := v.(float64); ok {
-			low = int(val)
-		}
-	}
-	if v, ok := params["high_limit"]; ok {
-		if val, ok := v.(int); ok {
-			high = val
-		} else if val, ok := v.(float64); ok {
-			high = int(val)
-		}
-	}
-
-	// ── Prepare readerClient for both steps ──
+	// 3. Get driver client info
 	d.mu.Lock()
-	readerClient := d.client
+	driverClient := d.client
+	driverIP := d.interfaceIP
 	d.mu.Unlock()
 
-	if readerClient == nil {
-		cb := &bacnetlib.ClientBuilder{
-			Ip:         localIP,
-			Port:       discoveryListenPort,
-			SubnetCIDR: defaultSubnetCIDR,
-		}
-		if cli, err := clientFactory(cb); err == nil {
-			stop, startErr := startEphemeralClient(cli)
-			if startErr == nil {
-				defer stop()
-				readerClient = cli
-			}
-		}
-	}
-
-	// ── Step 1: Unicast ReadProperty verification for preconfigured devices ──
-	// ── 步骤1：单播 ReadProperty 验证预配置设备 ──
-	preconfigured := parsePreconfiguredDevices(params)
-	step1Results := make(map[int]ScanResult)
-	var step1Mu sync.Mutex
-
-	for _, pc := range preconfigured {
-		dev, ok := buildDirectDevice(pc.DeviceID, pc.IP, pc.Port)
-		if !ok {
-			continue
-		}
-		objectName := readPropertyString(readerClient, dev, btypes.PropObjectName, probeVerifyTimeout)
-		if objectName != "" {
-			step1Mu.Lock()
-			step1Results[pc.DeviceID] = ScanResult{
-				DeviceID:       pc.DeviceID,
-				IP:             pc.IP,
-				Port:           pc.Port,
-				ObjectName:     objectName,
-				Status:         "online",
-				Step1Verified:  true,
-				DiscoveryPhase: "preconfigured",
-			}
-			step1Mu.Unlock()
-			zap.L().Info("[步骤1] 预配置设备验证成功",
-				zap.Int("device_id", pc.DeviceID),
-				zap.String("ip", pc.IP),
-				zap.Int("port", pc.Port))
-		} else {
-			zap.L().Info("[步骤1] 预配置设备验证失败",
-				zap.Int("device_id", pc.DeviceID),
-				zap.String("ip", pc.IP),
-				zap.Int("port", pc.Port))
-		}
-	}
-
-	// ── Step 2: Broadcast WhoIs for supplementary discovery ──
-	// ── 步骤2：广播 WhoIs 补充发现 ──
-	var foundDevices []btypes.Device
+	// 4. Scan on every interface concurrently (Yabe behavior)
+	var allDevices []btypes.Device
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	if len(preconfigured) == 0 {
-		// No preconfigured devices: pure broadcast path (legacy Strategy 1 + 2)
-		// 无预配置设备：走纯广播路径（旧策略 1 + 2）
-
-		// Strategy 1: Standard broadcast WhoIs
+	for _, ipnet := range localNets {
 		wg.Add(1)
-		go func() {
+		go func(n *net.IPNet) {
 			defer wg.Done()
-			scanClient := defaultClient
-			if scanClient == nil {
+			localIP := n.IP.String()
+			cidr := cidrPrefix(n.Mask)
+
+			var scanClient bacnetlib.Client
+			var isTemp bool
+
+			// Reuse driver's client if bound to this interface
+			if driverClient != nil && (driverIP == localIP || driverIP == "0.0.0.0") {
+				scanClient = driverClient
+			} else {
+				// Create temporary client on this interface
 				cb := &bacnetlib.ClientBuilder{
 					Ip:         localIP,
 					Port:       discoveryListenPort,
-					SubnetCIDR: defaultSubnetCIDR,
+					SubnetCIDR: cidr,
 				}
 				cli, err := clientFactory(cb)
 				if err != nil {
-					zap.L().Warn("[Strategy1] Failed to create discovery client", zap.Error(err))
+					zap.L().Debug("Failed to create scan client",
+						zap.String("ip", localIP),
+						zap.Error(err))
 					return
 				}
-				stop, _ := startEphemeralClient(cli)
+				stop, startErr := startEphemeralClient(cli)
+				if startErr != nil {
+					zap.L().Debug("Failed to start scan client",
+						zap.String("ip", localIP),
+						zap.Error(startErr))
+					return
+				}
 				defer stop()
 				scanClient = cli
+				isTemp = true
 			}
 
-			whois := &bacnetlib.WhoIsOpts{Low: low, High: high}
+			// Send WhoIs broadcast on this interface
+			whois := &bacnetlib.WhoIsOpts{Low: 0, High: 4194303}
 			devices, err := scanClient.WhoIs(whois)
 			if err != nil {
-				zap.L().Debug("[Strategy1] Standard broadcast WhoIs returned error", zap.Error(err))
+				zap.L().Debug("WhoIs failed",
+					zap.String("ip", localIP),
+					zap.Bool("temp_client", isTemp),
+					zap.Error(err))
 				return
 			}
+
 			if len(devices) > 0 {
-				zap.L().Info("[Strategy1] 标准广播发现设备",
+				zap.L().Info("WhoIs found devices",
+					zap.String("ip", localIP),
 					zap.Int("count", len(devices)))
 				mu.Lock()
-				foundDevices = append(foundDevices, devices...)
+				allDevices = append(allDevices, devices...)
 				mu.Unlock()
 			}
-		}()
-
-		// Strategy 2: Subnet broadcast WhoIs
-		if localIP != "" && localIP != "0.0.0.0" {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				ip := net.ParseIP(localIP)
-				if ip == nil {
-					return
-				}
-				mask := net.CIDRMask(defaultSubnetCIDR, 32)
-				ipv4 := ip.To4()
-				if ipv4 == nil {
-					return
-				}
-				subnetBcast := make(net.IP, 4)
-				for i := range ipv4 {
-					subnetBcast[i] = ipv4[i] | ^mask[i]
-				}
-				subnetDest := datalink.IPPortToAddress(subnetBcast, 47808)
-
-				scanClient := defaultClient
-				if scanClient == nil {
-					cb := &bacnetlib.ClientBuilder{
-						Ip:         localIP,
-						Port:       discoveryListenPort,
-						SubnetCIDR: defaultSubnetCIDR,
-					}
-					cli, err := clientFactory(cb)
-					if err != nil {
-						return
-					}
-					stop, _ := startEphemeralClient(cli)
-					defer stop()
-					scanClient = cli
-				}
-
-				whois := &bacnetlib.WhoIsOpts{Low: low, High: high, Destination: subnetDest}
-				devices, err := scanClient.WhoIs(whois)
-				if err != nil {
-					return
-				}
-				if len(devices) > 0 {
-					zap.L().Info("[Strategy2] 子网广播发现设备",
-						zap.String("subnet_bcast", subnetBcast.String()),
-						zap.Int("count", len(devices)))
-					mu.Lock()
-					foundDevices = append(foundDevices, devices...)
-					mu.Unlock()
-				}
-			}()
-		}
-	} else {
-		// Has preconfigured devices: standard broadcast WhoIs only
-		// 有预配置设备：仅执行标准广播 WhoIs
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			scanClient := defaultClient
-			if scanClient == nil {
-				cb := &bacnetlib.ClientBuilder{
-					Ip:         localIP,
-					Port:       discoveryListenPort,
-					SubnetCIDR: defaultSubnetCIDR,
-				}
-				cli, err := clientFactory(cb)
-				if err != nil {
-					zap.L().Warn("[Step2] Failed to create discovery client", zap.Error(err))
-					return
-				}
-				stop, _ := startEphemeralClient(cli)
-				defer stop()
-				scanClient = cli
-			}
-
-			whois := &bacnetlib.WhoIsOpts{Low: low, High: high}
-			devices, err := scanClient.WhoIs(whois)
-			if err != nil {
-				zap.L().Debug("[Step2] Standard broadcast WhoIs returned error", zap.Error(err))
-				return
-			}
-			if len(devices) > 0 {
-				zap.L().Info("[步骤2] 广播发现设备",
-					zap.Int("count", len(devices)))
-				mu.Lock()
-				foundDevices = append(foundDevices, devices...)
-				mu.Unlock()
-			}
-		}()
+		}(ipnet)
 	}
 
 	wg.Wait()
 
-	// ── Deduplicate by DeviceID, prefer real unicast IP ──
-	// ── 按 DeviceID 去重，优先保留有真实单播 IP 的结果 ──
+	// 5. Deduplicate by DeviceID
 	uniqueDevices := make(map[int]btypes.Device)
-	for _, dev := range foundDevices {
+	for _, dev := range allDevices {
 		existing, exists := uniqueDevices[dev.DeviceID]
 		if !exists || isBetterDeviceAddr(dev, existing) {
 			uniqueDevices[dev.DeviceID] = dev
 		}
 	}
 
-	zap.L().Info("Scan: 去重后设备数",
+	zap.L().Info("Scan: deduplicated device count",
 		zap.Int("total", len(uniqueDevices)))
 
-	// ── Enrich Step 2 discovered devices with ReadProperty ──
-	// ── 对步骤2发现的设备进行 ReadProperty 验证和丰富 ──
-	step2Results := make(map[int]ScanResult)
-	var wgEnrich sync.WaitGroup
-
+	// 6. Enrich discovered devices with ReadProperty (use driver client)
+	results := make([]ScanResult, 0, len(uniqueDevices))
 	for _, dev := range uniqueDevices {
-		wgEnrich.Add(1)
-		go func(device btypes.Device) {
-			defer wgEnrich.Done()
-
-			vendorName := readPropertyString(readerClient, device, btypes.PropVendorName, probeVerifyTimeout)
-			modelName := readPropertyString(readerClient, device, btypes.PropModelName, probeVerifyTimeout)
-			objectName := readPropertyString(readerClient, device, btypes.PropObjectName, probeVerifyTimeout)
-
-			step2Results[device.DeviceID] = ScanResult{
-				DeviceID:        device.DeviceID,
-				IP:              device.Ip,
-				Port:            device.Port,
-				Network:         uint16(device.NetworkNumber),
-				VendorID:        device.Vendor,
-				VendorName:      vendorName,
-				ModelName:       modelName,
-				ObjectName:      objectName,
-				MaxAPDU:         device.MaxApdu,
-				Segmentation:    uint32(device.Segmentation),
-				Status:          "online",
-				Step2Discovered: true,
-				DiscoveryPhase:  "broadcast",
-			}
-		}(dev)
-	}
-
-	wgEnrich.Wait()
-
-	// ── Merge Step 1 and Step 2 results ──
-	// ── 合并步骤 1 和步骤 2 的结果 ──
-	finalResults := make(map[int]ScanResult)
-	for id, sr := range step1Results {
-		finalResults[id] = sr
-	}
-	for id, sr := range step2Results {
-		if existing, ok := finalResults[id]; ok {
-			existing.IP = sr.IP
-			existing.Port = sr.Port
-			existing.Network = sr.Network
-			existing.VendorID = sr.VendorID
-			existing.VendorName = sr.VendorName
-			existing.ModelName = sr.ModelName
-			existing.ObjectName = sr.ObjectName
-			existing.MaxAPDU = sr.MaxAPDU
-			existing.Segmentation = sr.Segmentation
-			existing.Step2Discovered = true
-			existing.DiscoveryPhase = "both"
-			finalResults[id] = existing
-		} else {
-			finalResults[id] = sr
+		sr := ScanResult{
+			DeviceID:       dev.DeviceID,
+			IP:             dev.Ip,
+			Port:           dev.Port,
+			MaxAPDU:        dev.MaxApdu,
+			Segmentation:   uint32(dev.Segmentation),
+			VendorID:       dev.Vendor,
+			Status:         "online",
+			DiscoveryPhase: "broadcast",
 		}
-	}
-
-	results := make([]ScanResult, 0, len(finalResults))
-	for _, sr := range finalResults {
+		// Read object name using driver client if available
+		if dev.Ip != "" && dev.Port > 0 && driverClient != nil {
+			objectName := readPropertyString(driverClient, dev, btypes.PropObjectName, probeVerifyTimeout)
+			if objectName != "" {
+				sr.ObjectName = objectName
+			}
+		}
+		if sr.ObjectName == "" {
+			sr.ObjectName = fmt.Sprintf("BACnet Device %d", dev.DeviceID)
+		}
 		results = append(results, sr)
 	}
 
+	// Mark existing vs new
 	existingIDs := parseExistingDeviceIDs(params)
 	for i := range results {
 		if _, ok := existingIDs[results[i].DeviceID]; ok {
