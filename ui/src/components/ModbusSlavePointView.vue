@@ -1,33 +1,91 @@
 <template>
-  <div class="modbus-slave-view">
-    <a-collapse :default-active-key="defaultActiveKeys" expand-icon-position="right" bordered>
-      <a-collapse-item
-        v-for="group in visibleGroups"
+  <div class="modbus-slave-view modbus-point-tabs">
+    <a-tabs
+      v-model:active-key="activeTab"
+      type="rounded"
+      size="small"
+      data-testid="modbus-tabs"
+      :data-active-key="activeTab"
+      @keydown="onTabsKeydown"
+    >
+      <a-tab-pane
+        v-for="group in tabs"
         :key="group.key"
-        :header="groupHeader(group)"
-        :name="group.key"
+        :title="`${group.tabLabel} (${group.points.length})`"
       >
-        <template #extra>
-          <span class="group-meta font-mono">{{ group.points.length }} 点 · FC {{ group.fc }}</span>
+        <template #title>
+          <span :data-testid="`register-tab-${group.key}`">
+            {{ group.tabLabel }} ({{ group.points.length }})
+          </span>
         </template>
+      </a-tab-pane>
+    </a-tabs>
 
-        <div v-if="group.points.length === 0" class="group-empty font-mono">
+    <div class="modbus-point-tabs__content">
+      <div
+        v-if="loadError && allPoints.length === 0"
+        data-testid="modbus-load-error-blocking"
+        class="modbus-load-error"
+      >
+        <a-alert type="error" :title="loadError">
+          <button type="button" class="modbus-action-btn modbus-action-btn--primary" @click="$emit('retry')">
+            重试
+          </button>
+        </a-alert>
+      </div>
+
+      <template v-else>
+        <a-alert
+          v-if="loadError"
+          type="error"
+          :title="loadError"
+          data-testid="modbus-load-error-inline"
+          class="modbus-load-error modbus-load-error--inline"
+        >
+          <button type="button" class="modbus-action-btn modbus-action-btn--primary" @click="$emit('retry')">
+            重试
+          </button>
+        </a-alert>
+
+        <div
+          v-if="activeGroup.allPoints.length === 0"
+          data-testid="modbus-empty-category"
+          class="group-empty font-mono"
+        >
           该寄存器类型暂无点位
+        </div>
+
+        <div
+          v-else-if="activeGroup.points.length === 0"
+          data-testid="modbus-empty-filtered"
+          class="group-empty font-mono"
+        >
+          <div>当前筛选条件下无匹配点位</div>
+          <button
+            type="button"
+            class="modbus-action-btn modbus-action-btn--outline mt-2"
+            @click="$emit('clear-filters')"
+          >
+            清除全局筛选
+          </button>
         </div>
 
         <a-table
           v-else
+          data-testid="modbus-point-table"
           :columns="columns"
-          :data="group.points"
+          :data="activeGroup.points"
           :row-selection="rowSelectionConfig"
-          v-model:selected-keys="groupSelectedKeys[group.key]"
+          :selected-keys="activeSelectedKeys"
           row-key="id"
-          :pagination="paginationFor(group.points.length)"
+          :pagination="activePagination"
           size="small"
           class="industrial-table-fluid modbus-group-table"
           :bordered="{ wrapper: true, cell: true }"
           :scroll="{ x: 960 }"
-          @selection-change="emitConsolidatedSelection"
+          @selection-change="onSelectionChange"
+          @page-change="onPageChange"
+          @page-size-change="onPageSizeChange"
         >
           <template #offset="{ record }">
             <span class="font-mono text-xs">{{ formatOffsetAddress(record.address) }}</span>
@@ -85,13 +143,13 @@
             </div>
           </template>
         </a-table>
-      </a-collapse-item>
-    </a-collapse>
+      </template>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { IconCheckCircle, IconCloseCircle } from '@arco-design/web-vue/es/icon'
 import {
   MODBUS_REGISTER_GROUPS,
@@ -101,6 +159,10 @@ import {
 } from '@/utils/modbusRegisterGroups'
 
 const props = defineProps({
+  allPoints: {
+    type: Array,
+    default: () => []
+  },
   points: {
     type: Array,
     default: () => []
@@ -109,7 +171,11 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
-  registerTypeFilter: {
+  filterKey: {
+    type: String,
+    default: '["",[]]'
+  },
+  loadError: {
     type: String,
     default: ''
   }
@@ -117,6 +183,8 @@ const props = defineProps({
 
 const emit = defineEmits([
   'selection-change',
+  'retry',
+  'clear-filters',
   'write',
   'edit',
   'delete',
@@ -124,31 +192,42 @@ const emit = defineEmits([
   'show-value'
 ])
 
-const grouped = computed(() => groupPointsByRegisterType(props.points))
+const activeTab = ref('coil')
 
-const pointIdsByGroup = computed(() => {
-  const map = {}
-  for (const g of MODBUS_REGISTER_GROUPS) {
-    map[g.key] = new Set((grouped.value[g.key] || []).map((p) => p.id))
-  }
-  return map
-})
+const tabKeys = MODBUS_REGISTER_GROUPS.map(group => group.key)
 
-const visibleGroups = computed(() => {
-  const list = MODBUS_REGISTER_GROUPS.map(g => ({
-    ...g,
-    points: grouped.value[g.key] || []
-  }))
-  if (props.registerTypeFilter) {
-    return list.filter(g => g.key === props.registerTypeFilter)
-  }
-  return list
-})
+const onTabsKeydown = (event) => {
+  if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
+  const index = tabKeys.indexOf(activeTab.value)
+  if (index < 0) return
+  const nextIndex = event.key === 'ArrowRight'
+    ? Math.min(tabKeys.length - 1, index + 1)
+    : Math.max(0, index - 1)
+  if (nextIndex === index) return
+  activeTab.value = tabKeys[nextIndex]
+  event.preventDefault()
+}
 
-const defaultActiveKeys = computed(() => {
-  if (props.registerTypeFilter) return [props.registerTypeFilter]
-  return visibleGroups.value.filter(g => g.points.length > 0).map(g => g.key)
-})
+const tabLabels = {
+  coil: '线圈',
+  discrete_input: '离散输入',
+  input: '输入寄存器',
+  holding: '保持寄存器',
+}
+
+const groupedAllPoints = computed(() => groupPointsByRegisterType(props.allPoints))
+const groupedFilteredPoints = computed(() => groupPointsByRegisterType(props.points))
+
+const tabs = computed(() => MODBUS_REGISTER_GROUPS.map(group => ({
+  ...group,
+  tabLabel: tabLabels[group.key],
+  allPoints: groupedAllPoints.value[group.key] || [],
+  points: groupedFilteredPoints.value[group.key] || [],
+})))
+
+const activeGroup = computed(() =>
+  tabs.value.find(group => group.key === activeTab.value) || tabs.value[0]
+)
 
 const columns = [
   { title: '点位 ID', dataIndex: 'id', width: 110, ellipsis: true, tooltip: true },
@@ -163,17 +242,54 @@ const columns = [
   { title: '操作', slotName: 'actions', width: 220 }
 ]
 
-const groupHeader = (group) => `${group.label} — ${group.title}`
+const paginationByGroup = reactive(Object.fromEntries(
+  MODBUS_REGISTER_GROUPS.map(group => [
+    group.key,
+    { current: 1, pageSize: 10 },
+  ])
+))
 
-const paginationFor = (total) => ({
-  pageSize: total > 100 ? 50 : total || 10,
+const activePagination = computed(() => ({
+  ...paginationByGroup[activeTab.value],
+  total: activeGroup.value.points.length,
+  pageSizeOptions: [10, 20, 50, 100],
+  showPageSize: true,
   showTotal: true,
-  size: 'small'
+  size: 'small',
+}))
+
+const onPageChange = (current) => {
+  paginationByGroup[activeTab.value].current = current
+}
+
+const onPageSizeChange = (pageSize) => {
+  const pagination = paginationByGroup[activeTab.value]
+  pagination.pageSize = pageSize
+  pagination.current = 1
+}
+
+const groupIdSignature = computed(() =>
+  MODBUS_REGISTER_GROUPS.map(group =>
+    (groupedFilteredPoints.value[group.key] || []).map(point => point.id).join('\0')
+  ).join('\n')
+)
+
+watch(() => props.filterKey, () => {
+  for (const group of MODBUS_REGISTER_GROUPS) {
+    paginationByGroup[group.key].current = 1
+  }
 })
 
-const groupSelectedKeys = reactive(
-  Object.fromEntries(MODBUS_REGISTER_GROUPS.map((g) => [g.key, []]))
-)
+watch(groupIdSignature, () => {
+  for (const group of MODBUS_REGISTER_GROUPS) {
+    const total = (groupedFilteredPoints.value[group.key] || []).length
+    const pagination = paginationByGroup[group.key]
+    const maxPage = Math.max(1, Math.ceil(total / pagination.pageSize))
+    if (pagination.current > maxPage) {
+      pagination.current = maxPage
+    }
+  }
+})
 
 const rowSelectionConfig = {
   type: 'checkbox',
@@ -181,21 +297,18 @@ const rowSelectionConfig = {
   onlyCurrent: false,
 }
 
-const syncGroupSelectionsFromProps = () => {
-  for (const g of MODBUS_REGISTER_GROUPS) {
-    const ids = pointIdsByGroup.value[g.key] || new Set()
-    groupSelectedKeys[g.key] = props.selectedIds.filter((id) => ids.has(id))
-  }
-}
+const activeFilteredIdSet = computed(() =>
+  new Set(activeGroup.value.points.map(point => point.id))
+)
 
-const emitConsolidatedSelection = () => {
-  const allKeys = MODBUS_REGISTER_GROUPS.flatMap((g) => groupSelectedKeys[g.key] || [])
-  emit('selection-change', allKeys)
-}
+const activeSelectedKeys = computed(() => [
+  ...new Set(props.selectedIds.filter(id => activeFilteredIdSet.value.has(id))),
+])
 
-watch(() => props.selectedIds, syncGroupSelectionsFromProps)
-watch(() => props.points.length, syncGroupSelectionsFromProps)
-syncGroupSelectionsFromProps()
+const onSelectionChange = (currentGroupIds) => {
+  const retained = props.selectedIds.filter(id => !activeFilteredIdSet.value.has(id))
+  emit('selection-change', [...new Set([...retained, ...currentGroupIds])])
+}
 
 const formatValue = (val) => {
   if (val === null || val === undefined) return 'N/A'
@@ -221,5 +334,67 @@ const valueTooltip = (record) => {
 </script>
 
 <style scoped>
-/* v3.0 — styles in src/styles/ */
+.modbus-point-tabs {
+  min-width: 0;
+}
+
+.modbus-point-tabs :deep(.arco-tabs-nav-tab) {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.modbus-point-tabs :deep(.arco-tabs-nav-scroll) {
+  min-width: max-content;
+}
+
+.modbus-point-tabs__content {
+  margin-top: var(--space-3);
+  min-width: 0;
+}
+
+.modbus-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  height: 28px;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.modbus-action-btn--primary {
+  color: var(--color-white, #fff);
+  background: rgb(var(--primary-6, 22, 93, 255));
+  border: 1px solid transparent;
+}
+
+.modbus-action-btn--primary:hover {
+  background: rgb(var(--primary-5, 64, 128, 255));
+}
+
+.modbus-action-btn--outline {
+  color: var(--color-text-1, #1d2129);
+  background: transparent;
+  border: 1px solid var(--color-border-2, #e5e6eb);
+}
+
+.modbus-action-btn--outline:hover {
+  border-color: rgb(var(--primary-6, 22, 93, 255));
+  color: rgb(var(--primary-6, 22, 93, 255));
+}
+
+/* 覆盖仓库全局 outline:none，保证键盘焦点可见 */
+button.modbus-action-btn:focus-visible {
+  outline: 2px solid rgb(var(--primary-6, 22, 93, 255)) !important;
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
+
+@media (max-width: 900px) {
+  .modbus-point-tabs :deep(.arco-tabs-nav-tab) {
+    width: 100%;
+  }
+}
 </style>

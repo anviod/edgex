@@ -50,15 +50,6 @@
                     <template #prefix><IconSearch /></template>
                 </a-input>
                 <a-select
-                    v-if="isModbusChannel"
-                    v-model="filters.registerType"
-                    :options="modbusRegisterFilterOptions"
-                    placeholder="寄存器类型"
-                    allow-clear
-                    size="small"
-                    class="point-list-toolbar__select"
-                />
-                <a-select
                     v-model="filters.quality"
                     :options="[{ label: 'Good', value: 'Good' }, { label: 'Bad', value: 'Bad' }]"
                     placeholder="质量过滤"
@@ -68,6 +59,10 @@
                 />
             </div>
             <div v-if="selection.selectedIds.length > 0" class="point-list-toolbar__batch">
+                <span class="point-list-toolbar__selected-count font-mono">已选 {{ selection.selectedIds.length }} 项</span>
+                <a-button type="text" size="small" @click="selection.selectedIds = []">
+                    清除选择
+                </a-button>
                 <a-button type="outline" status="success" size="small" @click="goCreateVirtualShadow">
                     <template #icon><IconThunderbolt /></template>
                     拼虚拟设备 ({{ selection.selectedIds.length }})
@@ -85,24 +80,16 @@
                 <div class="table-toolbar">
                     <div class="left-title">{{ isModbusChannel ? 'MODBUS SLAVE VIEW' : 'POINT LIST' }}</div>
                 </div>
-                <div v-if="isModbusChannel && filteredPoints.length === 0" class="empty-state">
-                    <IconSearch size="48" class="text-slate-300" />
-                    <div class="empty-text font-mono">暂无匹配的 Modbus 点位</div>
-                    <div class="empty-actions">
-                        <a-button v-if="!points || points.length === 0" type="primary" size="small" @click="openRegisterBlockDialog">
-                            <template #icon><IconPlus /></template>批量创建寄存器
-                        </a-button>
-                        <a-button v-else type="outline" size="small" @click="filters.search = ''; filters.quality = []; filters.registerType = ''">
-                            清除过滤器
-                        </a-button>
-                    </div>
-                </div>
                 <ModbusSlavePointView
-                    v-else-if="isModbusChannel"
+                    v-if="isModbusChannel"
+                    :all-points="points"
                     :points="filteredPoints"
                     :selected-ids="selection.selectedIds"
-                    :register-type-filter="filters.registerType"
+                    :filter-key="modbusFilterKey"
+                    :load-error="loadError"
                     @selection-change="onModbusSelectionChange"
+                    @clear-filters="clearGlobalFilters"
+                    @retry="fetchPoints({ force: true })"
                     @write="openWriteDialog"
                     @edit="openEditDialog"
                     @delete="confirmDelete"
@@ -1322,11 +1309,7 @@ import HelpDrawer from '../components/HelpDrawer.vue'
 import OpcuaScanner from '../components/OpcuaScanner.vue'
 import BACnetScanner from '../components/BACnetScanner.vue'
 import ModbusSlavePointView from '../components/ModbusSlavePointView.vue'
-import {
-    modbusRegisterFilterOptions,
-    normalizeRegisterType,
-    enrichModbusPoint
-} from '@/utils/modbusRegisterGroups'
+import { enrichModbusPoint } from '@/utils/modbusRegisterGroups'
 import { formatProtocolTag } from '@/utils/protocolLabel'
 import ModbusPointConfig from '../components/point-config/ModbusPointConfig.vue'
 import OpcuaPointConfig from '../components/point-config/OpcuaPointConfig.vue'
@@ -1359,6 +1342,7 @@ const router = useRouter()
 const points = ref([])
 const deviceInfo = ref(null)
 const loading = ref(false)
+const loadError = ref('')
 
 const goBack = () => {
   console.log('goBack function called')
@@ -1382,6 +1366,7 @@ const deviceId = computed(() => decodePathSegment(route.params.deviceId))
 
 // Watch for route changes to refresh data
 watch([channelId, deviceId], async () => {
+    selection.selectedIds = []
     await fetchChannel()
     fetchPoints({ force: true })
     fetchMetrics()
@@ -1391,8 +1376,17 @@ watch([channelId, deviceId], async () => {
 const filters = reactive({
     search: '',
     quality: [],
-    registerType: ''
 })
+
+const modbusFilterKey = computed(() => JSON.stringify([
+    filters.search.trim().toLowerCase(),
+    [...filters.quality].sort(),
+]))
+
+const clearGlobalFilters = () => {
+    filters.search = ''
+    filters.quality = []
+}
 
 const isModbusChannel = computed(() => {
     const proto = channelProtocol.value || ''
@@ -1400,8 +1394,9 @@ const isModbusChannel = computed(() => {
 })
 
 const onModbusSelectionChange = (ids) => {
-    selection.selectedIds = ids
-    selection.selectAll = ids.length > 0 && ids.length === filteredPoints.value.length
+    selection.selectedIds = [...new Set(ids)]
+    selection.selectAll = selection.selectedIds.length > 0
+        && selection.selectedIds.length === filteredPoints.value.length
 }
 
 const mapDevicePoint = (p, now = new Date()) => enrichModbusPoint({
@@ -1640,13 +1635,6 @@ const filteredPoints = computed(() => {
                 return filters.quality.includes(p.quality)
             })
         }
-
-        // Modbus register type filter
-        if (isModbusChannel.value && filters.registerType) {
-            result = result.filter(p =>
-                normalizeRegisterType(p.register_type, p) === filters.registerType
-            )
-        }
         
         return result
     } catch (error) {
@@ -1663,24 +1651,17 @@ const toggleSelectAll = (val) => {
     }
 }
 
-// Watch filteredPoints length / filters only — avoid deep watch on live point values (WebSocket).
-const pruneSelectionToVisiblePoints = () => {
-    const visible = filteredPoints.value
-    if (visible.length === 0) {
-        selection.selectAll = false
-        selection.selectedIds = []
-        return
-    }
-    selection.selectedIds = selection.selectedIds.filter(id =>
-        visible.some(p => p.id === id)
-    )
-    selection.selectAll = visible.length > 0 && selection.selectedIds.length === visible.length
-}
-
-watch(
-    () => [points.value.length, filters.search, filters.quality.join(','), filters.registerType],
-    pruneSelectionToVisiblePoints
+// Prune selection only when raw point IDs disappear — not on search/quality filters.
+const pointIdKey = computed(() =>
+    JSON.stringify([...new Set(points.value.map(point => point.id))].sort())
 )
+
+watch(pointIdKey, () => {
+    const existingIds = new Set(points.value.map(point => point.id))
+    selection.selectedIds = [...new Set(
+        selection.selectedIds.filter(id => existingIds.has(id))
+    )]
+})
 
 // Watch selectedIds to update selectAll state
 watch(() => selection.selectedIds, (newIds) => {
@@ -3091,15 +3072,16 @@ const fetchPoints = async (options = {}) => {
             }
         }
 
-        // 3) 用设备配置中的点位生成基础列表（无阻塞首屏）
+        // 3) 用设备配置中的点位生成基础列表；失败时保留已有缓存，不预先清空
         if (deviceInfo.value && Array.isArray(deviceInfo.value.points)) {
             const now = new Date()
             points.value = deviceInfo.value.points.map(p => mapDevicePoint({ ...p, value: null, quality: 'Bad' }, now))
             syncPointIndex()
+            loadError.value = ''
             console.log('Initial points list created from device info:', points.value.length)
+        } else if (!deviceInfo.value) {
+            console.warn('No device info available; keeping cached points if any')
         } else {
-            points.value = []
-            syncPointIndex()
             console.warn('No points found in device info')
         }
 
@@ -3128,7 +3110,7 @@ const fetchPoints = async (options = {}) => {
         }
 
         // 5) 后台拉取最新实时值（对于 OPC-UA 设备，增加超时时间）
-        // 成功则用返回结果覆盖；失败/超时忽略，等待 WebSocket 或下次刷新
+        // 成功则用返回结果覆盖；失败时按是否有缓存区分阻塞/非阻塞错误
         console.log('Triggering background point fetch...')
         const timeout = channelProtocol.value === 'opc-ua' ? 10000 : 2500
         request.get(channelDeviceApiPath(channelId.value, deviceId.value, 'points'), { timeout: timeout, silent: true })
@@ -3138,16 +3120,17 @@ const fetchPoints = async (options = {}) => {
                     console.log('First point data:', pts[0])
                     points.value = pts.map(p => mapDevicePoint(p))
                     syncPointIndex()
-                } else if (Array.isArray(pts) && pts.length === 0 && points.value.length === 0) {
+                    loadError.value = ''
+                } else if (Array.isArray(pts)) {
                     console.log('Background fetch returned empty points array')
-                    if (channelProtocol.value === 'opc-ua') {
+                    loadError.value = ''
+                    if (pts.length === 0 && points.value.length === 0 && channelProtocol.value === 'opc-ua') {
                         showMessage('OPC-UA 设备未发现点位，请先扫描点位', 'info')
                     }
                 }
             })
             .catch((err) => {
                 console.warn('Background point fetch failed or timed out:', err.message)
-                // 如果 deviceInfo 也没拿到点位，尝试一次不带超时的拉取作为兜底
                 if (points.value.length === 0) {
                     console.log('Fallback: Attempting full point fetch without short timeout...')
                     request.get(channelDeviceApiPath(channelId.value, deviceId.value, 'points'))
@@ -3155,6 +3138,7 @@ const fetchPoints = async (options = {}) => {
                             if (Array.isArray(pts)) {
                                 points.value = pts.map(p => mapDevicePoint(p))
                                 syncPointIndex()
+                                loadError.value = ''
                                 if (pts.length === 0 && channelProtocol.value === 'opc-ua') {
                                     showMessage('OPC-UA 设备未发现点位，请先扫描点位', 'info')
                                 }
@@ -3162,14 +3146,18 @@ const fetchPoints = async (options = {}) => {
                         })
                         .catch((fallbackErr) => {
                             console.error('Fallback point fetch failed:', fallbackErr.message)
+                            loadError.value = '获取点位失败：' + fallbackErr.message
                             if (channelProtocol.value === 'opc-ua') {
                                 showMessage('获取 OPC-UA 点位失败，请检查设备连接和配置', 'error')
                             }
                         })
+                } else {
+                    loadError.value = '获取点位失败：' + err.message
                 }
             })
     } catch (e) {
         console.error('fetchPoints error:', e)
+        loadError.value = '获取点位失败：' + e.message
         showMessage('获取点位失败: ' + e.message, 'error')
     } finally {
         // 不等待后台拉取完成，首屏已就绪
