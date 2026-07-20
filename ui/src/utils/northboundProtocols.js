@@ -26,89 +26,94 @@ export const NORTHBOUND_PROTOCOLS = {
     label: 'MQTT 客户端',
     shortLabel: 'MQTT',
     mode: 'push',
-    color: '#0ea5e9',
-    desc: '通用 MQTT 协议，支持自定义主题与 Payload',
+    color: '#1677ff',
+    desc: '连接到 MQTT Broker，向指定 Topic 主动推送数据',
     icon: 'cloud',
     infoFields: (item) => [
-      { label: 'Broker', value: item.broker, copy: true },
-      { label: 'Client ID', value: item.client_id },
-      { label: '上报主题', value: item.topic }
+      { label: 'Broker', value: `${item.broker || ''}${item.port ? ':' + item.port : ''}` },
+      { label: 'Topic', value: item.topic || '-' },
+      { label: 'Client ID', value: item.client_id || '-' }
     ],
     hasConnection: true,
     hasHelp: true,
-    hasStats: true
+    hasStats: true,
+    hasSync: false,
   },
   sparkplug_b: {
     key: 'sparkplug_b',
-    apiType: 'sparkplug_b',
-    label: 'Sparkplug B',
-    shortLabel: 'SPB',
+    apiType: 'sparkplugb',
+    label: 'Sparkplug B 客户端',
+    shortLabel: 'Sparkplug B',
     mode: 'push',
-    color: '#00b42a',
-    desc: '基于 MQTT 的工业物联网标准协议 (Eclipse Tahu)',
-    icon: 'swap',
+    color: '#f5222d',
+    desc: '按 Sparkplug B 规范向 MQTT Broker 上报设备数据',
+    icon: 'thunderbolt',
     infoFields: (item) => [
-      { label: 'Broker', value: `${item.broker}:${item.port || 1883}`, copy: true },
-      { label: 'Group ID', value: item.group_id },
-      { label: 'Node ID', value: item.node_id }
+      { label: 'Broker', value: `${item.broker || ''}${item.port ? ':' + item.port : ''}` },
+      { label: 'Group ID', value: item.group_id || '-' },
+      { label: 'Node ID', value: item.node_id || '-' }
     ],
     hasConnection: true,
     hasHelp: true,
-    hasStats: true
+    hasStats: true,
+    hasSync: false,
   },
   http: {
     key: 'http',
     apiType: 'http',
-    label: 'HTTP 推送',
+    label: 'HTTP 客户端',
     shortLabel: 'HTTP',
     mode: 'push',
-    color: '#165dff',
-    desc: '通过 HTTP POST/PUT 定时推送数据到 REST 接口',
+    color: '#52c41a',
+    desc: '通过 HTTP POST 请求将数据推送到外部服务',
     icon: 'upload',
     infoFields: (item) => [
-      { label: '服务器', value: item.url, copy: true },
-      { label: '方法', value: item.method || 'POST' },
-      { label: '数据端点', value: item.data_endpoint }
+      { label: 'URL', value: item.url || '-' },
+      { label: 'Method', value: item.method || 'POST' },
+      { label: 'Auth', value: item.auth_type || 'none' }
     ],
     hasConnection: false,
     hasHelp: false,
-    hasStats: true
+    hasStats: true,
+    hasSync: false,
   },
   edgeos_mqtt: {
     key: 'edgeos_mqtt',
     apiType: 'edgeos-mqtt',
-    label: 'edgeOS (MQTT)',
-    shortLabel: 'edgeOS',
+    label: 'edgeOS(MQTT) 客户端',
+    shortLabel: 'edgeOS MQTT',
     mode: 'push',
-    color: '#f53f3f',
-    desc: 'edgeOS 平台 MQTT 3.1.1，节点注册与双向通信',
-    icon: 'thunderbolt',
+    color: '#722ed1',
+    desc: '以 edgeOS 协议通过 MQTT 向边缘操作系统上报数据',
+    icon: 'cloud',
     infoFields: (item) => [
-      { label: 'Broker', value: item.broker, copy: true },
-      { label: 'Client ID', value: item.client_id },
-      { label: '节点 ID', value: item.node_id }
+      { label: 'Broker', value: `${item.broker || ''}${item.port ? ':' + item.port : ''}` },
+      { label: 'Node ID', value: item.node_id || '-' },
+      { label: 'QoS', value: item.qos || '1' }
     ],
     hasConnection: true,
     hasHelp: true,
-    hasStats: true
+    hasStats: true,
+    hasSync: false,
   },
   edgeos_nats: {
     key: 'edgeos_nats',
     apiType: 'edgeos-nats',
-    label: 'edgeOS (NATS)',
-    shortLabel: 'NATS',
+    label: 'edgeOS(NATS) 客户端',
+    shortLabel: 'edgeOS NATS',
     mode: 'push',
-    color: '#ff7d00',
-    desc: 'edgeOS 平台 NATS 2.x，JetStream 持久化',
-    icon: 'thunderbolt',
+    color: '#eb2f96',
+    desc: '以 edgeOS 协议通过 NATS 向边缘操作系统上报数据',
+    icon: 'swap',
     infoFields: (item) => [
-      { label: 'NATS 地址', value: item.url, copy: true },
-      { label: 'Client ID', value: item.client_id },
-      { label: '节点 ID', value: item.node_id }
+      { label: 'URL', value: item.url || '-' },
+      { label: 'Node ID', value: item.node_id || '-' },
+      { label: 'JetStream', value: item.jetstream_enabled ? 'Enabled' : 'Disabled' }
     ],
     hasConnection: true,
     hasHelp: true,
-    hasStats: true
+    hasStats: true,
+    hasSync: false,
   },
   opcua: {
     key: 'opcua',
@@ -116,23 +121,38 @@ export const NORTHBOUND_PROTOCOLS = {
     label: 'OPC UA 服务端',
     shortLabel: 'OPC UA',
     mode: 'passive',
-    color: '#722ed1',
-    desc: '暴露 OPC UA Server，供 SCADA / MES 订阅读取',
+    color: '#fa8c16',
+    desc: '以 OPC UA Server 从机模式运行，对外暴露点位数据供主站（如 SCADA）读取和写入',
     icon: 'storage',
     infoFields: (item) => [
-      { label: '监听端口', value: String(item.port || 4840) },
-      { label: 'Endpoint', value: item.endpoint },
-      {
-        label: '连接地址',
-        value: `opc.tcp://localhost:${item.port || 4840}${item.endpoint || ''}`,
-        copy: true
-      }
+      { label: '端口', value: item.port || '4840' },
+      { label: 'Endpoint', value: item.endpoint || '/ipp/opcua/server' },
+      { label: '安全策略', value: item.security_policy || 'Auto' }
     ],
     hasConnection: false,
     hasHelp: true,
     hasStats: true,
-    hasSync: true
-  }
+    hasSync: true,
+  },
+  bacnet_server: {
+    key: 'bacnet_server',
+    apiType: 'bacnet_server',
+    label: 'BACnet 服务端',
+    shortLabel: 'BACnet Server',
+    mode: 'passive',
+    color: '#13c2c2',
+    desc: '以 BACnet 从机模式运行，对外暴露点位数据供 BMS/SCADA 主站通过 BACnet/IP 协议读取和写入',
+    icon: 'storage',
+    infoFields: (item) => [
+      { label: '端口', value: item.port || '47808' },
+      { label: '设备 ID', value: item.device_id || '自动' },
+      { label: '设备名称', value: item.device_name || '-' }
+    ],
+    hasConnection: false,
+    hasHelp: true,
+    hasStats: true,
+    hasSync: true,
+  },
 }
 
 /** 按模式分组的协议列表（用于添加通道弹窗） */

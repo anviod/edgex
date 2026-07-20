@@ -299,13 +299,14 @@ type DriverConfig struct {
 
 // NorthboundConfig defines configuration for northbound data reporting
 type NorthboundConfig struct {
-	MQTT       []MQTTConfig       `json:"mqtt" yaml:"mqtt"`
-	HTTP       []HTTPConfig       `json:"http" yaml:"http"`
-	OPCUA      []OPCUAConfig      `json:"opcua" yaml:"opcua"`
-	SparkplugB []SparkplugBConfig `json:"sparkplug_b" yaml:"sparkplug_b"`
-	EdgeOSMQTT []EdgeOSMQTTConfig `json:"edgeos_mqtt" yaml:"edgeos_mqtt"`
-	EdgeOSNATS []EdgeOSNATSConfig `json:"edgeos_nats" yaml:"edgeos_nats"`
-	Status     map[string]int     `json:"status,omitempty" yaml:"-"`
+	MQTT         []MQTTConfig         `json:"mqtt" yaml:"mqtt"`
+	HTTP         []HTTPConfig         `json:"http" yaml:"http"`
+	OPCUA        []OPCUAConfig        `json:"opcua" yaml:"opcua"`
+	SparkplugB   []SparkplugBConfig   `json:"sparkplug_b" yaml:"sparkplug_b"`
+	EdgeOSMQTT   []EdgeOSMQTTConfig   `json:"edgeos_mqtt" yaml:"edgeos_mqtt"`
+	EdgeOSNATS   []EdgeOSNATSConfig   `json:"edgeos_nats" yaml:"edgeos_nats"`
+	BACnetServer []BACnetServerConfig `json:"bacnet_server" yaml:"bacnet_server"`
+	Status       map[string]int       `json:"status,omitempty" yaml:"-"`
 }
 
 type DataCacheConfig struct {
@@ -458,6 +459,24 @@ type EdgeOSNATSConfig struct {
 	HeartbeatInterval   string                         `json:"heartbeat_interval" yaml:"heartbeat_interval"` // e.g. "30s"
 	Devices             map[string]DevicePublishConfig `json:"devices" yaml:"devices"`                       // Key: DeviceID, Value: DevicePublishConfig
 	VirtualDevices      OpcUaDeviceMap                 `json:"virtual_devices" yaml:"virtual_devices"`
+}
+
+// BACnetServerConfig 北向 BACnet Server 配置，以从机模式运行，对外暴露点位数据
+type BACnetServerConfig struct {
+	ID           string         `json:"id" yaml:"id"`
+	Name         string         `json:"name" yaml:"name"`
+	Enable       bool           `json:"enable" yaml:"enable"`
+	Interface    string         `json:"interface" yaml:"interface"`       // 网络接口名 (如 eth0)，空则自动选择
+	IP           string         `json:"ip" yaml:"ip"`                     // 绑定的 IP 地址，空则自动选择
+	Port         int            `json:"port" yaml:"port"`                 // BACnet 端口，默认 47808 (0xBAC0)
+	SubnetCIDR   int            `json:"subnet_cidr" yaml:"subnet_cidr"`   // 子网 CIDR，默认 24
+	DeviceID     int            `json:"device_id" yaml:"device_id"`       // BACnet 设备实例 ID，默认自动生成
+	DeviceName   string         `json:"device_name" yaml:"device_name"`   // BACnet 设备名称
+	VendorID     uint32         `json:"vendor_id" yaml:"vendor_id"`       // 厂商 ID，默认 999
+	VendorName   string         `json:"vendor_name" yaml:"vendor_name"`   // 厂商名称
+	MaxPDU       uint16         `json:"max_pdu" yaml:"max_pdu"`           // 最大 PDU 大小，默认 1476
+	Devices      OpcUaDeviceMap `json:"devices" yaml:"devices"`           // 暴露的设备列表，空则全部暴露
+	VirtualDevices OpcUaDeviceMap `json:"virtual_devices" yaml:"virtual_devices"` // 虚拟设备
 }
 
 // EdgeRule represents an edge computing rule

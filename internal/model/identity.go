@@ -161,6 +161,13 @@ func NormalizeNorthboundForSave(cfg NorthboundConfig) (NorthboundConfig, error) 
 		}
 		out.EdgeOSNATS[i].ID = id
 	}
+	for i := range out.BACnetServer {
+		id, err := ensureNamedID(out.BACnetServer[i].ID, out.BACnetServer[i].Name, "BACnet Server northbound channel")
+		if err != nil {
+			return NorthboundConfig{}, err
+		}
+		out.BACnetServer[i].ID = id
+	}
 
 	return out, nil
 }

@@ -594,7 +594,7 @@
       <a-empty v-else description="该设备未被任何规则引用" />
     </a-modal>
 
-    <a-modal v-model:visible="scanDialog" title="扫描设备" width="1200px" @cancel="scanDialog = false" :mask-closable="false">
+    <a-modal v-model:visible="scanDialog" title="扫描设备" width="900px" @cancel="scanDialog = false" :mask-closable="false">
       <template #footer>
         <a-space>
           <a-button @click="scanDialog = false" :disabled="isScanning">取消</a-button>
@@ -605,31 +605,8 @@
       </template>
       
       <a-space direction="vertical" :size="16" fill>
-        <a-alert type="info" :closable="false">
-          <template #icon>
-            <icon-info-circle />
-          </template>
-          <strong>手动添加为主，WhoIs 扫描为辅。</strong>推荐优先使用「新增设备」按钮手动输入 DeviceID + IP + Port；
-          当端口未知时，可输入目标 IP 后点击「开始扫描」用 WhoIs 单播+广播组合发现。
-        </a-alert>
-
         <a-row :gutter="[24, 16]" align="center">
-          <a-col :span="8">
-            <a-form-item label="目标 IP (WhoIs 补充)" style="margin-bottom:0">
-              <a-input v-model="scanTargetIP" placeholder="192.168.3.115" :disabled="isScanning" allow-clear />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item label="扫描网卡" style="margin-bottom:0">
-              <a-select v-model="scanInterface" placeholder="自动选择全部可用网卡" :disabled="isScanning" allow-clear>
-                <a-option value="">全部网卡 (自动扫描)</a-option>
-                <a-option v-for="iface in interfaces" :key="iface.name" :value="iface.ip">
-                  {{ iface.name }} — {{ iface.ip }}
-                </a-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
+          <a-col :span="12">
             <a-space>
               <a-button type="outline" status="primary" :loading="isScanning" :disabled="isScanning" @click="scanDevices">
                 <template #icon>
@@ -637,33 +614,10 @@
                 </template>
                 开始扫描
               </a-button>
+              <a-text v-if="isScanning" type="secondary">{{ scanStatus }}</a-text>
             </a-space>
           </a-col>
         </a-row>
-        <a-text v-if="isScanning" type="secondary" style="line-height: 32px;">{{ scanStatus }}</a-text>
-
-        <!-- 两步扫描结果展示 -->
-        <div v-if="scanPhaseResults && !isScanning" class="scan-phase-results">
-          <div v-for="(phase, phaseKey) in scanPhaseResults" :key="phaseKey" class="scan-phase-block">
-            <div class="phase-header">
-              <IconCheckCircle v-if="phase.success !== false" :size="16" style="color: rgb(var(--success-6));" />
-              <IconCloseCircle v-else :size="16" style="color: rgb(var(--danger-6));" />
-              <span class="phase-title">{{ phase.title || phase.name || phaseKey }}</span>
-            </div>
-            <div v-if="phase.results && phase.results.length" class="phase-items">
-              <div v-for="(item, idx) in phase.results" :key="idx" class="phase-item">
-                <span :class="item.success !== false ? 'text-success' : 'text-danger'">
-                  {{ item.success !== false ? '✓' : '✗' }}
-                </span>
-                <span class="phase-device-info">
-                  Device {{ item.bacnet_device_id }} IP={{ item.ip }} Port={{ item.port }}
-                </span>
-                <span v-if="item.message" class="phase-message">— {{ item.message }}</span>
-              </div>
-            </div>
-            <div v-if="phase.summary" class="phase-summary">{{ phase.summary }}</div>
-          </div>
-        </div>
         
         <a-table 
           :columns="scanColumns" 
@@ -698,13 +652,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
 import {
   IconArrowLeft, IconPlus, IconDelete, IconScan, IconList, IconThunderbolt,
   IconSettings, IconHistory, IconSearch, IconEye, IconLink,
-  IconClockCircle, IconInfoCircle, IconCheckCircle, IconCloseCircle
+  IconClockCircle
 } from '@arco-design/web-vue/es/icon'
 import request from '@/utils/request'
 import { devicePointsRoutePath, channelDeviceApiPath } from '@/utils/deviceRoute'
@@ -1205,22 +1159,12 @@ const saveDevice = async () => {
       interval: form.value.storageInterval,
       max_records: form.value.storageMaxRecords
     },
-    points: isEdit.value ? undefined : [] 
   }
   
-  if (isEdit.value) {
-    const original = devices.value.find(d => d.id === form.value.id)
-    if (original?.points?.length) {
-      payload.points = original.points
-    } else {
-      try {
-        const full = await request.get(channelDeviceApiPath(channelId, form.value.id))
-        payload.points = full.points || []
-      } catch (e) {
-        Message.error('获取设备点位失败: ' + e.message)
-        return
-      }
-    }
+  // 编辑时后端 UpdateDevice 会自动保留原始点位，无需获取和发送
+  // When editing, points are preserved by the backend UpdateDevice automatically.
+  if (!isEdit.value) {
+    payload.points = []
   }
 
   try {
@@ -1305,9 +1249,6 @@ const scanResults = ref([])
 const selectedScanDevices = ref([])
 const selectAllScan = ref(false)
 const isAddingDevices = ref(false)
-const interfaces = ref([])
-const scanInterface = ref(null)
-const scanTargetIP = ref('')
 
 const preconfiguredDevices = ref([])
 
@@ -1317,8 +1258,6 @@ const preconfigColumns = [
   { title: '端口', slotName: 'port', width: 100 },
   { title: '操作', slotName: 'action', width: 80 }
 ]
-
-const scanPhaseResults = ref(null)
 
 const scanStatus = ref('')
 const scanTimeout = ref(null)
@@ -1411,76 +1350,39 @@ const buildScannedDevicePayload = (scanItem) => {
   }
 }
 
-const fetchInterfaces = async () => {
-  try {
-    const res = await request.get('/api/system/network/interfaces')
-    interfaces.value = res || []
-  } catch (e) {
-    console.error('Failed to fetch interfaces', e)
-  }
-}
-
-const autoFillLocalIP = async () => {
-  try {
-    const res = await request.get('/api/system/network/interfaces')
-    if (res && Array.isArray(res) && res.length > 0) {
-      // Use first non-loopback IPv4 interface
-      const iface = res.find(i => i.ip && i.ip !== '127.0.0.1')
-      scanInterface.value = iface ? iface.ip : (res[0].ip || '')
-      Message.success(`已自动获取本机IP: ${scanInterface.value}`)
-    }
-  } catch (e) {
-    Message.error('获取本机IP失败')
-  }
-}
-
 const openScanDialog = () => {
   scanDialog.value = true
   scanResults.value = []
   selectedScanDevices.value = []
   selectAllScan.value = false
-  scanPhaseResults.value = null
-  
-  if (channelProtocol.value === 'bacnet-ip') {
-    // Default to "all interfaces" (empty string) — backend scans all automatically
-    scanInterface.value = ''
-    fetchInterfaces()
-  } else if (channelProtocol.value === 'opc-ua') {
-    scanInterface.value = null
-  }
 }
 
 const scanDevices = async () => {
   isScanning.value = true
   scanResults.value = []
   selectedScanDevices.value = []
-  scanPhaseResults.value = null
   scanStatus.value = '正在准备扫描...'
   
   let stopMessage = null
-  // 显示扫描开始提示
   stopMessage = Message.loading({
-    content: '开始扫描设备，可能需要10秒左右，请耐心等待...',
+    content: '开始扫描设备，广播 WhoIs 发现所有 BACnet 设备...',
     duration: 0
   })
   
-  // 设置扫描开始时间，用于计算耗时
   const startTime = Date.now()
   
-  // 清除之前的超时
   if (scanTimeout.value) {
     clearInterval(scanTimeout.value)
   }
   
-  // 模拟状态更新
   scanTimeout.value = setInterval(() => {
     const elapsed = Math.round((Date.now() - startTime) / 1000)
     if (elapsed < 3) {
       scanStatus.value = '正在初始化扫描...'
     } else if (elapsed < 6) {
-      scanStatus.value = '正在搜索网络设备...'
+      scanStatus.value = '正在广播 WhoIs...'
     } else if (elapsed < 9) {
-      scanStatus.value = '正在识别设备信息...'
+      scanStatus.value = '正在收集 IAm 响应...'
     } else {
       scanStatus.value = '正在整理扫描结果...'
     }
@@ -1488,43 +1390,23 @@ const scanDevices = async () => {
   
   try {
     console.log('开始扫描设备，channelId:', channelId)
-    console.log('扫描接口:', scanInterface.value)
     
-    // 构建扫描参数 — 手动添加为主，WhoIs 单播+广播作为补充
+    // Yabe 风格：后端绑定 0.0.0.0:47808 全网卡广播，无需前端传参
     const scanParams = {}
-    if (channelProtocol.value === 'bacnet-ip') {
-      if (scanInterface.value) {
-        scanParams.interface_ip = scanInterface.value
-      }
-      if (scanTargetIP.value) {
-        scanParams.target_ip = scanTargetIP.value
-      }
-    } else if (channelProtocol.value === 'opc-ua') {
+    if (channelProtocol.value === 'opc-ua') {
       const ep = channelOpcUaEndpoint.value
-      if (ep) {
-        scanParams.endpoint = ep
-      }
+      if (ep) scanParams.endpoint = ep
     }
     
-    // BACnet/OPC UA scan can run long; backend returns a job and we poll.
     const res = await postScanAndWait(request, `/api/channels/${channelId}/scan`, scanParams, {
       timeoutMs: 60000
     })
     
     console.log('扫描响应:', res)
     
-    // 计算扫描耗时
     const scanTime = Math.round((Date.now() - startTime) / 1000)
     scanStatus.value = '扫描完成'
     
-    // 提取扫描阶段信息
-    let phaseData = res?.discovery_phase || null
-    if (phaseData && !Array.isArray(phaseData) && (phaseData.results || phaseData.summary)) {
-      phaseData = { '扫描阶段': phaseData }
-    }
-    scanPhaseResults.value = phaseData
-    
-    // 处理后端响应格式 - 后端直接返回设备数组
     scanResults.value = normalizeScanResults(res)
     selectedScanDevices.value = []
     if (stopMessage && typeof stopMessage === 'object' && typeof stopMessage.close === 'function') {
@@ -1533,7 +1415,7 @@ const scanDevices = async () => {
     }
     Message.success({
       content: `扫描完成 (耗时 ${scanTime} 秒)，发现 ${scanResults.value.length} 个设备，查看结果`,
-      duration: 3000 // 3秒后自动消失
+      duration: 3000
     })
   } catch (e) {
     console.error('扫描失败:', e)
@@ -1604,15 +1486,17 @@ const addSelectedDevices = async () => {
 
 const toggleDeviceStatus = async (record) => {
   record.statusLoading = true
+  const previousValue = !record.enable
   try {
+    // 只发送 enable 字段，避免将整个 record 对象（含 Vue 响应式代理）发送到后端
+    // Only send the enable field to avoid sending the entire reactive proxy object.
     await request.put(channelDeviceApiPath(channelId, record.id), {
-      ...record,
       enable: record.enable
     })
     Message.success('状态更新成功')
   } catch (e) {
     Message.error('状态更新失败: ' + e.message)
-    record.enable = !record.enable
+    record.enable = previousValue
   } finally {
     record.statusLoading = false
   }
@@ -1664,6 +1548,15 @@ onMounted(() => {
   fetchDevices()
   fetchRules()
 })
+
+onUnmounted(() => {
+  // 清理扫描状态定时器，避免组件销毁后定时器泄漏导致页面卡死
+  // Clean up scan interval to prevent timer leaks after component unmount.
+  if (scanTimeout.value) {
+    clearInterval(scanTimeout.value)
+    scanTimeout.value = null
+  }
+})
 </script>
 
 <style scoped>
@@ -1681,47 +1574,6 @@ onMounted(() => {
 .preconfigured-devices-section .section-title {
   font-weight: 500;
   font-size: 14px;
-  color: var(--color-text-1);
-}
-.scan-phase-results {
-  background: var(--color-fill-2);
-  border-radius: 4px;
-  padding: 12px 16px;
-}
-.scan-phase-block {
-  margin-bottom: 12px;
-}
-.scan-phase-block:last-child {
-  margin-bottom: 0;
-}
-.phase-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 500;
-  margin-bottom: 6px;
-}
-.phase-items {
-  padding-left: 22px;
-}
-.phase-item {
-  line-height: 1.8;
-  font-size: 13px;
-  color: var(--color-text-2);
-}
-.phase-item .text-success {
-  color: rgb(var(--success-6));
-  margin-right: 4px;
-}
-.phase-item .text-danger {
-  color: rgb(var(--danger-6));
-  margin-right: 4px;
-}
-.phase-summary {
-  margin-top: 6px;
-  padding-left: 22px;
-  font-size: 13px;
-  font-weight: 500;
   color: var(--color-text-1);
 }
 </style>

@@ -485,6 +485,12 @@ func (s *Server) setupRoutes() {
 	api.Post("/northbound/opcua/:id/write", s.writeOPCUA)
 	api.Post("/northbound/opcua/:id/batch-write", s.batchWriteOPCUA)
 	api.Get("/northbound/opcua/:id/write-history", s.getOPCUAWriteHistory)
+	// BACnet Server
+	api.Post("/northbound/bacnet_server", s.updateBACnetServerConfig)
+	api.Delete("/northbound/bacnet_server/:id", s.deleteBACnetServerConfig)
+	api.Post("/northbound/bacnet_server/:id/sync", s.syncBACnetServer)
+	api.Get("/northbound/bacnet_server/:id/stats", s.getBACnetServerStats)
+	api.Get("/northbound/bacnet_server/:id/write-history", s.getBACnetServerWriteHistory)
 	api.Get("/northbound/mqtt/:id/stats", s.getMQTTStats)
 	api.Post("/northbound/sparkplugb", s.upsertSparkplugBConfig)        // Sparkplug B Upsert
 	api.Delete("/northbound/sparkplug_b/:id", s.deleteSparkplugBConfig) // Sparkplug B Delete
@@ -1828,6 +1834,91 @@ func (s *Server) getOPCUAWriteHistory(c *fiber.Ctx) error {
 	limit := c.QueryInt("limit", 100)
 
 	history, err := s.nbm.GetOPCUAWriteHistory(serverID, limit)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{
+		"server_id": serverID,
+		"count":     len(history),
+		"history":   history,
+	})
+}
+
+// =============================================================================
+// BACnet Server API handlers
+// =============================================================================
+
+// updateBACnetServerConfig 保存/更新 BACnet Server 配置
+// POST /api/northbound/bacnet_server
+func (s *Server) updateBACnetServerConfig(c *fiber.Ctx) error {
+	if s.nbm == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "Northbound manager not initialized"})
+	}
+
+	var cfg model.BACnetServerConfig
+	if err := c.BodyParser(&cfg); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+	if cfg.ID == "" {
+		cfg.ID = uuid.New().String()
+	}
+
+	savedCfg, warning, err := s.nbm.UpsertBACnetServerConfig(cfg)
+	if err != nil {
+		return c.Status(northboundUpsertErrorStatus(err)).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(northboundConfigJSON(savedCfg, warning))
+}
+
+// deleteBACnetServerConfig 删除 BACnet Server 配置
+// DELETE /api/northbound/bacnet_server/:id
+func (s *Server) deleteBACnetServerConfig(c *fiber.Ctx) error {
+	if s.nbm == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "Northbound manager not initialized"})
+	}
+	id := c.Params("id")
+	if err := s.nbm.DeleteBACnetServerConfig(id); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.SendStatus(200)
+}
+
+// syncBACnetServer 同步 BACnet Server 地址空间（热更新）
+// POST /api/northbound/bacnet_server/:id/sync
+func (s *Server) syncBACnetServer(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "server id is required"})
+	}
+	if err := s.nbm.SyncBACnetServer(id); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(fiber.Map{
+		"message":   "BACnet Server address space synced",
+		"server_id": id,
+	})
+}
+
+// getBACnetServerStats 获取 BACnet Server 运行统计
+// GET /api/northbound/bacnet_server/:id/stats
+func (s *Server) getBACnetServerStats(c *fiber.Ctx) error {
+	id := c.Params("id")
+	stats, err := s.nbm.GetBACnetServerStats(id)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(stats)
+}
+
+// getBACnetServerWriteHistory 获取 BACnet Server 写入历史
+// GET /api/northbound/bacnet_server/:id/write-history?limit=100
+func (s *Server) getBACnetServerWriteHistory(c *fiber.Ctx) error {
+	serverID := c.Params("id")
+	limit := c.QueryInt("limit", 100)
+
+	history, err := s.nbm.GetBACnetServerWriteHistory(serverID, limit)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": err.Error()})
 	}

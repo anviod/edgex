@@ -65,10 +65,12 @@ hero_buttons:
 
 ### BACnet
 
-> **权威：** [BACnet 设计说明](BACnet_设计说明.html)（架构）· [BACnet 前端需求](BACnet_Frontend_UI_Requirements.html)（UI PRD）· [驱动采集验收清单](BACnet_Driver_Collection_Test_Acceptance_Checklist.html)（验收）
+> **权威：** [BACnet 设计说明](BACnet_设计说明.html)（架构）· [BACnet 最佳实践](BACnet_最佳实践.html)（开发指南）· [BACnet 前端需求](BACnet_Frontend_UI_Requirements.html)（UI PRD）· [驱动采集验收清单](BACnet_Driver_Collection_Test_Acceptance_Checklist.html)（验收）
 
 - [BACnet 设计说明](BACnet_设计说明.html)
+- [BACnet 最佳实践](BACnet_最佳实践.html) — 开发指南与 4-Phase 验证
 - [BACnet 驱动采集测试验收清单](BACnet_Driver_Collection_Test_Acceptance_Checklist.html)
+- [BACnet 测试文档](BACnet_测试文档.html)
 - [BACnet 故障隔离报告](BACnet_Fault_Isolation_Report.html) — 历史归档
 - [BACnet 前端功能清单](BACnet_Frontend_UI_Functionality_Checklist.html) — 索引
 - [BACnet 前端需求](BACnet_Frontend_UI_Requirements.html)

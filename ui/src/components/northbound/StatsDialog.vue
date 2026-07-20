@@ -86,6 +86,49 @@
       </a-row>
     </template>
 
+    <template v-else-if="isBacnetServerMode">
+      <a-row :gutter="16" class="nb-stats-grid">
+        <a-col :span="6">
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">已映射对象</div>
+            <div class="nb-stat-card__value nb-stat-card__value--primary">{{ stats.object_count || 0 }}</div>
+          </a-card>
+        </a-col>
+        <a-col :span="6">
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">已映射点位</div>
+            <div class="nb-stat-card__value nb-stat-card__value--info">{{ stats.point_count || 0 }}</div>
+          </a-card>
+        </a-col>
+        <a-col :span="6">
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">数据更新次数</div>
+            <div class="nb-stat-card__value nb-stat-card__value--success">{{ stats.update_count || 0 }}</div>
+          </a-card>
+        </a-col>
+        <a-col :span="6">
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">外部写入次数</div>
+            <div class="nb-stat-card__value nb-stat-card__value--warning">{{ stats.write_count || 0 }}</div>
+          </a-card>
+        </a-col>
+      </a-row>
+      <a-row :gutter="16" class="nb-stats-grid">
+        <a-col :span="12">
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">运行时长</div>
+            <div class="nb-stat-card__value">{{ formatUptime(stats.uptime || 0) }}</div>
+          </a-card>
+        </a-col>
+        <a-col :span="12">
+          <a-card class="nb-stat-card" :bordered="false">
+            <div class="nb-stat-card__label">最近写入时间</div>
+            <div class="nb-stat-card__value nb-stat-card__value--info">{{ stats.last_write_time ? formatTime(stats.last_write_time) : '-' }}</div>
+          </a-card>
+        </a-col>
+      </a-row>
+    </template>
+
     <a-divider :margin="12" />
 
     <div class="nb-stats-toolbar">
@@ -146,6 +189,7 @@ const title = computed(() => {
   if (props.type === 'http') return 'HTTP 运行监控'
   if (props.type === 'sparkplug_b') return 'Sparkplug B 运行监控'
   if (props.type === 'opcua') return 'OPC UA 运行监控'
+  if (props.type === 'bacnet_server') return 'BACnet Server 运行监控'
   if (props.type === 'edgeos-mqtt') return 'edgeOS(MQTT) 运行监控'
   if (props.type === 'edgeos-nats') return 'edgeOS(NATS) 运行监控'
   return '运行监控'
@@ -159,6 +203,10 @@ const isOpcuaServerMode = computed(() => {
   return props.type === 'opcua'
 })
 
+const isBacnetServerMode = computed(() => {
+  return props.type === 'bacnet_server'
+})
+
 const paginatedLogs = computed(() => {
   const start = (page.value - 1) * 20
   return logs.value.slice(start, start + 20)
@@ -169,6 +217,7 @@ const logTitle = computed(() => {
   if (props.type === 'http') return 'HTTP'
   if (props.type === 'sparkplug_b') return 'Sparkplug B'
   if (props.type === 'opcua') return 'OPC UA'
+  if (props.type === 'bacnet_server') return 'BACnet Server'
   if (props.type === 'edgeos-mqtt') return 'edgeOS(MQTT)'
   if (props.type === 'edgeos-nats') return 'edgeOS(NATS)'
   return '日志'
@@ -228,6 +277,7 @@ const refreshStats = async () => {
     if (apiType === 'edgeos-mqtt') apiType = 'edgeos-mqtt'
     if (apiType === 'edgeos-nats') apiType = 'edgeos-nats'
     if (apiType === 'sparkplug_b') apiType = 'sparkplugb'
+    if (apiType === 'bacnet_server') apiType = 'bacnet_server'
 
     const data = await request.get(`/api/northbound/${apiType}/${props.itemId}/stats`, { silent: true })
     stats.value = data
@@ -257,6 +307,8 @@ const connectWs = () => {
         targetComponents = ['mqtt-client', 'http-client', 'sparkplugb-client', 'edgos-mqtt-client', 'edgos-nats-client']
       } else if (isOpcuaServerMode.value) {
         targetComponents = ['opcua-server']
+      } else if (isBacnetServerMode.value) {
+        targetComponents = ['bacnet-server']
       }
 
       if (targetComponents.includes(log.component)) {

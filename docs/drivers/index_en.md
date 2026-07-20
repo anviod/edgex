@@ -88,6 +88,7 @@ Last run (**2026-07-04**): all 21 main driver packages **PASS** under `-short`; 
 - [Driver Index (中文)](index.html)
 - [Modbus Optimization](MODBUS_OPTIMIZATION.html)
 - [BACnet Design](BACnet_设计说明.html)
+- [BACnet Best Practices](BACnet_最佳实践.html) — development guide & 4-phase verification
 - [SNMP Driver](SNMP.html)
 - [Architecture](../architecture/index.html)
 - [Development Plan](../development_plan/index.html)

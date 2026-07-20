@@ -187,7 +187,12 @@ func (d *BACnetDriver) Init(config model.DriverConfig) error {
 
 	// Parse Interface Config
 	if v, ok := config.Config["interface_ip"]; ok {
-		d.interfaceIP = fmt.Sprintf("%v", v)
+		ip := fmt.Sprintf("%v", v)
+		// Don't overwrite default "0.0.0.0" with empty string
+		// 不要用空字符串覆盖默认的 "0.0.0.0"
+		if ip != "" && ip != "0.0.0.0" {
+			d.interfaceIP = ip
+		}
 	} else if v, ok := config.Config["ip"]; ok {
 		d.interfaceIP = fmt.Sprintf("%v", v)
 	}
@@ -248,6 +253,11 @@ func (d *BACnetDriver) connectOnce(ctx context.Context) error {
 		connectPort = d.interfacePort
 	}
 	ifaceIP := d.interfaceIP
+	// Normalize empty/any-address to "0.0.0.0" — net.ParseCIDR("") fails.
+	// 将空字符串/全零地址规范化为 "0.0.0.0"，因为 net.ParseCIDR("") 会失败。
+	if ifaceIP == "" || ifaceIP == "0.0.0.0" {
+		ifaceIP = "0.0.0.0"
+	}
 	subnetCIDR := d.subnetCIDR
 	d.mu.Unlock()
 
@@ -1083,109 +1093,59 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 		return d.scanDeviceObjectsEx(scanClient, devID, deep, devIP, devPort)
 	}
 
-	// ── Device Discovery: manual-add first, WhoIs unicast+broadcast supplement ──
-	// ── 设备发现：手动添加为主，WhoIs 单播+广播作为补充 ──
-	// 最佳实践 2: 现场工程以手动添加为主（DeviceID + IP + Port）；
-	// 端口未知时，用单播 WhoIs（向默认端口 47808）+ 广播组合发现作为补充。
-	// Always use ephemeral client on 47808; BACnet devices only respond to
-	// WhoIs broadcasts from the standard discovery port.
+	// ── Yabe-style Device Discovery ──
+	// Yabe 风格设备发现：三步法 — 与官方 Yabe 工具完全一致
+	// 1. 绑定 INADDR_ANY (0.0.0.0:47808)，接收所有 BASVnet 端口的包
+	// 2. 广播 WhoIs（Low:0, High:0 无范围限制），发现所有设备
+	// 3. 收集 IAm 响应，ReadProperty 富化 ObjectName
+	//
+	// Yabe-style discovery: 3-step approach matching the official Yabe tool.
+	// 1. Bind INADDR_ANY (0.0.0.0:47808) to receive all BACnet packets
+	// 2. Broadcast WhoIs (Low:0, High:0 = unlimited range) to discover all devices
+	// 3. Collect IAm responses, enrich with ObjectName via ReadProperty
 
-	scanIP := ""
-	if v, ok := params["interface_ip"]; ok {
-		scanIP, _ = v.(string)
-	}
-	if scanIP == "" {
-		d.mu.RLock()
-		scanIP = d.interfaceIP
-		d.mu.RUnlock()
-	}
-	if scanIP == "" || scanIP == "0.0.0.0" {
-		return nil, fmt.Errorf("interface_ip not configured — set it in channel config")
-	}
-
-	// 最佳实践 7.1: MaxPDU=1476 避免分包
+	// Step 1: Bind to INADDR_ANY
 	cb := &bacnetlib.ClientBuilder{
-		Ip:         scanIP,
-		Port:       discoveryListenPort, // 47808 — standard BACnet discovery port
-		SubnetCIDR: defaultSubnetCIDR,
+		Ip:         "0.0.0.0",
+		Port:       discoveryListenPort,
+		SubnetCIDR: 0,
 		MaxPDU:     btypes.MaxAPDU,
 	}
 	scanClient, cliErr := clientFactory(cb)
 	if cliErr != nil {
-		return nil, fmt.Errorf("failed to create scan client on %s:%d: %w", scanIP, discoveryListenPort, cliErr)
+		return nil, fmt.Errorf("bacnet scan: failed to create client on 0.0.0.0:%d: %w", discoveryListenPort, cliErr)
 	}
 	stop, startErr := startEphemeralClient(scanClient)
 	if startErr != nil {
-		return nil, fmt.Errorf("failed to start scan client: %w", startErr)
+		return nil, fmt.Errorf("bacnet scan: failed to start client: %w", startErr)
 	}
 	defer stop()
 
-	var devices []btypes.Device
-
-	// ── Step 1: Unicast WhoIs to target_ip on default port 47808 (supplement) ──
-	// 最佳实践 2.2: 单播 WhoIs 作为端口未知时的补充手段。
-	// 向目标 IP 的默认 BACnet 端口 47808 发送单播 WhoIs。
-	if targetIP, ok := params["target_ip"]; ok {
-		ipStr, _ := targetIP.(string)
-		if ipStr != "" && ipStr != "0.0.0.0" {
-			ipParsed := net.ParseIP(ipStr).To4()
-			if ipParsed != nil {
-				addr := datalink.IPPortToAddress(ipParsed, 47808)
-				zap.L().Info("BACnet Scan: unicast WhoIs (supplement)",
-					zap.String("target_ip", ipStr),
-					zap.Int("port", 47808))
-
-				unicastDevices, uErr := scanClient.WhoIs(&bacnetlib.WhoIsOpts{
-					Low:             0,
-					High:            4194304,
-					Destination:     addr,
-					GlobalBroadcast: false,
-				})
-				if uErr != nil {
-					zap.L().Debug("BACnet Scan: unicast WhoIs failed", zap.Error(uErr))
-				} else {
-					for _, d := range unicastDevices {
-						zap.L().Info("BACnet Scan: unicast WhoIs found device",
-							zap.Int("device_id", d.DeviceID),
-							zap.Int("port", d.Port))
-					}
-					devices = append(devices, unicastDevices...)
-					zap.L().Info("BACnet Scan: unicast WhoIs returned", zap.Int("count", len(unicastDevices)))
-				}
-			}
-		}
-	}
-
-	// ── Step 2: Broadcast WhoIs (same-subnet fallback) ──
-	// 最佳实践 2.2: 广播仅在采集端与目标设备处于同一子网时可用。
-	zap.L().Info("BACnet Scan: broadcast WhoIs fallback", zap.String("ip", scanIP), zap.Int("port", discoveryListenPort))
-
-	whoisDevices, err := scanClient.WhoIs(&bacnetlib.WhoIsOpts{
+	// Step 2: Broadcast WhoIs — 无范围限制，发现所有设备
+	// Broadcast WhoIs with unlimited range to discover all devices
+	zap.L().Info("BACnet Scan: broadcast WhoIs (Yabe-style, INADDR_ANY)")
+	whoisDevices, wErr := scanClient.WhoIs(&bacnetlib.WhoIsOpts{
 		Low:             0,
-		High:            4194304,
+		High:            0, // 0 = unlimited range, per Yabe convention
 		GlobalBroadcast: true,
 	})
-	if err != nil {
-		zap.L().Warn("BACnet Scan: broadcast WhoIs failed", zap.Error(err))
-	} else {
-		zap.L().Info("BACnet Scan: broadcast WhoIs returned", zap.Int("count", len(whoisDevices)))
-		devices = append(devices, whoisDevices...)
+	if wErr != nil {
+		zap.L().Warn("BACnet Scan: broadcast WhoIs failed", zap.Error(wErr))
 	}
+	zap.L().Info("BACnet Scan: broadcast WhoIs returned", zap.Int("count", len(whoisDevices)))
 
 	// Deduplicate by DeviceID
 	uniqueDevices := make(map[int]btypes.Device)
-	for _, dev := range devices {
+	for _, dev := range whoisDevices {
 		existing, exists := uniqueDevices[dev.DeviceID]
 		if !exists || isBetterDeviceAddr(dev, existing) {
 			uniqueDevices[dev.DeviceID] = dev
 		}
 	}
-
 	zap.L().Info("Scan: deduplicated device count", zap.Int("total", len(uniqueDevices)))
 
-	// ── Step 3: Enrich results with ObjectName via ReadProperty ──
-	// 最佳实践 2.1: 手动添加时通过 ReadProperty(Object_Name) 验证设备可达性。
-	// 使用 probeVerifyTimeout (10s) 作为远程超时。
+	// Step 3: Enrich results with ObjectName via ReadProperty
+	// 使用 probeVerifyTimeout (10s) 作为远程超时
 	results := make([]ScanResult, 0, len(uniqueDevices))
 	for _, dev := range uniqueDevices {
 		sr := ScanResult{

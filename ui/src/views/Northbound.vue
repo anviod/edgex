@@ -58,7 +58,7 @@
             <span class="northbound-zone-count">{{ channelGroups.passive.length }}</span>
           </h3>
         </div>
-        <p class="northbound-zone-desc">OPC UA Server</p>
+        <p class="northbound-zone-desc">OPC UA Server · BACnet Server</p>
         <a-row :gutter="[24, 24]">
           <a-col
             v-for="{ meta, item } in channelGroups.passive"
@@ -69,12 +69,12 @@
               :meta="meta"
               :item="item"
               :connection-status="config.status"
-              :sync-loading="syncingOpcuaId === item.id"
+              :sync-loading="syncingOpcuaId === item.id || syncingBacnetId === item.id"
               @help="onHelp(meta.key, item)"
               @settings="onSettings(meta.key, item)"
               @stats="onStats(meta.key, item)"
               @delete="deleteProtocol"
-              @sync="syncOpcuaServer"
+              @sync="onPassiveSync(meta.key, item)"
             />
           </a-col>
         </a-row>
@@ -86,6 +86,7 @@
     <MqttSettingsDialog v-model:visible="mqttDialogVisible" :config="mqttEditConfig" :all-devices="allDevices" :northbound-config="config" @saved="fetchConfig" />
     <HttpSettingsDialog v-model:visible="httpDialogVisible" :config="httpEditConfig" :all-devices="allDevices" :northbound-config="config" @saved="fetchConfig" />
     <OpcuaSettingsDialog v-model:visible="opcuaDialogVisible" :config="opcuaEditConfig" :all-devices="allDevices" :northbound-config="config" @saved="fetchConfig" />
+    <BacnetSettingsDialog v-model:visible="bacnetDialogVisible" :config="bacnetEditConfig" :all-devices="allDevices" :northbound-config="config" @saved="fetchConfig" />
     <SparkplugSettingsDialog v-model:visible="sparkplugDialogVisible" :config="sparkplugEditConfig" :all-devices="allDevices" :northbound-config="config" @saved="fetchConfig" />
     <EdgeOSMQTTSettingsDialog v-model:visible="edgeosMQTTDialogVisible" :config="edgeosMQTTEditConfig" :all-devices="allDevices" :northbound-config="config" @saved="fetchConfig" />
     <EdgeOSNATSSettingsDialog v-model:visible="edgeosNATSDialogVisible" :config="edgeosNATSEditConfig" :all-devices="allDevices" :northbound-config="config" @saved="fetchConfig" />
@@ -100,11 +101,13 @@
       :offline_payload="mqttHelpData.offline_payload"
     />
     <OpcuaHelpDialog v-model:visible="opcuaHelpVisible" :port="opcuaHelpData.port" :endpoint="opcuaHelpData.endpoint" />
+    <BacnetHelpDialog v-model:visible="bacnetHelpVisible" :port="bacnetHelpData.port" :device-id="bacnetHelpData.deviceId" :device-name="bacnetHelpData.deviceName" />
     <EdgeOSHelpDialog v-model:visible="edgeosHelpVisible" />
 
     <StatsDialog v-model:visible="mqttStatsVisible" type="mqtt" :item-id="mqttStatsId" />
     <StatsDialog v-model:visible="httpStatsVisible" type="http" :item-id="httpStatsId" />
     <StatsDialog v-model:visible="opcuaStatsVisible" type="opcua" :item-id="opcuaStatsId" />
+    <StatsDialog v-model:visible="bacnetStatsVisible" type="bacnet_server" :item-id="bacnetStatsId" />
     <StatsDialog v-model:visible="sparkplugStatsVisible" type="sparkplug_b" :item-id="sparkplugStatsId" />
     <StatsDialog v-model:visible="edgeosMQTTStatsVisible" type="edgeos-mqtt" :item-id="edgeosMQTTStatsId" />
     <StatsDialog v-model:visible="edgeosNATSStatsVisible" type="edgeos-nats" :item-id="edgeosNATSStatsId" />
@@ -141,16 +144,20 @@ import NorthboundAddDialog from '@/components/northbound/NorthboundAddDialog.vue
 import MqttSettingsDialog from '@/components/northbound/MqttSettingsDialog.vue'
 import HttpSettingsDialog from '@/components/northbound/HttpSettingsDialog.vue'
 import OpcuaSettingsDialog from '@/components/northbound/OpcuaSettingsDialog.vue'
+import BacnetSettingsDialog from '@/components/northbound/BacnetSettingsDialog.vue'
 import SparkplugSettingsDialog from '@/components/northbound/SparkplugSettingsDialog.vue'
 import EdgeOSMQTTSettingsDialog from '@/components/northbound/EdgeOSMQTTSettingsDialog.vue'
 import EdgeOSNATSSettingsDialog from '@/components/northbound/EdgeOSNATSSettingsDialog.vue'
 import MqttHelpDialog from '@/components/northbound/MqttHelpDialog.vue'
 import OpcuaHelpDialog from '@/components/northbound/OpcuaHelpDialog.vue'
+import BacnetHelpDialog from '@/components/northbound/BacnetHelpDialog.vue'
 import EdgeOSHelpDialog from '@/components/northbound/EdgeOSHelpDialog.vue'
 import StatsDialog from '@/components/northbound/StatsDialog.vue'
 
 const loading = ref(false)
-const config = ref({ mqtt: [], http: [], opcua: [], sparkplug_b: [], edgeos_mqtt: [], edgeos_nats: [], status: {} })
+const config = ref({ mqtt: [], http: [], opcua: [], sparkplug_b: [], edgeos_mqtt: [], edgeos_nats: [],
+  bacnet_server: [],
+  status: {} })
 const allDevices = ref([])
 
 const channelGroups = computed(() => flattenChannels(config.value))
@@ -179,6 +186,10 @@ const mqttHelpData = ref({})
 const opcuaHelpVisible = ref(false)
 const opcuaHelpData = ref({ port: 4840, endpoint: '' })
 const edgeosHelpVisible = ref(false)
+const bacnetDialogVisible = ref(false)
+const bacnetEditConfig = ref(null)
+const bacnetHelpVisible = ref(false)
+const bacnetHelpData = ref({ port: 47808, deviceId: 0, deviceName: 'EdgeX-Gateway' })
 
 const mqttStatsVisible = ref(false)
 const mqttStatsId = ref('')
@@ -186,6 +197,8 @@ const httpStatsVisible = ref(false)
 const httpStatsId = ref('')
 const opcuaStatsVisible = ref(false)
 const opcuaStatsId = ref('')
+const bacnetStatsVisible = ref(false)
+const bacnetStatsId = ref('')
 const sparkplugStatsVisible = ref(false)
 const sparkplugStatsId = ref('')
 const edgeosMQTTStatsVisible = ref(false)
@@ -204,6 +217,7 @@ const fetchConfig = async () => {
       sparkplug_b: data.sparkplug_b || [],
       edgeos_mqtt: data.edgeos_mqtt || [],
       edgeos_nats: data.edgeos_nats || [],
+      bacnet_server: data.bacnet_server || [],
       status: data.status || {}
     }
   } catch (e) {
@@ -226,6 +240,7 @@ const settingsHandlers = {
   mqtt: { open: () => { mqttDialogVisible.value = true }, ref: mqttEditConfig },
   http: { open: () => { httpDialogVisible.value = true }, ref: httpEditConfig },
   opcua: { open: () => { opcuaDialogVisible.value = true }, ref: opcuaEditConfig },
+  bacnet_server: { open: () => { bacnetDialogVisible.value = true }, ref: bacnetEditConfig },
   sparkplug_b: { open: () => { sparkplugDialogVisible.value = true }, ref: sparkplugEditConfig },
   edgeos_mqtt: { open: () => { edgeosMQTTDialogVisible.value = true }, ref: edgeosMQTTEditConfig },
   edgeos_nats: { open: () => { edgeosNATSDialogVisible.value = true }, ref: edgeosNATSEditConfig }
@@ -257,8 +272,11 @@ const onHelp = (type, item) => {
     }
     mqttHelpVisible.value = true
   } else if (type === 'opcua') {
-    opcuaHelpData.value = { port: item.port || 4840, endpoint: item.endpoint || '' }
+    opcuaHelpData.value = { port: item?.port || 4840, endpoint: item?.endpoint || '/ipp/opcua/server' }
     opcuaHelpVisible.value = true
+  } else if (type === 'bacnet_server') {
+    bacnetHelpData.value = { port: item?.port || 47808, deviceId: item?.device_id || 0, deviceName: item?.device_name || 'EdgeX-Gateway' }
+    bacnetHelpVisible.value = true
   } else if (type === 'edgeos_mqtt' || type === 'edgeos_nats') {
     edgeosHelpVisible.value = true
   }
@@ -269,6 +287,7 @@ const onStats = (type, item) => {
     mqtt: [mqttStatsId, mqttStatsVisible],
     http: [httpStatsId, httpStatsVisible],
     opcua: [opcuaStatsId, opcuaStatsVisible],
+    bacnet_server: [bacnetStatsId, bacnetStatsVisible],
     sparkplug_b: [sparkplugStatsId, sparkplugStatsVisible],
     edgeos_mqtt: [edgeosMQTTStatsId, edgeosMQTTStatsVisible],
     edgeos_nats: [edgeosNATSStatsId, edgeosNATSStatsVisible]
@@ -279,6 +298,7 @@ const onStats = (type, item) => {
 
 const deleteDialog = reactive({ visible: false, type: '', id: '' })
 const syncingOpcuaId = ref('')
+const syncingBacnetId = ref(null)
 
 const closeArcoLoading = (handle) => {
   if (handle && typeof handle.close === 'function') {
@@ -330,6 +350,39 @@ const syncOpcuaServer = async (item) => {
   } finally {
     closeArcoLoading(stopMessage)
     syncingOpcuaId.value = ''
+  }
+}
+
+const onPassiveSync = (type, item) => {
+  if (type === 'opcua') {
+    syncOpcuaServer(item)
+  } else if (type === 'bacnet_server') {
+    syncBACnetServer(item)
+  }
+}
+
+const syncBACnetServer = async (item) => {
+  if (!item?.id || syncingBacnetId.value === item.id) return
+
+  syncingBacnetId.value = item.id
+  let stopMessage = Message.loading({
+    content: '正在同步 BACnet 点位映射...',
+    duration: 0,
+    id: `bacnet-sync-${item.id}`
+  })
+
+  try {
+    await request.post(`/api/northbound/bacnet_server/${item.id}/sync`, null, northboundSaveRequestConfig)
+    closeArcoLoading(stopMessage)
+    stopMessage = null
+    Message.success('BACnet 点位映射已同步')
+  } catch (e) {
+    closeArcoLoading(stopMessage)
+    stopMessage = null
+    Message.error('同步失败：' + resolveNorthboundSaveError(e))
+  } finally {
+    closeArcoLoading(stopMessage)
+    syncingBacnetId.value = ''
   }
 }
 

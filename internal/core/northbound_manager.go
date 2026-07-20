@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/anviod/edgex/internal/model"
+	"github.com/anviod/edgex/internal/northbound/bacnet"
 	"github.com/anviod/edgex/internal/northbound/edgos_mqtt"
 	"github.com/anviod/edgex/internal/northbound/edgos_nats"
 	"github.com/anviod/edgex/internal/northbound/http"
@@ -42,6 +43,7 @@ type NorthboundManager struct {
 	sparkplugClients  map[string]*sparkplugb.Client
 	edgeOSMQTTClients map[string]*edgos_mqtt.Client
 	edgeOSNATSClients map[string]*edgos_nats.Client
+	bacnetServers     map[string]*bacnet.Server
 	pipeline          *DataPipeline
 	sb                model.SouthboundManager
 	cm                *ChannelManager // Reference to ChannelManager for device lookups
@@ -63,6 +65,7 @@ func NewNorthboundManager(cfg model.NorthboundConfig, pipeline *DataPipeline, sb
 		sparkplugClients:  make(map[string]*sparkplugb.Client),
 		edgeOSMQTTClients: make(map[string]*edgos_mqtt.Client),
 		edgeOSNATSClients: make(map[string]*edgos_nats.Client),
+		bacnetServers:     make(map[string]*bacnet.Server),
 		pipeline:          pipeline,
 		sb:                sb,
 		cm:                nil, // Set via SetChannelManager
@@ -155,6 +158,22 @@ func (nm *NorthboundManager) GetNorthboundStats() []NorthboundStatus {
 			ID:     cfg.ID,
 			Name:   cfg.Name,
 			Type:   "edgeOS(NATS)",
+			Status: status,
+		})
+	}
+
+	// BACnet Server
+	for _, cfg := range nm.config.BACnetServer {
+		status := "Stopped"
+		if !cfg.Enable {
+			status = "Disabled"
+		} else if _, ok := nm.bacnetServers[cfg.ID]; ok {
+			status = "Running"
+		}
+		stats = append(stats, NorthboundStatus{
+			ID:     cfg.ID,
+			Name:   cfg.Name,
+			Type:   "BACnet Server",
 			Status: status,
 		})
 	}
@@ -253,6 +272,19 @@ func (nm *NorthboundManager) Start() {
 		}
 	}
 
+	// Start BACnet Servers
+	for _, cfg := range nm.config.BACnetServer {
+		if cfg.Enable {
+			server := bacnet.NewServer(cfg, nm.sb)
+			if err := server.Start(); err != nil {
+				log.Printf("Failed to start BACnet Server [%s]: %v", cfg.Name, err)
+			} else {
+				log.Printf("Northbound BACnet Server [%s] started", cfg.Name)
+				nm.bacnetServers[cfg.ID] = server
+			}
+		}
+	}
+
 	// Subscribe to pipeline
 	nm.pipeline.AddHandler(nm.handleValue)
 }
@@ -278,6 +310,9 @@ func (nm *NorthboundManager) handleValue(v model.Value) {
 	}
 	for _, client := range nm.edgeOSNATSClients {
 		client.Publish(v)
+	}
+	for _, server := range nm.bacnetServers {
+		server.Update(v)
 	}
 }
 
@@ -552,6 +587,9 @@ func (nm *NorthboundManager) Stop() {
 	for _, client := range nm.edgeOSNATSClients {
 		client.Stop()
 	}
+	for _, server := range nm.bacnetServers {
+		server.Stop()
+	}
 }
 
 func (nm *NorthboundManager) GetConfig() model.NorthboundConfig {
@@ -810,6 +848,168 @@ func (nm *NorthboundManager) DeleteOPCUAConfig(id string) error {
 	return nm.saveConfig()
 }
 
+// BACnet Server Operations
+
+// UpsertBACnetServerConfig 更新或插入 BACnet Server 配置
+func (nm *NorthboundManager) UpsertBACnetServerConfig(cfg model.BACnetServerConfig) (model.BACnetServerConfig, string, error) {
+	nm.mu.Lock()
+	defer nm.mu.Unlock()
+
+	if err := nm.validateNorthboundChannelName(cfg.ID, cfg.Name); err != nil {
+		return model.BACnetServerConfig{}, "", err
+	}
+
+	found := false
+	for i, c := range nm.config.BACnetServer {
+		if c.ID == cfg.ID {
+			nm.config.BACnetServer[i] = cfg
+			found = true
+			break
+		}
+	}
+	if !found {
+		nm.config.BACnetServer = append(nm.config.BACnetServer, cfg)
+	}
+
+	if err := nm.saveConfig(); err != nil {
+		return model.BACnetServerConfig{}, "", err
+	}
+
+	server, exists := nm.bacnetServers[cfg.ID]
+
+	if !cfg.Enable {
+		if exists {
+			server.Stop()
+			delete(nm.bacnetServers, cfg.ID)
+		}
+		return cfg, "", nil
+	}
+
+	var startErr error
+	if !exists {
+		newServer := bacnet.NewServer(cfg, nm.sb)
+		startErr = newServer.Start()
+		if startErr == nil {
+			nm.bacnetServers[cfg.ID] = newServer
+		}
+	} else {
+		startErr = server.UpdateConfig(cfg)
+	}
+
+	return cfg, connectorStartWarning("BACnet Server", cfg.Name, startErr), nil
+}
+
+// DeleteBACnetServerConfig 删除 BACnet Server 配置
+func (nm *NorthboundManager) DeleteBACnetServerConfig(id string) error {
+	nm.mu.Lock()
+	defer nm.mu.Unlock()
+
+	if server, exists := nm.bacnetServers[id]; exists {
+		server.Stop()
+		delete(nm.bacnetServers, id)
+	}
+
+	newConfigs := []model.BACnetServerConfig{}
+	for _, c := range nm.config.BACnetServer {
+		if c.ID != id {
+			newConfigs = append(newConfigs, c)
+		}
+	}
+	nm.config.BACnetServer = newConfigs
+
+	return nm.saveConfig()
+}
+
+// SyncBACnetServer 同步指定 BACnet Server 的地址空间
+func (nm *NorthboundManager) SyncBACnetServer(id string) error {
+	nm.mu.RLock()
+	var cfg model.BACnetServerConfig
+	found := false
+	for _, c := range nm.config.BACnetServer {
+		if c.ID == id {
+			cfg = c
+			found = true
+			break
+		}
+	}
+	srv, running := nm.bacnetServers[id]
+	nm.mu.RUnlock()
+
+	if !found {
+		return fmt.Errorf("BACnet Server config %s not found", id)
+	}
+	if !cfg.Enable {
+		return fmt.Errorf("BACnet Server %s is disabled", id)
+	}
+
+	if !running {
+		newServer := bacnet.NewServer(cfg, nm.sb)
+		if err := newServer.Start(); err != nil {
+			return err
+		}
+		nm.mu.Lock()
+		nm.bacnetServers[id] = newServer
+		nm.mu.Unlock()
+		log.Printf("BACnet Server [%s] started during sync", cfg.Name)
+		return nil
+	}
+
+	if err := srv.SyncAddressSpace(); err != nil {
+		return fmt.Errorf("sync BACnet Server [%s]: %w", cfg.Name, err)
+	}
+	log.Printf("BACnet Server [%s] address space synced", cfg.Name)
+	return nil
+}
+
+// RebuildBACnetServers 同步所有已启用 BACnet Server 的地址空间
+func (nm *NorthboundManager) RebuildBACnetServers() {
+	nm.mu.RLock()
+	type rebuildItem struct {
+		srv *bacnet.Server
+		cfg model.BACnetServerConfig
+	}
+	var items []rebuildItem
+	for _, cfg := range nm.config.BACnetServer {
+		if !cfg.Enable {
+			continue
+		}
+		if srv, ok := nm.bacnetServers[cfg.ID]; ok {
+			items = append(items, rebuildItem{srv: srv, cfg: cfg})
+		}
+	}
+	nm.mu.RUnlock()
+
+	for _, item := range items {
+		if err := item.srv.SyncAddressSpace(); err != nil {
+			log.Printf("Failed to sync BACnet Server [%s]: %v", item.cfg.Name, err)
+		} else {
+			log.Printf("BACnet Server [%s] address space synced", item.cfg.Name)
+		}
+	}
+}
+
+// GetBACnetServerStats 获取 BACnet Server 统计信息
+func (nm *NorthboundManager) GetBACnetServerStats(id string) (bacnet.Stats, error) {
+	nm.mu.RLock()
+	defer nm.mu.RUnlock()
+
+	if server, ok := nm.bacnetServers[id]; ok {
+		return server.GetStats(), nil
+	}
+	return bacnet.Stats{}, fmt.Errorf("BACnet Server %s not found or not running", id)
+}
+
+// GetBACnetServerWriteHistory 获取 BACnet Server 写入历史
+func (nm *NorthboundManager) GetBACnetServerWriteHistory(id string, limit int) ([]bacnet.WriteHistoryItem, error) {
+	nm.mu.RLock()
+	defer nm.mu.RUnlock()
+
+	if server, ok := nm.bacnetServers[id]; ok {
+		return server.GetWriteHistory(limit), nil
+	}
+	return nil, fmt.Errorf("BACnet Server %s not found or not running", id)
+}
+
 func (nm *NorthboundManager) saveConfig() error {
 	if nm.saveFunc == nil {
 		return nil
@@ -849,6 +1049,9 @@ func (nm *NorthboundManager) UpdateConfig(newConfig model.NorthboundConfig) {
 
 	// 处理 edgeOS(NATS) 配置变更
 	nm.updateEdgeOSNATSClients(oldConfig.EdgeOSNATS, newConfig.EdgeOSNATS)
+
+	// 处理 BACnet Server 配置变更
+	nm.updateBACnetServers(oldConfig.BACnetServer, newConfig.BACnetServer)
 }
 
 // updateMQTTClients 更新 MQTT 客户端
@@ -1088,6 +1291,47 @@ func (nm *NorthboundManager) updateSparkplugBClients(oldConfigs, newConfigs []mo
 					log.Printf("Northbound Sparkplug B client [%s] started", newCfg.Name)
 				}
 				nm.sparkplugClients[newCfg.ID] = client
+			}
+		}
+	}
+}
+
+// updateBACnetServers 更新 BACnet Server
+func (nm *NorthboundManager) updateBACnetServers(oldConfigs, newConfigs []model.BACnetServerConfig) {
+	// 停止已删除或禁用的 Server
+	for _, oldCfg := range oldConfigs {
+		if server, exists := nm.bacnetServers[oldCfg.ID]; exists {
+			found := false
+			for _, newCfg := range newConfigs {
+				if newCfg.ID == oldCfg.ID {
+					found = true
+					if !newCfg.Enable {
+						server.Stop()
+						delete(nm.bacnetServers, oldCfg.ID)
+					}
+					break
+				}
+			}
+			if !found {
+				server.Stop()
+				delete(nm.bacnetServers, oldCfg.ID)
+			}
+		}
+	}
+
+	// 启动或更新新的 Server
+	for _, newCfg := range newConfigs {
+		if newCfg.Enable {
+			if server, exists := nm.bacnetServers[newCfg.ID]; exists {
+				server.UpdateConfig(newCfg)
+			} else {
+				server := bacnet.NewServer(newCfg, nm.sb)
+				if err := server.Start(); err != nil {
+					log.Printf("Failed to start BACnet Server [%s]: %v", newCfg.Name, err)
+				} else {
+					log.Printf("Northbound BACnet Server [%s] started", newCfg.Name)
+					nm.bacnetServers[newCfg.ID] = server
+				}
 			}
 		}
 	}
