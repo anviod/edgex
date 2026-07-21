@@ -46,6 +46,19 @@
   padding-bottom: 2rem;
 }
 
+.footnotes {
+  border-top: 1px solid var(--line);
+  padding-top: 1.5rem;
+  margin-top: 1rem;
+}
+
+.footnotes p {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -1131,6 +1144,23 @@ pre {
   color: #546e7a;
 }
 
+/* Inline priority labels (used in roadmap-intro) */
+.priority-label {
+  font-weight: 600;
+}
+
+.priority-label--high {
+  color: #2e7d32;
+}
+
+.priority-label--medium {
+  color: #e65100;
+}
+
+.priority-label--planned {
+  color: #1565c0;
+}
+
 .milestone-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -1319,12 +1349,13 @@ pre {
 }
 
 /* ==========================================================================
-   Landing — Centered hero (enterprise style)
+   Landing page — Enterprise layout (unified design system)
    ========================================================================== */
 
+/* --- Centered hero variant --- */
 .hero-grid--center {
   grid-template-columns: 1fr;
-  max-width: 960px;
+  max-width: 880px;
   margin: 0 auto;
 }
 
@@ -1338,8 +1369,8 @@ pre {
 }
 
 .hero-copy__header--center h1 {
-  font-size: clamp(3.2rem, 6vw, 5.8rem);
-  letter-spacing: -0.02em;
+  font-size: clamp(3rem, 5.5vw, 5.4rem);
+  letter-spacing: -0.025em;
   background: linear-gradient(135deg, var(--ink) 20%, var(--gold) 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -1347,8 +1378,8 @@ pre {
 }
 
 .hero-copy__header--center h2 {
-  margin: 12px 0 28px;
-  font-size: clamp(1.5rem, 2.8vw, 2.2rem);
+  margin: 10px 0 26px;
+  font-size: clamp(1.4rem, 2.4vw, 2rem);
   font-weight: 600;
   background: linear-gradient(135deg, var(--ink) 40%, var(--gold-deep) 100%);
   -webkit-background-clip: text;
@@ -1358,17 +1389,17 @@ pre {
 
 .hero-tagline--center {
   text-align: center;
-  font-size: clamp(1.05rem, 1.5vw, 1.2rem);
+  font-size: clamp(1.02rem, 1.35vw, 1.15rem);
   color: var(--ink);
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   font-weight: 400;
 }
 
 .hero-desc {
-  max-width: 780px;
-  margin: 0 auto 28px;
+  max-width: 720px;
+  margin: 0 auto 26px;
   color: var(--muted);
-  font-size: clamp(0.92rem, 1.2vw, 1rem);
+  font-size: clamp(0.9rem, 1.1vw, 0.98rem);
   line-height: 1.75;
   text-align: center;
 }
@@ -1378,12 +1409,12 @@ pre {
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 36px;
-  font-size: 0.88rem;
+  gap: 8px;
+  margin-bottom: 34px;
+  font-size: 0.85rem;
   color: var(--gold-deep);
   font-weight: 500;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
 }
 
 .hero-values__sep {
@@ -1395,45 +1426,36 @@ pre {
   justify-content: center;
 }
 
-/* ==========================================================================
-   Core value banner
-   ========================================================================== */
-
+/* --- Core value banner --- */
 .core-value-banner {
-  max-width: 880px;
+  max-width: 840px;
   margin: 0 auto;
-  padding: 28px 36px;
-  border-left: 3px solid var(--gold);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  background: rgba(255, 255, 255, 0.85);
-  border-top: 1px solid var(--line-gold);
-  border-right: 1px solid var(--line-gold);
-  border-bottom: 1px solid var(--line-gold);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  padding: 30px 40px;
+  border-radius: var(--radius-xl);
+  background: var(--panel);
+  border: 1px solid var(--line-gold);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
 }
 
 .core-value-banner p {
   margin: 0;
   color: var(--ink);
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 500;
-  line-height: 1.7;
-  text-align: center;
+  line-height: 1.75;
 }
 
-/* ==========================================================================
-   Design intro text
-   ========================================================================== */
-
+/* --- Design intro (used by "为工业现场而设计" and "AI 驱动") --- */
 .design-intro {
-  max-width: 880px;
+  max-width: 840px;
   margin: 0 auto;
 }
 
 .design-intro p {
-  margin: 0 0 16px;
+  margin: 0 0 14px;
   color: var(--text);
-  font-size: 0.98rem;
+  font-size: 0.95rem;
   line-height: 1.75;
 }
 
@@ -1441,22 +1463,19 @@ pre {
   margin-bottom: 0;
 }
 
-/* ==========================================================================
-   Capability cards (3-col grid)
-   ========================================================================== */
-
+/* --- Capability cards — reuse .feature-card base, extend with 3-col grid --- */
 .cards-grid--three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
+  gap: 20px;
 }
 
 .feature-card--capability {
-  padding: 32px 28px;
+  padding: 30px 26px;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--panel);
   box-shadow: var(--shadow);
-  transition: all 0.3s ease;
+  transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .feature-card--capability:hover {
@@ -1466,8 +1485,8 @@ pre {
 }
 
 .feature-card--capability h3 {
-  margin: 0 0 14px;
-  font-size: 1.05rem;
+  margin: 0 0 12px;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--gold-deep);
   letter-spacing: 0.02em;
@@ -1476,18 +1495,19 @@ pre {
 .feature-card--capability p {
   margin: 0;
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   line-height: 1.65;
-  flex-grow: 1;
 }
 
-/* ==========================================================================
-   Architecture diagram
-   ========================================================================== */
-
+/* --- Architecture diagram --- */
 .arch-diagram {
-  max-width: 420px;
-  margin: 32px auto;
+  max-width: 520px;
+  margin: 36px auto;
+  padding: 32px;
+  border-radius: var(--radius-xl);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1496,58 +1516,61 @@ pre {
 
 .arch-node {
   width: 100%;
-  padding: 14px 24px;
+  padding: 13px 20px;
   text-align: center;
-  background: var(--panel);
+  background: var(--bg-soft);
   border: 1px solid var(--line-gold);
   border-radius: var(--radius-md);
   color: var(--ink);
   font-weight: 600;
-  font-size: 0.95rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  font-size: 0.92rem;
+  letter-spacing: 0.02em;
 }
 
 .arch-arrow {
-  padding: 6px 0;
-  font-size: 1.2rem;
+  padding: 5px 0;
+  font-size: 1.05rem;
   color: var(--gold);
   line-height: 1;
+  font-weight: 300;
 }
 
 .arch-note {
-  max-width: 720px;
-  margin: 24px auto 0;
+  max-width: 680px;
+  margin: 22px auto 0;
   text-align: center;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   line-height: 1.7;
 }
 
-/* ==========================================================================
-   Design principles
-   ========================================================================== */
-
+/* --- Design principles --- */
 .principles-grid {
-  max-width: 720px;
+  max-width: 840px;
   margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
 }
 
 .principle-item {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line);
-  font-size: 0.98rem;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  font-size: 0.92rem;
   color: var(--ink);
   font-weight: 500;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.principle-item:last-child {
-  border-bottom: none;
+.principle-item:hover {
+  border-color: var(--line-gold);
+  box-shadow: 0 4px 14px rgba(197, 160, 89, 0.1);
 }
 
 .principle-marker {
@@ -1558,28 +1581,25 @@ pre {
   background: var(--gold);
 }
 
-/* ==========================================================================
-   Project overview table
-   ========================================================================== */
-
+/* --- Project overview table --- */
 .overview-table-wrapper {
-  max-width: 640px;
+  max-width: 680px;
   margin: 0 auto;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  background: var(--panel);
 }
 
 .overview-table {
   width: 100%;
   border-collapse: collapse;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  background: var(--panel);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
   font-size: 0.93rem;
 }
 
 .overview-table td {
-  padding: 14px 20px;
+  padding: 14px 22px;
   border-bottom: 1px solid var(--line);
   color: var(--text);
 }
@@ -1596,18 +1616,15 @@ pre {
   background: var(--gold-bg);
 }
 
-.overview-label {
+.overview-table .overview-label {
   width: 140px;
-  color: var(--gold-deep) !important;
+  color: var(--gold-deep);
   font-weight: 600;
-  font-size: 0.88rem;
-  letter-spacing: 0.03em;
+  font-size: 0.86rem;
+  letter-spacing: 0.04em;
 }
 
-/* ==========================================================================
-   Site tagline footer
-   ========================================================================== */
-
+/* --- Site tagline footer --- */
 .landing-section--tagline {
   padding: 48px 0;
   border-bottom: none;
@@ -1622,13 +1639,13 @@ pre {
 .site-tagline p {
   margin: 0;
   color: var(--gold-deep);
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 500;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
 /* ==========================================================================
-   Responsive overrides for new sections
+   Responsive — enterprise landing sections
    ========================================================================== */
 
 @media (max-width: 1180px) {
@@ -1643,31 +1660,36 @@ pre {
   }
 
   .core-value-banner {
-    padding: 20px 24px;
+    padding: 24px 22px;
   }
 
   .core-value-banner p {
-    font-size: 0.95rem;
+    font-size: 0.93rem;
   }
 
   .hero-copy__header--center h1 {
-    font-size: clamp(2.4rem, 8vw, 3.6rem);
+    font-size: clamp(2.4rem, 8vw, 3.4rem);
   }
 
   .hero-copy__header--center h2 {
-    font-size: clamp(1.2rem, 4vw, 1.6rem);
+    font-size: clamp(1.15rem, 4vw, 1.5rem);
   }
 
   .arch-diagram {
     max-width: 100%;
+    padding: 24px 18px;
+  }
+
+  .principles-grid {
+    grid-template-columns: 1fr;
   }
 
   .overview-table-wrapper {
     max-width: 100%;
   }
 
-  .overview-label {
-    width: 100px;
+  .overview-table .overview-label {
+    width: 90px;
   }
 
   .site-tagline p {
