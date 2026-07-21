@@ -440,14 +440,15 @@ const syncDevicesFromTable = () => {
     return
   }
   const devices = {}
-  let hasExplicitDisable = false
+  let allEnabled = true
   for (const record of deviceTableData.value) {
     if (!record._enable) {
-      hasExplicitDisable = true
-      devices[record.id] = { enable: false }
+      allEnabled = false
     }
+    devices[record.id] = { enable: record._enable }
   }
-  form.value.devices = hasExplicitDisable ? devices : {}
+  // 全部启用时使用空 map，保持默认"全部暴露"语义
+  form.value.devices = allEnabled ? {} : devices
 }
 
 const syncVirtualDevicesFromTable = () => {

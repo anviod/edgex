@@ -105,12 +105,13 @@ export function syncNorthboundVirtualDevicesFromRows(rows) {
     return {}
   }
   const devices = {}
-  let hasExplicitDisable = false
+  let allEnabled = true
   for (const record of rows) {
     if (!record._enable) {
-      hasExplicitDisable = true
-      devices[record.id] = { enable: false }
+      allEnabled = false
     }
+    devices[record.id] = { enable: record._enable }
   }
-  return hasExplicitDisable ? devices : {}
+  // 全部启用时使用空 map，保持默认"全部暴露"语义
+  return allEnabled ? {} : devices
 }

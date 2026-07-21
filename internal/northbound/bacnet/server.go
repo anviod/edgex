@@ -478,7 +478,7 @@ func (s *Server) buildAddressSpace() error {
 						{
 							Type:       btypes.PROP_OBJECT_TYPE,
 							ArrayIndex: btypes.ArrayAll,
-							Data:       objType,
+							Data:       btypes.Enumerated(objType),
 						},
 						{
 							Type:       btypes.PROP_PRESENT_VALUE,
@@ -493,7 +493,7 @@ func (s *Server) buildAddressSpace() error {
 						{
 							Type:       btypes.PROP_STATUS_FLAGS,
 							ArrayIndex: btypes.ArrayAll,
-							Data:       []bool{false, false, false, false}, // {inAlarm, fault, overridden, outOfService}
+							Data:       newStatusFlags(), // {inAlarm, fault, overridden, outOfService} = all normal
 						},
 					},
 				}
@@ -693,4 +693,15 @@ func toUint32(v any) uint32 {
 // pointKey 生成点位键
 func pointKey(channelID, deviceID, pointID string) string {
 	return channelID + "/" + deviceID + "/" + pointID
+}
+
+// newStatusFlags 创建 BACnet StatusFlags BitString (4 bits: inAlarm, fault, overridden, outOfService)
+// 所有位初始为 false，表示设备正常运行状态。
+func newStatusFlags() *btypes.BitString {
+	bs := btypes.NewBitString(1) // 4 bits fit in 1 byte
+	bs.SetBit(0, false)          // inAlarm
+	bs.SetBit(1, false)          // fault
+	bs.SetBit(2, false)          // overridden
+	bs.SetBit(3, false)          // outOfService
+	return bs
 }
