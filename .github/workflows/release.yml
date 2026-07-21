@@ -112,7 +112,9 @@ jobs:
           else
             CHANGELOG=$(git log --oneline)
           fi
-          echo "CHANGELOG=$CHANGELOG" >> $GITHUB_ENV
+          echo 'CHANGELOG<<EOF' >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
           echo "Changelog generated successfully"
 
       - name: Create Release
@@ -123,7 +125,7 @@ jobs:
           body: |
             ## Changes
             
-            ${{ env.CHANGELOG }}
+            ${{ steps.changelog.outputs.CHANGELOG }}
           files: |
             gateway-linux-amd64
             gateway-windows-amd64.exe
