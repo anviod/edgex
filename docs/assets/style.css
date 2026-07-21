@@ -658,14 +658,14 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   justify-content: center;
   position: relative;
   width: 100%;
-  min-height: 340px;
+  min-height: 400px;
 }
 
 /* AI Core — concentric glowing rings */
 .ai-core {
   position: relative;
-  width: 180px;
-  height: 180px;
+  width: 260px;
+  height: 260px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -674,35 +674,36 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .ai-core-ring {
   position: absolute;
   border-radius: 50%;
-  border: 1px solid var(--gold-border);
+  border: 2px solid var(--gold-border);
 }
 
 .ai-core-ring--outer {
-  width: 180px;
-  height: 180px;
+  width: 260px;
+  height: 260px;
   animation: ai-core-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  box-shadow: 0 0 30px var(--gold-glow), inset 0 0 30px var(--gold-glow);
+  box-shadow: 0 0 50px var(--gold-glow), 0 0 100px rgba(200,167,91,0.10), inset 0 0 50px var(--gold-glow);
 }
 
 .ai-core-ring--mid {
-  width: 130px;
-  height: 130px;
+  width: 190px;
+  height: 190px;
   animation: ai-core-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) 0.5s infinite;
-  box-shadow: 0 0 20px var(--gold-glow), inset 0 0 20px var(--gold-glow);
+  box-shadow: 0 0 35px var(--gold-glow), 0 0 70px rgba(200,167,91,0.08), inset 0 0 35px var(--gold-glow);
+  border-width: 1.5px;
 }
 
 .ai-core-ring--inner {
-  width: 88px;
-  height: 88px;
+  width: 128px;
+  height: 128px;
   animation: ai-core-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) 1s infinite;
-  box-shadow: 0 0 14px var(--gold-glow), inset 0 0 14px var(--gold-glow);
+  box-shadow: 0 0 22px var(--gold-glow), 0 0 50px rgba(200,167,91,0.06), inset 0 0 22px var(--gold-glow);
 }
 
 .ai-core-center {
   position: relative;
   z-index: 2;
-  width: 52px;
-  height: 52px;
+  width: 72px;
+  height: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -716,44 +717,44 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 @keyframes ai-core-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.08); opacity: 1; }
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.1); opacity: 1; }
 }
 
 @keyframes ai-center-glow {
-  0%, 100% { filter: drop-shadow(0 0 6px rgba(200,167,91,0.4)); }
-  50% { filter: drop-shadow(0 0 16px rgba(200,167,91,0.8)); }
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(200,167,91,0.5)); }
+  50% { filter: drop-shadow(0 0 28px rgba(200,167,91,0.95)); }
 }
 
 /* Orbiting dots */
 .ai-orbit {
   position: absolute;
   top: 50%; left: 50%;
-  width: 220px;
-  height: 220px;
-  margin-top: -110px;
-  margin-left: -110px;
+  width: 320px;
+  height: 320px;
+  margin-top: -160px;
+  margin-left: -160px;
   border-radius: 50%;
   pointer-events: none;
 }
 
 .ai-orbit--1 { animation: ai-spin 12s linear infinite; }
-.ai-orbit--2 { animation: ai-spin 16s linear infinite reverse; width: 200px; height: 200px; margin-top: -100px; margin-left: -100px; }
-.ai-orbit--3 { animation: ai-spin 20s linear infinite; width: 240px; height: 240px; margin-top: -120px; margin-left: -120px; }
+.ai-orbit--2 { animation: ai-spin 16s linear infinite reverse; width: 290px; height: 290px; margin-top: -145px; margin-left: -145px; }
+.ai-orbit--3 { animation: ai-spin 20s linear infinite; width: 350px; height: 350px; margin-top: -175px; margin-left: -175px; }
 
 .ai-dot {
   position: absolute;
   top: 0; left: 50%;
-  width: 6px;
-  height: 6px;
-  margin-left: -3px;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
   border-radius: 50%;
-  background: var(--gold-light);
-  box-shadow: 0 0 8px rgba(200,167,91,0.7), 0 0 16px rgba(200,167,91,0.3);
+  background: var(--gold-bright);
+  box-shadow: 0 0 12px rgba(200,167,91,0.9), 0 0 28px rgba(200,167,91,0.5), 0 0 50px rgba(200,167,91,0.2);
 }
 
 .ai-orbit--2 .ai-dot { top: auto; bottom: 0; }
-.ai-orbit--3 .ai-dot { left: 0; top: 50%; margin-top: -3px; }
+.ai-orbit--3 .ai-dot { left: 0; top: 50%; margin-top: -4px; }
 
 @keyframes ai-spin {
   from { transform: rotate(0deg); }
@@ -769,11 +770,12 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 
 .ai-particle {
   position: absolute;
-  width: 3px;
-  height: 3px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
-  background: var(--gold-light);
+  background: var(--gold-bright);
   opacity: 0;
+  box-shadow: 0 0 6px rgba(200,167,91,0.7);
 }
 
 .ai-particle--1 { top: 15%; left: 20%; animation: ai-float-up 4s ease-in-out infinite; }
@@ -1664,22 +1666,22 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   }
 
   .hero-visual {
-    min-height: 260px;
+    min-height: 300px;
   }
 
   .ai-core {
-    width: 140px;
-    height: 140px;
+    width: 200px;
+    height: 200px;
   }
 
-  .ai-core-ring--outer { width: 140px; height: 140px; }
-  .ai-core-ring--mid { width: 100px; height: 100px; }
-  .ai-core-ring--inner { width: 68px; height: 68px; }
-  .ai-core-center { width: 40px; height: 40px; }
+  .ai-core-ring--outer { width: 200px; height: 200px; }
+  .ai-core-ring--mid { width: 145px; height: 145px; }
+  .ai-core-ring--inner { width: 98px; height: 98px; }
+  .ai-core-center { width: 56px; height: 56px; }
 
-  .ai-orbit { width: 170px; height: 170px; margin-top: -85px; margin-left: -85px; }
-  .ai-orbit--2 { width: 155px; height: 155px; margin-top: -77px; margin-left: -77px; }
-  .ai-orbit--3 { width: 185px; height: 185px; margin-top: -92px; margin-left: -92px; }
+  .ai-orbit { width: 240px; height: 240px; margin-top: -120px; margin-left: -120px; }
+  .ai-orbit--2 { width: 220px; height: 220px; margin-top: -110px; margin-left: -110px; }
+  .ai-orbit--3 { width: 260px; height: 260px; margin-top: -130px; margin-left: -130px; }
 
   .hero-copy h1 { font-size: 2.2rem; }
   .hero-copy h2 { font-size: 1.3rem; }
