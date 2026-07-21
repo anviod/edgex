@@ -6,8 +6,8 @@ kramdown:
   parse_block_html: true
   syntax_highlighter: rouge
   hard_wrap: false
-name: EdgeX 知识库
-description: EdgeX 工业边缘网关专家知识库 — 南向驱动、架构设计与运维文档
+name: EdgeX
+description: EdgeX 工业边缘计算平台 — 统一设备接入、边缘计算与数据互联
 lang: zh-CN
 url: https://anviod.github.io
 baseurl: /edgex

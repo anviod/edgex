@@ -2,45 +2,39 @@
   <div class="hero-banner__glow" aria-hidden="true"></div>
   <div class="shell shell--wide">
     <div class="hero-banner">
-      <div class="hero-grid">
-        <div class="hero-copy">
-          <div class="hero-copy__header">
-            <div class="eyebrow">Expert Knowledge Base</div>
-            <h2>EdgeX 专家知识库</h2>
+      <div class="hero-grid hero-grid--center">
+        <div class="hero-copy hero-copy--center">
+          <div class="hero-copy__header hero-copy__header--center">
+            <h1>EdgeX</h1>
+            <h2>新一代工业边缘计算平台</h2>
           </div>
-          <p class="hero-tagline">工业边缘网关 — 打通 OT ↔ IT，13种标准工业协议<a href="#ref-protocol" class="citation-sup">ⓘ</a>、边缘规则与北向多通道，以工业级 SLA 与 Soak 长稳验证保障现场长期可靠运行。</p>
-          <p class="hero-subline">无依赖运行 · AI 协同 · 裸机/systemd · x86 / ARM</p>
-          <div class="hero-actions">
+          <p class="hero-tagline hero-tagline--center"><strong>统一设备接入、边缘计算与数据互联。</strong></p>
+          <p class="hero-desc">面向工业自动化与物联网场景，提供统一工业协议接入、边缘计算、数据处理、多协议输出及 AI 辅助设备接入能力，以简单、稳定、可扩展的架构构建工业数据基础设施。</p>
+          <div class="hero-values">
+            <span>轻量部署</span>
+            <span class="hero-values__sep">·</span>
+            <span>工业级稳定性</span>
+            <span class="hero-values__sep">·</span>
+            <span>边缘计算</span>
+            <span class="hero-values__sep">·</span>
+            <span>AI 辅助设备接入</span>
+          </div>
+          <div class="hero-actions hero-actions--center">
             <a class="button-link button-link--primary" href="guide/产品说明.html">产品说明</a>
             <a class="button-link button-link--secondary" href="architecture/index.html">架构设计</a>
-            <a class="button-link button-link--secondary" href="testing/index.html">测试验证</a>
             <a class="button-link button-link--secondary" href="guide/USER_MANUAL.html">用户手册</a>
             <a class="button-link button-link--secondary" href="drivers/index.html">设备驱动</a>
-            <a class="button-link button-link--secondary" href="TODO/AI协同组件规划.html">AI Copilot</a>
           </div>
         </div>
-
-        <aside class="hero-aside">
-          <ul class="hero-stack">
-            <li class="hero-stack__item">
-              <strong>工业级稳定</strong>
-              <span>指标门控 · Soak 长稳回归 · CI 五项工业基线 · lag P95 &lt;100ms · diagnostics API</span>
-            </li>
-            <li class="hero-stack__item">
-              <strong>南向采集</strong>
-              <span>Modbus · BACnet · OPC UA · S7 · EtherNet/IP · FINS · SNMP · IEC 104 · DL/T645 · Mitsubishi MC · Profinet IO · KNXnet/IP · EtherCAT</span>
-            </li>
-            <li class="hero-stack__item">
-              <strong>ScanEngine / ShadowCore</strong>
-              <span>EDF 调度 · 统计 SLA diagnostics · COW 快照 · ShadowIngress 批量写入 · 真实/虚拟影子设备</span>
-            </li>
-            <li class="hero-stack__item">
-              <strong>北向集成</strong>
-              <span>MQTT · Sparkplug B · OPC UA Server · EdgeOS（主控大脑）</span>
-            </li>
-          </ul>
-        </aside>
       </div>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section">
+  <div class="shell shell--wide">
+    <div class="core-value-banner">
+      <p>以工业现场为设计原点，坚持稳定性优先、统一架构、长期可维护，构建面向未来的工业边缘计算平台。</p>
     </div>
   </div>
 </section>
@@ -49,47 +43,51 @@
   <div class="shell shell--wide">
     <div class="section-heading">
       <div>
-        <div class="section-kicker">战略与治理</div>
-        <h2>开发原则与发布门禁</h2>
-        <p>工程铁律、分阶段路线图、版本发布四道门禁与工业验证报告模板 — 架构设计与 PR 评审的上位规范。</p>
+        <div class="section-kicker">设计理念</div>
+        <h2>为工业现场而设计</h2>
+        <p>工业系统关注的不仅是性能，更重要的是长期稳定运行。</p>
+      </div>
+    </div>
+    <div class="design-intro">
+      <p>EdgeX 基于统一的数据采集架构，实现设备接入、数据处理、边缘计算与数据输出的完整闭环，在保证系统稳定性的同时，兼顾可维护性与扩展能力。</p>
+      <p>适用于能源、电力、智慧建筑、工业制造、数据中心、环境监测等多种工业场景。</p>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section">
+  <div class="shell shell--wide">
+    <div class="section-heading">
+      <div>
+        <div class="section-kicker">核心能力</div>
+        <h2>核心能力</h2>
       </div>
     </div>
 
-    <div class="cards-grid cards-grid--four">
-      <article class="feature-card">
-        <span class="feature-card__tag">战略</span>
-        <h3>开发原则与验收标准</h3>
-        <p>稳定性优先、工业级验证、高性能与轻量化 — 含量化验收标准，适用于设计与发布评审。</p>
-        <div class="feature-card__links">
-          <a class="mini-link" href="DEVELOPMENT_PRINCIPLES.html">阅读全文</a>
-        </div>
+    <div class="cards-grid cards-grid--three">
+      <article class="feature-card feature-card--capability">
+        <h3>统一工业协议接入</h3>
+        <p>支持 Modbus、Siemens S7、OPC UA、BACnet、DL/T645、MQTT 等二十余种工业协议，为不同设备提供统一的数据接入方式。</p>
       </article>
 
-      <article class="feature-card">
-        <span class="feature-card__tag">战略</span>
-        <h3>分阶段开发路线图</h3>
-        <p>Phase 1 稳定性闭环 → Phase 2 工业验证 → Phase 3 性能 → Phase 4 可观测，明确阶段前置条件。</p>
-        <div class="feature-card__links">
-          <a class="mini-link" href="ROADMAP.html">阅读全文</a>
-        </div>
+      <article class="feature-card feature-card--capability">
+        <h3>边缘计算</h3>
+        <p>支持虚拟点、计算点、数据转换、聚合计算、事件处理等本地计算能力，降低云端依赖，提高实时响应能力。</p>
       </article>
 
-      <article class="feature-card">
-        <span class="feature-card__tag">战略</span>
-        <h3>版本发布门禁</h3>
-        <p>G-Stability / G-Industrial / G-Performance / G-Lightweight 四道门禁 — 任一门禁未通过不得对外发布。</p>
-        <div class="feature-card__links">
-          <a class="mini-link" href="RELEASE_GATE.html">阅读全文</a>
-        </div>
+      <article class="feature-card feature-card--capability">
+        <h3>AI 辅助设备接入</h3>
+        <p>结合大语言模型，实现协议文档解析、点位生成、配置生成及协议辅助分析，提升设备接入效率。</p>
       </article>
 
-      <article class="feature-card">
-        <span class="feature-card__tag">验证</span>
-        <h3>工业验证测试报告模板</h3>
-        <p>Phase 2 各协议联机验证统一归档模板，与 G-Industrial 发布判定标准对齐。</p>
-        <div class="feature-card__links">
-          <a class="mini-link" href="testing/工业验证测试报告模板.html">打开模板</a>
-        </div>
+      <article class="feature-card feature-card--capability">
+        <h3>多协议数据输出</h3>
+        <p>支持 MQTT、HTTP、WebSocket、数据库等多种数据输出方式，可快速对接 SCADA、MES、EMS、IoT 平台及第三方业务系统。</p>
+      </article>
+
+      <article class="feature-card feature-card--capability">
+        <h3>跨平台部署</h3>
+        <p>支持 Linux、Windows、ARM、x86 等多种硬件平台，单程序即可完成部署，适用于服务器、工控机及边缘网关。</p>
       </article>
     </div>
   </div>
@@ -99,60 +97,76 @@
   <div class="shell shell--wide">
     <div class="section-heading">
       <div>
-        <div class="section-kicker">核心文档入口</div>
-        <h2>快速导航</h2>
-        <p>按实施场景整理技术资料 — 产品规格、用户手册、驱动开发、架构设计与路线规划。</p>
+        <div class="section-kicker">架构设计</div>
+        <h2>架构设计</h2>
+        <p>EdgeX 采用统一的数据流架构，将协议驱动、数据采集、边缘计算与数据输出进行解耦，实现稳定、高效、可扩展的数据处理流程。</p>
       </div>
     </div>
 
-    <div class="cards-grid cards-grid--four">
-      <article class="feature-card">
-        <span class="feature-card__tag">产品</span>
-        <h3>产品指南</h3>
-        <p>产品概览、工业级 SLA、协议能力与部署指南 — 能力详解与场景示意。</p>
-        <div class="feature-card__links">
-          <a class="mini-link" href="guide/产品说明.html">产品说明</a>
-          <a class="mini-link" href="guide/USER_MANUAL.html">用户手册</a>
-          <a class="mini-link" href="testing/index.html">SLA 测试报告</a>
-        </div>
-      </article>
+    <div class="arch-diagram">
+      <div class="arch-node">工业设备</div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-node">协议驱动</div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-node">统一采集调度</div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-node">统一数据模型</div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-node">边缘计算</div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-node">数据输出</div>
+    </div>
+    <p class="arch-note">模块之间职责清晰，可根据业务需求灵活扩展新的协议、计算能力或数据输出方式，而无需调整整体架构。</p>
+  </div>
+</section>
 
-      <article class="feature-card">
-        <span class="feature-card__tag">驱动</span>
-        <h3>设备驱动</h3>
-        <p>南向采集驱动的设计、测试、优化与故障分析，覆盖 13 种工业协议。2026-07-12 全量 `-short` 复测 22/22 PASS（含 EtherCAT）。</p>
-        <div class="feature-card__links">
-          <a class="mini-link" href="drivers/index.html">驱动总览</a>
-          <a class="mini-link" href="testing/南向驱动测试报告.html">测试报告 (2026-07-12)</a>
-          <a class="mini-link" href="drivers/index_en.html">Drivers (EN)</a>
-        </div>
-      </article>
+<section class="landing-section">
+  <div class="shell shell--wide">
+    <div class="section-heading">
+      <div>
+        <div class="section-kicker">设计原则</div>
+        <h2>设计原则</h2>
+        <p>EdgeX 始终坚持工业软件的工程原则。</p>
+      </div>
+    </div>
 
-      <article class="feature-card">
-        <span class="feature-card__tag">架构</span>
-        <h3>架构与边缘计算</h3>
-        <p>ScanEngine SLA 调度（EDF/CB/diagnostics）、ShadowCore COW 快照、ShadowIngress 批量写入、Virtual Shadow 与规则引擎。</p>
-        <div class="feature-card__links">
-          <a class="mini-link" href="architecture/index.html">架构设计</a>
-          <a class="mini-link" href="edge/边缘网关架构设计总览.html">架构总览</a>
-          <a class="mini-link" href="edge/index.html">边缘计算</a>
-          <a class="mini-link" href="TODO/SLA评估.html">SLA 评估</a>
-          <a class="mini-link" href="architecture/6. 影子设备设计.html">影子设备</a>
-        </div>
-      </article>
+    <div class="principles-grid">
+      <div class="principle-item">
+        <span class="principle-marker"></span>
+        <span>稳定性优先于性能优化</span>
+      </div>
+      <div class="principle-item">
+        <span class="principle-marker"></span>
+        <span>简单可靠优先于复杂设计</span>
+      </div>
+      <div class="principle-item">
+        <span class="principle-marker"></span>
+        <span>本地运行优先于云端依赖</span>
+      </div>
+      <div class="principle-item">
+        <span class="principle-marker"></span>
+        <span>故障可恢复优先于极限优化</span>
+      </div>
+      <div class="principle-item">
+        <span class="principle-marker"></span>
+        <span>统一架构优先于功能堆砌</span>
+      </div>
+    </div>
+    <p class="arch-note">所有设计均围绕长期稳定运行、快速恢复和持续维护展开。</p>
+  </div>
+</section>
 
-      <article class="feature-card">
-        <span class="feature-card__tag">规划</span>
-        <h3>开发计划</h3>
-        <p>路线图、待开发驱动与 Q3/Q4 架构特性演进 — ScanEngine、ShadowCore、多节点同步。</p>
-        <div class="feature-card__links">
-          <a class="mini-link" href="ROADMAP.html">分阶段路线图</a>
-          <a class="mini-link" href="development_plan/index.html">计划总览</a>
-          <a class="mini-link" href="development_plan/drivers/采集驱动ICE104开发.html">IEC 104</a>
-          <a class="mini-link" href="TODO/基于go-libp2p%20同步通信规划方案.html">多节点同步</a>
-          <a class="mini-link" href="TODO/AI协同组件规划.html">AI 规划</a>
-        </div>
-      </article>
+<section class="landing-section">
+  <div class="shell shell--wide">
+    <div class="section-heading">
+      <div>
+        <div class="section-kicker">AI 驱动</div>
+        <h2>AI 驱动的新一代设备接入</h2>
+        <p>AI 不仅用于交互，更直接参与工业设备接入流程。</p>
+      </div>
+    </div>
+    <div class="design-intro">
+      <p>通过结合协议文档、设备手册、通信报文及现场数据，可辅助完成协议分析、点位识别、配置生成及设备调试，大幅减少人工重复工作，提升项目实施效率。</p>
     </div>
   </div>
 </section>
@@ -161,89 +175,44 @@
   <div class="shell shell--wide">
     <div class="section-heading">
       <div>
-        <div class="section-kicker">文档分区</div>
-        <h2>完整文档索引</h2>
-        <p>按专题浏览全部文档区域，快速定位所需资料。</p>
+        <div class="section-kicker">项目概览</div>
+        <h2>项目概览</h2>
       </div>
     </div>
 
-    <div class="doc-zones doc-zones--wide">
-      <div class="doc-zone">
-        <h3>战略与治理</h3>
-        <ul>
-          <li><a href="DEVELOPMENT_PRINCIPLES.html">开发原则与验收标准</a></li>
-          <li><a href="ROADMAP.html">分阶段开发路线图</a></li>
-          <li><a href="RELEASE_GATE.html">版本发布门禁</a></li>
-          <li><a href="[TODO]边缘计算南向采集优化方案2026第三季度.html">Q3 采集优化方案</a></li>
-          <li><a href="[TODO]边缘计算南向采集优化方案2026第二季度.html">Q2 采集优化方案（归档）</a></li>
-        </ul>
-      </div>
-      <div class="doc-zone">
-        <h3>产品与用户手册</h3>
-        <ul>
-          <li><a href="guide/index.html">产品指南</a></li>
-          <li><a href="guide/PRODUCT.zh-CN.html">产品手册（精简）</a></li>
-          <li><a href="guide/产品说明.html">产品说明</a></li>
-          <li><a href="guide/产品说明.html#更新记录">更新记录（最近重点）</a></li>
-          <li><a href="guide/USER_MANUAL.html">用户手册</a></li>
-          <li><a href="guide/USER_MANUAL.html#安装指南">安装与升级（deb / rpm）</a></li>
-          <li><a href="operations/index.html">运维文档</a></li>
-        </ul>
-      </div>
-      <div class="doc-zone">
-        <h3>采集与驱动</h3>
-        <ul>
-          <li><a href="drivers/index.html">驱动总览</a></li>
-          <li><a href="drivers/index_en.html">Drivers (EN)</a></li>
-          <li><a href="drivers/MODBUS_OPTIMIZATION.html">Modbus 优化</a></li>
-          <li><a href="drivers/BACnet_设计说明.html">BACnet</a></li>
-          <li><a href="drivers/OPC_UA_Design.html">OPC UA</a></li>
-          <li><a href="drivers/PLC_S7.html">S7</a></li>
-          <li><a href="drivers/SNMP.html">SNMP</a></li>
-          <li><a href="testing/南向驱动测试报告.html">南向驱动测试报告</a></li>
-        </ul>
-      </div>
-      <div class="doc-zone">
-        <h3>架构与边缘计算</h3>
-        <ul>
-          <li><a href="architecture/index.html">架构设计</a></li>
-          <li><a href="edge/index.html">边缘计算</a></li>
-          <li><a href="edge/边缘网关架构设计总览.html">边缘网关架构总览</a></li>
-          <li><a href="architecture/6. 影子设备设计.html">影子设备设计</a></li>
-          <li><a href="TODO/ScanEngine重构方案.html">ScanEngine 重构方案</a></li>
-          <li><a href="TODO/SLA评估.html">ScanEngine SLA 评估</a></li>
-          <li><a href="northbound/index.html">北向数据</a></li>
-          <li><a href="edgeos/index.html">EdgeOS 集成</a></li>
-        </ul>
-      </div>
-      <div class="doc-zone">
-        <h3>测试与验证</h3>
-        <ul>
-          <li><a href="testing/index.html">测试验证索引</a></li>
-          <li><a href="testing/南向驱动测试报告.html">南向驱动测试报告 (2026-07-12)</a></li>
-          <li><a href="testing/压力测试报告.html">压力测试报告 · Mac 万 Tag 复测</a></li>
-          <li><a href="testing/Q3_10k_tag_benchmark_2026Q3.html">Q3 万 Tag 压测</a></li>
-          <li><a href="testing/southbound-driver-test-report.html">Southbound Test (EN)</a></li>
-          <li><a href="testing/工业验证测试报告模板.html">工业验证报告模板</a></li>
-          <li><a href="testing/sla_completion_report_2026Q3.html">SLA 完成报告 2026Q3</a></li>
-          <li><a href="testing/q3_phase_abcd_verification_2026-07-04.html">Q3 Phase A–D 复测</a></li>
-          <li><a href="testing/CI与发布门禁对照.html">CI 与发布门禁对照</a></li>
-        </ul>
-      </div>
-      <div class="doc-zone">
-        <h3>规划与集成</h3>
-        <ul>
-          <li><a href="development_plan/index.html">开发计划总览</a></li>
-          <li><a href="TODO/index.html">TODO 规划索引</a></li>
-          <li><a href="TODO/AI协同组件规划.html">AI助手规划</a></li>
-          <li><a href="TODO/联机测试方案.html">联机测试方案</a></li>
-          <li><a href="TODO/基于go-libp2p%20同步通信规划方案.html">多节点同步 (libp2p)</a></li>
-          <li><a href="edgeos/EdgeX通信协议规范%28MQTT-NATS%29.html">EdgeOS 通信规范</a></li>
-          <li><a href="operations/样式参考.html">UI 样式参考</a></li>
-          <li><a href="API/index.html">API 文档</a></li>
-          <li><a href="en/index.html">Documentation (EN)</a></li>
-        </ul>
-      </div>
+    <div class="overview-table-wrapper">
+      <table class="overview-table">
+        <tbody>
+          <tr>
+            <td class="overview-label">产品定位</td>
+            <td>工业边缘计算平台</td>
+          </tr>
+          <tr>
+            <td class="overview-label">支持协议</td>
+            <td>20+ 工业协议</td>
+          </tr>
+          <tr>
+            <td class="overview-label">部署方式</td>
+            <td>单程序部署</td>
+          </tr>
+          <tr>
+            <td class="overview-label">支持平台</td>
+            <td>Linux、Windows、ARM、x86</td>
+          </tr>
+          <tr>
+            <td class="overview-label">数据处理</td>
+            <td>边缘计算</td>
+          </tr>
+          <tr>
+            <td class="overview-label">AI 能力</td>
+            <td>协议解析、点位生成、协议辅助分析</td>
+          </tr>
+          <tr>
+            <td class="overview-label">开源协议</td>
+            <td>Apache License 2.0</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </section>
@@ -529,7 +498,6 @@
           <div class="milestone-date">2026-07 发布</div>
         </div>
       </div>
-
       <div class="milestone-item milestone-item--new">
         <div class="milestone-dot milestone-dot--new"></div>
         <div>
@@ -537,15 +505,13 @@
           <div class="milestone-date">2026-07 发布 · PDO/SDO · 模拟模式 · 87.8% 覆盖</div>
         </div>
       </div>
-
       <div class="milestone-item milestone-item--new">
         <div class="milestone-dot milestone-dot--new"></div>
         <div>
           <div class="milestone-title">南向驱动 22/22 回归</div>
-          <div class="milestone-date">2026-07-12 · `-short` 全绿 · 含 EtherCAT</div>
+          <div class="milestone-date">2026-07-12 · 全量 PASS · 含 EtherCAT</div>
         </div>
       </div>
-
       <div class="milestone-item milestone-item--new">
         <div class="milestone-dot milestone-dot--new"></div>
         <div>
@@ -553,7 +519,6 @@
           <div class="milestone-date">2026-07-12 · lag P95 1.56ms · G007 986/s</div>
         </div>
       </div>
-
       <div class="milestone-item milestone-item--new">
         <div class="milestone-dot milestone-dot--new"></div>
         <div>
@@ -561,7 +526,6 @@
           <div class="milestone-date">2026-07-12 · core 80% · ai_agent 91.4%</div>
         </div>
       </div>
-
       <div class="milestone-item milestone-item--new">
         <div class="milestone-dot milestone-dot--new"></div>
         <div>
@@ -578,6 +542,159 @@
         · 季度交付明细与技术方案见
         <a href="development_plan/index.html">开发计划总览</a>
       </p>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section">
+  <div class="shell shell--wide">
+    <div class="section-heading">
+      <div>
+        <div class="section-kicker">快速入口</div>
+        <h2>文档导航</h2>
+        <p>按实施场景整理技术资料 — 产品规格、用户手册、驱动开发、架构设计与路线规划。</p>
+      </div>
+    </div>
+
+    <div class="cards-grid cards-grid--four">
+      <article class="feature-card">
+        <span class="feature-card__tag">产品</span>
+        <h3>产品指南</h3>
+        <p>产品概览、工业级 SLA、协议能力与部署指南 — 能力详解与场景示意。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="guide/产品说明.html">产品说明</a>
+          <a class="mini-link" href="guide/USER_MANUAL.html">用户手册</a>
+          <a class="mini-link" href="testing/index.html">SLA 测试报告</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">驱动</span>
+        <h3>设备驱动</h3>
+        <p>南向采集驱动的设计、测试、优化与故障分析，覆盖 13 种工业协议。2026-07-12 全量复测 22/22 PASS（含 EtherCAT）。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="drivers/index.html">驱动总览</a>
+          <a class="mini-link" href="testing/南向驱动测试报告.html">测试报告 (2026-07-12)</a>
+          <a class="mini-link" href="drivers/index_en.html">Drivers (EN)</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">架构</span>
+        <h3>架构与边缘计算</h3>
+        <p>ScanEngine SLA 调度（EDF/CB/diagnostics）、ShadowCore COW 快照、ShadowIngress 批量写入、Virtual Shadow 与规则引擎。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="architecture/index.html">架构设计</a>
+          <a class="mini-link" href="edge/边缘网关架构设计总览.html">架构总览</a>
+          <a class="mini-link" href="edge/index.html">边缘计算</a>
+          <a class="mini-link" href="TODO/SLA评估.html">SLA 评估</a>
+          <a class="mini-link" href="architecture/6. 影子设备设计.html">影子设备</a>
+        </div>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-card__tag">规划</span>
+        <h3>开发计划</h3>
+        <p>路线图、待开发驱动与 Q3/Q4 架构特性演进 — ScanEngine、ShadowCore、多节点同步。</p>
+        <div class="feature-card__links">
+          <a class="mini-link" href="ROADMAP.html">分阶段路线图</a>
+          <a class="mini-link" href="development_plan/index.html">计划总览</a>
+          <a class="mini-link" href="development_plan/drivers/采集驱动ICE104开发.html">IEC 104</a>
+          <a class="mini-link" href="TODO/基于go-libp2p%20同步通信规划方案.html">多节点同步</a>
+          <a class="mini-link" href="TODO/AI协同组件规划.html">AI 规划</a>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section">
+  <div class="shell shell--wide">
+    <div class="section-heading">
+      <div>
+        <div class="section-kicker">文档索引</div>
+        <h2>完整文档索引</h2>
+        <p>按专题浏览全部文档区域，快速定位所需资料。</p>
+      </div>
+    </div>
+
+    <div class="doc-zones doc-zones--wide">
+      <div class="doc-zone">
+        <h3>战略与治理</h3>
+        <ul>
+          <li><a href="DEVELOPMENT_PRINCIPLES.html">开发原则与验收标准</a></li>
+          <li><a href="ROADMAP.html">分阶段开发路线图</a></li>
+          <li><a href="RELEASE_GATE.html">版本发布门禁</a></li>
+          <li><a href="[TODO]边缘计算南向采集优化方案2026第三季度.html">Q3 采集优化方案</a></li>
+          <li><a href="[TODO]边缘计算南向采集优化方案2026第二季度.html">Q2 采集优化方案（归档）</a></li>
+        </ul>
+      </div>
+      <div class="doc-zone">
+        <h3>产品与用户手册</h3>
+        <ul>
+          <li><a href="guide/index.html">产品指南</a></li>
+          <li><a href="guide/PRODUCT.zh-CN.html">产品手册（精简）</a></li>
+          <li><a href="guide/产品说明.html">产品说明</a></li>
+          <li><a href="guide/产品说明.html#更新记录">更新记录（最近重点）</a></li>
+          <li><a href="guide/USER_MANUAL.html">用户手册</a></li>
+          <li><a href="guide/USER_MANUAL.html#安装指南">安装与升级（deb / rpm）</a></li>
+          <li><a href="operations/index.html">运维文档</a></li>
+        </ul>
+      </div>
+      <div class="doc-zone">
+        <h3>采集与驱动</h3>
+        <ul>
+          <li><a href="drivers/index.html">驱动总览</a></li>
+          <li><a href="drivers/index_en.html">Drivers (EN)</a></li>
+          <li><a href="drivers/MODBUS_OPTIMIZATION.html">Modbus 优化</a></li>
+          <li><a href="drivers/BACnet_设计说明.html">BACnet</a></li>
+          <li><a href="drivers/OPC_UA_Design.html">OPC UA</a></li>
+          <li><a href="drivers/PLC_S7.html">S7</a></li>
+          <li><a href="drivers/SNMP.html">SNMP</a></li>
+          <li><a href="testing/南向驱动测试报告.html">南向驱动测试报告</a></li>
+        </ul>
+      </div>
+      <div class="doc-zone">
+        <h3>架构与边缘计算</h3>
+        <ul>
+          <li><a href="architecture/index.html">架构设计</a></li>
+          <li><a href="edge/index.html">边缘计算</a></li>
+          <li><a href="edge/边缘网关架构设计总览.html">边缘网关架构总览</a></li>
+          <li><a href="architecture/6. 影子设备设计.html">影子设备设计</a></li>
+          <li><a href="TODO/ScanEngine重构方案.html">ScanEngine 重构方案</a></li>
+          <li><a href="TODO/SLA评估.html">ScanEngine SLA 评估</a></li>
+          <li><a href="northbound/index.html">北向数据</a></li>
+          <li><a href="edgeos/index.html">EdgeOS 集成</a></li>
+        </ul>
+      </div>
+      <div class="doc-zone">
+        <h3>测试与验证</h3>
+        <ul>
+          <li><a href="testing/index.html">测试验证索引</a></li>
+          <li><a href="testing/南向驱动测试报告.html">南向驱动测试报告 (2026-07-12)</a></li>
+          <li><a href="testing/压力测试报告.html">压力测试报告 · Mac 万 Tag 复测</a></li>
+          <li><a href="testing/Q3_10k_tag_benchmark_2026Q3.html">Q3 万 Tag 压测</a></li>
+          <li><a href="testing/southbound-driver-test-report.html">Southbound Test (EN)</a></li>
+          <li><a href="testing/工业验证测试报告模板.html">工业验证报告模板</a></li>
+          <li><a href="testing/sla_completion_report_2026Q3.html">SLA 完成报告 2026Q3</a></li>
+          <li><a href="testing/q3_phase_abcd_verification_2026-07-04.html">Q3 Phase A–D 复测</a></li>
+          <li><a href="testing/CI与发布门禁对照.html">CI 与发布门禁对照</a></li>
+        </ul>
+      </div>
+      <div class="doc-zone">
+        <h3>规划与集成</h3>
+        <ul>
+          <li><a href="development_plan/index.html">开发计划总览</a></li>
+          <li><a href="TODO/index.html">TODO 规划索引</a></li>
+          <li><a href="TODO/AI协同组件规划.html">AI助手规划</a></li>
+          <li><a href="TODO/联机测试方案.html">联机测试方案</a></li>
+          <li><a href="TODO/基于go-libp2p%20同步通信规划方案.html">多节点同步 (libp2p)</a></li>
+          <li><a href="edgeos/EdgeX通信协议规范%28MQTT-NATS%29.html">EdgeOS 通信规范</a></li>
+          <li><a href="operations/样式参考.html">UI 样式参考</a></li>
+          <li><a href="API/index.html">API 文档</a></li>
+          <li><a href="en/index.html">Documentation (EN)</a></li>
+        </ul>
+      </div>
     </div>
   </div>
 </section>
@@ -614,11 +731,19 @@
   </div>
 </section>
 
+<section class="landing-section landing-section--tagline">
+  <div class="shell shell--wide">
+    <div class="site-tagline">
+      <p>让工业设备连接更加简单、稳定、高效。</p>
+    </div>
+  </div>
+</section>
+
 <section class="landing-section landing-section--footnotes" id="ref-protocol">
   <div class="shell shell--wide">
     <div class="footnotes" style="border-top: 1px solid var(--color-border, #e0e0e0); padding-top: 1.5rem; margin-top: 1rem;">
       <p style="font-size: 0.85rem; color: var(--color-text-secondary, #666);">
-        <strong>ⓘ 协议覆盖率说明</strong>：根据 HMS Networks 2026年6月发布的年度工业网络市场份额报告，PROFINET、EtherNet/IP、EtherCAT、Modbus 四大主流工业以太网协议合计占据全球工厂自动化新增节点约 83% 的市场份额，结合 OPC UA、S7、BACnet、IEC 104、DL/T645、KNX、SNMP、FINS、Mitsubishi MC 等行业专属协议，可覆盖工业现场绝大多数设备接入场景。详见 <a href="https://www.hms-networks.cn/network-report" target="_blank" rel="noopener">HMS 2026 工业网络报告</a>。
+        <strong>协议覆盖率说明</strong>：根据 HMS Networks 2026年6月发布的年度工业网络市场份额报告，PROFINET、EtherNet/IP、EtherCAT、Modbus 四大主流工业以太网协议合计占据全球工厂自动化新增节点约 83% 的市场份额，结合 OPC UA、S7、BACnet、IEC 104、DL/T645、KNX、SNMP、FINS、Mitsubishi MC 等行业专属协议，可覆盖工业现场绝大多数设备接入场景。详见 <a href="https://www.hms-networks.cn/network-report" target="_blank" rel="noopener">HMS 2026 工业网络报告</a>。
       </p>
     </div>
   </div>

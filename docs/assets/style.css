@@ -1318,6 +1318,363 @@ pre {
   }
 }
 
+/* ==========================================================================
+   Landing — Centered hero (enterprise style)
+   ========================================================================== */
+
+.hero-grid--center {
+  grid-template-columns: 1fr;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.hero-copy--center {
+  text-align: center;
+  max-width: 100%;
+}
+
+.hero-copy__header--center {
+  align-items: center;
+}
+
+.hero-copy__header--center h1 {
+  font-size: clamp(3.2rem, 6vw, 5.8rem);
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--ink) 20%, var(--gold) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-copy__header--center h2 {
+  margin: 12px 0 28px;
+  font-size: clamp(1.5rem, 2.8vw, 2.2rem);
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--ink) 40%, var(--gold-deep) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-tagline--center {
+  text-align: center;
+  font-size: clamp(1.05rem, 1.5vw, 1.2rem);
+  color: var(--ink);
+  margin-bottom: 16px;
+  font-weight: 400;
+}
+
+.hero-desc {
+  max-width: 780px;
+  margin: 0 auto 28px;
+  color: var(--muted);
+  font-size: clamp(0.92rem, 1.2vw, 1rem);
+  line-height: 1.75;
+  text-align: center;
+}
+
+.hero-values {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 36px;
+  font-size: 0.88rem;
+  color: var(--gold-deep);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.hero-values__sep {
+  color: var(--line-gold);
+  font-weight: 300;
+}
+
+.hero-actions--center {
+  justify-content: center;
+}
+
+/* ==========================================================================
+   Core value banner
+   ========================================================================== */
+
+.core-value-banner {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 28px 36px;
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: rgba(255, 255, 255, 0.85);
+  border-top: 1px solid var(--line-gold);
+  border-right: 1px solid var(--line-gold);
+  border-bottom: 1px solid var(--line-gold);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.core-value-banner p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.7;
+  text-align: center;
+}
+
+/* ==========================================================================
+   Design intro text
+   ========================================================================== */
+
+.design-intro {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.design-intro p {
+  margin: 0 0 16px;
+  color: var(--text);
+  font-size: 0.98rem;
+  line-height: 1.75;
+}
+
+.design-intro p:last-child {
+  margin-bottom: 0;
+}
+
+/* ==========================================================================
+   Capability cards (3-col grid)
+   ========================================================================== */
+
+.cards-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.feature-card--capability {
+  padding: 32px 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  transition: all 0.3s ease;
+}
+
+.feature-card--capability:hover {
+  border-color: rgba(197, 160, 89, 0.45);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(197, 160, 89, 0.12);
+}
+
+.feature-card--capability h3 {
+  margin: 0 0 14px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--gold-deep);
+  letter-spacing: 0.02em;
+}
+
+.feature-card--capability p {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.65;
+  flex-grow: 1;
+}
+
+/* ==========================================================================
+   Architecture diagram
+   ========================================================================== */
+
+.arch-diagram {
+  max-width: 420px;
+  margin: 32px auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.arch-node {
+  width: 100%;
+  padding: 14px 24px;
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--line-gold);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.95rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.arch-arrow {
+  padding: 6px 0;
+  font-size: 1.2rem;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.arch-note {
+  max-width: 720px;
+  margin: 24px auto 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+/* ==========================================================================
+   Design principles
+   ========================================================================== */
+
+.principles-grid {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.principle-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.98rem;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.principle-item:last-child {
+  border-bottom: none;
+}
+
+.principle-marker {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+/* ==========================================================================
+   Project overview table
+   ========================================================================== */
+
+.overview-table-wrapper {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.overview-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--panel);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  font-size: 0.93rem;
+}
+
+.overview-table td {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+}
+
+.overview-table tr:last-child td {
+  border-bottom: none;
+}
+
+.overview-table tr:nth-child(even) td {
+  background: rgba(248, 249, 250, 0.6);
+}
+
+.overview-table tr:hover td {
+  background: var(--gold-bg);
+}
+
+.overview-label {
+  width: 140px;
+  color: var(--gold-deep) !important;
+  font-weight: 600;
+  font-size: 0.88rem;
+  letter-spacing: 0.03em;
+}
+
+/* ==========================================================================
+   Site tagline footer
+   ========================================================================== */
+
+.landing-section--tagline {
+  padding: 48px 0;
+  border-bottom: none;
+  background: linear-gradient(180deg, var(--bg) 0%, var(--bg-soft) 100%);
+}
+
+.site-tagline {
+  text-align: center;
+  padding: 32px 0;
+}
+
+.site-tagline p {
+  margin: 0;
+  color: var(--gold-deep);
+  font-size: 1.2rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+/* ==========================================================================
+   Responsive overrides for new sections
+   ========================================================================== */
+
+@media (max-width: 1180px) {
+  .cards-grid--three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .cards-grid--three {
+    grid-template-columns: 1fr;
+  }
+
+  .core-value-banner {
+    padding: 20px 24px;
+  }
+
+  .core-value-banner p {
+    font-size: 0.95rem;
+  }
+
+  .hero-copy__header--center h1 {
+    font-size: clamp(2.4rem, 8vw, 3.6rem);
+  }
+
+  .hero-copy__header--center h2 {
+    font-size: clamp(1.2rem, 4vw, 1.6rem);
+  }
+
+  .arch-diagram {
+    max-width: 100%;
+  }
+
+  .overview-table-wrapper {
+    max-width: 100%;
+  }
+
+  .overview-label {
+    width: 100px;
+  }
+
+  .site-tagline p {
+    font-size: 1rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -1330,6 +1687,7 @@ pre {
   }
 
   .feature-card:hover,
+  .feature-card--capability:hover,
   .button-link--primary:hover,
   .button-link--secondary:hover {
     transform: none;

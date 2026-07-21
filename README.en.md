@@ -14,6 +14,8 @@ Industrial Edge Gateway runs at the industrial edge to bridge **OT devices ↔ I
 - **Open integration**: cloud platforms, SCADA, and enterprise apps with reverse write/control
 - **Industrial-grade stability**: built-in metric gates, Soak regression, and CI five-gate verification — SLA observable and verifiable
 
+> Designed for the industrial field, built on stability-first principles, unified architecture, and long-term maintainability — a future-ready industrial edge computing platform.
+
 See [Product Advantages](#product-advantages) below; concise guide: [PRODUCT.md](docs/guide/PRODUCT.md); full details in the [Product Guide (中文)](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html#产品优势) ([source](docs/guide/产品说明.md#产品优势)).
 
 ## Why EdgeX?
@@ -24,13 +26,11 @@ We call that unknown **X**.
 
 **Edge** is where they live: control panels on the line, building RIO rooms, field cabinets at the substation — the closest point to the data source and the right place to decide. **X** is the convergence point on site: multi-protocol access, edge rules, and the first real dialogue between OT and IT.
 
-If you know *X-Men*, the metaphor may land: each member has a distinct strength; together they protect a complex world. EdgeX’s thirteen southbound protocols work the same way — Modbus, S7, OPC UA, and more — each doing what it does best at the edge, forming a coordinated team from acquisition through shadow snapshot and derived computation to northbound reporting.
-
-**EdgeX** is not just two letters stitched together. It is **Edge + X — the convergence of unrealized potential at the industrial edge**: the “X factor” deployed on site — giving silent equipment a voice, turning edge intelligence into reliable industrial capability, and backing it with SLA and Soak long-stability verification so that capability becomes an observable, verifiable engineering commitment.
+**EdgeX** is not just two letters stitched together. It is **Edge + X — the convergence of unrealized potential at the industrial edge**: the "X factor" deployed on site — giving silent equipment a voice, turning edge intelligence into reliable industrial capability, and backing it with SLA and Soak long-stability verification so that capability becomes an observable, verifiable engineering commitment.
 
 ## Product Advantages
 
-**Industrial-grade stability** is EdgeX's core differentiator: rich functionality (13 southbound protocols, rule engine, multi-channel northbound) combined with built-in metric gates, Soak long-stability regression, and CI five-gate verification to sustain SLA in production.
+**Industrial-grade stability** is EdgeX's core differentiator: delivering rich functionality while sustaining SLA in production through built-in metric gates, Soak long-stability regression, and CI five-gate verification.
 
 | Capability | Core Value | Key Metrics / Deliverables |
 | :--- | :--- | :--- |
@@ -96,9 +96,7 @@ English driver matrix: [online](https://anviod.github.io/edgex/drivers/index_en.
 The project uses [GoReleaser](https://goreleaser.com/) (`.goreleaser.yml`) to build frontend and backend and produce per-platform packages.
 
 ```bash
-# Install GoReleaser (either)
 go install github.com/goreleaser/goreleaser/v2@latest
-# or: brew install goreleaser
 
 # From repo root: clean dist/ and build (snapshot, no GitHub Release)
 goreleaser release --snapshot --clean
@@ -191,7 +189,6 @@ CGO_ENABLED=0 go build -o edgex ./cmd/main.go
 
 # Short gate (see test/README.md for soak / Q3 benchmarks)
 make test-short
-# or: CGO_ENABLED=0 go test ./internal/core/... ./internal/integration/... -short -count=1
 ```
 
 Test assets and maintenance rules: [test/README.md](test/README.md) · Reports: [docs/testing/index.md](docs/testing/index.md)
