@@ -79,6 +79,88 @@
 }
 
 /* =========================================
+   Light Theme
+   ========================================= */
+[data-theme="light"] {
+  --bg-deep: #F5F5F7;
+  --bg: #FAFAFA;
+  --bg-soft: #F0F0F2;
+  --bg-elevated: #E8E8ED;
+  --bg-panel: #FFFFFF;
+  --bg-surface: #FBFBFD;
+
+  --text: #1D1D1F;
+  --text-soft: #3A3A3C;
+  --text-muted: #6E6E73;
+  --text-dim: #999999;
+
+  --gold: #B8933F;
+  --gold-light: #A07D2C;
+  --gold-bright: #C8A75B;
+  --gold-deep: #8B6914;
+  --gold-dark: #6B5210;
+  --gold-hover: #D4A84B;
+  --gold-glow: rgba(184, 147, 63, 0.15);
+  --gold-glow-strong: rgba(184, 147, 63, 0.3);
+  --gold-soft: rgba(184, 147, 63, 0.08);
+  --gold-bg: rgba(184, 147, 63, 0.05);
+  --gold-bg-strong: rgba(184, 147, 63, 0.07);
+  --gold-border: rgba(184, 147, 63, 0.2);
+  --gold-border-hover: rgba(160, 125, 44, 0.45);
+  --gold-line: rgba(184, 147, 63, 0.12);
+
+  --glass: rgba(255, 255, 255, 0.55);
+  --glass-strong: rgba(255, 255, 255, 0.85);
+
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.10);
+  --shadow-gold: 0 4px 24px rgba(184, 147, 63, 0.08);
+  --shadow-gold-lg: 0 8px 40px rgba(184, 147, 63, 0.12);
+  --shadow-sm: 0 1px 6px rgba(0, 0, 0, 0.04);
+
+  --header-bg: rgba(245, 245, 247, 0.75);
+  --header-border: rgba(184, 147, 63, 0.15);
+
+  --button-primary-text: #FFFFFF;
+  --button-primary-bg: linear-gradient(135deg, #B8933F 0%, #A07D2C 100%);
+  --button-secondary-bg: rgba(184, 147, 63, 0.06);
+}
+
+/* Aurora background — light variant */
+[data-theme="light"] body::before {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(184, 147, 63, 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 80% 40%, rgba(184, 147, 63, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 30% at 20% 80%, rgba(184, 147, 63, 0.03) 0%, transparent 50%);
+}
+
+/* =========================================
+   Theme Toggle Button
+   ========================================= */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--gold-border);
+  background: var(--glass);
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: all var(--transition-base);
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.theme-toggle:hover {
+  border-color: var(--gold-border-hover);
+  color: var(--gold-light);
+  background: var(--gold-soft);
+}
+
+/* =========================================
    Base
    ========================================= */
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -205,6 +287,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 .landing-main {
+  padding-top: 40px;
   padding-bottom: 80px;
 }
 
@@ -431,8 +514,8 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
    Landing — Hero Section
    ========================================= */
 .hero-section {
-  width: min(100% - 48px, var(--shell-wide));
-  margin: 40px auto 32px;
+  width: 100%;
+  margin: 0 0 32px;
   padding: clamp(40px, 5vw, 72px);
   border: 1px solid var(--gold-border);
   border-radius: var(--radius-xl);
@@ -1397,7 +1480,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   }
 
   .hero-section {
-    margin-top: 20px;
+    margin-top: 0;
     padding: 28px 22px;
     border-radius: var(--radius-lg);
   }

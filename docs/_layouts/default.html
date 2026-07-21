@@ -9,6 +9,19 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ '/assets/style.css' | relative_url }}">
+    <script>
+      (function () {
+        var stored = localStorage.getItem('edgex-docs-theme');
+        var theme;
+        if (stored) {
+          theme = stored === 'light' ? 'light' : 'dark';
+        } else {
+          var h = new Date().getHours();
+          theme = (h >= 6 && h < 18) ? 'light' : 'dark';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
     {% seo %}
   </head>
   <body class="page-docs">
@@ -20,6 +33,15 @@
             {% for item in site.nav %}
               <a href="{{ item.url | relative_url }}">{{ item.title }}</a>
             {% endfor %}
+            <button
+              class="theme-toggle"
+              type="button"
+              data-theme-toggle
+              aria-label="切换主题"
+              aria-pressed="false"
+            >
+              <span data-theme-icon>🌙</span>
+            </button>
           </nav>
         </div>
         <div class="site-header__intro">

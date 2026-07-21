@@ -75,7 +75,34 @@ window.addEventListener('DOMContentLoaded', () => {
   highlightCode();
   addCopyButtons();
   initTypewriter();
+  initThemeToggle();
 });
+
+// Theme toggle — dark/light switch with localStorage
+function initThemeToggle() {
+  var storageKey = 'edgex-docs-theme';
+  var root = document.documentElement;
+  var button = document.querySelector('[data-theme-toggle]');
+  var icon = document.querySelector('[data-theme-icon]');
+
+  function syncTheme(theme) {
+    root.setAttribute('data-theme', theme);
+    if (icon) icon.textContent = theme === 'light' ? '☀️' : '🌙';
+    if (button) button.setAttribute('aria-pressed', String(theme === 'light'));
+  }
+
+  var current = root.getAttribute('data-theme') || 'dark';
+  syncTheme(current);
+
+  if (button) {
+    button.addEventListener('click', function () {
+      var now = root.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+      var next = now === 'dark' ? 'light' : 'dark';
+      syncTheme(next);
+      localStorage.setItem(storageKey, next);
+    });
+  }
+}
 
 // Typewriter effect — cycles through EdgeX key features
 function initTypewriter() {
