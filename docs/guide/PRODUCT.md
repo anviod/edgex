@@ -18,7 +18,7 @@ Industrial Edge Gateway software for manufacturing, energy, and building sites. 
 | **Easy device onboarding** | 13 southbound protocols, discovery/scan where applicable, batch point registration, hot config without restart |
 | **Shadow-centric data plane** | In-memory ShadowCore as runtime SoT — UI, rules, history, and northbound share one snapshot |
 | **Edge compute** | Threshold / expression / window rules; virtual shadow formulas; local write-back |
-| **Northbound ready** | MQTT · Sparkplug B · OPC UA Server · HTTP · EdgeOS — map shadow tags to SCADA/cloud |
+| **Northbound ready** | MQTT · Sparkplug B · OPC UA Server · BACnet Server · HTTP · EdgeOS — map shadow tags to SCADA/cloud |
 | **AI assist (advanced)** | Protocol reverse / diagnostics copilot skills (`internal/ai_agent`) |
 
 ## Southbound protocols

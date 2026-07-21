@@ -43,6 +43,8 @@ Phase 4  轻量化与可观测 ─────────────► HTTP/U
 | **3** | 性能优化 | 优化 | Phase 1 封闭 |
 | **4** | 轻量化与可观测 | 增强 | 可与 Phase 2/3 并行，不削弱 1 |
 
+> **2026-07 重点交付**：BACnet Server 北向从机模式（Who-Is/I-Am 设备发现、ReadProperty/WriteProperty 双向读写、COV 订阅通知），将 EdgeX 南向点位映射为 BACnet 标准对象对外暴露给 BMS/SCADA 主站。
+
 ---
 
 ## Phase 1 — 稳定性闭环（必须完成）

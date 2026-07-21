@@ -67,6 +67,7 @@ hero_buttons:
 - [已交付] **SLA 调度达标** — Phase A–C 综合达标率 ≥95%，EDF/硬抖动钳制
 - [已交付] **ShadowCore 性能优化** — COW 快照、Worker Pool、ShadowIngress 批量写入
 - [已交付] **北向统一重连** — MQTT/NATS/Sparkplug B 公共 reconnect 模块
+- [已交付] **BACnet Server 北向从机模式** — Who-Is/I-Am 设备发现、ReadProperty/WriteProperty 双向读写、COV 订阅；将 EdgeX 南向点位映射为 BACnet 标准对象暴露给 BMS/SCADA
 - [已交付] **Dashboard v3 UI** — Linear 级 SaaS 样式改版与 Soak 监控面板
 - [已交付] **版本发布门禁** — G-Stability/Industrial/Performance/Lightweight 四道门禁
 - [已交付] **虚拟影子设备体验** — 编辑流程、帮助文档与跨页面样式统一

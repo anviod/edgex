@@ -8,8 +8,19 @@ description: EdgeX 北向配置 API 文档（中文）
 
 所有端点均需 JWT 认证。
 
+## 支持协议
+
+| 协议 | 端点和配置 | 数据类型 |
+|------|-----------|---------|
+| MQTT | `/northbound/mqtt` | `MQTTConfig` |
+| Sparkplug B | `/northbound/sparkplugb` | `SparkplugBConfig` |
+| OPC UA Server | `/northbound/opcua` | `OPCUAConfig` |
+| BACnet Server | `/northbound/bacnet` | `BACnetServerConfig` |
+| HTTP | `/northbound/http` | `HTTPConfig` |
+| EdgeOS | `/northbound/edgeos` | `EdgeOSConfig` |
+
 ## 1. 获取配置
-获取所有北向配置（MQTT, OPC UA, SparkplugB, HTTP）。
+获取所有北向配置（MQTT, OPC UA, SparkplugB, HTTP, BACnet Server, EdgeOS）。
 
 *   **URL**: `/northbound/config`
 *   **Method**: `GET`
@@ -74,3 +85,72 @@ description: EdgeX 北向配置 API 文档（中文）
 ## 6. 获取运行时统计
 *   MQTT: `/northbound/mqtt/:id/stats`
 *   OPC UA: `/northbound/opcua/:id/stats`
+*   BACnet Server: `/northbound/bacnet/:id/stats`
+
+## 7. 更新 BACnet Server 配置
+创建或更新 BACnet Server 从机模式配置。
+
+*   **URL**: `/northbound/bacnet`
+*   **Method**: `POST`
+*   **请求体**: `BACnetServerConfig` 对象。
+
+### 关键字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | 配置唯一标识（UUID） |
+| `name` | string | 服务名称 |
+| `enable` | bool | 是否启用 |
+| `interface` | string | 绑定的网络接口（留空绑定所有接口） |
+| `ip` | string | 绑定的 IP 地址 |
+| `port` | int | BACnet 端口（默认 47808） |
+| `subnet_cidr` | int | 子网 CIDR（默认 24） |
+| `device_id` | int | BACnet 设备实例 ID（0 时自动生成，范围 1000-4194303） |
+| `device_name` | string | BACnet 设备名称 |
+| `vendor_id` | int | BACnet 厂商 ID（默认 999） |
+| `vendor_name` | string | BACnet 厂商名称 |
+| `max_pdu` | int | 最大 PDU 大小（默认 1476） |
+| `devices` | object | 真实设备映射（`{deviceID: {enable: bool}}`） |
+| `virtual_devices` | object | 虚拟设备映射（`{deviceID: {enable: bool}}`） |
+
+### 请求示例
+
+```json
+{
+  "id": "bacnet-server-001",
+  "name": "BACnet 北向从机",
+  "enable": true,
+  "port": 47810,
+  "device_id": 47810,
+  "device_name": "EdgeX-Gateway",
+  "vendor_id": 999,
+  "devices": {
+    "2228316": { "enable": true },
+    "2228317": { "enable": true }
+  }
+}
+```
+
+### 运行时统计
+
+```json
+{
+  "object_count": 147,
+  "point_count": 147,
+  "write_count": 0,
+  "update_count": 1234,
+  "last_write_time": "2026-07-21T10:00:00Z",
+  "start_time": "2026-07-21T09:00:00Z"
+}
+```
+
+### 写入历史
+
+*   **URL**: `/northbound/bacnet/:id/history`
+*   **Method**: `GET`
+*   **Query**: `?limit=100`（默认 100，最多 100 条）
+*   **响应**: 最近的外部写入历史记录数组。
+
+## 8. 删除 BACnet Server 配置
+*   **URL**: `/northbound/bacnet/:id`
+*   **Method**: `DELETE`

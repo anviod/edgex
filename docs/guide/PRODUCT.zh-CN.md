@@ -18,7 +18,7 @@ description: EdgeX 工业边缘网关产品手册
 | **设备接入便捷** | 13 种南向协议，发现/扫描与批量点位；热配置无需重启进程 |
 | **影子数据面** | ShadowCore 内存真源，UI / 边缘规则 / 历史 / 北向共用同一快照 |
 | **边缘计算** | 阈值、表达式、窗口规则；虚拟影子公式聚合；本地写控联动 |
-| **北向无缝接入** | MQTT · Sparkplug B · OPC UA Server · HTTP · EdgeOS，对接 SCADA / 云平台 |
+| **北向无缝接入** | MQTT · Sparkplug B · OPC UA Server · BACnet Server · HTTP · EdgeOS，对接 SCADA / 云平台 |
 | **AI 高级能力** | 协议逆向 / 诊断类 Copilot 技能（`internal/ai_agent`） |
 
 ## 南向协议一览

@@ -520,13 +520,32 @@ sudo systemctl enable --now edgex   # 若未自动启动
 
 ## 北向数据共享
 
-支持 MQTT、Sparkplug B、OPC UA 服务端、HTTP 与 EdgeOS 等北向通道。配置步骤见 UI「北向数据」页面；Topic/Payload 格式与 API 字段见 [北向数据文档](../northbound/index.html)、[MQTT 数据格式](../northbound/MQTT数据上下行格式.html) 与 [北向配置 API](../API/Northbound_Configuration_CN.html)。
+EdgeX 支持 6 种北向通道，将边缘数据灵活对接云平台、SCADA 与企业应用：
+
+| 北向协议 | 模式 | 说明 |
+|----------|------|------|
+| **MQTT** | 客户端 | 标准 MQTT 3.1.1/5.0 推送，支持离线缓存、设备事件上报 |
+| **Sparkplug B** | 客户端 | MQTT 之上的工业物联网互操作协议，支持 Birth/Death 证书 |
+| **OPC UA Server** | 服务端 | 以 OPC UA 服务器对外暴露影子点位，支持 Browse/Read/Write/Subscribe |
+| **BACnet Server** | 服务端（从机） | 将 EdgeX 南向点位映射为 BACnet 标准对象（AI/BI/AO/BO/MV），支持 Who-Is/I-Am 设备发现、ReadProperty/WriteProperty 双向读写、COV 订阅通知，对接 BMS/SCADA 主站 |
+| **HTTP** | 客户端 | 自定义 URL/Method/Headers 推送，支持离线缓存 |
+| **EdgeOS (MQTT/NATS)** | 客户端 | 专用 EdgeOS 平台协议，支持设备生命周期通知与点位元数据上报 |
 
 ### 配置步骤
 
 1. 进入「北向数据」→「添加通道」，选择协议并填写连接参数
 2. 在通道配置中勾选需上报的设备/虚拟影子，设置上报策略（周期/变化）
-3. 保存后查看通道运行状态；MQTT/OPC UA 可点击「接入文档」核对 Topic 或 Endpoint
+3. 保存后查看通道运行状态；MQTT/OPC UA/BACnet 可点击「接入文档」核对 Topic 或 Endpoint
+
+### BACnet Server 配置要点
+
+1. 进入「北向数据」→ 添加 BACnet Server 通道
+2. 填写 BACnet 设备参数（设备 ID、设备名称、端口等）
+3. 在「映射真实设备」标签页中勾选需要暴露给 BACnet 主站的设备
+4. 保存后 BACnet Server 启动，对外暴露 BACnet 标准对象
+5. 在 Yabe 或 BMS/SCADA 中输入网关 IP 和端口即可访问
+
+Topic/Payload 格式与 API 字段见 [北向数据文档](../northbound/index.html)、[MQTT 数据格式](../northbound/MQTT数据上下行格式.html)、[BACnet Server 文档](../northbound/BACnet_Server.html) 与 [北向配置 API](../API/Northbound_Configuration_CN.html)。
 
 ---
 

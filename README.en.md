@@ -38,7 +38,7 @@ If you know *X-Men*, the metaphor may land: each member has a distinct strength;
 | **Southbound access** | 13 industrial protocols, unified OT collection | device discovery · object scan · batch tag registration |
 | **Collection scheduling** | 10ms-class scheduling kernel, in-memory shadow as source of truth | P99 scheduling lag **<150ms** (≤10k tags, statistical SLA) |
 | **Edge intelligence** | rule engine + virtual shadow derived computation | cross-device mapping · formula aggregation · local control linkage |
-| **Northbound integration** | multi-protocol cloud, SCADA, and enterprise connectivity | MQTT · Sparkplug B · OPC UA · EdgeOS |
+| **Northbound integration** | multi-protocol cloud, SCADA, and enterprise connectivity | MQTT · Sparkplug B · OPC UA · BACnet · EdgeOS |
 
 Full details: [Product Guide — Product Advantages (中文)](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html#产品优势) ([source](docs/guide/产品说明.md#产品优势)).
 
