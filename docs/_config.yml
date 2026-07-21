@@ -7,7 +7,7 @@ kramdown:
   syntax_highlighter: rouge
   hard_wrap: false
 name: EdgeX
-description: EdgeX 工业边缘计算平台 — 统一设备接入、边缘计算与数据互联
+description: EdgeX 工业边缘计算平台 · 统一设备接入、边缘计算与数据互联
 lang: zh-CN
 url: https://anviod.github.io
 baseurl: /edgex

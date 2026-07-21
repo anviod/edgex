@@ -74,4 +74,37 @@ function addCopyButtons() {
 window.addEventListener('DOMContentLoaded', () => {
   highlightCode();
   addCopyButtons();
+  initTypewriter();
 });
+
+// Typewriter effect — cycles through EdgeX key features
+function initTypewriter() {
+  var tw = document.querySelector('.hero-typewriter .typewriter-text');
+  var cursor = document.querySelector('.hero-typewriter .typewriter-cursor');
+  if (!tw) return;
+
+  var lines = [
+    '13 种工业协议统一接入',
+    'ShadowCore 内存影子真源',
+    'ScanEngine 10ms 级调度内核',
+    '工业级 SLA · lag P95 <100ms',
+    'AI 辅助设备接入与协议解析',
+    '单二进制 · 零依赖 · 跨平台部署'
+  ];
+  var lineIndex = 0, i = 0, deleting = false;
+
+  function tick() {
+    var text = lines[lineIndex];
+    if (!deleting) {
+      i++;
+      tw.textContent = text.slice(0, i);
+      if (i >= text.length) { deleting = true; setTimeout(tick, 3000); return; }
+    } else {
+      i--;
+      tw.textContent = text.slice(0, i);
+      if (i <= 0) { deleting = false; lineIndex = (lineIndex + 1) % lines.length; setTimeout(tick, 500); return; }
+    }
+    setTimeout(tick, deleting ? 50 : 120);
+  }
+  tick();
+}
