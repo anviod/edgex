@@ -137,17 +137,38 @@ function initTypewriter() {
   tick();
 }
 
-// Architecture flow particle animation
+// Architecture flow — industrial data-packet transmission between nodes
+// Discrete rectangular data blocks hop from node to node along the pipeline,
+// with dashed circuit traces and node anchor points for a factory-floor feel.
 function initArchParticles() {
   var flow = document.querySelector('[data-arch-flow]');
   var canvas = document.querySelector('[data-arch-canvas]');
   if (!flow || !canvas) return;
 
   var ctx = canvas.getContext('2d');
-  var particles = [];
-  var PARTICLE_COUNT = 28;
+  var packets = [];
+  var PACKET_COUNT = 20;      // discrete data blocks in flight
+  var PACKET_SPEED = 0.005;   // segment fraction per frame (≈ 0.30/s at 60fps)
   var running = true;
 
+  /* ---- helpers ---- */
+  function getWaypoints() {
+    var steps = flow.querySelectorAll('.arch-step');
+    var fr = flow.getBoundingClientRect();
+    var pts = [];
+    for (var i = 0; i < steps.length; i++) {
+      var r = steps[i].getBoundingClientRect();
+      pts.push({
+        x: r.left - fr.left + r.width / 2,
+        y: r.top - fr.top + r.height / 2
+      });
+    }
+    return pts;
+  }
+
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
+  /* ---- canvas sizing (HiDPI) ---- */
   function resize() {
     var rect = flow.getBoundingClientRect();
     var dpr = window.devicePixelRatio || 1;
@@ -159,92 +180,137 @@ function initArchParticles() {
     ctx.scale(dpr, dpr);
   }
 
-  function createParticle() {
-    var w = canvas.style.width ? parseFloat(canvas.style.width) : flow.offsetWidth;
-    var h = canvas.style.height ? parseFloat(canvas.style.height) : flow.offsetHeight;
-    return {
-      x: -20 - Math.random() * 60,
-      y: 8 + Math.random() * (h - 16),
-      vx: 0.6 + Math.random() * 1.4,
-      vy: (Math.random() - 0.5) * 0.4,
-      size: 1.5 + Math.random() * 2.5,
-      alpha: 0.3 + Math.random() * 0.6,
-      trail: [],
-      maxTrail: 8 + Math.floor(Math.random() * 12)
-    };
+  /* ---- spawn packets evenly distributed across all segments ---- */
+  function spawnPackets(waypoints) {
+    var pkts = [];
+    var segs = waypoints.length - 1;
+    if (segs <= 0) return pkts;
+    var perSeg = Math.floor(PACKET_COUNT / segs);
+    var extra = PACKET_COUNT - perSeg * segs;
+    for (var s = 0; s < segs; s++) {
+      var n = perSeg + (s < extra ? 1 : 0);
+      for (var j = 0; j < n; j++) {
+        pkts.push({
+          seg: s,
+          t: (j + 0.5) / n,          // stagger evenly within segment
+          size: 2.5 + Math.random() * 2,
+          alpha: 0.55 + Math.random() * 0.45
+        });
+      }
+    }
+    return pkts;
   }
 
-  for (var j = 0; j < PARTICLE_COUNT; j++) {
-    var p = createParticle();
-    var w0 = canvas.style.width ? parseFloat(canvas.style.width) : flow.offsetWidth;
-    p.x = Math.random() * w0;
-    particles.push(p);
-  }
+  /* ---- init ---- */
+  var waypoints = getWaypoints();
+  packets = spawnPackets(waypoints);
 
+  /* ---- draw frame ---- */
   function draw() {
     if (!running) return;
-    var w = canvas.style.width ? parseFloat(canvas.style.width) : flow.offsetWidth;
-    var h = canvas.style.height ? parseFloat(canvas.style.height) : flow.offsetHeight;
-    ctx.clearRect(0, 0, w, h);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Subtle radial glow spots behind each arch-step
-    var steps = flow.querySelectorAll('.arch-step');
-    for (var si = 0; si < steps.length; si++) {
-      var sr = steps[si].getBoundingClientRect();
-      var fr = flow.getBoundingClientRect();
-      var sx = sr.left - fr.left + sr.width / 2;
-      var sy = sr.top - fr.top + sr.height / 2;
-      var glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr.width * 0.7);
-      glow.addColorStop(0, 'rgba(200,167,91,0.08)');
-      glow.addColorStop(1, 'rgba(200,167,91,0)');
-      ctx.fillStyle = glow;
-      ctx.fillRect(sx - sr.width * 0.7, sy - sr.width * 0.7, sr.width * 1.4, sr.width * 1.4);
+    waypoints = getWaypoints();
+    if (waypoints.length < 2) { requestAnimationFrame(draw); return; }
+
+    // ── Layer 1: dashed circuit traces between nodes ──
+    ctx.strokeStyle = 'rgba(200,167,91,0.10)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 8]);
+    ctx.lineCap = 'round';
+    for (var si = 0; si < waypoints.length - 1; si++) {
+      ctx.beginPath();
+      ctx.moveTo(waypoints[si].x, waypoints[si].y);
+      ctx.lineTo(waypoints[si + 1].x, waypoints[si + 1].y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // ── Layer 2: node anchor points ──
+    for (var wi = 0; wi < waypoints.length; wi++) {
+      var wp = waypoints[wi];
+      // Outer ring
+      ctx.strokeStyle = 'rgba(200,167,91,0.22)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(wp.x, wp.y, 6, 0, Math.PI * 2);
+      ctx.stroke();
+      // Inner dot
+      ctx.fillStyle = 'rgba(200,167,91,0.35)';
+      ctx.beginPath();
+      ctx.arc(wp.x, wp.y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
     }
 
-    // Draw particles
-    for (var i = 0; i < particles.length; i++) {
-      var p = particles[i];
+    // ── Layer 3: animated data packets ──
+    for (var i = 0; i < packets.length; i++) {
+      var p = packets[i];
 
-      // Move
-      p.x += p.vx;
-      p.y += p.vy;
+      p.t += PACKET_SPEED;
+      if (p.t >= 1) {
+        // Arrival flash at the receiving node
+        var bNode = waypoints[p.seg + 1];
+        var arrivalGlow = ctx.createRadialGradient(bNode.x, bNode.y, 0, bNode.x, bNode.y, 8);
+        arrivalGlow.addColorStop(0, 'rgba(232,213,163,0.50)');
+        arrivalGlow.addColorStop(1, 'rgba(200,167,91,0)');
+        ctx.fillStyle = arrivalGlow;
+        ctx.fillRect(bNode.x - 8, bNode.y - 8, 16, 16);
 
-      // Record trail
-      p.trail.push({ x: p.x, y: p.y, a: p.alpha });
-      if (p.trail.length > p.maxTrail) p.trail.shift();
-
-      // Wrap around
-      if (p.x > w + 30) {
-        p.x = -30 - Math.random() * 40;
-        p.y = 8 + Math.random() * (h - 16);
-        p.trail = [];
-      }
-      if (p.y < 4 || p.y > h - 4) p.vy *= -1;
-
-      // Draw trail
-      if (p.trail.length > 1) {
-        for (var t = 0; t < p.trail.length - 1; t++) {
-          var ratio = t / p.trail.length;
-          var ta = ratio * p.alpha * 0.5;
-          ctx.beginPath();
-          ctx.moveTo(p.trail[t].x, p.trail[t].y);
-          ctx.lineTo(p.trail[t + 1].x, p.trail[t + 1].y);
-          ctx.strokeStyle = 'rgba(200,167,91,' + ta.toFixed(3) + ')';
-          ctx.lineWidth = p.size * ratio * 1.5;
-          ctx.lineCap = 'round';
-          ctx.stroke();
-        }
+        p.seg = (p.seg + 1) % (waypoints.length - 1);
+        p.t = 0;
       }
 
-      // Draw head
-      var headGlow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3);
-      headGlow.addColorStop(0, 'rgba(232,213,163,' + p.alpha.toFixed(2) + ')');
-      headGlow.addColorStop(0.4, 'rgba(200,167,91,' + (p.alpha * 0.6).toFixed(2) + ')');
-      headGlow.addColorStop(1, 'rgba(200,167,91,0)');
-      ctx.fillStyle = headGlow;
+      var a = waypoints[p.seg];
+      var b = waypoints[p.seg + 1];
+      var cx = lerp(a.x, b.x, p.t);
+      var cy = lerp(a.y, b.y, p.t);
+
+      var bw = p.size * 2.8;   // block width
+      var bh = p.size * 1.3;   // block height
+
+      // ── Outer envelope glow ──
+      var envGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, p.size * 2.5);
+      envGlow.addColorStop(0, 'rgba(232,213,163,' + (p.alpha * 0.55).toFixed(2) + ')');
+      envGlow.addColorStop(0.6, 'rgba(200,167,91,' + (p.alpha * 0.2).toFixed(2) + ')');
+      envGlow.addColorStop(1, 'rgba(200,167,91,0)');
+      ctx.fillStyle = envGlow;
+      ctx.fillRect(cx - p.size * 2.5, cy - p.size * 2.5, p.size * 5, p.size * 5);
+
+      // ── Data block body (rounded rect) ──
+      var rx = cx - bw / 2;
+      var ry = cy - bh / 2;
+      var rr = 2; // corner radius
+      ctx.fillStyle = 'rgba(200,167,91,' + (p.alpha * 0.85).toFixed(2) + ')';
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2);
+      ctx.moveTo(rx + rr, ry);
+      ctx.lineTo(rx + bw - rr, ry);
+      ctx.arcTo(rx + bw, ry, rx + bw, ry + rr, rr);
+      ctx.lineTo(rx + bw, ry + bh - rr);
+      ctx.arcTo(rx + bw, ry + bh, rx + bw - rr, ry + bh, rr);
+      ctx.lineTo(rx + rr, ry + bh);
+      ctx.arcTo(rx, ry + bh, rx, ry + bh - rr, rr);
+      ctx.lineTo(rx, ry + rr);
+      ctx.arcTo(rx, ry, rx + rr, ry, rr);
+      ctx.closePath();
       ctx.fill();
+
+      // ── Bright core stripe inside the block ──
+      ctx.fillStyle = 'rgba(255,240,210,' + (p.alpha * 0.95).toFixed(2) + ')';
+      ctx.fillRect(rx + 2, cy - 0.8, bw - 4, 1.6);
+
+      // ── Discrete trailing echoes (not a comet tail) ──
+      var echoCount = 3;
+      var echoSpacing = 0.06;
+      for (var e = 1; e <= echoCount; e++) {
+        var et = Math.max(0, p.t - echoSpacing * e);
+        if (et <= 0) continue;
+        var ex = lerp(a.x, b.x, et);
+        var ey = lerp(a.y, b.y, et);
+        var ea = p.alpha * (1 - e / (echoCount + 1)) * 0.35;
+        var es = p.size * (1 - e * 0.22);
+        ctx.fillStyle = 'rgba(200,167,91,' + ea.toFixed(2) + ')';
+        ctx.fillRect(ex - es * 1.2, ey - es * 0.5, es * 2.4, es * 1);
+      }
     }
 
     requestAnimationFrame(draw);
@@ -253,21 +319,21 @@ function initArchParticles() {
   resize();
   draw();
 
+  /* ---- resize debounce ---- */
   var resizeTimer;
   window.addEventListener('resize', function () {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(resize, 200);
+    resizeTimer = setTimeout(function () {
+      resize();
+      waypoints = getWaypoints();
+    }, 200);
   });
 
-  // Observe theme changes to restart
+  /* ---- theme change → respawn all packets ---- */
   var observer = new MutationObserver(function () {
     resize();
-    // Re-randomize particle positions
-    var w2 = canvas.style.width ? parseFloat(canvas.style.width) : flow.offsetWidth;
-    for (var k = 0; k < particles.length; k++) {
-      particles[k].x = Math.random() * w2;
-      particles[k].trail = [];
-    }
+    waypoints = getWaypoints();
+    packets = spawnPackets(waypoints);
   });
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 }
