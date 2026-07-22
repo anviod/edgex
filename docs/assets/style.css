@@ -1006,10 +1006,9 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 .fx-lattice__node--r2 { animation-duration: 3.5s; }
-.fx-lattice__node--r3 { opacity: 0.7; animation-duration: 4s; }
 
 @keyframes fx-lattice-node-pulse {
-  0%, 100% { opacity: 0.5; filter: drop-shadow(0 0 4px var(--gold-glow)); }
+  0%, 100% { opacity: 0.55; filter: drop-shadow(0 0 4px var(--gold-glow)); }
   50% { opacity: 1; filter: drop-shadow(0 0 10px var(--gold-glow-strong)); }
 }
 
@@ -1029,7 +1028,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   box-shadow: 0 0 12px var(--gold-glow-strong), 0 0 24px var(--gold-glow);
   offset-distance: 0%;
   offset-rotate: 0deg;
-  animation: fx-lattice-flow 2.5s linear infinite;
+  animation: fx-lattice-flow 3.5s linear infinite;
   animation-delay: var(--delay);
 }
 

@@ -131,48 +131,44 @@ function initHeroVisual() {
           '<span class="fx-core__pulse-wave"></span>' +
         '</div>';
     } else if (type === 'lattice') {
-      // Neural lattice — symmetric 6-fold radial mesh
-      // 3 concentric rings of 6 nodes, all sharing the same angular offset (-90°)
-      // so nodes stack perfectly along radial spokes from center.
+      // Minimal radial mesh — 4-fold symmetry, 2 rings × 4 nodes = 8 nodes total
+      // Sparse layout to remain comfortable for trypophobia-sensitive viewers.
       var latticeNodes = [];
       var ringConfigs = [
-        { r: 55,  offset: -90, size: 5 },
-        { r: 100, offset: -90, size: 5 },
-        { r: 130, offset: -90, size: 4 },
+        { r: 65,  offset: -90, size: 5 },
+        { r: 120, offset: -90, size: 6 },
       ];
       for (var ri = 0; ri < ringConfigs.length; ri++) {
         var rc = ringConfigs[ri];
-        for (var ni = 0; ni < 6; ni++) {
-          var ang = (60 * ni + rc.offset) * Math.PI / 180;
+        for (var ni = 0; ni < 4; ni++) {
+          var ang = (90 * ni + rc.offset) * Math.PI / 180;
           latticeNodes.push({
             x: Math.round(rc.r * Math.cos(ang)),
             y: Math.round(rc.r * Math.sin(ang)),
             ring: ri + 1,
             size: rc.size,
-            delay: (ni * 0.12 + ri * 0.25).toFixed(2)
+            delay: (ni * 0.2 + ri * 0.3).toFixed(2)
           });
         }
       }
 
       // Links: [fromIdx, toIdx, isFlow]  (-1 = center/logo)
       var latticeLinks = [];
-      // 18 radial flow links — 6 spokes × 3 ring transitions (perfect 6-fold symmetry)
-      for (var si = 0; si < 6; si++) {
+      // 8 radial flow links — 4 spokes × 2 ring transitions (perfect 4-fold symmetry)
+      for (var si = 0; si < 4; si++) {
         latticeLinks.push([-1, si, 'flow']);           // center → R1[i]
-        latticeLinks.push([si, si + 6, 'flow']);        // R1[i]  → R2[i]
-        latticeLinks.push([si + 6, si + 12, 'flow']);   // R2[i]  → R3[i]
+        latticeLinks.push([si, si + 4, 'flow']);        // R1[i]  → R2[i]
       }
-      // 18 circumferential static links — 6 per ring × 3 rings
-      for (var ri2 = 0; ri2 < 3; ri2++) {
-        for (var ci = 0; ci < 6; ci++) {
-          latticeLinks.push([ri2 * 6 + ci, ri2 * 6 + (ci + 1) % 6, '']);
+      // 8 circumferential static links — 4 per ring × 2 rings (SVG arcs)
+      for (var ri2 = 0; ri2 < 2; ri2++) {
+        for (var ci = 0; ci < 4; ci++) {
+          latticeLinks.push([ri2 * 4 + ci, ri2 * 4 + (ci + 1) % 4, '']);
         }
       }
 
-      // Faint concentric guide rings for structural clarity
-      var guideSvg = '<circle class="fx-lattice__guide" cx="0" cy="0" r="55"/>' +
-                     '<circle class="fx-lattice__guide" cx="0" cy="0" r="100"/>' +
-                     '<circle class="fx-lattice__guide" cx="0" cy="0" r="130"/>';
+      // 2 faint concentric guide rings
+      var guideSvg = '<circle class="fx-lattice__guide" cx="0" cy="0" r="65"/>' +
+                     '<circle class="fx-lattice__guide" cx="0" cy="0" r="120"/>';
 
       var linkSvg = '';
       for (var l = 0; l < latticeLinks.length; l++) {
@@ -189,18 +185,15 @@ function initHeroVisual() {
         nodeSvg += '<circle class="fx-lattice__node fx-lattice__node--r' + nd.ring + '" cx="' + nd.x + '" cy="' + nd.y + '" r="' + nd.size + '" style="--delay:' + nd.delay + 's"/>';
       }
 
-      // Data pulses on all 18 flow links (HTML spans with offset-path)
+      // 4 data pulses — one per spoke, traveling full center → outer path
       var pulseHtml = '';
-      var pulseIdx = 0;
-      for (var p = 0; p < latticeLinks.length; p++) {
-        if (latticeLinks[p][2] !== 'flow') continue;
-        var pl = latticeLinks[p];
-        var p1 = pl[0] === -1 ? { x: 0, y: 0 } : latticeNodes[pl[0]];
-        var p2 = pl[1] === -1 ? { x: 0, y: 0 } : latticeNodes[pl[1]];
-        var px1 = p1.x + 150, py1 = p1.y + 150;
-        var px2 = p2.x + 150, py2 = p2.y + 150;
-        pulseHtml += '<span class="fx-lattice__pulse" style="offset-path: path(\'M ' + px1 + ' ' + py1 + ' L ' + px2 + ' ' + py2 + '\');--delay:' + (pulseIdx * 0.18).toFixed(2) + 's"></span>';
-        pulseIdx++;
+      for (var sp = 0; sp < 4; sp++) {
+        var r1n = latticeNodes[sp];      // inner ring node
+        var r2n = latticeNodes[sp + 4];   // outer ring node
+        var sx1 = 0 + 150, sy1 = 0 + 150;
+        var sx2 = r1n.x + 150, sy2 = r1n.y + 150;
+        var sx3 = r2n.x + 150, sy3 = r2n.y + 150;
+        pulseHtml += '<span class="fx-lattice__pulse" style="offset-path: path(\'M ' + sx1 + ' ' + sy1 + ' L ' + sx2 + ' ' + sy2 + ' L ' + sx3 + ' ' + sy3 + '\');--delay:' + (sp * 0.35).toFixed(2) + 's"></span>';
       }
 
       innerContent =
