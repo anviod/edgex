@@ -72,12 +72,109 @@ function addCopyButtons() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  initHeroVisual();
   highlightCode();
   addCopyButtons();
   initTypewriter();
   initThemeToggle();
   initArchParticles();
 });
+
+// Hero visual — randomly choose one of five AI core effects per refresh
+function initHeroVisual() {
+  var container = document.querySelector('[data-hero-visual]');
+  if (!container) return;
+
+  var effects = ['pulsar', 'orbital', 'neural', 'dataflow', 'prism'];
+  var effect = effects[Math.floor(Math.random() * effects.length)];
+  container.setAttribute('data-effect', effect);
+
+  var logoSvg = '<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24 4L6 14v20l18 10 18-10V14L24 4z" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="24" cy="24" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="24" cy="24" r="2" fill="currentColor"/><line x1="24" y1="6" x2="24" y2="16" stroke="currentColor" stroke-width="1.2" opacity="0.6"/><line x1="24" y1="32" x2="24" y2="42" stroke="currentColor" stroke-width="1.2" opacity="0.6"/><line x1="8" y1="15" x2="15" y2="19" stroke="currentColor" stroke-width="1.2" opacity="0.6"/><line x1="33" y1="29" x2="40" y2="33" stroke="currentColor" stroke-width="1.2" opacity="0.6"/><line x1="8" y1="33" x2="15" y2="29" stroke="currentColor" stroke-width="1.2" opacity="0.6"/><line x1="33" y1="19" x2="40" y2="15" stroke="currentColor" stroke-width="1.2" opacity="0.6"/></svg>';
+  var logo = '<div class="fx-logo">' + logoSvg + '</div>';
+
+  var html = '';
+  if (effect === 'pulsar') {
+    html =
+      '<div class="ai-core">' +
+        '<div class="ai-core-ring ai-core-ring--outer"></div>' +
+        '<div class="ai-core-ring ai-core-ring--mid"></div>' +
+        '<div class="ai-core-ring ai-core-ring--inner"></div>' +
+        '<div class="ai-core-center">' + logoSvg + '</div>' +
+      '</div>' +
+      '<div class="ai-orbit ai-orbit--1"><span class="ai-dot"></span></div>' +
+      '<div class="ai-orbit ai-orbit--2"><span class="ai-dot"></span></div>' +
+      '<div class="ai-orbit ai-orbit--3"><span class="ai-dot"></span></div>' +
+      '<div class="ai-particles">' +
+        '<span class="ai-particle ai-particle--1"></span>' +
+        '<span class="ai-particle ai-particle--2"></span>' +
+        '<span class="ai-particle ai-particle--3"></span>' +
+        '<span class="ai-particle ai-particle--4"></span>' +
+        '<span class="ai-particle ai-particle--5"></span>' +
+        '<span class="ai-particle ai-particle--6"></span>' +
+      '</div>';
+  } else if (effect === 'orbital') {
+    var sats1 = [0, 120, 240].map(function(a) { return '<span style="--angle:' + a + 'deg"></span>'; }).join('');
+    var sats2 = [45, 135, 225, 315].map(function(a) { return '<span style="--angle:' + a + 'deg"></span>'; }).join('');
+    var sats3 = [0, 72, 144, 216, 288].map(function(a) { return '<span style="--angle:' + a + 'deg"></span>'; }).join('');
+    html =
+      '<div class="fx-orbital">' + logo +
+        '<div class="fx-orbital__ring fx-orbital__ring--1">' + sats1 + '</div>' +
+        '<div class="fx-orbital__ring fx-orbital__ring--2">' + sats2 + '</div>' +
+        '<div class="fx-orbital__ring fx-orbital__ring--3">' + sats3 + '</div>' +
+      '</div>';
+  } else if (effect === 'neural') {
+    var radii = [80, 135, 190];
+    var counts = [4, 5, 6];
+    var links = '';
+    var nodes = '';
+    var idx = 0;
+    for (var r = 0; r < radii.length; r++) {
+      for (var i = 0; i < counts[r]; i++) {
+        var angle = (360 / counts[r]) * i + (r * 30);
+        var len = radii[r];
+        var d = r === 0 ? 8 : (r === 1 ? 7 : 6);
+        var delay = (idx * 0.2).toFixed(2) + 's';
+        var common = '--angle:' + angle + 'deg;--len:' + len + 'px;--delay:' + delay;
+        links += '<span class="fx-neural__link" style="' + common + '"></span>';
+        nodes += '<span class="fx-neural__node" style="' + common + ';--d:' + d + 'px"></span>';
+        idx++;
+      }
+    }
+    html =
+      '<div class="fx-neural">' + logo +
+        '<div class="fx-neural__links">' + links + '</div>' +
+        '<div class="fx-neural__nodes">' + nodes + '</div>' +
+      '</div>';
+  } else if (effect === 'dataflow') {
+    var angles = [0, 60, 120, 180, 240, 300];
+    var packets = '';
+    for (var p = 0; p < angles.length; p++) {
+      var dur = (2.5 + Math.random() * 1.5).toFixed(2) + 's';
+      var del = (Math.random() * -2).toFixed(2) + 's';
+      var rad = 110 + (p % 2) * 35;
+      packets += '<span class="fx-dataflow__packet" style="--angle:' + angles[p] + 'deg;--radius:' + rad + 'px;--duration:' + dur + ';--delay:' + del + '"></span>';
+    }
+    html =
+      '<div class="fx-dataflow">' + logo +
+        '<div class="fx-dataflow__ring fx-dataflow__ring--1"></div>' +
+        '<div class="fx-dataflow__ring fx-dataflow__ring--2"></div>' +
+        '<div class="fx-dataflow__packets">' + packets + '</div>' +
+      '</div>';
+  } else if (effect === 'prism') {
+    var rays = [0, 60, 120, 180, 240, 300].map(function(a, i) {
+      return '<span class="fx-prism__ray" style="--angle:' + a + 'deg;--delay:' + (i * 0.25).toFixed(2) + 's"></span>';
+    }).join('');
+    html =
+      '<div class="fx-prism">' + logo +
+        '<div class="fx-prism__hex fx-prism__hex--outer"></div>' +
+        '<div class="fx-prism__hex fx-prism__hex--mid"></div>' +
+        '<div class="fx-prism__hex fx-prism__hex--inner"></div>' +
+        '<div class="fx-prism__rays">' + rays + '</div>' +
+      '</div>';
+  }
+
+  container.innerHTML = html;
+}
 
 // Theme toggle — dark/light switch with localStorage
 function initThemeToggle() {

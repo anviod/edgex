@@ -76,6 +76,16 @@
   --button-primary-text: #111111;
   --button-primary-bg: linear-gradient(135deg, #C8A75B 0%, #DDBB73 100%);
   --button-secondary-bg: rgba(200, 167, 91, 0.08);
+
+  /* Code Blocks (dark) */
+  --code-inline-bg: rgba(28, 29, 32, 0.8);
+  --code-inline-color: #E8D5A3;
+  --code-inline-border: rgba(200, 167, 91, 0.15);
+  --code-block-bg: #111111;
+  --code-block-color: #D7D7D7;
+  --tok-keyword: #7dd3fc;
+  --tok-string: #86efac;
+  --tok-number: #fca5a5;
 }
 
 /* =========================================
@@ -124,6 +134,16 @@
   --button-primary-text: #FFFFFF;
   --button-primary-bg: linear-gradient(135deg, #B8933F 0%, #A07D2C 100%);
   --button-secondary-bg: rgba(184, 147, 63, 0.06);
+
+  /* Code Blocks (light) */
+  --code-inline-bg: rgba(0, 0, 0, 0.06);
+  --code-inline-color: #8B6914;
+  --code-inline-border: rgba(184, 147, 63, 0.2);
+  --code-block-bg: #F0F0F3;
+  --code-block-color: #1D1D1F;
+  --tok-keyword: #2563eb;
+  --tok-string: #059669;
+  --tok-number: #dc2626;
 }
 
 /* Aurora background — light variant */
@@ -377,11 +397,11 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .markdown-body code {
   padding: 0.25em 0.6em;
   border-radius: 6px;
-  background: rgba(28, 29, 32, 0.8);
-  color: var(--gold-bright);
+  background: var(--code-inline-bg);
+  color: var(--code-inline-color);
   font-size: 0.9em;
   font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, monospace;
-  border: 1px solid rgba(200, 167, 91, 0.15);
+  border: 1px solid var(--code-inline-border);
 }
 
 .markdown-body pre {
@@ -389,7 +409,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   overflow-x: auto;
   padding: 24px 28px;
   border-radius: var(--radius-md);
-  background: #111111;
+  background: var(--code-block-bg);
   border: 1px solid var(--gold-border);
   margin: 1.5rem 0;
 }
@@ -406,15 +426,15 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .markdown-body pre code {
   padding: 0;
   background: transparent;
-  color: var(--text-soft);
+  color: var(--code-block-color);
   border: none;
   font-size: 0.9rem;
   line-height: 1.7;
 }
 
-.markdown-body .tok-keyword { color: #7dd3fc; }
-.markdown-body .tok-string { color: #86efac; }
-.markdown-body .tok-number { color: #fca5a5; }
+.markdown-body .tok-keyword { color: var(--tok-keyword); }
+.markdown-body .tok-string { color: var(--tok-string); }
+.markdown-body .tok-number { color: var(--tok-number); }
 
 .markdown-body hr { border: 0; border-top: 1px solid var(--gold-border); margin: 2.5rem 0; }
 
@@ -790,6 +810,206 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   20% { opacity: 0.8; }
   80% { opacity: 0.3; }
   100% { opacity: 0; transform: translateY(-50px) scale(0.5); }
+}
+
+/* ==========================================================================
+   Hero Visual — Alternate AI effects (randomly shown on each refresh)
+   ========================================================================== */
+
+/* Shared center logo for all alternate effects */
+.fx-logo {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 72px; height: 72px;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  color: var(--gold-light);
+  animation: fx-logo-glow 2s ease-in-out infinite;
+}
+.fx-logo svg { width: 100%; height: 100%; }
+
+@keyframes fx-logo-glow {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(200,167,91,0.5)); }
+  50% { filter: drop-shadow(0 0 28px rgba(200,167,91,0.95)); }
+}
+
+/* ── Effect 2: Orbital satellite network ── */
+.fx-orbital {
+  position: relative;
+  width: 320px; height: 320px;
+}
+
+.fx-orbital__ring {
+  position: absolute;
+  top: 50%; left: 50%;
+  border-radius: 50%;
+  border: 1px dashed var(--gold-border);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.fx-orbital__ring--1 { width: 160px; height: 160px; animation: fx-orb-spin 14s linear infinite; }
+.fx-orbital__ring--2 { width: 230px; height: 230px; animation: fx-orb-spin 20s linear infinite reverse; }
+.fx-orbital__ring--3 { width: 300px; height: 300px; animation: fx-orb-spin 28s linear infinite; }
+
+.fx-orbital__ring span {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 10px; height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  box-shadow: 0 0 14px rgba(200,167,91,0.9), 0 0 30px rgba(200,167,91,0.4);
+  transform: rotate(var(--angle)) translateX(var(--radius)) rotate(calc(-1 * var(--angle)));
+}
+
+.fx-orbital__ring--1 span { --radius: 80px; }
+.fx-orbital__ring--2 span { --radius: 115px; width: 8px; height: 8px; margin: -4px 0 0 -4px; }
+.fx-orbital__ring--3 span { --radius: 150px; width: 6px; height: 6px; margin: -3px 0 0 -3px; }
+
+@keyframes fx-orb-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ── Effect 3: Neural pulse network ── */
+.fx-neural {
+  position: relative;
+  width: 320px; height: 320px;
+}
+
+.fx-neural__links,
+.fx-neural__nodes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.fx-neural__link {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: var(--len);
+  height: 1px;
+  margin-top: -0.5px;
+  background: linear-gradient(90deg, rgba(200,167,91,0.45), rgba(200,167,91,0));
+  transform-origin: 0 50%;
+  transform: rotate(var(--angle));
+  animation: fx-neural-link 2.4s ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+.fx-neural__node {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: var(--d);
+  height: var(--d);
+  margin: calc(-1 * var(--d) / 2) 0 0 calc(-1 * var(--d) / 2);
+  border-radius: 50%;
+  background: var(--gold-bright);
+  box-shadow: 0 0 12px rgba(200,167,91,0.8), 0 0 26px rgba(200,167,91,0.3);
+  transform: rotate(var(--angle)) translateX(var(--len)) rotate(calc(-1 * var(--angle)));
+  animation: fx-neural-node 2.4s ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+@keyframes fx-neural-link {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.85; }
+}
+
+@keyframes fx-neural-node {
+  0%, 100% { transform: rotate(var(--angle)) translateX(var(--len)) rotate(calc(-1 * var(--angle))) scale(1); opacity: 0.6; }
+  50% { transform: rotate(var(--angle)) translateX(var(--len)) rotate(calc(-1 * var(--angle))) scale(1.5); opacity: 1; }
+}
+
+/* ── Effect 4: Industrial data flow ── */
+.fx-dataflow {
+  position: relative;
+  width: 320px; height: 320px;
+}
+
+.fx-dataflow__ring {
+  position: absolute;
+  top: 50%; left: 50%;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--gold-border-hover);
+  border-right-color: var(--gold-border);
+  transform: translate(-50%, -50%);
+}
+
+.fx-dataflow__ring--1 { width: 220px; height: 220px; margin: -110px 0 0 -110px; animation: fx-df-spin 8s linear infinite; }
+.fx-dataflow__ring--2 { width: 290px; height: 290px; margin: -145px 0 0 -145px; border-width: 1px; opacity: 0.5; animation: fx-df-spin 12s linear infinite reverse; }
+
+@keyframes fx-df-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.fx-dataflow__packet {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 8px; height: 4px;
+  margin: -2px 0 0 -4px;
+  border-radius: 1px;
+  background: var(--gold-bright);
+  box-shadow: 0 0 10px rgba(200,167,91,0.9);
+  transform: rotate(var(--angle)) translateX(var(--radius));
+  animation: fx-df-packet var(--duration) linear infinite;
+  animation-delay: var(--delay);
+}
+
+@keyframes fx-df-packet {
+  0% { opacity: 0; transform: rotate(var(--angle)) translateX(calc(var(--radius) - 30px)) scale(0.6); }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--angle)) translateX(calc(var(--radius) + 30px)) scale(1.1); }
+}
+
+/* ── Effect 5: Prism geometric core ── */
+.fx-prism {
+  position: relative;
+  width: 320px; height: 320px;
+}
+
+.fx-prism__hex {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: var(--s);
+  height: calc(var(--s) * 0.866);
+  transform: translate(-50%, -50%) rotate(var(--rot));
+  background: conic-gradient(from 0deg, var(--gold), var(--gold-light), var(--gold), var(--gold-light), var(--gold));
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  opacity: 0.12;
+  box-shadow: inset 0 0 30px rgba(200,167,91,0.4), 0 0 40px rgba(200,167,91,0.2);
+  animation: fx-prism-pulse 4s ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+.fx-prism__hex--outer { --s: 260px; --rot: 0deg; --delay: 0s; }
+.fx-prism__hex--mid { --s: 190px; --rot: 180deg; --delay: -1.3s; }
+.fx-prism__hex--inner { --s: 130px; --rot: 0deg; --delay: -2.6s; }
+
+@keyframes fx-prism-pulse {
+  0%, 100% { transform: translate(-50%, -50%) rotate(var(--rot)) scale(1); opacity: 0.1; }
+  50% { transform: translate(-50%, -50%) rotate(calc(var(--rot) + 15deg)) scale(1.06); opacity: 0.28; }
+}
+
+.fx-prism__ray {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 140px; height: 2px;
+  margin: -1px 0 0 0;
+  background: linear-gradient(90deg, rgba(200,167,91,0.55), rgba(200,167,91,0));
+  transform-origin: 0 50%;
+  transform: rotate(var(--angle));
+  animation: fx-prism-ray 3s ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+@keyframes fx-prism-ray {
+  0%, 100% { opacity: 0.15; transform: rotate(var(--angle)) scaleX(0.7); }
+  50% { opacity: 0.9; transform: rotate(var(--angle)) scaleX(1.2); }
 }
 
 /* =========================================
@@ -1683,6 +1903,27 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   .ai-orbit--2 { width: 220px; height: 220px; margin-top: -110px; margin-left: -110px; }
   .ai-orbit--3 { width: 260px; height: 260px; margin-top: -130px; margin-left: -130px; }
 
+  .fx-logo { width: 56px; height: 56px; }
+
+  .fx-orbital, .fx-neural, .fx-dataflow, .fx-prism {
+    width: 240px; height: 240px;
+  }
+
+  .fx-orbital__ring--1 { width: 120px; height: 120px; }
+  .fx-orbital__ring--2 { width: 175px; height: 175px; }
+  .fx-orbital__ring--3 { width: 230px; height: 230px; }
+  .fx-orbital__ring--1 span { --radius: 60px !important; width: 8px; height: 8px; margin: -4px 0 0 -4px; }
+  .fx-orbital__ring--2 span { --radius: 87px !important; width: 6px; height: 6px; margin: -3px 0 0 -3px; }
+  .fx-orbital__ring--3 span { --radius: 115px !important; width: 5px; height: 5px; margin: -2px 0 0 -2px; }
+
+  .fx-dataflow__ring--1 { width: 165px; height: 165px; margin: -82px 0 0 -82px; }
+  .fx-dataflow__ring--2 { width: 220px; height: 220px; margin: -110px 0 0 -110px; }
+
+  .fx-prism__hex--outer { --s: 200px !important; }
+  .fx-prism__hex--mid { --s: 145px !important; }
+  .fx-prism__hex--inner { --s: 100px !important; }
+  .fx-prism__ray { width: 100px; }
+
   .hero-copy h1 { font-size: 2.2rem; }
   .hero-copy h2 { font-size: 1.3rem; }
 
@@ -1719,4 +1960,13 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 
   .ai-particle--1, .ai-particle--2, .ai-particle--3,
   .ai-particle--4, .ai-particle--5, .ai-particle--6 { animation: none; opacity: 0; }
+
+  .fx-logo,
+  .fx-orbital__ring,
+  .fx-neural__link,
+  .fx-neural__node,
+  .fx-dataflow__ring,
+  .fx-dataflow__packet,
+  .fx-prism__hex,
+  .fx-prism__ray { animation: none !important; }
 }
