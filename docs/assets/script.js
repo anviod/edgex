@@ -80,100 +80,146 @@ window.addEventListener('DOMContentLoaded', () => {
   initArchParticles();
 });
 
-// Hero visual — randomly choose one of five AI core effects per refresh
+// Hero visual — engineering console panel, random variant per refresh
 function initHeroVisual() {
   var container = document.querySelector('[data-hero-visual]');
   if (!container) return;
 
-  var effects = ['pulsar', 'orbital', 'neural', 'dataflow', 'prism'];
-  var effect = effects[Math.floor(Math.random() * effects.length)];
-  container.setAttribute('data-effect', effect);
+  var protocols = ['Modbus', 'BACnet', 'OPC UA', 'S7', 'EtherNet/IP', 'IEC 104', 'SNMP', 'KNX'];
+  var states = [
+    { label: '扫描类 100ms', ok: true, val: '8,192 pts' },
+    { label: '扫描类 500ms', ok: true, val: '14,304 pts' },
+    { label: '扫描类 1,000ms', ok: true, val: '4,096 pts' },
+    { label: '离线设备', ok: false, val: '0' },
+    { label: 'Shadow 快照', ok: true, val: 'OK' },
+    { label: '北向连接', ok: true, val: 'MQTT · Online' }
+  ];
 
-  var logoSvg = '<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24 4L6 14v20l18 10 18-10V14L24 4z" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="24" cy="24" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="24" cy="24" r="2" fill="currentColor"/><line x1="24" y1="6" x2="24" y2="16" stroke="currentColor" stroke-width="1.2" opacity="0.6"/><line x1="24" y1="32" x2="24" y2="42" stroke="currentColor" stroke-width="1.2" opacity="0.6"/><line x1="8" y1="15" x2="15" y2="19" stroke="currentColor" stroke-width="1.2" opacity="0.6"/><line x1="33" y1="29" x2="40" y2="33" stroke="currentColor" stroke-width="1.2" opacity="0.6"/><line x1="8" y1="33" x2="15" y2="29" stroke="currentColor" stroke-width="1.2" opacity="0.6"/><line x1="33" y1="19" x2="40" y2="15" stroke="currentColor" stroke-width="1.2" opacity="0.6"/></svg>';
-  var logo = '<div class="fx-logo">' + logoSvg + '</div>';
-
-  var html = '';
-  if (effect === 'pulsar') {
-    html =
-      '<div class="ai-core">' +
-        '<div class="ai-core-ring ai-core-ring--outer"></div>' +
-        '<div class="ai-core-ring ai-core-ring--mid"></div>' +
-        '<div class="ai-core-ring ai-core-ring--inner"></div>' +
-        '<div class="ai-core-center">' + logoSvg + '</div>' +
-      '</div>' +
-      '<div class="ai-orbit ai-orbit--1"><span class="ai-dot"></span></div>' +
-      '<div class="ai-orbit ai-orbit--2"><span class="ai-dot"></span></div>' +
-      '<div class="ai-orbit ai-orbit--3"><span class="ai-dot"></span></div>' +
-      '<div class="ai-particles">' +
-        '<span class="ai-particle ai-particle--1"></span>' +
-        '<span class="ai-particle ai-particle--2"></span>' +
-        '<span class="ai-particle ai-particle--3"></span>' +
-        '<span class="ai-particle ai-particle--4"></span>' +
-        '<span class="ai-particle ai-particle--5"></span>' +
-        '<span class="ai-particle ai-particle--6"></span>' +
-      '</div>';
-  } else if (effect === 'orbital') {
-    var sats1 = [0, 120, 240].map(function(a) { return '<span style="--angle:' + a + 'deg"></span>'; }).join('');
-    var sats2 = [45, 135, 225, 315].map(function(a) { return '<span style="--angle:' + a + 'deg"></span>'; }).join('');
-    var sats3 = [0, 72, 144, 216, 288].map(function(a) { return '<span style="--angle:' + a + 'deg"></span>'; }).join('');
-    html =
-      '<div class="fx-orbital">' + logo +
-        '<div class="fx-orbital__ring fx-orbital__ring--1">' + sats1 + '</div>' +
-        '<div class="fx-orbital__ring fx-orbital__ring--2">' + sats2 + '</div>' +
-        '<div class="fx-orbital__ring fx-orbital__ring--3">' + sats3 + '</div>' +
-      '</div>';
-  } else if (effect === 'neural') {
-    var radii = [80, 135, 190];
-    var counts = [4, 5, 6];
-    var links = '';
-    var nodes = '';
-    var idx = 0;
-    for (var r = 0; r < radii.length; r++) {
-      for (var i = 0; i < counts[r]; i++) {
-        var angle = (360 / counts[r]) * i + (r * 30);
-        var len = radii[r];
-        var d = r === 0 ? 8 : (r === 1 ? 7 : 6);
-        var delay = (idx * 0.2).toFixed(2) + 's';
-        var common = '--angle:' + angle + 'deg;--len:' + len + 'px;--delay:' + delay;
-        links += '<span class="fx-neural__link" style="' + common + '"></span>';
-        nodes += '<span class="fx-neural__node" style="' + common + ';--d:' + d + 'px"></span>';
-        idx++;
-      }
-    }
-    html =
-      '<div class="fx-neural">' + logo +
-        '<div class="fx-neural__links">' + links + '</div>' +
-        '<div class="fx-neural__nodes">' + nodes + '</div>' +
-      '</div>';
-  } else if (effect === 'dataflow') {
-    var angles = [0, 60, 120, 180, 240, 300];
-    var packets = '';
-    for (var p = 0; p < angles.length; p++) {
-      var dur = (2.5 + Math.random() * 1.5).toFixed(2) + 's';
-      var del = (Math.random() * -2).toFixed(2) + 's';
-      var rad = 110 + (p % 2) * 35;
-      packets += '<span class="fx-dataflow__packet" style="--angle:' + angles[p] + 'deg;--radius:' + rad + 'px;--duration:' + dur + ';--delay:' + del + '"></span>';
-    }
-    html =
-      '<div class="fx-dataflow">' + logo +
-        '<div class="fx-dataflow__ring fx-dataflow__ring--1"></div>' +
-        '<div class="fx-dataflow__ring fx-dataflow__ring--2"></div>' +
-        '<div class="fx-dataflow__packets">' + packets + '</div>' +
-      '</div>';
-  } else if (effect === 'prism') {
-    var rays = [0, 60, 120, 180, 240, 300].map(function(a, i) {
-      return '<span class="fx-prism__ray" style="--angle:' + a + 'deg;--delay:' + (i * 0.25).toFixed(2) + 's"></span>';
-    }).join('');
-    html =
-      '<div class="fx-prism">' + logo +
-        '<div class="fx-prism__hex fx-prism__hex--outer"></div>' +
-        '<div class="fx-prism__hex fx-prism__hex--mid"></div>' +
-        '<div class="fx-prism__hex fx-prism__hex--inner"></div>' +
-        '<div class="fx-prism__rays">' + rays + '</div>' +
-      '</div>';
+  function pad(n) { return n < 10 ? '0' + n : n; }
+  function now() {
+    var d = new Date();
+    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
   }
 
-  container.innerHTML = html;
+  function metric(label, value, ok) {
+    return '<div class="console-metric">' +
+      '<span class="console-metric__label">' + label + '</span>' +
+      '<span class="console-metric__value ' + (ok ? 'console-metric__value--ok' : '') + '">' + value + '</span>' +
+    '</div>';
+  }
+
+  function terminalLine(tag, text, warn) {
+    return '<span class="console-terminal__line">' +
+      '<span class="console-terminal__time">' + now() + '</span>' +
+      '<span class="console-terminal__tag ' + (warn ? 'console-terminal__tag--warn' : '') + '">' + tag + '</span>' +
+      text +
+    '</span>';
+  }
+
+  function protocolTags() {
+    return '<div class="protocol-row">' +
+      protocols.slice(0, 5).map(function(p) { return '<span class="protocol-tag protocol-tag--active">' + p + '</span>'; }).join('') +
+      '<span class="protocol-tag">+' + (protocols.length - 5) + '</span>' +
+    '</div>';
+  }
+
+  function panelHeader(title) {
+    return '<div class="console-panel__header">' +
+      '<span class="console-panel__title">' + title + '</span>' +
+      '<span class="console-panel__status"><span class="console-panel__status-dot"></span>ONLINE</span>' +
+    '</div>';
+  }
+
+  function buildMetrics() {
+    var html = panelHeader('shadow_core_metrics') +
+      '<div class="console-panel__body">' +
+        metric('scan.lag_p95', '< 96 ms', true) +
+        metric('shadow.points', '26,592', true) +
+        metric('shadow.devices', '142 / 142', true) +
+        metric('snapshot.last', '00:00', true) +
+        metric('northbound.queue', '0', true) +
+        '<div class="console-terminal">' +
+          terminalLine('INFO', 'ScanEngine EDF 调度已启动') +
+          terminalLine('INFO', 'ShadowCore 快照写入 runtime.db') +
+          terminalLine('INFO', 'MQTT 北向连接已建立') +
+        '</div>' +
+        protocolTags() +
+      '</div>';
+    return '<div class="console-panel">' + html + '</div>';
+  }
+
+  function buildRegisters() {
+    var addrs = ['40001', '40002', '40003', '40004', '30001', '30002', '10001', '10002'];
+    var regs = addrs.map(function(a) {
+      var v = (Math.random() * 1000).toFixed(a.startsWith('3') ? 2 : 0);
+      return '<div class="fx-register"><span class="fx-register__addr">' + a + '</span><span class="fx-register__val">' + v + '</span></div>';
+    }).join('');
+    var html = panelHeader('modbus_register_map') +
+      '<div class="console-panel__body">' +
+        metric('device.addr', '192.168.1.10:502', true) +
+        metric('unit_id', '1', true) +
+        metric('poll_rate', '100 ms', true) +
+        '<div class="fx-register-grid">' + regs + '</div>' +
+        '<div class="console-terminal">' +
+          terminalLine('READ', 'FC03 unit=1 addr=40001 qty=4') +
+          terminalLine('OK', '8 bytes, 4 registers') +
+          terminalLine('WRITE', 'FC06 unit=1 addr=40002 val=1024') +
+        '</div>' +
+      '</div>';
+    return '<div class="console-panel">' + html + '</div>';
+  }
+
+  function buildDeviceTree() {
+    var html = panelHeader('device_tree') +
+      '<div class="console-panel__body">' +
+        metric('channels', '6', true) +
+        metric('devices.total', '142', true) +
+        '<div class="fx-device-tree">' +
+          '<div class="fx-device-tree__line"><span class="fx-device-tree__indent">├─</span><span class="fx-device-tree__status">●</span><span class="fx-device-tree__name">产线 A / PLC-01</span><span class="fx-device-tree__proto">S7</span></div>' +
+          '<div class="fx-device-tree__line"><span class="fx-device-tree__indent">│  ├─</span><span class="fx-device-tree__status">●</span><span class="fx-device-tree__name">DI 模块</span><span class="fx-device-tree__proto">32 pts</span></div>' +
+          '<div class="fx-device-tree__line"><span class="fx-device-tree__indent">│  └─</span><span class="fx-device-tree__status">●</span><span class="fx-device-tree__name">AI 模块</span><span class="fx-device-tree__proto">16 pts</span></div>' +
+          '<div class="fx-device-tree__line"><span class="fx-device-tree__indent">├─</span><span class="fx-device-tree__status">●</span><span class="fx-device-tree__name">HVAC / BACnet 网关</span><span class="fx-device-tree__proto">BACnet</span></div>' +
+          '<div class="fx-device-tree__line"><span class="fx-device-tree__indent">└─</span><span class="fx-device-tree__status">●</span><span class="fx-device-tree__name">电表 / DLT645</span><span class="fx-device-tree__proto">RS485</span></div>' +
+        '</div>' +
+        '<div class="console-terminal">' +
+          terminalLine('INFO', '设备树扫描完成，142 online') +
+          terminalLine('INFO', 'BACnet WhoIs 发现 12 个设备') +
+        '</div>' +
+      '</div>';
+    return '<div class="console-panel">' + html + '</div>';
+  }
+
+  function buildPacketLog() {
+    var protos = ['Modbus', 'BACnet', 'OPC UA', 'S7', 'IEC104'];
+    var payloads = [
+      '0x01 0x03 0x00 0x00 0x00 0x0A ...',
+      'WhoIs low=0 high=0',
+      'ReadRequest nodeId=ns=2;i=1001',
+      'ReadArea DB1.DBW0 len=16',
+      'I-format APDU 00 00 00 01'
+    ];
+    var rows = '';
+    for (var i = 0; i < 5; i++) {
+      rows += '<div class="fx-packet">' +
+        '<span class="fx-packet__dir">→</span>' +
+        '<span class="fx-packet__proto">' + protos[i] + '</span>' +
+        '<span class="fx-packet__payload">' + payloads[i] + '</span>' +
+        '<span class="fx-packet__time">' + now() + '</span>' +
+      '</div>';
+    }
+    var html = panelHeader('protocol_traffic') +
+      '<div class="console-panel__body">' +
+        metric('tx_rate', '4.2 kB/s', true) +
+        metric('rx_rate', '12.8 kB/s', true) +
+        metric('errors', '0', true) +
+        '<div class="fx-packet-log">' + rows + '</div>' +
+      '</div>';
+    return '<div class="console-panel">' + html + '</div>';
+  }
+
+  var builders = [buildMetrics, buildRegisters, buildDeviceTree, buildPacketLog];
+  var idx = Math.floor(Math.random() * builders.length);
+  container.innerHTML = builders[idx]();
 }
 
 // Theme toggle — dark/light switch with localStorage

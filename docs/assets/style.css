@@ -1,6 +1,6 @@
 /* ==========================================================================
-   EdgeX Docs — Gold Premium + Apple Design Language
-   Black-gold palette · Frosted glass · Generous radius · Smooth motion
+   EdgeX Docs — Industrial Console + Protocol-first UI
+   Engineering typography · Functional components · Deterministic motion
    ========================================================================== */
 
 :root {
@@ -72,10 +72,11 @@
   --header-bg: rgba(9, 9, 9, 0.75);
   --header-border: rgba(200, 167, 91, 0.18);
 
-  /* Button */
-  --button-primary-text: #111111;
-  --button-primary-bg: linear-gradient(135deg, #C8A75B 0%, #DDBB73 100%);
-  --button-secondary-bg: rgba(200, 167, 91, 0.08);
+  /* Button — flat engineering controls, no marketing gradients */
+  --button-primary-text: #0D0D0F;
+  --button-primary-bg: #C8A75B;
+  --button-secondary-bg: transparent;
+  --button-border: rgba(200, 167, 91, 0.35);
 
   /* Code Blocks (dark) */
   --code-inline-bg: rgba(28, 29, 32, 0.8);
@@ -132,8 +133,9 @@
   --header-border: rgba(184, 147, 63, 0.15);
 
   --button-primary-text: #FFFFFF;
-  --button-primary-bg: linear-gradient(135deg, #B8933F 0%, #A07D2C 100%);
-  --button-secondary-bg: rgba(184, 147, 63, 0.06);
+  --button-primary-bg: #B8933F;
+  --button-secondary-bg: transparent;
+  --button-border: rgba(184, 147, 63, 0.4);
 
   /* Code Blocks (light) */
   --code-inline-bg: rgba(0, 0, 0, 0.06);
@@ -146,13 +148,6 @@
   --tok-number: #dc2626;
 }
 
-/* Aurora background — light variant */
-[data-theme="light"] body::before {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(184, 147, 63, 0.06) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 40% at 80% 40%, rgba(184, 147, 63, 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 30% at 20% 80%, rgba(184, 147, 63, 0.03) 0%, transparent 50%);
-}
 
 /* =========================================
    Theme Toggle Button
@@ -200,19 +195,19 @@ body {
   overflow-x: hidden;
 }
 
-/* Aurora Background */
+/* Industrial console background — subtle grid instead of aurora */
 body::before {
   content: "";
   position: fixed;
   top: 0; left: 0;
   width: 100%; height: 100%;
   z-index: -2;
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(200, 167, 91, 0.10) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 40% at 80% 40%, rgba(184, 115, 51, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 30% at 20% 80%, rgba(200, 167, 91, 0.05) 0%, transparent 50%);
-  background-attachment: fixed;
   pointer-events: none;
+  background-image:
+    linear-gradient(rgba(200, 167, 91, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(200, 167, 91, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-attachment: fixed;
 }
 
 body::after {
@@ -221,9 +216,8 @@ body::after {
   top: 0; left: 0;
   width: 100%; height: 100%;
   z-index: -1;
-  opacity: 0.025;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   pointer-events: none;
+  background: radial-gradient(ellipse 60% 30% at 50% 0%, rgba(200, 167, 91, 0.04) 0%, transparent 60%);
 }
 
 a {
@@ -557,31 +551,29 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   align-items: center;
 }
 
-/* Golden blueprint grid */
+/* Engineering panel accent — single top line */
 .hero-section::before {
   content: "";
   position: absolute;
-  inset: 0;
-  z-index: 0;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--gold) 0%, var(--gold-light) 35%, transparent 80%);
+  z-index: 2;
   pointer-events: none;
-  background-image:
-    linear-gradient(rgba(200, 167, 91, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(200, 167, 91, 0.05) 1px, transparent 1px),
-    linear-gradient(rgba(200, 167, 91, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(200, 167, 91, 0.03) 1px, transparent 1px);
-  background-size: 56px 56px, 56px 56px, 14px 14px, 14px 14px;
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,0.35) 70%, transparent 100%);
-  mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,0.35) 70%, transparent 100%);
 }
 
 .hero-section::after {
-  content: "";
+  content: "RUNTIME";
   position: absolute;
-  top: -50%; right: -20%;
-  width: 80%; height: 120%;
-  background: radial-gradient(ellipse at center, rgba(200, 167, 91, 0.14) 0%, rgba(184, 115, 51, 0.07) 30%, transparent 70%);
+  top: 14px; right: 18px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--gold-dark);
+  opacity: 0.7;
+  z-index: 2;
   pointer-events: none;
-  z-index: 0;
 }
 
 .hero-copy {
@@ -597,15 +589,24 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   align-items: center;
   align-self: flex-start;
   margin-bottom: 20px;
-  padding: 8px 16px;
-  border-radius: 999px;
-  background: rgba(200, 167, 91, 0.12);
-  border: 1px solid rgba(200, 167, 91, 0.25);
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(200, 167, 91, 0.08);
+  border: 1px solid var(--gold-border);
   color: var(--gold-light);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.hero-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  margin-right: 8px;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
 }
 
 .hero-copy h1 {
@@ -618,11 +619,12 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 .hero-copy h2 {
-  font-size: clamp(1.4rem, 2.5vw, 2rem);
-  font-weight: 600;
-  color: var(--gold-light);
+  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+  font-weight: 500;
+  color: var(--text-soft);
   margin: 8px 0 20px;
   letter-spacing: -0.01em;
+  max-width: 620px;
 }
 
 .hero-tagline {
@@ -632,16 +634,17 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   font-weight: 600;
 }
 
-/* Typewriter effect */
+/* Typewriter effect — engineering mono telemetry line */
 .hero-typewriter {
   display: flex;
   align-items: center;
   gap: 2px;
   margin-bottom: 14px;
   min-height: 32px;
-  font-size: clamp(1.05rem, 1.5vw, 1.2rem);
+  font-size: clamp(0.95rem, 1.3vw, 1.05rem);
   font-weight: 600;
   color: var(--gold-light);
+  font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, monospace;
 }
 
 .typewriter-cursor {
@@ -670,7 +673,8 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 /* =========================================
-   Hero Visual — AI Core Animation
+   Hero Visual — AI Core Effects
+   Five industrial-AI motion scenes cycle every 60s with blur cross-fade.
    ========================================= */
 .hero-visual {
   display: flex;
@@ -728,7 +732,6 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   align-items: center;
   justify-content: center;
   color: var(--gold-light);
-  animation: ai-center-glow 2s ease-in-out infinite;
 }
 
 .ai-core-center svg {
@@ -739,11 +742,6 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 @keyframes ai-core-pulse {
   0%, 100% { transform: scale(1); opacity: 0.5; }
   50% { transform: scale(1.1); opacity: 1; }
-}
-
-@keyframes ai-center-glow {
-  0%, 100% { filter: drop-shadow(0 0 10px rgba(200,167,91,0.5)); }
-  50% { filter: drop-shadow(0 0 28px rgba(200,167,91,0.95)); }
 }
 
 /* Orbiting dots */
@@ -813,24 +811,88 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 /* ==========================================================================
-   Hero Visual — Alternate AI effects (randomly shown on each refresh)
+   Hero Visual — Alternate AI effects (cycle every 60s with blur cross-fade)
    ========================================================================== */
+
+.fx-scene {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  filter: blur(12px);
+  transform: scale(0.96);
+  transition: opacity 1.2s cubic-bezier(0.25, 1, 0.5, 1),
+              filter 1.2s cubic-bezier(0.25, 1, 0.5, 1),
+              transform 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.fx-scene--active {
+  opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
+  z-index: 2;
+}
 
 /* Shared center logo for all alternate effects */
 .fx-logo {
   position: absolute;
   top: 50%; left: 50%;
-  width: 72px; height: 72px;
+  width: 78px; height: 78px;
   transform: translate(-50%, -50%);
   z-index: 5;
-  color: var(--gold-light);
-  animation: fx-logo-glow 2s ease-in-out infinite;
+  color: var(--gold-bright);
+  animation: fx-logo-breathe 3s ease-in-out infinite;
 }
-.fx-logo svg { width: 100%; height: 100%; }
 
-@keyframes fx-logo-glow {
-  0%, 100% { filter: drop-shadow(0 0 10px rgba(200,167,91,0.5)); }
-  50% { filter: drop-shadow(0 0 28px rgba(200,167,91,0.95)); }
+.fx-logo::before,
+.fx-logo::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 100%; height: 100%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid var(--gold-border-hover);
+  opacity: 0;
+  pointer-events: none;
+  animation: fx-logo-ripple 3s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+.fx-logo::after { animation-delay: 1.5s; }
+
+.fx-logo svg {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 10px rgba(200,167,91,0.55));
+}
+
+.fx-logo-core {
+  filter: drop-shadow(0 0 8px rgba(200,167,91,0.9));
+}
+
+.fx-logo-orbit {
+  transform-origin: 32px 32px;
+  animation: fx-logo-spin 10s linear infinite;
+}
+
+@keyframes fx-logo-breathe {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(200,167,91,0.5)); transform: translate(-50%, -50%) scale(1); }
+  50% { filter: drop-shadow(0 0 22px rgba(200,167,91,0.95)); transform: translate(-50%, -50%) scale(1.04); }
+}
+
+@keyframes fx-logo-ripple {
+  0% { transform: translate(-50%, -50%) scale(0.7); opacity: 0.55; }
+  100% { transform: translate(-50%, -50%) scale(1.9); opacity: 0; }
+}
+
+@keyframes fx-logo-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* ── Effect 2: Orbital satellite network ── */
@@ -1024,14 +1086,22 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 .value-tag {
-  padding: 6px 14px;
-  background: rgba(200, 167, 91, 0.08);
-  border: 1px solid var(--gold-border);
-  border-radius: 999px;
-  font-size: 0.82rem;
-  color: var(--gold-light);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: rgba(200, 167, 91, 0.05);
+  border: 1px solid rgba(200, 167, 91, 0.15);
+  border-radius: 4px;
+  font-size: 0.78rem;
+  color: var(--text-soft);
   font-weight: 500;
-  letter-spacing: 0.03em;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.value-tag::before {
+  content: "·";
+  color: var(--gold);
 }
 
 .hero-actions {
@@ -1041,7 +1111,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 /* =========================================
-   Buttons — Apple-style
+   Buttons — engineering controls
    ========================================= */
 .button-link {
   display: inline-flex;
@@ -1061,29 +1131,25 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .button-link--primary {
   color: var(--button-primary-text);
   background: var(--button-primary-bg);
-  box-shadow: 0 4px 18px rgba(200, 167, 91, 0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+  border: 1px solid var(--button-primary-bg);
 }
 
 .button-link--primary:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.08);
-  box-shadow: 0 8px 28px rgba(200, 167, 91, 0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+  background: var(--gold-hover);
+  border-color: var(--gold-hover);
   color: var(--button-primary-text);
 }
 
 .button-link--secondary {
   color: var(--text-soft);
-  border-color: var(--gold-border);
+  border-color: var(--button-border);
   background: var(--button-secondary-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .button-link--secondary:hover {
   border-color: var(--gold-border-hover);
-  background: rgba(200, 167, 91, 0.15);
+  background: rgba(200, 167, 91, 0.08);
   color: var(--gold-light);
-  transform: translateY(-2px);
 }
 
 /* =========================================
@@ -1889,6 +1955,8 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
     min-height: 300px;
   }
 
+  .fx-logo { width: 60px; height: 60px; }
+
   .ai-core {
     width: 200px;
     height: 200px;
@@ -1902,8 +1970,6 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   .ai-orbit { width: 240px; height: 240px; margin-top: -120px; margin-left: -120px; }
   .ai-orbit--2 { width: 220px; height: 220px; margin-top: -110px; margin-left: -110px; }
   .ai-orbit--3 { width: 260px; height: 260px; margin-top: -130px; margin-left: -130px; }
-
-  .fx-logo { width: 56px; height: 56px; }
 
   .fx-orbital, .fx-neural, .fx-dataflow, .fx-prism {
     width: 240px; height: 240px;
@@ -1925,7 +1991,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   .fx-prism__ray { width: 100px; }
 
   .hero-copy h1 { font-size: 2.2rem; }
-  .hero-copy h2 { font-size: 1.3rem; }
+  .hero-copy h2 { font-size: 1.15rem; }
 
   .grid-2, .grid-3, .cards-grid, .cards-grid--three, .cards-grid--two, .cards-grid--four,
   .doc-zones, .doc-zones--wide {
@@ -1950,23 +2016,29 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 
   .ai-core-ring--outer,
   .ai-core-ring--mid,
-  .ai-core-ring--inner { animation: none; opacity: 0.8; }
-
-  .ai-core-center { animation: none; }
-
+  .ai-core-ring--inner,
   .ai-orbit--1,
   .ai-orbit--2,
-  .ai-orbit--3 { animation: none; }
-
+  .ai-orbit--3,
   .ai-particle--1, .ai-particle--2, .ai-particle--3,
-  .ai-particle--4, .ai-particle--5, .ai-particle--6 { animation: none; opacity: 0; }
-
-  .fx-logo,
+  .ai-particle--4, .ai-particle--5, .ai-particle--6,
+  .fx-logo, .fx-logo svg, .fx-logo::before, .fx-logo::after,
+  .fx-logo-orbit,
   .fx-orbital__ring,
-  .fx-neural__link,
-  .fx-neural__node,
-  .fx-dataflow__ring,
-  .fx-dataflow__packet,
-  .fx-prism__hex,
-  .fx-prism__ray { animation: none !important; }
+  .fx-neural__link, .fx-neural__node,
+  .fx-dataflow__ring, .fx-dataflow__packet,
+  .fx-prism__hex, .fx-prism__ray { animation: none !important; }
+
+  .fx-scene {
+    opacity: 0;
+    filter: blur(12px);
+    transform: scale(0.96);
+    transition: none;
+  }
+
+  .fx-scene--active {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
 }
