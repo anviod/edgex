@@ -87,6 +87,14 @@
   --tok-keyword: #7dd3fc;
   --tok-string: #86efac;
   --tok-number: #fca5a5;
+
+  /* Arch Flow (dark) */
+  --arch-bg: rgba(12, 13, 15, 0.72);
+  --arch-step-bg: rgba(22, 23, 26, 0.85);
+  --arch-step-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  --arch-flow-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35), 0 0 24px rgba(200, 167, 91, 0.06);
+  --arch-status-bar-bg: rgba(200, 167, 91, 0.08);
+  --arch-status-bar-border: rgba(200, 167, 91, 0.12);
 }
 
 /* =========================================
@@ -146,6 +154,14 @@
   --tok-keyword: #2563eb;
   --tok-string: #059669;
   --tok-number: #dc2626;
+
+  /* Arch Flow (light) */
+  --arch-bg: rgba(240, 240, 243, 0.72);
+  --arch-step-bg: rgba(255, 255, 255, 0.88);
+  --arch-step-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  --arch-flow-shadow: inset 0 0 40px rgba(0, 0, 0, 0.04), 0 0 24px rgba(184, 147, 63, 0.06);
+  --arch-status-bar-bg: rgba(184, 147, 63, 0.08);
+  --arch-status-bar-border: rgba(184, 147, 63, 0.12);
 }
 
 
@@ -553,13 +569,14 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   align-items: center;
 }
 
-/* Engineering panel accent — single top line */
+/* Engineering panel accent — uniform top border */
 .hero-section::before {
   content: "";
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--gold) 0%, var(--gold-light) 35%, transparent 80%);
+  height: 1px;
+  background: var(--gold);
+  opacity: 0.45;
   z-index: 2;
   pointer-events: none;
 }
@@ -677,17 +694,21 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 /* =========================================
    Hero Visual — AI Core Effects
    Five industrial-AI motion scenes cycle every 60s with blur cross-fade.
+   All scenes share a unified fx-viewport (300×300px) to guarantee
+   visual size consistency. Max outer radius clamped to 130px.
    ========================================= */
 .hero-visual {
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  width: 100%;
-  min-height: 400px;
+  width: 320px;
+  height: 320px;
+  min-height: 320px;
+  margin: 0 auto;
 }
 
-/* Scene container — blur cross-fade transitions */
+/* Scene container — blur cross-fade with scale normalization */
 .fx-scene {
   position: absolute;
   inset: 0;
@@ -695,29 +716,42 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   align-items: center;
   justify-content: center;
   opacity: 0;
-  filter: blur(12px);
-  transform: scale(0.96);
-  transition: opacity 1.2s cubic-bezier(0.25, 1, 0.5, 1),
-              filter 1.2s cubic-bezier(0.25, 1, 0.5, 1),
-              transform 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+  transform: scale(0.92);
+  filter: blur(8px);
+  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 1.2s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 1.2s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
   z-index: 1;
 }
 
 .fx-scene--active {
   opacity: 1;
-  filter: blur(0);
   transform: scale(1);
+  filter: blur(0px);
+  pointer-events: auto;
   z-index: 2;
 }
 
-/* Shared center logo */
+/* Unified viewport — locks the canvas center and boundary */
+.fx-viewport {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================================
+   Shared center logo — fixed 64×64, exact center
+   ========================================= */
 .fx-logo {
   position: absolute;
+  z-index: 10;
+  width: 64px; height: 64px;
   top: 50%; left: 50%;
-  width: 78px; height: 78px;
   transform: translate(-50%, -50%);
-  z-index: 5;
   color: var(--gold-bright);
   animation: fx-logo-breathe 3s ease-in-out infinite;
 }
@@ -740,8 +774,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .fx-logo svg {
   position: relative;
   z-index: 2;
-  width: 100%;
-  height: 100%;
+  width: 100%; height: 100%;
   filter: drop-shadow(0 0 10px rgba(200,167,91,0.55));
 }
 
@@ -769,61 +802,82 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   to { transform: rotate(360deg); }
 }
 
-/* Generic pulsing dot */
-.fx-dot {
+/* =========================================
+   Generic node (pulsing dot) & tick mark
+   ========================================= */
+.fx-node {
   position: absolute;
   top: 50%; left: 50%;
-  width: var(--d);
-  height: var(--d);
+  width: var(--d); height: var(--d);
   margin: calc(-1 * var(--d) / 2) 0 0 calc(-1 * var(--d) / 2);
   border-radius: 50%;
   background: var(--gold-bright);
   box-shadow: 0 0 12px rgba(200,167,91,0.8), 0 0 24px rgba(200,167,91,0.3);
   transform: rotate(var(--a)) translateX(var(--r)) rotate(calc(-1 * var(--a)));
-  animation: fx-dot-pulse 2.4s ease-in-out infinite;
+  animation: fx-node-pulse 2.4s ease-in-out infinite;
   animation-delay: var(--delay);
 }
 
-@keyframes fx-dot-pulse {
+@keyframes fx-node-pulse {
   0%, 100% { opacity: 0.4; transform: rotate(var(--a)) translateX(var(--r)) rotate(calc(-1 * var(--a))) scale(1); }
   50% { opacity: 1; transform: rotate(var(--a)) translateX(var(--r)) rotate(calc(-1 * var(--a))) scale(1.6); }
 }
 
-/* ── Effect 1: Core reactor ── */
-.fx-core {
-  position: relative;
-  width: 320px; height: 320px;
+.fx-tick {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 1px; height: var(--l);
+  margin: calc(-1 * var(--l) / 2) 0 0 -0.5px;
+  background: var(--gold-border);
+  transform: rotate(var(--a)) translateY(calc(-1 * var(--r)));
+  opacity: 0.35;
 }
 
+/* =========================================
+   Scene containers — all anchored to 100% of viewport
+   ========================================= */
+.fx-core, .fx-lattice, .fx-radar, .fx-field, .fx-beacon {
+  position: absolute;
+  width: 100%; height: 100%;
+  top: 0; left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Effect 1: Core reactor ── */
 .fx-core__ring {
   position: absolute;
   top: 50%; left: 50%;
   border-radius: 50%;
-  border-style: solid;
   border-color: var(--gold-border);
   transform: translate(-50%, -50%);
 }
 
-.fx-core__ring--1 {
-  width: 180px; height: 180px;
-  border-width: 2px;
+.fx-core__ring--solid {
+  width: 220px; height: 220px;
+  border: 2px solid var(--gold-border);
   animation: fx-core-spin 12s linear infinite;
   box-shadow: 0 0 40px var(--gold-glow), inset 0 0 40px var(--gold-glow);
 }
 
-.fx-core__ring--2 {
-  width: 240px; height: 240px;
-  border-width: 1px;
-  border-style: dashed;
+.fx-core__ring--dashed {
+  width: 260px; height: 260px;
+  border: 1px dashed var(--gold-border);
   animation: fx-core-spin 18s linear infinite reverse;
 }
 
-.fx-core__ring--3 {
+.fx-core__ring--dotted {
   width: 300px; height: 300px;
-  border-width: 1px;
-  border-style: dotted;
-  opacity: 0.6;
+  border: 1px dotted var(--gold-border);
+  opacity: 0.5;
   animation: fx-core-spin 26s linear infinite;
+}
+
+.fx-core__ring--outer-ticks {
+  width: 260px; height: 260px;
+  border: none;
+  animation: fx-core-spin 40s linear infinite;
 }
 
 .fx-core__nodes {
@@ -832,17 +886,28 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   pointer-events: none;
 }
 
+.fx-core__pulse-wave {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 160px; height: 160px;
+  margin: -80px 0 0 -80px;
+  border-radius: 50%;
+  border: 1px solid var(--gold-border);
+  opacity: 0;
+  animation: fx-core-wave 3s ease-out infinite;
+}
+
+@keyframes fx-core-wave {
+  0% { transform: scale(0.6); opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
 @keyframes fx-core-spin {
   from { transform: translate(-50%, -50%) rotate(0deg); }
   to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 /* ── Effect 2: Signal lattice ── */
-.fx-lattice {
-  position: relative;
-  width: 320px; height: 320px;
-}
-
 .fx-lattice__grid {
   position: absolute;
   inset: 0;
@@ -852,8 +917,8 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .fx-lattice__cell {
   position: absolute;
   top: 50%; left: 50%;
-  width: 30px; height: 34px;
-  margin: -17px 0 0 -15px;
+  width: 28px; height: 32px;
+  margin: -16px 0 0 -14px;
   border: 1px solid var(--gold-border);
   transform: translate(var(--x), var(--y));
   opacity: 0.25;
@@ -864,7 +929,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .fx-lattice__cell::before {
   content: '';
   position: absolute;
-  inset: 4px;
+  inset: 3px;
   border-radius: 50%;
   background: var(--gold-bright);
   opacity: 0;
@@ -888,21 +953,25 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   pointer-events: none;
 }
 
-.fx-lattice__stream {
+.fx-lattice__stream-track {
   position: absolute;
   top: 50%; left: 50%;
-  width: 140px; height: 2px;
-  margin-top: -1px;
-  background: rgba(200,167,91,0.15);
+  width: 130px; height: 1px;
   transform-origin: 0 50%;
-  transform: rotate(var(--a));
+  transform: rotate(calc(var(--a) * 1deg));
 }
 
-.fx-lattice__stream::after {
-  content: '';
+.fx-lattice__stream-line {
   position: absolute;
-  top: 0; left: 0;
-  width: 16px; height: 100%;
+  inset: 0;
+  background: rgba(200,167,91,0.12);
+}
+
+.fx-lattice__packet {
+  position: absolute;
+  top: 50%; left: 0;
+  width: 14px; height: 3px;
+  margin-top: -1.5px;
   border-radius: 1px;
   background: var(--gold-bright);
   box-shadow: 0 0 10px rgba(200,167,91,0.9);
@@ -914,47 +983,86 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   0% { left: 0; opacity: 0; }
   10% { opacity: 1; }
   90% { opacity: 1; }
-  100% { left: 124px; opacity: 0; }
+  100% { left: 116px; opacity: 0; }
+}
+
+.fx-lattice__tech-ring {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 260px; height: 260px;
+  margin: -130px 0 0 -130px;
+  border-radius: 50%;
+  border: 1px solid var(--gold-border);
+  opacity: 0.18;
+  animation: fx-core-spin 30s linear infinite;
 }
 
 /* ── Effect 3: Radar sweep ── */
-.fx-radar {
-  position: relative;
-  width: 320px; height: 320px;
-}
-
-.fx-radar__grid {
+.fx-radar__rings {
   position: absolute;
   top: 50%; left: 50%;
-  width: 280px; height: 280px;
-  margin: -140px 0 0 -140px;
+  width: 260px; height: 260px;
+  margin: -130px 0 0 -130px;
   border-radius: 50%;
-  background:
-    radial-gradient(circle, transparent 28%, var(--gold-border) 29%, transparent 30%),
-    radial-gradient(circle, transparent 58%, var(--gold-border) 59%, transparent 60%),
-    radial-gradient(circle, transparent 88%, var(--gold-border) 89%, transparent 90%);
-  opacity: 0.35;
+  pointer-events: none;
 }
 
-.fx-radar__sweep {
+.fx-radar__ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid var(--gold-border);
+  top: 50%; left: 50%;
+}
+.fx-radar__ring.r1 { width: 82px; height: 82px; margin: -41px 0 0 -41px; opacity: 0.4; }
+.fx-radar__ring.r2 { width: 164px; height: 164px; margin: -82px 0 0 -82px; opacity: 0.3; }
+.fx-radar__ring.r3 { width: 246px; height: 246px; margin: -123px 0 0 -123px; opacity: 0.2; }
+
+.fx-radar__crosshair {
   position: absolute;
   top: 50%; left: 50%;
-  width: 140px; height: 140px;
-  margin: -140px 0 0 0;
+  width: 260px; height: 260px;
+  margin: -130px 0 0 -130px;
+  pointer-events: none;
+}
+.fx-radar__crosshair::before,
+.fx-radar__crosshair::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  background: var(--gold-border);
+  opacity: 0.25;
+}
+.fx-radar__crosshair::before {
+  width: 100%; height: 1px;
+  margin-top: -0.5px;
+  transform: translate(-50%, -50%);
+}
+.fx-radar__crosshair::after {
+  width: 1px; height: 100%;
+  margin-left: -0.5px;
+  transform: translate(-50%, -50%);
+}
+
+.fx-radar__degrees {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.fx-radar__sweep-arm {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 130px; height: 130px;
+  margin: -130px 0 0 0;
+  transform-origin: 0 100%;
+  animation: fx-radar-sweep 4s linear infinite;
+}
+
+.fx-radar__sweep-sector {
+  position: absolute;
+  inset: 0;
   border-radius: 0 100% 0 0;
   background: conic-gradient(from 0deg, rgba(200,167,91,0.45), rgba(200,167,91,0) 60%);
-  transform-origin: 0 100%;
-  animation: fx-radar-sweep 4s linear infinite;
-}
-
-.fx-radar__axis {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 1px; height: 140px;
-  margin: -140px 0 0 -0.5px;
-  background: linear-gradient(180deg, var(--gold-border-hover), transparent);
-  transform-origin: 0 100%;
-  animation: fx-radar-sweep 4s linear infinite;
 }
 
 @keyframes fx-radar-sweep {
@@ -962,47 +1070,76 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   to { transform: rotate(360deg); }
 }
 
-.fx-radar__blip {
+.fx-radar__blip-wrapper {
   position: absolute;
   top: 50%; left: 50%;
-  width: 8px; height: 8px;
-  margin: -4px 0 0 -4px;
-  border-radius: 50%;
-  background: var(--gold-bright);
-  box-shadow: 0 0 10px rgba(200,167,91,0.9);
+  width: 0; height: 0;
   transform: rotate(var(--a)) translateX(var(--r));
   opacity: 0;
   animation: fx-radar-blip 3s ease-in-out infinite;
   animation-delay: var(--delay);
 }
 
+.fx-radar__blip {
+  position: absolute;
+  width: 8px; height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  box-shadow: 0 0 10px rgba(200,167,91,0.9);
+}
+
+.fx-radar__target-box {
+  position: absolute;
+  width: 18px; height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 1px solid var(--gold-border-hover);
+  animation: fx-target-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes fx-target-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.4); opacity: 0.9; }
+}
+
 @keyframes fx-radar-blip {
-  0%, 100% { opacity: 0; transform: rotate(var(--a)) translateX(var(--r)) scale(0.5); }
-  20% { opacity: 1; transform: rotate(var(--a)) translateX(var(--r)) scale(1.2); }
-  40% { opacity: 0; transform: rotate(var(--a)) translateX(var(--r)) scale(1); }
+  0%, 100% { opacity: 0; }
+  20% { opacity: 1; }
+  40% { opacity: 0; }
 }
 
 /* ── Effect 4: Magnetic field ── */
-.fx-field {
-  position: relative;
-  width: 320px; height: 320px;
+.fx-field__core-halo {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 120px; height: 120px;
+  margin: -60px 0 0 -60px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(200,167,91,0.12) 0%, transparent 70%);
+  animation: fx-logo-breathe 4s ease-in-out infinite;
+}
+
+.fx-field__orbit-plane {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 0; height: 0;
+  transform: rotate(var(--tilt));
 }
 
 .fx-field__orbit {
   position: absolute;
-  top: 50%; left: 50%;
-  width: var(--rx);
-  height: var(--ry);
-  margin: calc(-1 * var(--ry) / 2) 0 0 calc(-1 * var(--rx) / 2);
+  width: calc(var(--rx) * 2); height: calc(var(--ry) * 2);
+  margin: calc(-1 * var(--ry)) 0 0 calc(-1 * var(--rx));
   border-radius: 50%;
-  border: 1px solid var(--gold-border);
-  transform: rotate(var(--tilt));
   animation: fx-field-spin var(--dur) linear infinite;
 }
 
-@keyframes fx-field-spin {
-  from { transform: rotate(var(--tilt)) rotate(0deg); }
-  to { transform: rotate(var(--tilt)) rotate(360deg); }
+.fx-field__orbit-line {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--gold-border);
+  opacity: 0.35;
 }
 
 .fx-field__electron {
@@ -1015,26 +1152,33 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   box-shadow: 0 0 12px rgba(200,167,91,0.9);
 }
 
+@keyframes fx-field-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* ── Effect 5: Beacon tower ── */
-.fx-beacon {
-  position: relative;
-  width: 320px; height: 320px;
-}
-
-.fx-beacon__column {
+.fx-beacon__beam-group {
   position: absolute;
   top: 50%; left: 50%;
-  width: 4px; height: 120px;
-  margin: -60px 0 0 -2px;
+  width: 80px; height: 200px;
+  margin: -100px 0 0 -40px;
+  pointer-events: none;
+}
+
+.fx-beacon__beam-core {
+  position: absolute;
+  top: 0; left: 50%;
+  width: 3px; height: 100%;
+  margin-left: -1.5px;
   background: linear-gradient(180deg, var(--gold-border-hover), transparent);
-  opacity: 0.4;
+  opacity: 0.5;
 }
 
-.fx-beacon__beam {
+.fx-beacon__beam-flare {
   position: absolute;
-  top: 50%; left: 50%;
-  width: 120px; height: 240px;
-  margin: -120px 0 0 -60px;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
   background: linear-gradient(180deg, rgba(200,167,91,0.25), rgba(200,167,91,0));
   clip-path: polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%);
   opacity: 0;
@@ -1046,11 +1190,17 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   50% { opacity: 0.5; transform: scaleX(1.2); }
 }
 
+.fx-beacon__base-plane {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 0; height: 0;
+}
+
 .fx-beacon__ring {
   position: absolute;
   top: 50%; left: 50%;
-  width: 60px; height: 60px;
-  margin: -30px 0 0 -30px;
+  width: 40px; height: 40px;
+  margin: -20px 0 0 -20px;
   border-radius: 50%;
   border: 1px solid var(--gold-border-hover);
   opacity: 0;
@@ -1060,7 +1210,13 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 
 @keyframes fx-beacon-ring {
   0% { transform: scale(1); opacity: 0.7; }
-  100% { transform: scale(5); opacity: 0; }
+  100% { transform: scale(6.5); opacity: 0; }
+}
+
+.fx-beacon__particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
 .fx-beacon__particle {
@@ -1409,16 +1565,17 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .arch-flow {
   position: relative;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0;
   padding: 28px 22px;
   border-radius: var(--radius-md);
-  background: rgba(12, 13, 15, 0.72);
+  background: var(--arch-bg);
   border: 1px solid var(--gold-border);
-  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35), 0 0 24px rgba(200, 167, 91, 0.06);
-  overflow: hidden;
+  box-shadow: var(--arch-flow-shadow);
+  overflow-x: auto;
+  overflow-y: hidden;
   font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, monospace;
 }
 
@@ -1428,8 +1585,8 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   position: absolute;
   top: 0; left: 0; right: 0;
   padding: 5px 14px;
-  background: rgba(200, 167, 91, 0.08);
-  border-bottom: 1px solid rgba(200, 167, 91, 0.12);
+  background: var(--arch-status-bar-bg);
+  border-bottom: 1px solid var(--arch-status-bar-border);
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -1460,17 +1617,18 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   min-width: 108px;
   padding: 12px 14px;
   margin-top: 14px;
-  background: rgba(22, 23, 26, 0.85);
-  border: 1px solid rgba(200, 167, 91, 0.18);
+  background: var(--arch-step-bg);
+  border: 1px solid var(--gold-border);
   border-left: 3px solid var(--gold);
   border-radius: 0 6px 6px 0;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--arch-step-shadow);
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  flex-shrink: 0;
 }
 
 .arch-step:hover {
-  border-color: rgba(200, 167, 91, 0.35);
-  box-shadow: 0 4px 18px rgba(200, 167, 91, 0.08), 0 2px 10px rgba(0, 0, 0, 0.25);
+  border-color: var(--gold-border-hover);
+  box-shadow: 0 4px 18px var(--gold-glow), var(--arch-step-shadow);
 }
 
 .arch-step__num {
@@ -2024,37 +2182,42 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   }
 
   .hero-visual {
-    min-height: 300px;
+    width: 240px;
+    height: 240px;
+    min-height: 240px;
   }
 
-  .fx-logo { width: 60px; height: 60px; }
+  .fx-viewport { width: 225px; height: 225px; }
 
-  .fx-core, .fx-lattice, .fx-radar, .fx-field, .fx-beacon {
-    width: 240px; height: 240px;
-  }
+  .fx-logo { width: 48px; height: 48px; }
 
-  .fx-core__ring--1 { width: 135px; height: 135px; }
-  .fx-core__ring--2 { width: 180px; height: 180px; }
-  .fx-core__ring--3 { width: 225px; height: 225px; }
-  .fx-core__nodes .fx-dot { --r: 106px !important; --d: 6px !important; }
+  .fx-core__ring--solid { width: 165px; height: 165px; }
+  .fx-core__ring--dashed { width: 195px; height: 195px; }
+  .fx-core__ring--dotted { width: 225px; height: 225px; }
+  .fx-core__ring--outer-ticks { width: 195px; height: 195px; }
+  .fx-core__nodes .fx-node { --r: 98px !important; --d: 4px !important; }
+  .fx-core__pulse-wave { width: 120px; height: 120px; margin: -60px 0 0 -60px; }
 
   .fx-lattice__cell { width: 22px; height: 25px; margin: -12px 0 0 -11px; }
-  .fx-lattice__stream { width: 105px; }
-  @keyframes fx-lattice-packet {
+  .fx-lattice__stream-track { width: 98px; }
+  @keyframes fx-lattice-packet-m {
     0% { left: 0; opacity: 0; }
     10% { opacity: 1; }
     90% { opacity: 1; }
-    100% { left: 89px; opacity: 0; }
+    100% { left: 84px; opacity: 0; }
   }
+  .fx-lattice__packet { animation-name: fx-lattice-packet-m; }
+  .fx-lattice__tech-ring { width: 195px; height: 195px; margin: -97px 0 0 -97px; }
 
-  .fx-radar__grid { width: 210px; height: 210px; margin: -105px 0 0 -105px; }
-  .fx-radar__sweep { width: 105px; height: 105px; margin: -105px 0 0 0; }
-  .fx-radar__axis { height: 105px; margin: -105px 0 0 -0.5px; }
+  .fx-radar__rings { width: 195px; height: 195px; margin: -97px 0 0 -97px; }
+  .fx-radar__ring.r1 { width: 62px; height: 62px; margin: -31px 0 0 -31px; }
+  .fx-radar__ring.r2 { width: 124px; height: 124px; margin: -62px 0 0 -62px; }
+  .fx-radar__ring.r3 { width: 185px; height: 185px; margin: -92px 0 0 -92px; }
+  .fx-radar__crosshair { width: 195px; height: 195px; margin: -97px 0 0 -97px; }
+  .fx-radar__sweep-arm { width: 98px; height: 98px; margin: -98px 0 0 0; }
 
-  .fx-field__orbit { --rx: 82px !important; --ry: 45px !important; }
-
-  .fx-beacon__beam { width: 90px; height: 180px; margin: -90px 0 0 -45px; }
-  .fx-beacon__column { height: 90px; margin: -45px 0 0 -2px; }
+  .fx-beacon__beam-group { width: 60px; height: 150px; margin: -75px 0 0 -30px; }
+  .fx-beacon__ring { width: 30px; height: 30px; margin: -15px 0 0 -15px; }
 
   .hero-copy h1 { font-size: 2.2rem; }
   .hero-copy h2 { font-size: 1.15rem; }
@@ -2068,7 +2231,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   .markdown-body { padding: 24px 20px; border-radius: var(--radius-md); }
   .feature-card { padding: 22px; border-radius: var(--radius-md); }
   .roadmap-table { display: block; overflow-x: auto; }
-  .arch-flow { gap: 6px; padding: 14px; }
+  .arch-flow { gap: 6px; padding: 14px; flex-wrap: wrap; justify-content: center; }
   .arch-step { padding: 6px 10px; font-size: 0.78rem; }
   .overview-table .overview-label { width: 90px; }
   .site-tagline p { font-size: 0.9rem; }
@@ -2086,22 +2249,26 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   .fx-logo::after,
   .fx-logo-orbit,
   .fx-core__ring,
-  .fx-dot,
+  .fx-node,
   .fx-lattice__cell,
   .fx-lattice__cell::before,
-  .fx-lattice__stream::after,
-  .fx-radar__sweep,
-  .fx-radar__axis,
+  .fx-lattice__packet,
+  .fx-lattice__tech-ring,
+  .fx-radar__sweep-arm,
   .fx-radar__blip,
+  .fx-radar__blip-wrapper,
+  .fx-radar__target-box,
   .fx-field__orbit,
-  .fx-beacon__beam,
+  .fx-field__orbit-plane,
+  .fx-beacon__beam-flare,
   .fx-beacon__ring,
-  .fx-beacon__particle { animation: none !important; }
+  .fx-beacon__particle,
+  .fx-core__pulse-wave { animation: none !important; }
 
   .fx-scene {
     opacity: 0;
-    filter: blur(12px);
-    transform: scale(0.96);
+    filter: blur(8px);
+    transform: scale(0.92);
     transition: none;
   }
 

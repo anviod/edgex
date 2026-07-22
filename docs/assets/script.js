@@ -81,99 +81,146 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // Hero visual — cycle through five industrial-AI core effects, one minute each
+// All effects share a unified fx-viewport (300×300px) to guarantee visual size consistency.
+// Maximum outer radius is clamped to 130px so every scene occupies the same visual mass.
 function initHeroVisual() {
   var container = document.querySelector('[data-hero-visual]');
   if (!container) return;
 
-  var logoSvg = '<svg class="fx-logo-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><path class="fx-logo-hex" d="M32 4L56 18v28L32 60 8 46V18L32 4z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path class="fx-logo-inner" d="M32 14l14 8v16l-14 8-14-8V22l14-8z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" opacity="0.55"/><g class="fx-logo-nodes"><circle cx="32" cy="4" r="2.2" fill="currentColor"/><circle cx="56" cy="18" r="2.2" fill="currentColor"/><circle cx="56" cy="46" r="2.2" fill="currentColor"/><circle cx="32" cy="60" r="2.2" fill="currentColor"/><circle cx="8" cy="46" r="2.2" fill="currentColor"/><circle cx="8" cy="18" r="2.2" fill="currentColor"/></g><circle class="fx-logo-core" cx="32" cy="32" r="5.5" fill="currentColor"/><circle class="fx-logo-orbit" cx="32" cy="32" r="11" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.7" fill="none"/></svg>';
+  var logoSvg = '<svg class="fx-logo-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+    '<path class="fx-logo-hex" d="M32 4L56 18v28L32 60 8 46V18L32 4z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>' +
+    '<path class="fx-logo-inner" d="M32 14l14 8v16l-14 8-14-8V22l14-8z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" opacity="0.6"/>' +
+    '<path class="fx-logo-rays" d="M32 4v10M56 18L46 22M56 46L46 42M32 60V50M8 46l10-4M8 18l10 4" stroke="currentColor" stroke-width="1" opacity="0.4"/>' +
+    '<g class="fx-logo-nodes"><circle cx="32" cy="4" r="2.2" fill="currentColor"/><circle cx="56" cy="18" r="2.2" fill="currentColor"/><circle cx="56" cy="46" r="2.2" fill="currentColor"/><circle cx="32" cy="60" r="2.2" fill="currentColor"/><circle cx="8" cy="46" r="2.2" fill="currentColor"/><circle cx="8" cy="18" r="2.2" fill="currentColor"/></g>' +
+    '<circle class="fx-logo-core" cx="32" cy="32" r="5.5" fill="currentColor"/>' +
+    '<circle class="fx-logo-orbit" cx="32" cy="32" r="11" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.75" fill="none"/>' +
+    '</svg>';
   var logo = '<div class="fx-logo">' + logoSvg + '</div>';
 
-  function dots(count, radius, size) {
+  function generateNodes(count, radius, size, delayOffset) {
     var html = '';
     for (var i = 0; i < count; i++) {
-      var a = (360 / count * i).toFixed(1);
-      html += '<span class="fx-dot" style="--a:' + a + 'deg;--r:' + radius + 'px;--d:' + size + 'px;--delay:' + (i * 0.15).toFixed(2) + 's"></span>';
+      var angle = (360 / count * i).toFixed(1);
+      var delay = ((i * 0.12) + (delayOffset || 0)).toFixed(2);
+      html += '<span class="fx-node" style="--a:' + angle + 'deg;--r:' + radius + 'px;--d:' + size + 'px;--delay:' + delay + 's"></span>';
+    }
+    return html;
+  }
+
+  function generateTicks(count, radius, length) {
+    var html = '';
+    for (var i = 0; i < count; i++) {
+      var angle = (360 / count * i).toFixed(1);
+      html += '<span class="fx-tick" style="--a:' + angle + 'deg;--r:' + radius + 'px;--l:' + length + 'px"></span>';
     }
     return html;
   }
 
   function buildScene(type) {
-    var html = '';
+    var innerContent = '';
+
     if (type === 'core') {
-      html =
+      innerContent =
         '<div class="fx-core">' + logo +
-          '<div class="fx-core__ring fx-core__ring--1"></div>' +
-          '<div class="fx-core__ring fx-core__ring--2"></div>' +
-          '<div class="fx-core__ring fx-core__ring--3"></div>' +
-          '<div class="fx-core__nodes">' + dots(12, 142, 7) + '</div>' +
+          '<div class="fx-core__ring fx-core__ring--solid"></div>' +
+          '<div class="fx-core__ring fx-core__ring--dashed"></div>' +
+          '<div class="fx-core__ring fx-core__ring--dotted"></div>' +
+          '<div class="fx-core__ring fx-core__ring--outer-ticks">' + generateTicks(36, 130, 5) + '</div>' +
+          '<div class="fx-core__nodes fx-core__nodes--inner">' + generateNodes(12, 105, 5, 0) + '</div>' +
+          '<div class="fx-core__nodes fx-core__nodes--outer">' + generateNodes(12, 130, 6, 0.5) + '</div>' +
+          '<span class="fx-core__pulse-wave"></span>' +
         '</div>';
     } else if (type === 'lattice') {
       var cells = '';
       for (var r = -2; r <= 2; r++) {
         for (var c = -2; c <= 2; c++) {
-          var x = c * 34;
-          var y = r * 30 + (c % 2) * 15;
-          cells += '<span class="fx-lattice__cell" style="--x:' + x + 'px;--y:' + y + 'px;--delay:' + (Math.random() * 2).toFixed(2) + 's"></span>';
+          var x = c * 32;
+          var y = r * 28 + (Math.abs(c) % 2) * 14;
+          var delay = (Math.random() * 2.5).toFixed(2);
+          cells += '<span class="fx-lattice__cell" style="--x:' + x + 'px;--y:' + y + 'px;--delay:' + delay + 's"></span>';
         }
       }
       var streams = '';
       for (var s = 0; s < 6; s++) {
-        streams += '<span class="fx-lattice__stream" style="--a:' + (s * 60).toFixed(0) + 'deg;--delay:' + (s * 0.4).toFixed(1) + 's"></span>';
+        streams +=
+          '<div class="fx-lattice__stream-track" style="--a:' + (s * 60) + 'deg">' +
+            '<span class="fx-lattice__stream-line"></span>' +
+            '<span class="fx-lattice__packet" style="--delay:' + (s * 0.35).toFixed(2) + 's"></span>' +
+          '</div>';
       }
-      html =
+      innerContent =
         '<div class="fx-lattice">' + logo +
           '<div class="fx-lattice__grid">' + cells + '</div>' +
           '<div class="fx-lattice__streams">' + streams + '</div>' +
+          '<div class="fx-lattice__tech-ring"></div>' +
         '</div>';
     } else if (type === 'radar') {
       var blips = '';
       for (var b = 0; b < 5; b++) {
-        var dist = 40 + Math.random() * 90;
+        var dist = 35 + Math.random() * 85;
         var ang = Math.random() * 360;
-        blips += '<span class="fx-radar__blip" style="--r:' + dist.toFixed(0) + 'px;--a:' + ang.toFixed(0) + 'deg;--delay:' + (Math.random() * 3).toFixed(2) + 's"></span>';
+        blips +=
+          '<div class="fx-radar__blip-wrapper" style="--r:' + dist.toFixed(0) + 'px;--a:' + ang.toFixed(0) + 'deg;--delay:' + (Math.random() * 3).toFixed(2) + 's">' +
+            '<span class="fx-radar__blip"></span>' +
+            (b === 0 || b === 2 ? '<span class="fx-radar__target-box"></span>' : '') +
+          '</div>';
       }
-      html =
+      innerContent =
         '<div class="fx-radar">' + logo +
-          '<span class="fx-radar__grid"></span>' +
-          '<span class="fx-radar__sweep"></span>' +
-          '<span class="fx-radar__axis"></span>' +
+          '<div class="fx-radar__rings">' +
+            '<span class="fx-radar__ring r1"></span>' +
+            '<span class="fx-radar__ring r2"></span>' +
+            '<span class="fx-radar__ring r3"></span>' +
+          '</div>' +
+          '<div class="fx-radar__crosshair"></div>' +
+          '<div class="fx-radar__degrees">' + generateTicks(12, 130, 4) + '</div>' +
+          '<div class="fx-radar__sweep-arm"><span class="fx-radar__sweep-sector"></span></div>' +
           blips +
         '</div>';
     } else if (type === 'field') {
       var orbits = '';
-      for (var o = 0; o < 3; o++) {
-        var rx = 110 + o * 30;
-        var ry = 60 + o * 20;
-        var tilt = o * 35;
-        var dur = 8 + o * 4;
+      var config = [
+        { rx: 110, ry: 45, tilt: 25, dur: 6 },
+        { rx: 125, ry: 55, tilt: -35, dur: 8 },
+        { rx: 135, ry: 65, tilt: 70, dur: 10 }
+      ];
+      for (var o = 0; o < config.length; o++) {
+        var cfg = config[o];
         orbits +=
-          '<span class="fx-field__orbit" style="--rx:' + rx + 'px;--ry:' + ry + 'px;--tilt:' + tilt + 'deg;--dur:' + dur + 's">' +
-            '<span class="fx-field__electron" style="--delay:' + (o * -1.5).toFixed(1) + 's"></span>' +
-          '</span>';
+          '<div class="fx-field__orbit-plane" style="--tilt:' + cfg.tilt + 'deg">' +
+            '<div class="fx-field__orbit" style="--rx:' + cfg.rx + 'px;--ry:' + cfg.ry + 'px;--dur:' + cfg.dur + 's">' +
+              '<span class="fx-field__orbit-line"></span>' +
+              '<span class="fx-field__electron" style="--delay:' + (o * -2).toFixed(1) + 's"></span>' +
+            '</div>' +
+          '</div>';
       }
-      html =
+      innerContent =
         '<div class="fx-field">' + logo +
+          '<div class="fx-field__core-halo"></div>' +
           orbits +
         '</div>';
     } else if (type === 'beacon') {
       var rings = '';
       for (var k = 0; k < 4; k++) {
-        rings += '<span class="fx-beacon__ring" style="--delay:' + (k * 0.8).toFixed(1) + 's"></span>';
+        rings += '<span class="fx-beacon__ring" style="--delay:' + (k * 0.75).toFixed(2) + 's"></span>';
       }
       var particles = '';
       for (var p = 0; p < 12; p++) {
-        var x = Math.cos(p * 30 * Math.PI / 180) * (8 + Math.random() * 8);
-        particles += '<span class="fx-beacon__particle" style="--x:' + x.toFixed(1) + 'px;--delay:' + (Math.random() * 2).toFixed(2) + 's;--dur:' + (2 + Math.random() * 2).toFixed(1) + 's"></span>';
+        var pX = (Math.sin(p) * 18).toFixed(1);
+        particles += '<span class="fx-beacon__particle" style="--x:' + pX + 'px;--delay:' + (Math.random() * 2.5).toFixed(2) + 's;--dur:' + (1.8 + Math.random() * 1.5).toFixed(1) + 's"></span>';
       }
-      html =
+      innerContent =
         '<div class="fx-beacon">' + logo +
-          '<span class="fx-beacon__beam"></span>' +
-          '<span class="fx-beacon__column"></span>' +
-          rings +
-          particles +
+          '<div class="fx-beacon__beam-group">' +
+            '<span class="fx-beacon__beam-core"></span>' +
+            '<span class="fx-beacon__beam-flare"></span>' +
+          '</div>' +
+          '<div class="fx-beacon__base-plane">' + rings + '</div>' +
+          '<div class="fx-beacon__particles">' + particles + '</div>' +
         '</div>';
     }
-    return '<div class="fx-scene">' + html + '</div>';
+
+    return '<div class="fx-scene"><div class="fx-viewport">' + innerContent + '</div></div>';
   }
 
   var effects = ['core', 'lattice', 'radar', 'field', 'beacon'];
