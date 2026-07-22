@@ -296,12 +296,29 @@ function initHeroVisual() {
 
   var current = 0;
   var SCENE_DURATION = 60000;
+  var sceneTimer = null;
 
-  setInterval(function () {
+  // 统一切换函数 / Unified scene switcher
+  function switchScene(next) {
     scenes[current].classList.remove('fx-scene--active');
-    current = (current + 1) % scenes.length;
+    current = next % scenes.length;
     scenes[current].classList.add('fx-scene--active');
-  }, SCENE_DURATION);
+  }
+
+  function startAutoCycle() {
+    if (sceneTimer) clearInterval(sceneTimer);
+    sceneTimer = setInterval(function () {
+      switchScene(current + 1);
+    }, SCENE_DURATION);
+  }
+
+  startAutoCycle();
+
+  // 双击手动切换下一个 / Double-click to advance to next scene
+  container.addEventListener('dblclick', function () {
+    switchScene(current + 1);
+    startAutoCycle(); // 重置自动轮播计时器 / reset auto-cycle timer
+  });
 }
 
 // Theme toggle — dark/light switch with localStorage

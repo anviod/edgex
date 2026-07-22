@@ -757,6 +757,9 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   height: 320px;
   min-height: 320px;
   margin: 0 auto;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Scene container — blur cross-fade with scale normalization */
