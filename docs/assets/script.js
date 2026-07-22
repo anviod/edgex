@@ -131,28 +131,75 @@ function initHeroVisual() {
           '<span class="fx-core__pulse-wave"></span>' +
         '</div>';
     } else if (type === 'lattice') {
-      var cells = '';
-      for (var r = -2; r <= 2; r++) {
-        for (var c = -2; c <= 2; c++) {
-          var x = c * 32;
-          var y = r * 28 + (Math.abs(c) % 2) * 14;
-          var delay = (Math.random() * 2.5).toFixed(2);
-          cells += '<span class="fx-lattice__cell" style="--x:' + x + 'px;--y:' + y + 'px;--delay:' + delay + 's"></span>';
+      // Hexagonal network mesh — 3 concentric rings of 6 nodes with interconnections
+      var latticeNodes = [];
+      var ringConfigs = [
+        { r: 55, offset: -90, size: 5 },
+        { r: 95, offset: -60, size: 6 },
+        { r: 130, offset: -90, size: 4 },
+      ];
+      for (var ri = 0; ri < ringConfigs.length; ri++) {
+        var rc = ringConfigs[ri];
+        for (var ni = 0; ni < 6; ni++) {
+          var ang = (60 * ni + rc.offset) * Math.PI / 180;
+          latticeNodes.push({
+            x: Math.round(rc.r * Math.cos(ang)),
+            y: Math.round(rc.r * Math.sin(ang)),
+            ring: ri + 1,
+            size: rc.size,
+            delay: (ni * 0.15 + ri * 0.3).toFixed(2)
+          });
         }
       }
-      var streams = '';
-      for (var s = 0; s < 6; s++) {
-        streams +=
-          '<div class="fx-lattice__stream-track" style="--a:' + (s * 60) + 'deg">' +
-            '<span class="fx-lattice__stream-line"></span>' +
-            '<span class="fx-lattice__packet" style="--delay:' + (s * 0.35).toFixed(2) + 's"></span>' +
-          '</div>';
+
+      // Links: [fromIdx, toIdx, isFlow]  (-1 = center/logo)
+      var latticeLinks = [
+        [-1,0,'flow'], [-1,2,'flow'], [-1,4,'flow'],
+        [0,1,''], [1,2,''], [2,3,''], [3,4,''], [4,5,''], [5,0,''],
+        [0,6,'flow'], [2,8,'flow'], [4,10,'flow'],
+        [6,7,''], [7,8,''], [8,9,''], [9,10,''], [10,11,''], [11,6,''],
+        [6,12,'flow'], [8,14,'flow'], [10,16,'flow'],
+        [12,13,''], [13,14,''], [14,15,''], [15,16,''], [16,17,''], [17,12,''],
+      ];
+
+      var linkSvg = '';
+      for (var l = 0; l < latticeLinks.length; l++) {
+        var lk = latticeLinks[l];
+        var n1 = lk[0] === -1 ? { x: 0, y: 0 } : latticeNodes[lk[0]];
+        var n2 = lk[1] === -1 ? { x: 0, y: 0 } : latticeNodes[lk[1]];
+        var flowCls = lk[2] === 'flow' ? ' fx-lattice__link--flow' : '';
+        linkSvg += '<line class="fx-lattice__link' + flowCls + '" x1="' + n1.x + '" y1="' + n1.y + '" x2="' + n2.x + '" y2="' + n2.y + '"/>';
       }
+
+      var nodeSvg = '';
+      for (var n = 0; n < latticeNodes.length; n++) {
+        var nd = latticeNodes[n];
+        nodeSvg += '<circle class="fx-lattice__node fx-lattice__node--r' + nd.ring + '" cx="' + nd.x + '" cy="' + nd.y + '" r="' + nd.size + '" style="--delay:' + nd.delay + 's"/>';
+      }
+
+      // Data pulses traveling along flow links (HTML spans with offset-path)
+      var pulseHtml = '';
+      var pulseIdx = 0;
+      for (var p = 0; p < latticeLinks.length; p++) {
+        if (latticeLinks[p][2] !== 'flow') continue;
+        var pl = latticeLinks[p];
+        var p1 = pl[0] === -1 ? { x: 0, y: 0 } : latticeNodes[pl[0]];
+        var p2 = pl[1] === -1 ? { x: 0, y: 0 } : latticeNodes[pl[1]];
+        var px1 = p1.x + 150, py1 = p1.y + 150;
+        var px2 = p2.x + 150, py2 = p2.y + 150;
+        pulseHtml += '<span class="fx-lattice__pulse" style="offset-path: path(\'M ' + px1 + ' ' + py1 + ' L ' + px2 + ' ' + py2 + '\');--delay:' + (pulseIdx * 0.22).toFixed(2) + 's"></span>';
+        pulseIdx++;
+      }
+
       innerContent =
         '<div class="fx-lattice">' + logo +
-          '<div class="fx-lattice__grid">' + cells + '</div>' +
-          '<div class="fx-lattice__streams">' + streams + '</div>' +
-          '<div class="fx-lattice__tech-ring"></div>' +
+          '<svg class="fx-lattice__svg" viewBox="-150 -150 300 300">' +
+            '<g class="fx-lattice__links">' + linkSvg + '</g>' +
+            '<g class="fx-lattice__nodes">' + nodeSvg + '</g>' +
+          '</svg>' +
+          '<div class="fx-lattice__pulses">' + pulseHtml + '</div>' +
+          '<div class="fx-lattice__scan"></div>' +
+          '<div class="fx-lattice__boundary"></div>' +
         '</div>';
     } else if (type === 'radar') {
       var blips = '';
