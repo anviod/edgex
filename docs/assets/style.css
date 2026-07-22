@@ -254,8 +254,8 @@ body::before {
   z-index: -2;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(200, 167, 91, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(200, 167, 91, 0.03) 1px, transparent 1px);
+    linear-gradient(var(--gold-ghost) 1px, transparent 1px),
+    linear-gradient(90deg, var(--gold-ghost) 1px, transparent 1px);
   background-size: 48px 48px;
   background-attachment: fixed;
 }
@@ -267,7 +267,7 @@ body::after {
   width: 100%; height: 100%;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(ellipse 60% 30% at 50% 0%, rgba(200, 167, 91, 0.04) 0%, transparent 60%);
+  background: radial-gradient(ellipse 60% 30% at 50% 0%, var(--gold-ghost) 0%, transparent 60%);
 }
 
 a {
@@ -281,8 +281,27 @@ a:hover { color: var(--gold-light); }
 img { display: block; max-width: 100%; height: auto; }
 
 ::selection {
-  background: rgba(200, 167, 91, 0.35);
+  background: var(--gold-selection);
   color: var(--text);
+}
+
+/* ── Focus visible — global accessibility ── */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.theme-toggle:focus-visible {
+  outline-color: var(--gold-border-hover);
+  box-shadow: 0 0 0 4px var(--gold-glow);
+}
+
+.button-link:focus-visible {
+  outline-color: var(--gold-border-hover);
+  box-shadow: 0 0 0 3px var(--gold-glow);
 }
 
 code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, monospace; }
@@ -366,8 +385,8 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   padding: clamp(32px, 4vw, 52px);
   border-radius: var(--radius-lg);
   background: var(--glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: var(--blur-xs);
+  -webkit-backdrop-filter: var(--blur-xs);
   border: 1px solid var(--gold-border);
   box-shadow: var(--shadow);
   line-height: 1.9;
@@ -392,7 +411,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   margin: 1.5rem 0;
   padding: 1.1rem 1.4rem;
   border-left: 3px solid var(--gold);
-  background: rgba(200, 167, 91, 0.06);
+  background: var(--gold-ghost-strong);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
@@ -417,7 +436,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 .markdown-body thead {
-  background: linear-gradient(135deg, rgba(200, 167, 91, 0.08) 0%, rgba(200, 167, 91, 0.03) 100%);
+  background: linear-gradient(135deg, var(--gold-bg) 0%, var(--gold-ghost) 100%);
 }
 
 .markdown-body th, .markdown-body td {
@@ -436,11 +455,11 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 .markdown-body tbody tr:last-child td { border-bottom: none; }
-.markdown-body tbody tr:hover td { background: rgba(200, 167, 91, 0.04); }
+.markdown-body tbody tr:hover td { background: var(--gold-ghost); }
 
 .markdown-body code {
   padding: 0.25em 0.6em;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   background: var(--code-inline-bg);
   color: var(--code-inline-color);
   font-size: 0.9em;
@@ -499,7 +518,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 .copy-button:hover { border-color: var(--gold); color: var(--gold-light); }
-.copy-button.copied { background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.3); color: var(--success); }
+.copy-button.copied { background: var(--success-bg); border-color: var(--success-border); color: var(--success); }
 
 /* =========================================
    404 page
@@ -519,7 +538,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .page-not-found h2 { margin: 0 0 16px; color: var(--text); }
 .page-not-found p { color: var(--text-muted); }
 .page-not-found__actions { margin-top: 28px; }
-.page-not-found__meta { margin-top: 48px; font-size: 13px; color: var(--text-dim); }
+.page-not-found__meta { margin-top: 48px; font-size: 0.8125rem; color: var(--text-dim); }
 
 /* =========================================
    Section index layout
@@ -532,8 +551,8 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   padding: clamp(32px, 4vw, 48px);
   border-radius: var(--radius-lg);
   background: var(--glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: var(--blur-xs);
+  -webkit-backdrop-filter: var(--blur-xs);
   color: var(--text);
   border: 1px solid var(--gold-border);
   box-shadow: var(--shadow);
@@ -544,8 +563,8 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   margin-bottom: 12px;
   padding: 6px 14px;
   border-radius: 999px;
-  background: rgba(200, 167, 91, 0.12);
-  border: 1px solid rgba(200, 167, 91, 0.25);
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-border);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -642,7 +661,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   margin-bottom: 20px;
   padding: 6px 12px;
   border-radius: 6px;
-  background: rgba(200, 167, 91, 0.08);
+  background: var(--gold-bg);
   border: 1px solid var(--gold-border);
   color: var(--gold-light);
   font-family: "JetBrains Mono", monospace;
@@ -657,7 +676,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   border-radius: 50%;
   background: var(--success);
   margin-right: 8px;
-  box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
+  box-shadow: 0 0 6px var(--success-glow);
 }
 
 .hero-copy h1 {
@@ -750,9 +769,9 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   opacity: 0;
   transform: scale(0.92);
   filter: blur(8px);
-  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 1.2s cubic-bezier(0.16, 1, 0.3, 1),
-              filter 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity var(--transition-scene),
+            transform var(--transition-scene),
+            filter var(--transition-scene);
   pointer-events: none;
   z-index: 1;
 }
@@ -1294,7 +1313,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   padding: 5px 12px;
   background: rgba(200, 167, 91, 0.05);
   border: 1px solid rgba(200, 167, 91, 0.15);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   font-size: 0.78rem;
   color: var(--text-soft);
   font-weight: 500;
@@ -1325,7 +1344,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   border: 1px solid transparent;
   font-weight: 600;
   font-size: 0.95rem;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.03em;
   transition: all var(--transition-base);
   cursor: pointer;
 }
@@ -1350,7 +1369,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 
 .button-link--secondary:hover {
   border-color: var(--gold-border-hover);
-  background: rgba(200, 167, 91, 0.08);
+  background: var(--gold-bg);
   color: var(--gold-light);
 }
 
@@ -1362,8 +1381,8 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   padding: 32px;
   border-radius: var(--radius-lg);
   background: var(--glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: var(--blur-xs);
+  -webkit-backdrop-filter: var(--blur-xs);
   border: 1px solid var(--gold-border);
   box-shadow: var(--shadow);
 }
@@ -1433,7 +1452,6 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   gap: 20px;
 }
 
-.cards-grid--three { grid-template-columns: repeat(3, 1fr); gap: 20px; }
 .cards-grid--four { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
 .cards-grid--two { grid-template-columns: repeat(2, 1fr); gap: 20px; }
 
@@ -1447,12 +1465,12 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   padding: 28px;
   border-radius: var(--radius-lg);
   background: var(--glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: var(--blur-xs);
+  -webkit-backdrop-filter: var(--blur-xs);
   border: 1px solid var(--gold-border);
   background-image:
-    linear-gradient(rgba(200, 167, 91, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(200, 167, 91, 0.06) 1px, transparent 1px);
+    linear-gradient(var(--gold-ghost-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--gold-ghost-strong) 1px, transparent 1px);
   background-size: 12px 12px;
   background-position: center;
   transition: var(--transition-base);
@@ -1477,7 +1495,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   border-bottom: 2px solid var(--gold-light);
   border-right: 2px solid var(--gold-light);
   opacity: 0.5;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
 }
 
 .feature-card:hover {
@@ -1489,7 +1507,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .feature-card:hover::after {
   opacity: 1;
   width: 22px; height: 22px;
-  box-shadow: 3px 3px 8px rgba(200, 167, 91, 0.25);
+  box-shadow: 3px 3px 8px var(--gold-border);
 }
 
 .feature-card__tag {
@@ -1497,8 +1515,8 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   align-self: flex-start;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(200, 167, 91, 0.12);
-  border: 1px solid rgba(200, 167, 91, 0.25);
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-border);
   color: var(--gold-light);
   font-size: 0.68rem;
   font-weight: 700;
@@ -1525,12 +1543,12 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .feature-card--capability {
   padding: 28px;
   background: var(--glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: var(--blur-xs);
+  -webkit-backdrop-filter: var(--blur-xs);
   border: 1px solid var(--gold-border);
   background-image:
-    linear-gradient(rgba(200, 167, 91, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(200, 167, 91, 0.06) 1px, transparent 1px);
+    linear-gradient(var(--gold-ghost-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--gold-ghost-strong) 1px, transparent 1px);
   background-size: 12px 12px;
   background-position: center;
 }
@@ -1564,7 +1582,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .feature-card--capability:hover::after {
   opacity: 1;
   width: 22px; height: 22px;
-  box-shadow: 3px 3px 8px rgba(200, 167, 91, 0.25);
+  box-shadow: 3px 3px 8px var(--gold-border);
 }
 
 .feature-card--capability h3 {
@@ -1657,9 +1675,9 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   background: var(--arch-step-bg);
   border: 1px solid var(--gold-border);
   border-left: 3px solid var(--gold);
-  border-radius: 0 6px 6px 0;
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
   box-shadow: var(--arch-step-shadow);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
   flex-shrink: 0;
 }
 
@@ -1695,7 +1713,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   height: 5px;
   border-radius: 50%;
   background: var(--success);
-  box-shadow: 0 0 5px rgba(74, 222, 128, 0.5);
+  box-shadow: 0 0 5px var(--success-glow);
 }
 
 .arch-arrow {
@@ -1731,7 +1749,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   padding: 14px 18px;
   margin-bottom: 10px;
   border-radius: var(--radius-md);
-  background: rgba(200, 167, 91, 0.06);
+  background: var(--gold-ghost-strong);
   border: 1px solid var(--gold-line);
   border-left: 3px solid var(--gold);
   font-size: 0.92rem;
@@ -1744,7 +1762,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 
 .principle-item:hover {
   border-color: var(--gold-border);
-  background: rgba(200, 167, 91, 0.10);
+  background: var(--gold-bg-strong);
 }
 
 /* =========================================
@@ -1767,8 +1785,8 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 .overview-table tr:last-child td { border-bottom: none; }
-.overview-table tr:nth-child(even) td { background: rgba(200, 167, 91, 0.03); }
-.overview-table tr:hover td { background: rgba(200, 167, 91, 0.06); }
+.overview-table tr:nth-child(even) td { background: var(--gold-ghost); }
+.overview-table tr:hover td { background: var(--gold-ghost-strong); }
 
 .overview-table .overview-label {
   width: 140px;
@@ -1785,7 +1803,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   margin-bottom: 24px;
   padding: 18px 22px;
   border-radius: var(--radius-md);
-  background: rgba(200, 167, 91, 0.06);
+  background: var(--gold-ghost-strong);
   border: 1px solid var(--gold-line);
   border-left: 3px solid var(--gold);
 }
@@ -1838,7 +1856,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 .quarter-badge--planned {
-  background: rgba(200, 167, 91, 0.08);
+  background: var(--gold-bg);
   color: var(--gold-dark);
   border: 1px solid var(--gold-line);
 }
@@ -1855,7 +1873,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 .roadmap-table th {
-  background: linear-gradient(135deg, rgba(200, 167, 91, 0.08), rgba(200, 167, 91, 0.03));
+  background: linear-gradient(135deg, var(--gold-bg), var(--gold-ghost));
   color: var(--gold-light);
   text-align: left;
   padding: 12px 14px;
@@ -1874,8 +1892,8 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 
 .roadmap-table tr:last-child td { border-bottom: none; }
 .roadmap-table tr td:first-child { color: var(--text); font-weight: 600; }
-.roadmap-table tr:nth-child(even) td { background: rgba(200, 167, 91, 0.03); }
-.roadmap-table tr:hover td { background: rgba(200, 167, 91, 0.06); }
+.roadmap-table tr:nth-child(even) td { background: var(--gold-ghost); }
+.roadmap-table tr:hover td { background: var(--gold-ghost-strong); }
 
 /* Badge system */
 .badge {
@@ -1887,7 +1905,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   letter-spacing: 0.03em;
 }
 
-.badge-high { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.35); }
+.badge-high { background: var(--error-bg); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.35); }
 .badge-med { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.35); }
 .badge-progress { background: rgba(200, 167, 91, 0.15); color: var(--gold-light); border: 1px solid var(--gold-border); }
 .badge-research { background: rgba(96, 165, 250, 0.15); color: #93c5fd; border: 1px solid rgba(96, 165, 250, 0.35); }
@@ -1902,9 +1920,9 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   letter-spacing: 0.03em;
 }
 
-.status-badge--done { background: rgba(74, 222, 128, 0.12); color: var(--success); border: 1px solid rgba(74, 222, 128, 0.3); }
-.status-badge--progress { background: rgba(200, 167, 91, 0.12); color: var(--gold-light); border: 1px solid var(--gold-border); }
-.status-badge--research { background: rgba(96, 165, 250, 0.12); color: var(--tip); border: 1px solid rgba(96, 165, 250, 0.3); }
+.status-badge--done { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+.status-badge--progress { background: var(--gold-soft); color: var(--gold-light); border: 1px solid var(--gold-border); }
+.status-badge--research { background: var(--tip-bg); color: var(--tip); border: 1px solid var(--tip-border); }
 .status-badge--pending { background: rgba(119, 119, 119, 0.12); color: var(--text-dim); border: 1px solid rgba(119, 119, 119, 0.3); }
 
 .priority-badge { display: inline; font-size: inherit; font-weight: 700; padding: 0; border-radius: 0; background: none; }
@@ -1922,7 +1940,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 .milestone-item {
-  background: rgba(200, 167, 91, 0.04);
+  background: var(--gold-ghost);
   border: 1px solid var(--gold-line);
   border-radius: var(--radius-md);
   padding: 14px 16px;
@@ -1934,11 +1952,11 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 
 .milestone-item:hover {
   border-color: var(--gold-border);
-  background: rgba(200, 167, 91, 0.08);
+  background: var(--gold-bg);
 }
 
 .milestone-item--new {
-  background: rgba(200, 167, 91, 0.08);
+  background: var(--gold-bg);
   border-color: var(--gold-border);
 }
 
@@ -2001,14 +2019,14 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .doc-zone {
   padding: 20px;
   border-radius: var(--radius-md);
-  background: rgba(200, 167, 91, 0.04);
+  background: var(--gold-ghost);
   border: 1px solid var(--gold-line);
   transition: var(--transition-fast);
 }
 
 .doc-zone:hover {
   border-color: var(--gold-border);
-  background: rgba(200, 167, 91, 0.08);
+  background: var(--gold-bg);
 }
 
 .doc-zone h3 {
@@ -2054,7 +2072,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .quick-links a {
   padding: 8px 16px;
   border-radius: 999px;
-  background: rgba(200, 167, 91, 0.06);
+  background: var(--gold-ghost-strong);
   border: 1px solid var(--gold-line);
   color: var(--text-muted);
   font-weight: 500;
@@ -2064,7 +2082,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 
 .quick-links a:hover {
   border-color: var(--gold-border);
-  background: rgba(200, 167, 91, 0.12);
+  background: var(--gold-soft);
   color: var(--gold-light);
 }
 
@@ -2129,9 +2147,9 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 .alert--success { background: rgba(74, 222, 128, 0.06); border-color: rgba(74, 222, 128, 0.25); color: #86efac; }
-.alert--warning { background: rgba(200, 167, 91, 0.08); border-color: var(--gold-border); color: var(--gold-bright); }
-.alert--error { background: rgba(239, 68, 68, 0.06); border-color: rgba(239, 68, 68, 0.25); color: #fca5a5; }
-.alert--tip { background: rgba(96, 165, 250, 0.06); border-color: rgba(96, 165, 250, 0.25); color: #93c5fd; }
+.alert--warning { background: var(--gold-bg); border-color: var(--gold-border); color: var(--gold-bright); }
+.alert--error { background: var(--error-soft); border-color: rgba(239, 68, 68, 0.25); color: #fca5a5; }
+.alert--tip { background: var(--tip-soft); border-color: rgba(96, 165, 250, 0.25); color: #93c5fd; }
 
 /* =========================================
    Footer
@@ -2173,7 +2191,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
    Responsive
    ========================================= */
 @media (max-width: 1180px) {
-  .grid-2, .grid-3, .cards-grid, .cards-grid--three, .cards-grid--two {
+  .grid-2, .grid-3, .cards-grid, .cards-grid--two {
     grid-template-columns: repeat(2, 1fr);
   }
   .doc-zones--wide { grid-template-columns: repeat(2, 1fr); }
@@ -2263,7 +2281,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   .hero-copy h1 { font-size: 2.2rem; }
   .hero-copy h2 { font-size: 1.15rem; }
 
-  .grid-2, .grid-3, .cards-grid, .cards-grid--three, .cards-grid--two, .cards-grid--four,
+  .grid-2, .grid-3, .cards-grid, .cards-grid--two, .cards-grid--four,
   .doc-zones, .doc-zones--wide {
     grid-template-columns: 1fr;
   }
