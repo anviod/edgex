@@ -156,14 +156,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
+  min-width: 64px;
+  height: 36px;
+  padding: 0 14px;
   border-radius: 999px;
   border: 1px solid var(--gold-border);
   background: var(--glass);
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   transition: all var(--transition-base);
   color: var(--text-muted);
   line-height: 1;
@@ -685,135 +687,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   min-height: 400px;
 }
 
-/* AI Core — concentric glowing rings */
-.ai-core {
-  position: relative;
-  width: 260px;
-  height: 260px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ai-core-ring {
-  position: absolute;
-  border-radius: 50%;
-  border: 2px solid var(--gold-border);
-}
-
-.ai-core-ring--outer {
-  width: 260px;
-  height: 260px;
-  animation: ai-core-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  box-shadow: 0 0 50px var(--gold-glow), 0 0 100px rgba(200,167,91,0.10), inset 0 0 50px var(--gold-glow);
-}
-
-.ai-core-ring--mid {
-  width: 190px;
-  height: 190px;
-  animation: ai-core-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) 0.5s infinite;
-  box-shadow: 0 0 35px var(--gold-glow), 0 0 70px rgba(200,167,91,0.08), inset 0 0 35px var(--gold-glow);
-  border-width: 1.5px;
-}
-
-.ai-core-ring--inner {
-  width: 128px;
-  height: 128px;
-  animation: ai-core-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) 1s infinite;
-  box-shadow: 0 0 22px var(--gold-glow), 0 0 50px rgba(200,167,91,0.06), inset 0 0 22px var(--gold-glow);
-}
-
-.ai-core-center {
-  position: relative;
-  z-index: 2;
-  width: 72px;
-  height: 72px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--gold-light);
-}
-
-.ai-core-center svg {
-  width: 100%;
-  height: 100%;
-}
-
-@keyframes ai-core-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.1); opacity: 1; }
-}
-
-/* Orbiting dots */
-.ai-orbit {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 320px;
-  height: 320px;
-  margin-top: -160px;
-  margin-left: -160px;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.ai-orbit--1 { animation: ai-spin 12s linear infinite; }
-.ai-orbit--2 { animation: ai-spin 16s linear infinite reverse; width: 290px; height: 290px; margin-top: -145px; margin-left: -145px; }
-.ai-orbit--3 { animation: ai-spin 20s linear infinite; width: 350px; height: 350px; margin-top: -175px; margin-left: -175px; }
-
-.ai-dot {
-  position: absolute;
-  top: 0; left: 50%;
-  width: 8px;
-  height: 8px;
-  margin-left: -4px;
-  border-radius: 50%;
-  background: var(--gold-bright);
-  box-shadow: 0 0 12px rgba(200,167,91,0.9), 0 0 28px rgba(200,167,91,0.5), 0 0 50px rgba(200,167,91,0.2);
-}
-
-.ai-orbit--2 .ai-dot { top: auto; bottom: 0; }
-.ai-orbit--3 .ai-dot { left: 0; top: 50%; margin-top: -4px; }
-
-@keyframes ai-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* Floating particles */
-.ai-particles {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.ai-particle {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--gold-bright);
-  opacity: 0;
-  box-shadow: 0 0 6px rgba(200,167,91,0.7);
-}
-
-.ai-particle--1 { top: 15%; left: 20%; animation: ai-float-up 4s ease-in-out infinite; }
-.ai-particle--2 { top: 70%; left: 75%; animation: ai-float-up 5s ease-in-out 1.2s infinite; }
-.ai-particle--3 { top: 40%; left: 85%; animation: ai-float-up 4.5s ease-in-out 2.5s infinite; }
-.ai-particle--4 { top: 80%; left: 15%; animation: ai-float-up 5.5s ease-in-out 0.8s infinite; }
-.ai-particle--5 { top: 25%; left: 60%; animation: ai-float-up 3.8s ease-in-out 3s infinite; }
-.ai-particle--6 { top: 55%; left: 35%; animation: ai-float-up 4.2s ease-in-out 1.8s infinite; }
-
-@keyframes ai-float-up {
-  0% { opacity: 0; transform: translateY(0) scale(1); }
-  20% { opacity: 0.8; }
-  80% { opacity: 0.3; }
-  100% { opacity: 0; transform: translateY(-50px) scale(0.5); }
-}
-
-/* ==========================================================================
-   Hero Visual — Alternate AI effects (cycle every 60s with blur cross-fade)
-   ========================================================================== */
-
+/* Scene container — blur cross-fade transitions */
 .fx-scene {
   position: absolute;
   inset: 0;
@@ -837,7 +711,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   z-index: 2;
 }
 
-/* Shared center logo for all alternate effects */
+/* Shared center logo */
 .fx-logo {
   position: absolute;
   top: 50%; left: 50%;
@@ -895,72 +769,8 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   to { transform: rotate(360deg); }
 }
 
-/* ── Effect 2: Orbital satellite network ── */
-.fx-orbital {
-  position: relative;
-  width: 320px; height: 320px;
-}
-
-.fx-orbital__ring {
-  position: absolute;
-  top: 50%; left: 50%;
-  border-radius: 50%;
-  border: 1px dashed var(--gold-border);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
-
-.fx-orbital__ring--1 { width: 160px; height: 160px; animation: fx-orb-spin 14s linear infinite; }
-.fx-orbital__ring--2 { width: 230px; height: 230px; animation: fx-orb-spin 20s linear infinite reverse; }
-.fx-orbital__ring--3 { width: 300px; height: 300px; animation: fx-orb-spin 28s linear infinite; }
-
-.fx-orbital__ring span {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 10px; height: 10px;
-  margin: -5px 0 0 -5px;
-  border-radius: 50%;
-  background: var(--gold-bright);
-  box-shadow: 0 0 14px rgba(200,167,91,0.9), 0 0 30px rgba(200,167,91,0.4);
-  transform: rotate(var(--angle)) translateX(var(--radius)) rotate(calc(-1 * var(--angle)));
-}
-
-.fx-orbital__ring--1 span { --radius: 80px; }
-.fx-orbital__ring--2 span { --radius: 115px; width: 8px; height: 8px; margin: -4px 0 0 -4px; }
-.fx-orbital__ring--3 span { --radius: 150px; width: 6px; height: 6px; margin: -3px 0 0 -3px; }
-
-@keyframes fx-orb-spin {
-  from { transform: translate(-50%, -50%) rotate(0deg); }
-  to { transform: translate(-50%, -50%) rotate(360deg); }
-}
-
-/* ── Effect 3: Neural pulse network ── */
-.fx-neural {
-  position: relative;
-  width: 320px; height: 320px;
-}
-
-.fx-neural__links,
-.fx-neural__nodes {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.fx-neural__link {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: var(--len);
-  height: 1px;
-  margin-top: -0.5px;
-  background: linear-gradient(90deg, rgba(200,167,91,0.45), rgba(200,167,91,0));
-  transform-origin: 0 50%;
-  transform: rotate(var(--angle));
-  animation: fx-neural-link 2.4s ease-in-out infinite;
-  animation-delay: var(--delay);
-}
-
-.fx-neural__node {
+/* Generic pulsing dot */
+.fx-dot {
   position: absolute;
   top: 50%; left: 50%;
   width: var(--d);
@@ -968,110 +778,309 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   margin: calc(-1 * var(--d) / 2) 0 0 calc(-1 * var(--d) / 2);
   border-radius: 50%;
   background: var(--gold-bright);
-  box-shadow: 0 0 12px rgba(200,167,91,0.8), 0 0 26px rgba(200,167,91,0.3);
-  transform: rotate(var(--angle)) translateX(var(--len)) rotate(calc(-1 * var(--angle)));
-  animation: fx-neural-node 2.4s ease-in-out infinite;
+  box-shadow: 0 0 12px rgba(200,167,91,0.8), 0 0 24px rgba(200,167,91,0.3);
+  transform: rotate(var(--a)) translateX(var(--r)) rotate(calc(-1 * var(--a)));
+  animation: fx-dot-pulse 2.4s ease-in-out infinite;
   animation-delay: var(--delay);
 }
 
-@keyframes fx-neural-link {
-  0%, 100% { opacity: 0.25; }
-  50% { opacity: 0.85; }
+@keyframes fx-dot-pulse {
+  0%, 100% { opacity: 0.4; transform: rotate(var(--a)) translateX(var(--r)) rotate(calc(-1 * var(--a))) scale(1); }
+  50% { opacity: 1; transform: rotate(var(--a)) translateX(var(--r)) rotate(calc(-1 * var(--a))) scale(1.6); }
 }
 
-@keyframes fx-neural-node {
-  0%, 100% { transform: rotate(var(--angle)) translateX(var(--len)) rotate(calc(-1 * var(--angle))) scale(1); opacity: 0.6; }
-  50% { transform: rotate(var(--angle)) translateX(var(--len)) rotate(calc(-1 * var(--angle))) scale(1.5); opacity: 1; }
-}
-
-/* ── Effect 4: Industrial data flow ── */
-.fx-dataflow {
+/* ── Effect 1: Core reactor ── */
+.fx-core {
   position: relative;
   width: 320px; height: 320px;
 }
 
-.fx-dataflow__ring {
+.fx-core__ring {
   position: absolute;
   top: 50%; left: 50%;
   border-radius: 50%;
-  border: 2px solid transparent;
-  border-top-color: var(--gold-border-hover);
-  border-right-color: var(--gold-border);
+  border-style: solid;
+  border-color: var(--gold-border);
   transform: translate(-50%, -50%);
 }
 
-.fx-dataflow__ring--1 { width: 220px; height: 220px; margin: -110px 0 0 -110px; animation: fx-df-spin 8s linear infinite; }
-.fx-dataflow__ring--2 { width: 290px; height: 290px; margin: -145px 0 0 -145px; border-width: 1px; opacity: 0.5; animation: fx-df-spin 12s linear infinite reverse; }
+.fx-core__ring--1 {
+  width: 180px; height: 180px;
+  border-width: 2px;
+  animation: fx-core-spin 12s linear infinite;
+  box-shadow: 0 0 40px var(--gold-glow), inset 0 0 40px var(--gold-glow);
+}
 
-@keyframes fx-df-spin {
+.fx-core__ring--2 {
+  width: 240px; height: 240px;
+  border-width: 1px;
+  border-style: dashed;
+  animation: fx-core-spin 18s linear infinite reverse;
+}
+
+.fx-core__ring--3 {
+  width: 300px; height: 300px;
+  border-width: 1px;
+  border-style: dotted;
+  opacity: 0.6;
+  animation: fx-core-spin 26s linear infinite;
+}
+
+.fx-core__nodes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+@keyframes fx-core-spin {
   from { transform: translate(-50%, -50%) rotate(0deg); }
   to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
-.fx-dataflow__packet {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 8px; height: 4px;
-  margin: -2px 0 0 -4px;
-  border-radius: 1px;
-  background: var(--gold-bright);
-  box-shadow: 0 0 10px rgba(200,167,91,0.9);
-  transform: rotate(var(--angle)) translateX(var(--radius));
-  animation: fx-df-packet var(--duration) linear infinite;
-  animation-delay: var(--delay);
-}
-
-@keyframes fx-df-packet {
-  0% { opacity: 0; transform: rotate(var(--angle)) translateX(calc(var(--radius) - 30px)) scale(0.6); }
-  15% { opacity: 1; }
-  85% { opacity: 1; }
-  100% { opacity: 0; transform: rotate(var(--angle)) translateX(calc(var(--radius) + 30px)) scale(1.1); }
-}
-
-/* ── Effect 5: Prism geometric core ── */
-.fx-prism {
+/* ── Effect 2: Signal lattice ── */
+.fx-lattice {
   position: relative;
   width: 320px; height: 320px;
 }
 
-.fx-prism__hex {
+.fx-lattice__grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.fx-lattice__cell {
   position: absolute;
   top: 50%; left: 50%;
-  width: var(--s);
-  height: calc(var(--s) * 0.866);
-  transform: translate(-50%, -50%) rotate(var(--rot));
-  background: conic-gradient(from 0deg, var(--gold), var(--gold-light), var(--gold), var(--gold-light), var(--gold));
-  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-  opacity: 0.12;
-  box-shadow: inset 0 0 30px rgba(200,167,91,0.4), 0 0 40px rgba(200,167,91,0.2);
-  animation: fx-prism-pulse 4s ease-in-out infinite;
+  width: 30px; height: 34px;
+  margin: -17px 0 0 -15px;
+  border: 1px solid var(--gold-border);
+  transform: translate(var(--x), var(--y));
+  opacity: 0.25;
+  animation: fx-lattice-cell 3s ease-in-out infinite;
   animation-delay: var(--delay);
 }
 
-.fx-prism__hex--outer { --s: 260px; --rot: 0deg; --delay: 0s; }
-.fx-prism__hex--mid { --s: 190px; --rot: 180deg; --delay: -1.3s; }
-.fx-prism__hex--inner { --s: 130px; --rot: 0deg; --delay: -2.6s; }
-
-@keyframes fx-prism-pulse {
-  0%, 100% { transform: translate(-50%, -50%) rotate(var(--rot)) scale(1); opacity: 0.1; }
-  50% { transform: translate(-50%, -50%) rotate(calc(var(--rot) + 15deg)) scale(1.06); opacity: 0.28; }
+.fx-lattice__cell::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  opacity: 0;
+  animation: fx-lattice-glow 3s ease-in-out infinite;
+  animation-delay: var(--delay);
 }
 
-.fx-prism__ray {
+@keyframes fx-lattice-cell {
+  0%, 100% { opacity: 0.2; border-color: var(--gold-border); }
+  50% { opacity: 0.65; border-color: var(--gold-border-hover); }
+}
+
+@keyframes fx-lattice-glow {
+  0%, 100% { opacity: 0; transform: scale(0.6); }
+  50% { opacity: 0.9; transform: scale(1); }
+}
+
+.fx-lattice__streams {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.fx-lattice__stream {
   position: absolute;
   top: 50%; left: 50%;
   width: 140px; height: 2px;
-  margin: -1px 0 0 0;
-  background: linear-gradient(90deg, rgba(200,167,91,0.55), rgba(200,167,91,0));
+  margin-top: -1px;
+  background: rgba(200,167,91,0.15);
   transform-origin: 0 50%;
-  transform: rotate(var(--angle));
-  animation: fx-prism-ray 3s ease-in-out infinite;
+  transform: rotate(var(--a));
+}
+
+.fx-lattice__stream::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 16px; height: 100%;
+  border-radius: 1px;
+  background: var(--gold-bright);
+  box-shadow: 0 0 10px rgba(200,167,91,0.9);
+  animation: fx-lattice-packet 2.5s linear infinite;
   animation-delay: var(--delay);
 }
 
-@keyframes fx-prism-ray {
-  0%, 100% { opacity: 0.15; transform: rotate(var(--angle)) scaleX(0.7); }
-  50% { opacity: 0.9; transform: rotate(var(--angle)) scaleX(1.2); }
+@keyframes fx-lattice-packet {
+  0% { left: 0; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: 124px; opacity: 0; }
+}
+
+/* ── Effect 3: Radar sweep ── */
+.fx-radar {
+  position: relative;
+  width: 320px; height: 320px;
+}
+
+.fx-radar__grid {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 280px; height: 280px;
+  margin: -140px 0 0 -140px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 28%, var(--gold-border) 29%, transparent 30%),
+    radial-gradient(circle, transparent 58%, var(--gold-border) 59%, transparent 60%),
+    radial-gradient(circle, transparent 88%, var(--gold-border) 89%, transparent 90%);
+  opacity: 0.35;
+}
+
+.fx-radar__sweep {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 140px; height: 140px;
+  margin: -140px 0 0 0;
+  border-radius: 0 100% 0 0;
+  background: conic-gradient(from 0deg, rgba(200,167,91,0.45), rgba(200,167,91,0) 60%);
+  transform-origin: 0 100%;
+  animation: fx-radar-sweep 4s linear infinite;
+}
+
+.fx-radar__axis {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 1px; height: 140px;
+  margin: -140px 0 0 -0.5px;
+  background: linear-gradient(180deg, var(--gold-border-hover), transparent);
+  transform-origin: 0 100%;
+  animation: fx-radar-sweep 4s linear infinite;
+}
+
+@keyframes fx-radar-sweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.fx-radar__blip {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 8px; height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  box-shadow: 0 0 10px rgba(200,167,91,0.9);
+  transform: rotate(var(--a)) translateX(var(--r));
+  opacity: 0;
+  animation: fx-radar-blip 3s ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+@keyframes fx-radar-blip {
+  0%, 100% { opacity: 0; transform: rotate(var(--a)) translateX(var(--r)) scale(0.5); }
+  20% { opacity: 1; transform: rotate(var(--a)) translateX(var(--r)) scale(1.2); }
+  40% { opacity: 0; transform: rotate(var(--a)) translateX(var(--r)) scale(1); }
+}
+
+/* ── Effect 4: Magnetic field ── */
+.fx-field {
+  position: relative;
+  width: 320px; height: 320px;
+}
+
+.fx-field__orbit {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: var(--rx);
+  height: var(--ry);
+  margin: calc(-1 * var(--ry) / 2) 0 0 calc(-1 * var(--rx) / 2);
+  border-radius: 50%;
+  border: 1px solid var(--gold-border);
+  transform: rotate(var(--tilt));
+  animation: fx-field-spin var(--dur) linear infinite;
+}
+
+@keyframes fx-field-spin {
+  from { transform: rotate(var(--tilt)) rotate(0deg); }
+  to { transform: rotate(var(--tilt)) rotate(360deg); }
+}
+
+.fx-field__electron {
+  position: absolute;
+  top: 0; left: 50%;
+  width: 8px; height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  box-shadow: 0 0 12px rgba(200,167,91,0.9);
+}
+
+/* ── Effect 5: Beacon tower ── */
+.fx-beacon {
+  position: relative;
+  width: 320px; height: 320px;
+}
+
+.fx-beacon__column {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 4px; height: 120px;
+  margin: -60px 0 0 -2px;
+  background: linear-gradient(180deg, var(--gold-border-hover), transparent);
+  opacity: 0.4;
+}
+
+.fx-beacon__beam {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 120px; height: 240px;
+  margin: -120px 0 0 -60px;
+  background: linear-gradient(180deg, rgba(200,167,91,0.25), rgba(200,167,91,0));
+  clip-path: polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%);
+  opacity: 0;
+  animation: fx-beacon-beam 3s ease-in-out infinite;
+}
+
+@keyframes fx-beacon-beam {
+  0%, 100% { opacity: 0; transform: scaleX(0.6); }
+  50% { opacity: 0.5; transform: scaleX(1.2); }
+}
+
+.fx-beacon__ring {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 60px; height: 60px;
+  margin: -30px 0 0 -30px;
+  border-radius: 50%;
+  border: 1px solid var(--gold-border-hover);
+  opacity: 0;
+  animation: fx-beacon-ring 3s ease-out infinite;
+  animation-delay: var(--delay);
+}
+
+@keyframes fx-beacon-ring {
+  0% { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(5); opacity: 0; }
+}
+
+.fx-beacon__particle {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 3px; height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  box-shadow: 0 0 6px rgba(200,167,91,0.8);
+  transform: translateX(var(--x));
+  opacity: 0;
+  animation: fx-beacon-rise var(--dur) ease-out infinite;
+  animation-delay: var(--delay);
+}
+
+@keyframes fx-beacon-rise {
+  0% { opacity: 0; transform: translateX(var(--x)) translateY(20px) scale(0.5); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(var(--x)) translateY(-140px) scale(1); }
 }
 
 /* =========================================
@@ -1395,7 +1404,7 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 .mini-link:hover { color: var(--gold-hover); }
 
 /* =========================================
-   Architecture Flow
+   Architecture Flow — Industrial Pipeline
    ========================================= */
 .arch-flow {
   position: relative;
@@ -1403,12 +1412,29 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 20px;
+  gap: 0;
+  padding: 28px 22px;
   border-radius: var(--radius-md);
-  background: rgba(28, 29, 32, 0.6);
+  background: rgba(12, 13, 15, 0.72);
   border: 1px solid var(--gold-border);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35), 0 0 24px rgba(200, 167, 91, 0.06);
   overflow: hidden;
+  font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, monospace;
+}
+
+/* Top status bar */
+.arch-flow::before {
+  content: "PIPELINE STATUS: ONLINE";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: 5px 14px;
+  background: rgba(200, 167, 91, 0.08);
+  border-bottom: 1px solid rgba(200, 167, 91, 0.12);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--gold-dark);
+  z-index: 3;
 }
 
 .arch-particles {
@@ -1427,20 +1453,66 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 }
 
 .arch-step {
-  padding: 8px 16px;
-  background: rgba(200, 167, 91, 0.08);
-  border: 1px solid var(--gold-border);
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 108px;
+  padding: 12px 14px;
+  margin-top: 14px;
+  background: rgba(22, 23, 26, 0.85);
+  border: 1px solid rgba(200, 167, 91, 0.18);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 6px 6px 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.arch-step:hover {
+  border-color: rgba(200, 167, 91, 0.35);
+  box-shadow: 0 4px 18px rgba(200, 167, 91, 0.08), 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
+.arch-step__num {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--gold-dark);
+}
+
+.arch-step__label {
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-soft);
   white-space: nowrap;
 }
 
+.arch-step__proto {
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+}
+
+.arch-step__status {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 5px rgba(74, 222, 128, 0.5);
+}
+
 .arch-arrow {
-  color: var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-top: 14px;
+  color: var(--gold-dark);
   font-weight: bold;
-  font-size: 1rem;
+  font-size: 0.85rem;
   flex-shrink: 0;
 }
 
@@ -1957,38 +2029,32 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
 
   .fx-logo { width: 60px; height: 60px; }
 
-  .ai-core {
-    width: 200px;
-    height: 200px;
-  }
-
-  .ai-core-ring--outer { width: 200px; height: 200px; }
-  .ai-core-ring--mid { width: 145px; height: 145px; }
-  .ai-core-ring--inner { width: 98px; height: 98px; }
-  .ai-core-center { width: 56px; height: 56px; }
-
-  .ai-orbit { width: 240px; height: 240px; margin-top: -120px; margin-left: -120px; }
-  .ai-orbit--2 { width: 220px; height: 220px; margin-top: -110px; margin-left: -110px; }
-  .ai-orbit--3 { width: 260px; height: 260px; margin-top: -130px; margin-left: -130px; }
-
-  .fx-orbital, .fx-neural, .fx-dataflow, .fx-prism {
+  .fx-core, .fx-lattice, .fx-radar, .fx-field, .fx-beacon {
     width: 240px; height: 240px;
   }
 
-  .fx-orbital__ring--1 { width: 120px; height: 120px; }
-  .fx-orbital__ring--2 { width: 175px; height: 175px; }
-  .fx-orbital__ring--3 { width: 230px; height: 230px; }
-  .fx-orbital__ring--1 span { --radius: 60px !important; width: 8px; height: 8px; margin: -4px 0 0 -4px; }
-  .fx-orbital__ring--2 span { --radius: 87px !important; width: 6px; height: 6px; margin: -3px 0 0 -3px; }
-  .fx-orbital__ring--3 span { --radius: 115px !important; width: 5px; height: 5px; margin: -2px 0 0 -2px; }
+  .fx-core__ring--1 { width: 135px; height: 135px; }
+  .fx-core__ring--2 { width: 180px; height: 180px; }
+  .fx-core__ring--3 { width: 225px; height: 225px; }
+  .fx-core__nodes .fx-dot { --r: 106px !important; --d: 6px !important; }
 
-  .fx-dataflow__ring--1 { width: 165px; height: 165px; margin: -82px 0 0 -82px; }
-  .fx-dataflow__ring--2 { width: 220px; height: 220px; margin: -110px 0 0 -110px; }
+  .fx-lattice__cell { width: 22px; height: 25px; margin: -12px 0 0 -11px; }
+  .fx-lattice__stream { width: 105px; }
+  @keyframes fx-lattice-packet {
+    0% { left: 0; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { left: 89px; opacity: 0; }
+  }
 
-  .fx-prism__hex--outer { --s: 200px !important; }
-  .fx-prism__hex--mid { --s: 145px !important; }
-  .fx-prism__hex--inner { --s: 100px !important; }
-  .fx-prism__ray { width: 100px; }
+  .fx-radar__grid { width: 210px; height: 210px; margin: -105px 0 0 -105px; }
+  .fx-radar__sweep { width: 105px; height: 105px; margin: -105px 0 0 0; }
+  .fx-radar__axis { height: 105px; margin: -105px 0 0 -0.5px; }
+
+  .fx-field__orbit { --rx: 82px !important; --ry: 45px !important; }
+
+  .fx-beacon__beam { width: 90px; height: 180px; margin: -90px 0 0 -45px; }
+  .fx-beacon__column { height: 90px; margin: -45px 0 0 -2px; }
 
   .hero-copy h1 { font-size: 2.2rem; }
   .hero-copy h2 { font-size: 1.15rem; }
@@ -2014,20 +2080,23 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   .button-link--primary:hover, .button-link--secondary:hover,
   .milestone-item:hover, .doc-zone:hover { transform: none !important; }
 
-  .ai-core-ring--outer,
-  .ai-core-ring--mid,
-  .ai-core-ring--inner,
-  .ai-orbit--1,
-  .ai-orbit--2,
-  .ai-orbit--3,
-  .ai-particle--1, .ai-particle--2, .ai-particle--3,
-  .ai-particle--4, .ai-particle--5, .ai-particle--6,
-  .fx-logo, .fx-logo svg, .fx-logo::before, .fx-logo::after,
+  .fx-logo,
+  .fx-logo svg,
+  .fx-logo::before,
+  .fx-logo::after,
   .fx-logo-orbit,
-  .fx-orbital__ring,
-  .fx-neural__link, .fx-neural__node,
-  .fx-dataflow__ring, .fx-dataflow__packet,
-  .fx-prism__hex, .fx-prism__ray { animation: none !important; }
+  .fx-core__ring,
+  .fx-dot,
+  .fx-lattice__cell,
+  .fx-lattice__cell::before,
+  .fx-lattice__stream::after,
+  .fx-radar__sweep,
+  .fx-radar__axis,
+  .fx-radar__blip,
+  .fx-field__orbit,
+  .fx-beacon__beam,
+  .fx-beacon__ring,
+  .fx-beacon__particle { animation: none !important; }
 
   .fx-scene {
     opacity: 0;

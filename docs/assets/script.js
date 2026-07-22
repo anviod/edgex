@@ -80,146 +80,122 @@ window.addEventListener('DOMContentLoaded', () => {
   initArchParticles();
 });
 
-// Hero visual — engineering console panel, random variant per refresh
+// Hero visual — cycle through five industrial-AI core effects, one minute each
 function initHeroVisual() {
   var container = document.querySelector('[data-hero-visual]');
   if (!container) return;
 
-  var protocols = ['Modbus', 'BACnet', 'OPC UA', 'S7', 'EtherNet/IP', 'IEC 104', 'SNMP', 'KNX'];
-  var states = [
-    { label: '扫描类 100ms', ok: true, val: '8,192 pts' },
-    { label: '扫描类 500ms', ok: true, val: '14,304 pts' },
-    { label: '扫描类 1,000ms', ok: true, val: '4,096 pts' },
-    { label: '离线设备', ok: false, val: '0' },
-    { label: 'Shadow 快照', ok: true, val: 'OK' },
-    { label: '北向连接', ok: true, val: 'MQTT · Online' }
-  ];
+  var logoSvg = '<svg class="fx-logo-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><path class="fx-logo-hex" d="M32 4L56 18v28L32 60 8 46V18L32 4z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path class="fx-logo-inner" d="M32 14l14 8v16l-14 8-14-8V22l14-8z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" opacity="0.55"/><g class="fx-logo-nodes"><circle cx="32" cy="4" r="2.2" fill="currentColor"/><circle cx="56" cy="18" r="2.2" fill="currentColor"/><circle cx="56" cy="46" r="2.2" fill="currentColor"/><circle cx="32" cy="60" r="2.2" fill="currentColor"/><circle cx="8" cy="46" r="2.2" fill="currentColor"/><circle cx="8" cy="18" r="2.2" fill="currentColor"/></g><circle class="fx-logo-core" cx="32" cy="32" r="5.5" fill="currentColor"/><circle class="fx-logo-orbit" cx="32" cy="32" r="11" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.7" fill="none"/></svg>';
+  var logo = '<div class="fx-logo">' + logoSvg + '</div>';
 
-  function pad(n) { return n < 10 ? '0' + n : n; }
-  function now() {
-    var d = new Date();
-    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
-  }
-
-  function metric(label, value, ok) {
-    return '<div class="console-metric">' +
-      '<span class="console-metric__label">' + label + '</span>' +
-      '<span class="console-metric__value ' + (ok ? 'console-metric__value--ok' : '') + '">' + value + '</span>' +
-    '</div>';
-  }
-
-  function terminalLine(tag, text, warn) {
-    return '<span class="console-terminal__line">' +
-      '<span class="console-terminal__time">' + now() + '</span>' +
-      '<span class="console-terminal__tag ' + (warn ? 'console-terminal__tag--warn' : '') + '">' + tag + '</span>' +
-      text +
-    '</span>';
-  }
-
-  function protocolTags() {
-    return '<div class="protocol-row">' +
-      protocols.slice(0, 5).map(function(p) { return '<span class="protocol-tag protocol-tag--active">' + p + '</span>'; }).join('') +
-      '<span class="protocol-tag">+' + (protocols.length - 5) + '</span>' +
-    '</div>';
-  }
-
-  function panelHeader(title) {
-    return '<div class="console-panel__header">' +
-      '<span class="console-panel__title">' + title + '</span>' +
-      '<span class="console-panel__status"><span class="console-panel__status-dot"></span>ONLINE</span>' +
-    '</div>';
-  }
-
-  function buildMetrics() {
-    var html = panelHeader('shadow_core_metrics') +
-      '<div class="console-panel__body">' +
-        metric('scan.lag_p95', '< 96 ms', true) +
-        metric('shadow.points', '26,592', true) +
-        metric('shadow.devices', '142 / 142', true) +
-        metric('snapshot.last', '00:00', true) +
-        metric('northbound.queue', '0', true) +
-        '<div class="console-terminal">' +
-          terminalLine('INFO', 'ScanEngine EDF 调度已启动') +
-          terminalLine('INFO', 'ShadowCore 快照写入 runtime.db') +
-          terminalLine('INFO', 'MQTT 北向连接已建立') +
-        '</div>' +
-        protocolTags() +
-      '</div>';
-    return '<div class="console-panel">' + html + '</div>';
-  }
-
-  function buildRegisters() {
-    var addrs = ['40001', '40002', '40003', '40004', '30001', '30002', '10001', '10002'];
-    var regs = addrs.map(function(a) {
-      var v = (Math.random() * 1000).toFixed(a.startsWith('3') ? 2 : 0);
-      return '<div class="fx-register"><span class="fx-register__addr">' + a + '</span><span class="fx-register__val">' + v + '</span></div>';
-    }).join('');
-    var html = panelHeader('modbus_register_map') +
-      '<div class="console-panel__body">' +
-        metric('device.addr', '192.168.1.10:502', true) +
-        metric('unit_id', '1', true) +
-        metric('poll_rate', '100 ms', true) +
-        '<div class="fx-register-grid">' + regs + '</div>' +
-        '<div class="console-terminal">' +
-          terminalLine('READ', 'FC03 unit=1 addr=40001 qty=4') +
-          terminalLine('OK', '8 bytes, 4 registers') +
-          terminalLine('WRITE', 'FC06 unit=1 addr=40002 val=1024') +
-        '</div>' +
-      '</div>';
-    return '<div class="console-panel">' + html + '</div>';
-  }
-
-  function buildDeviceTree() {
-    var html = panelHeader('device_tree') +
-      '<div class="console-panel__body">' +
-        metric('channels', '6', true) +
-        metric('devices.total', '142', true) +
-        '<div class="fx-device-tree">' +
-          '<div class="fx-device-tree__line"><span class="fx-device-tree__indent">├─</span><span class="fx-device-tree__status">●</span><span class="fx-device-tree__name">产线 A / PLC-01</span><span class="fx-device-tree__proto">S7</span></div>' +
-          '<div class="fx-device-tree__line"><span class="fx-device-tree__indent">│  ├─</span><span class="fx-device-tree__status">●</span><span class="fx-device-tree__name">DI 模块</span><span class="fx-device-tree__proto">32 pts</span></div>' +
-          '<div class="fx-device-tree__line"><span class="fx-device-tree__indent">│  └─</span><span class="fx-device-tree__status">●</span><span class="fx-device-tree__name">AI 模块</span><span class="fx-device-tree__proto">16 pts</span></div>' +
-          '<div class="fx-device-tree__line"><span class="fx-device-tree__indent">├─</span><span class="fx-device-tree__status">●</span><span class="fx-device-tree__name">HVAC / BACnet 网关</span><span class="fx-device-tree__proto">BACnet</span></div>' +
-          '<div class="fx-device-tree__line"><span class="fx-device-tree__indent">└─</span><span class="fx-device-tree__status">●</span><span class="fx-device-tree__name">电表 / DLT645</span><span class="fx-device-tree__proto">RS485</span></div>' +
-        '</div>' +
-        '<div class="console-terminal">' +
-          terminalLine('INFO', '设备树扫描完成，142 online') +
-          terminalLine('INFO', 'BACnet WhoIs 发现 12 个设备') +
-        '</div>' +
-      '</div>';
-    return '<div class="console-panel">' + html + '</div>';
-  }
-
-  function buildPacketLog() {
-    var protos = ['Modbus', 'BACnet', 'OPC UA', 'S7', 'IEC104'];
-    var payloads = [
-      '0x01 0x03 0x00 0x00 0x00 0x0A ...',
-      'WhoIs low=0 high=0',
-      'ReadRequest nodeId=ns=2;i=1001',
-      'ReadArea DB1.DBW0 len=16',
-      'I-format APDU 00 00 00 01'
-    ];
-    var rows = '';
-    for (var i = 0; i < 5; i++) {
-      rows += '<div class="fx-packet">' +
-        '<span class="fx-packet__dir">→</span>' +
-        '<span class="fx-packet__proto">' + protos[i] + '</span>' +
-        '<span class="fx-packet__payload">' + payloads[i] + '</span>' +
-        '<span class="fx-packet__time">' + now() + '</span>' +
-      '</div>';
+  function dots(count, radius, size) {
+    var html = '';
+    for (var i = 0; i < count; i++) {
+      var a = (360 / count * i).toFixed(1);
+      html += '<span class="fx-dot" style="--a:' + a + 'deg;--r:' + radius + 'px;--d:' + size + 'px;--delay:' + (i * 0.15).toFixed(2) + 's"></span>';
     }
-    var html = panelHeader('protocol_traffic') +
-      '<div class="console-panel__body">' +
-        metric('tx_rate', '4.2 kB/s', true) +
-        metric('rx_rate', '12.8 kB/s', true) +
-        metric('errors', '0', true) +
-        '<div class="fx-packet-log">' + rows + '</div>' +
-      '</div>';
-    return '<div class="console-panel">' + html + '</div>';
+    return html;
   }
 
-  var builders = [buildMetrics, buildRegisters, buildDeviceTree, buildPacketLog];
-  var idx = Math.floor(Math.random() * builders.length);
-  container.innerHTML = builders[idx]();
+  function buildScene(type) {
+    var html = '';
+    if (type === 'core') {
+      html =
+        '<div class="fx-core">' + logo +
+          '<div class="fx-core__ring fx-core__ring--1"></div>' +
+          '<div class="fx-core__ring fx-core__ring--2"></div>' +
+          '<div class="fx-core__ring fx-core__ring--3"></div>' +
+          '<div class="fx-core__nodes">' + dots(12, 142, 7) + '</div>' +
+        '</div>';
+    } else if (type === 'lattice') {
+      var cells = '';
+      for (var r = -2; r <= 2; r++) {
+        for (var c = -2; c <= 2; c++) {
+          var x = c * 34;
+          var y = r * 30 + (c % 2) * 15;
+          cells += '<span class="fx-lattice__cell" style="--x:' + x + 'px;--y:' + y + 'px;--delay:' + (Math.random() * 2).toFixed(2) + 's"></span>';
+        }
+      }
+      var streams = '';
+      for (var s = 0; s < 6; s++) {
+        streams += '<span class="fx-lattice__stream" style="--a:' + (s * 60).toFixed(0) + 'deg;--delay:' + (s * 0.4).toFixed(1) + 's"></span>';
+      }
+      html =
+        '<div class="fx-lattice">' + logo +
+          '<div class="fx-lattice__grid">' + cells + '</div>' +
+          '<div class="fx-lattice__streams">' + streams + '</div>' +
+        '</div>';
+    } else if (type === 'radar') {
+      var blips = '';
+      for (var b = 0; b < 5; b++) {
+        var dist = 40 + Math.random() * 90;
+        var ang = Math.random() * 360;
+        blips += '<span class="fx-radar__blip" style="--r:' + dist.toFixed(0) + 'px;--a:' + ang.toFixed(0) + 'deg;--delay:' + (Math.random() * 3).toFixed(2) + 's"></span>';
+      }
+      html =
+        '<div class="fx-radar">' + logo +
+          '<span class="fx-radar__grid"></span>' +
+          '<span class="fx-radar__sweep"></span>' +
+          '<span class="fx-radar__axis"></span>' +
+          blips +
+        '</div>';
+    } else if (type === 'field') {
+      var orbits = '';
+      for (var o = 0; o < 3; o++) {
+        var rx = 110 + o * 30;
+        var ry = 60 + o * 20;
+        var tilt = o * 35;
+        var dur = 8 + o * 4;
+        orbits +=
+          '<span class="fx-field__orbit" style="--rx:' + rx + 'px;--ry:' + ry + 'px;--tilt:' + tilt + 'deg;--dur:' + dur + 's">' +
+            '<span class="fx-field__electron" style="--delay:' + (o * -1.5).toFixed(1) + 's"></span>' +
+          '</span>';
+      }
+      html =
+        '<div class="fx-field">' + logo +
+          orbits +
+        '</div>';
+    } else if (type === 'beacon') {
+      var rings = '';
+      for (var k = 0; k < 4; k++) {
+        rings += '<span class="fx-beacon__ring" style="--delay:' + (k * 0.8).toFixed(1) + 's"></span>';
+      }
+      var particles = '';
+      for (var p = 0; p < 12; p++) {
+        var x = Math.cos(p * 30 * Math.PI / 180) * (8 + Math.random() * 8);
+        particles += '<span class="fx-beacon__particle" style="--x:' + x.toFixed(1) + 'px;--delay:' + (Math.random() * 2).toFixed(2) + 's;--dur:' + (2 + Math.random() * 2).toFixed(1) + 's"></span>';
+      }
+      html =
+        '<div class="fx-beacon">' + logo +
+          '<span class="fx-beacon__beam"></span>' +
+          '<span class="fx-beacon__column"></span>' +
+          rings +
+          particles +
+        '</div>';
+    }
+    return '<div class="fx-scene">' + html + '</div>';
+  }
+
+  var effects = ['core', 'lattice', 'radar', 'field', 'beacon'];
+  container.innerHTML = effects.map(buildScene).join('');
+
+  var scenes = container.querySelectorAll('.fx-scene');
+  if (!scenes.length) return;
+
+  scenes[0].classList.add('fx-scene--active');
+
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return;
+  }
+
+  var current = 0;
+  var SCENE_DURATION = 60000;
+
+  setInterval(function () {
+    scenes[current].classList.remove('fx-scene--active');
+    current = (current + 1) % scenes.length;
+    scenes[current].classList.add('fx-scene--active');
+  }, SCENE_DURATION);
 }
 
 // Theme toggle — dark/light switch with localStorage
@@ -227,11 +203,11 @@ function initThemeToggle() {
   var storageKey = 'edgex-docs-theme';
   var root = document.documentElement;
   var button = document.querySelector('[data-theme-toggle]');
-  var icon = document.querySelector('[data-theme-icon]');
+  var label = document.querySelector('[data-theme-label]');
 
   function syncTheme(theme) {
     root.setAttribute('data-theme', theme);
-    if (icon) icon.textContent = theme === 'light' ? '☀️' : '🌙';
+    if (label) label.textContent = theme === 'light' ? '暗色' : '明亮';
     if (button) button.setAttribute('aria-pressed', String(theme === 'light'));
   }
 
@@ -281,8 +257,8 @@ function initTypewriter() {
 }
 
 // Architecture flow — industrial data-packet transmission between nodes
-// Discrete rectangular data blocks hop from node to node along the pipeline,
-// with dashed circuit traces and node anchor points for a factory-floor feel.
+// Glowing circuit traces, directional arrows, pulsing node halos and discrete
+// rectangular data blocks for a factory-console / Wireshark-style pipeline.
 function initArchParticles() {
   var flow = document.querySelector('[data-arch-flow]');
   var canvas = document.querySelector('[data-arch-canvas]');
@@ -290,8 +266,9 @@ function initArchParticles() {
 
   var ctx = canvas.getContext('2d');
   var packets = [];
-  var PACKET_COUNT = 20;      // discrete data blocks in flight
-  var PACKET_SPEED = 0.005;   // segment fraction per frame (≈ 0.30/s at 60fps)
+  var nodePulse = [];          // per-node pulse phase [0..1]
+  var PACKET_COUNT = 24;       // discrete data blocks in flight
+  var PACKET_SPEED = 0.0065;   // segment fraction per frame
   var running = true;
 
   /* ---- helpers ---- */
@@ -310,6 +287,7 @@ function initArchParticles() {
   }
 
   function lerp(a, b, t) { return a + (b - a) * t; }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
   /* ---- canvas sizing (HiDPI) ---- */
   function resize() {
@@ -335,9 +313,9 @@ function initArchParticles() {
       for (var j = 0; j < n; j++) {
         pkts.push({
           seg: s,
-          t: (j + 0.5) / n,          // stagger evenly within segment
-          size: 2.5 + Math.random() * 2,
-          alpha: 0.55 + Math.random() * 0.45
+          t: (j + 0.5) / n,
+          size: 2.2 + Math.random() * 1.8,
+          alpha: 0.65 + Math.random() * 0.35
         });
       }
     }
@@ -347,6 +325,7 @@ function initArchParticles() {
   /* ---- init ---- */
   var waypoints = getWaypoints();
   packets = spawnPackets(waypoints);
+  nodePulse = waypoints.map(function () { return Math.random(); });
 
   /* ---- draw frame ---- */
   function draw() {
@@ -355,33 +334,73 @@ function initArchParticles() {
 
     waypoints = getWaypoints();
     if (waypoints.length < 2) { requestAnimationFrame(draw); return; }
-
-    // ── Layer 1: dashed circuit traces between nodes ──
-    ctx.strokeStyle = 'rgba(200,167,91,0.10)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([5, 8]);
-    ctx.lineCap = 'round';
-    for (var si = 0; si < waypoints.length - 1; si++) {
-      ctx.beginPath();
-      ctx.moveTo(waypoints[si].x, waypoints[si].y);
-      ctx.lineTo(waypoints[si + 1].x, waypoints[si + 1].y);
-      ctx.stroke();
+    if (nodePulse.length !== waypoints.length) {
+      nodePulse = waypoints.map(function () { return Math.random(); });
     }
-    ctx.setLineDash([]);
 
-    // ── Layer 2: node anchor points ──
-    for (var wi = 0; wi < waypoints.length; wi++) {
-      var wp = waypoints[wi];
-      // Outer ring
-      ctx.strokeStyle = 'rgba(200,167,91,0.22)';
-      ctx.lineWidth = 1.2;
+    // ── Layer 1: glowing circuit traces with arrows ──
+    for (var si = 0; si < waypoints.length - 1; si++) {
+      var a = waypoints[si];
+      var b = waypoints[si + 1];
+      var dx = b.x - a.x;
+      var dy = b.y - a.y;
+      var len = Math.sqrt(dx * dx + dy * dy) || 1;
+      var ux = dx / len;
+      var uy = dy / len;
+
+      // Base dim trace
+      ctx.strokeStyle = 'rgba(200,167,91,0.10)';
+      ctx.lineWidth = 1;
+      ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.arc(wp.x, wp.y, 6, 0, Math.PI * 2);
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
       ctx.stroke();
-      // Inner dot
+
+      // Inner bright core line
+      ctx.strokeStyle = 'rgba(200,167,91,0.22)';
+      ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+
+      // Direction arrow at mid-point
+      var midT = 0.5;
+      var mx = lerp(a.x, b.x, midT);
+      var my = lerp(a.y, b.y, midT);
+      var as = 4;
       ctx.fillStyle = 'rgba(200,167,91,0.35)';
       ctx.beginPath();
-      ctx.arc(wp.x, wp.y, 2.5, 0, Math.PI * 2);
+      ctx.moveTo(mx + ux * as, my + uy * as);
+      ctx.lineTo(mx - ux * as + uy * as * 0.8, my - uy * as - ux * as * 0.8);
+      ctx.lineTo(mx - ux * as - uy * as * 0.8, my - uy * as + ux * as * 0.8);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // ── Layer 2: pulsing node halos ──
+    for (var wi = 0; wi < waypoints.length; wi++) {
+      var wp = waypoints[wi];
+      nodePulse[wi] += 0.012;
+      if (nodePulse[wi] > 1) nodePulse[wi] = 0;
+      var phase = nodePulse[wi];
+      var pr = 8 + phase * 14;
+      var pa = 0.28 * (1 - phase);
+
+      var halo = ctx.createRadialGradient(wp.x, wp.y, 0, wp.x, wp.y, pr);
+      halo.addColorStop(0, 'rgba(200,167,91,' + (pa * 0.5).toFixed(3) + ')');
+      halo.addColorStop(0.6, 'rgba(200,167,91,' + (pa * 0.2).toFixed(3) + ')');
+      halo.addColorStop(1, 'rgba(200,167,91,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(wp.x, wp.y, pr, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Node core
+      ctx.fillStyle = 'rgba(200,167,91,0.55)';
+      ctx.beginPath();
+      ctx.arc(wp.x, wp.y, 2.2, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -391,13 +410,17 @@ function initArchParticles() {
 
       p.t += PACKET_SPEED;
       if (p.t >= 1) {
-        // Arrival flash at the receiving node
+        // Arrival radial flash at the receiving node
         var bNode = waypoints[p.seg + 1];
-        var arrivalGlow = ctx.createRadialGradient(bNode.x, bNode.y, 0, bNode.x, bNode.y, 8);
-        arrivalGlow.addColorStop(0, 'rgba(232,213,163,0.50)');
-        arrivalGlow.addColorStop(1, 'rgba(200,167,91,0)');
-        ctx.fillStyle = arrivalGlow;
-        ctx.fillRect(bNode.x - 8, bNode.y - 8, 16, 16);
+        var flashR = 16;
+        var flash = ctx.createRadialGradient(bNode.x, bNode.y, 0, bNode.x, bNode.y, flashR);
+        flash.addColorStop(0, 'rgba(232,213,163,0.45)');
+        flash.addColorStop(0.4, 'rgba(200,167,91,0.18)');
+        flash.addColorStop(1, 'rgba(200,167,91,0)');
+        ctx.fillStyle = flash;
+        ctx.beginPath();
+        ctx.arc(bNode.x, bNode.y, flashR, 0, Math.PI * 2);
+        ctx.fill();
 
         p.seg = (p.seg + 1) % (waypoints.length - 1);
         p.t = 0;
@@ -408,22 +431,22 @@ function initArchParticles() {
       var cx = lerp(a.x, b.x, p.t);
       var cy = lerp(a.y, b.y, p.t);
 
-      var bw = p.size * 2.8;   // block width
-      var bh = p.size * 1.3;   // block height
-
-      // ── Outer envelope glow ──
-      var envGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, p.size * 2.5);
-      envGlow.addColorStop(0, 'rgba(232,213,163,' + (p.alpha * 0.55).toFixed(2) + ')');
-      envGlow.addColorStop(0.6, 'rgba(200,167,91,' + (p.alpha * 0.2).toFixed(2) + ')');
-      envGlow.addColorStop(1, 'rgba(200,167,91,0)');
-      ctx.fillStyle = envGlow;
-      ctx.fillRect(cx - p.size * 2.5, cy - p.size * 2.5, p.size * 5, p.size * 5);
-
-      // ── Data block body (rounded rect) ──
+      var bw = p.size * 3.0;
+      var bh = p.size * 1.35;
       var rx = cx - bw / 2;
       var ry = cy - bh / 2;
-      var rr = 2; // corner radius
-      ctx.fillStyle = 'rgba(200,167,91,' + (p.alpha * 0.85).toFixed(2) + ')';
+      var rr = 1.5;
+
+      // Outer envelope glow
+      var envGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, p.size * 3);
+      envGlow.addColorStop(0, 'rgba(232,213,163,' + (p.alpha * 0.5).toFixed(2) + ')');
+      envGlow.addColorStop(0.5, 'rgba(200,167,91,' + (p.alpha * 0.18).toFixed(2) + ')');
+      envGlow.addColorStop(1, 'rgba(200,167,91,0)');
+      ctx.fillStyle = envGlow;
+      ctx.fillRect(cx - p.size * 3, cy - p.size * 3, p.size * 6, p.size * 6);
+
+      // Data block body (rounded rect)
+      ctx.fillStyle = 'rgba(200,167,91,' + (p.alpha * 0.92).toFixed(2) + ')';
       ctx.beginPath();
       ctx.moveTo(rx + rr, ry);
       ctx.lineTo(rx + bw - rr, ry);
@@ -437,22 +460,22 @@ function initArchParticles() {
       ctx.closePath();
       ctx.fill();
 
-      // ── Bright core stripe inside the block ──
-      ctx.fillStyle = 'rgba(255,240,210,' + (p.alpha * 0.95).toFixed(2) + ')';
-      ctx.fillRect(rx + 2, cy - 0.8, bw - 4, 1.6);
+      // Bright core stripe
+      ctx.fillStyle = 'rgba(255,242,210,' + (p.alpha * 0.98).toFixed(2) + ')';
+      ctx.fillRect(rx + 1.5, cy - 0.6, bw - 3, 1.2);
 
-      // ── Discrete trailing echoes (not a comet tail) ──
+      // Discrete trailing echoes
       var echoCount = 3;
-      var echoSpacing = 0.06;
+      var echoSpacing = 0.05;
       for (var e = 1; e <= echoCount; e++) {
         var et = Math.max(0, p.t - echoSpacing * e);
         if (et <= 0) continue;
         var ex = lerp(a.x, b.x, et);
         var ey = lerp(a.y, b.y, et);
-        var ea = p.alpha * (1 - e / (echoCount + 1)) * 0.35;
-        var es = p.size * (1 - e * 0.22);
+        var ea = p.alpha * (1 - e / (echoCount + 1)) * 0.32;
+        var es = p.size * (1 - e * 0.2);
         ctx.fillStyle = 'rgba(200,167,91,' + ea.toFixed(2) + ')';
-        ctx.fillRect(ex - es * 1.2, ey - es * 0.5, es * 2.4, es * 1);
+        ctx.fillRect(ex - es * 1.15, ey - es * 0.45, es * 2.3, es * 0.9);
       }
     }
 
@@ -469,6 +492,8 @@ function initArchParticles() {
     resizeTimer = setTimeout(function () {
       resize();
       waypoints = getWaypoints();
+      packets = spawnPackets(waypoints);
+      nodePulse = waypoints.map(function () { return Math.random(); });
     }, 200);
   });
 
@@ -477,6 +502,7 @@ function initArchParticles() {
     resize();
     waypoints = getWaypoints();
     packets = spawnPackets(waypoints);
+    nodePulse = waypoints.map(function () { return Math.random(); });
   });
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 }
