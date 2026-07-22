@@ -93,42 +93,36 @@
         <span class="arch-step__status"></span>
         <span class="arch-step__num">01</span>
         <span class="arch-step__label">现场总线</span>
-        <span class="arch-step__proto">RS485 · Ethernet</span>
       </div>
       <div class="arch-arrow">&#8594;</div>
       <div class="arch-step">
         <span class="arch-step__status"></span>
         <span class="arch-step__num">02</span>
-        <span class="arch-step__label">协议适配器</span>
-        <span class="arch-step__proto">Modbus · BACnet · S7</span>
+        <span class="arch-step__label">协议驱动</span>
       </div>
       <div class="arch-arrow">&#8594;</div>
       <div class="arch-step">
         <span class="arch-step__status"></span>
         <span class="arch-step__num">03</span>
-        <span class="arch-step__label">ScanEngine</span>
-        <span class="arch-step__proto">EDF · 100ms class</span>
+        <span class="arch-step__label">统一采集</span>
       </div>
       <div class="arch-arrow">&#8594;</div>
       <div class="arch-step">
         <span class="arch-step__status"></span>
         <span class="arch-step__num">04</span>
-        <span class="arch-step__label">ShadowCore</span>
-        <span class="arch-step__proto">COW snapshot · WAL</span>
+        <span class="arch-step__label">数据模型</span>
       </div>
       <div class="arch-arrow">&#8594;</div>
       <div class="arch-step">
         <span class="arch-step__status"></span>
         <span class="arch-step__num">05</span>
-        <span class="arch-step__label">Execution Mapper</span>
-        <span class="arch-step__proto">Rules · preprocess</span>
+        <span class="arch-step__label">边缘计算</span>
       </div>
       <div class="arch-arrow">&#8594;</div>
       <div class="arch-step">
         <span class="arch-step__status"></span>
         <span class="arch-step__num">06</span>
         <span class="arch-step__label">北向输出</span>
-        <span class="arch-step__proto">MQTT · HTTP · Sparkplug</span>
       </div>
     </div>
     <p class="arch-note">每个阶段暴露确定性接口；新增协议或计算节点无需改动流水线主干。</p>
