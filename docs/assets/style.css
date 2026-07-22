@@ -968,10 +968,18 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   z-index: 1;
 }
 
+.fx-lattice__guide {
+  fill: none;
+  stroke: var(--gold-border);
+  stroke-width: 0.5;
+  opacity: 0.1;
+  stroke-dasharray: 2 4;
+}
+
 .fx-lattice__link {
   stroke: var(--gold-border);
   stroke-width: 1;
-  opacity: 0.3;
+  opacity: 0.28;
   fill: none;
 }
 
