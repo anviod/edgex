@@ -273,6 +273,7 @@ const handleSaveSettings = async (payload) => {
   settingsSaving.value = true
   try {
     await saveSettings(payload)
+    await fetchSettings()
     await Promise.all([fetchStatus(), fetchQuota()])
     settingsOpen.value = false
     Message.success('AI 设置已保存')
