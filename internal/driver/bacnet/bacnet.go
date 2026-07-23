@@ -1,4 +1,4 @@
-﻿package bacnet
+package bacnet
 
 import (
 	"context"
@@ -154,8 +154,8 @@ const readFailureRecoveryThreshold = 3
 func NewBACnetDriver() drv.Driver {
 	return &BACnetDriver{
 		interfacePort:     confirmedListenPort, // 47809 — long-lived confirmed services, separate from discovery 47808
-		interfaceIP:       "0.0.0.0", // Default IP
-		subnetCIDR:        24,        // Default CIDR
+		interfaceIP:       "0.0.0.0",           // Default IP
+		subnetCIDR:        24,                  // Default CIDR
 		connected:         false,
 		clientFactory:     bacnetlib.NewClient,
 		connMgr:           drv.NewConnectionManager("bacnet-ip"),
@@ -1253,8 +1253,6 @@ func parseExistingDeviceIDs(params map[string]any) map[int]struct{} {
 	}
 	return out
 }
-
-
 
 func readPropertyString(client bacnetlib.Client, dev btypes.Device, propID btypes.PropertyType, timeout time.Duration) string {
 	if client == nil {

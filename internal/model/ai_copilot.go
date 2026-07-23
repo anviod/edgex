@@ -22,21 +22,28 @@ type AICopilotSettings struct {
 	EnableCloud bool   `json:"enable_cloud"`
 	TokensLimit int    `json:"tokens_limit"`
 	TasksLimit  int    `json:"tasks_limit"`
+
+	// MCP (Model Context Protocol) 配置
+	McpEnabled    bool   `json:"mcp_enabled"`           // MCP 服务开关
+	McpApiKey     string `json:"mcp_api_key,omitempty"` // MCP API Key（简化认证，替代 JWT）
+	McpFullAccess bool   `json:"mcp_full_access"`       // 用户确认后开启全功能读写（创建/删除/写入）
 }
 
 // AICopilotSettingsPublic masks secrets for GET /api/ai/settings.
 type AICopilotSettingsPublic struct {
 	AICopilotSettings
-	APIKeySet   bool   `json:"api_key_set"`
-	PasswordSet bool   `json:"password_set"`
-	APIKey      string `json:"api_key,omitempty"`
-	Password    string `json:"password,omitempty"`
+	APIKeySet    bool   `json:"api_key_set"`
+	PasswordSet  bool   `json:"password_set"`
+	McpApiKeySet bool   `json:"mcp_api_key_set"`
+	APIKey       string `json:"api_key,omitempty"`
+	Password     string `json:"password,omitempty"`
+	McpApiKey    string `json:"mcp_api_key,omitempty"`
 }
 
 func DefaultAICopilotSettings() AICopilotSettings {
 	return AICopilotSettings{
-		DeploymentMode:  "local",
-		Provider:        "edgex-local",
+		DeploymentMode:  "remote",
+		Provider:        "edgex-center",
 		GrpcEndpoint:    "127.0.0.1:50051",
 		BaseURL:         "",
 		AuthType:        "bearer",
@@ -55,7 +62,7 @@ func (s AICopilotSettings) RuntimeMode() string {
 	case "remote", "cloud":
 		return "remote"
 	default:
-		return "local"
+		return "remote"
 	}
 }
 
@@ -95,6 +102,10 @@ func (s AICopilotSettings) ToPublic() AICopilotSettingsPublic {
 	if s.Password != "" {
 		pub.PasswordSet = true
 		pub.Password = ""
+	}
+	if s.McpApiKey != "" {
+		pub.McpApiKeySet = true
+		pub.McpApiKey = ""
 	}
 	return pub
 }

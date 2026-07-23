@@ -34,12 +34,12 @@ func TestAddDevice_API_BACnetScanPayload(t *testing.T) {
 		"interval": "10s",
 		"enable":   true,
 		"config": map[string]any{
-			"device_id":            2228316,
+			"device_id":        2228316,
 			"bacnet_device_id": 2228316,
-			"ip":                   "192.168.3.106",
-			"port":                 54103,
-			"vendor_name":          "Test Vendor",
-			"model_name":           "Room_FC_2014",
+			"ip":               "192.168.3.106",
+			"port":             54103,
+			"vendor_name":      "Test Vendor",
+			"model_name":       "Room_FC_2014",
 		},
 		"points": []any{},
 	}}
@@ -96,8 +96,8 @@ func TestAddDevice_API_BACnetScanPayload_DuplicateInstance(t *testing.T) {
 		"enable":   true,
 		"config": map[string]any{
 			"bacnet_device_id": 2228316,
-			"ip":              "192.168.3.106",
-			"port":            54103,
+			"ip":               "192.168.3.106",
+			"port":             54103,
 		},
 		"points": []any{},
 	}}

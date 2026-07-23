@@ -67,7 +67,7 @@ func JWTAuth() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// WebSocket 实时值订阅（公开端点，浏览器无法稳定携带 Header token）
 		switch c.Path() {
-		case "/api/ws/values", "/ws":
+		case "/api/ws/values", "/ws", "/api/mcp", "/mcp":
 			return c.Next()
 		}
 

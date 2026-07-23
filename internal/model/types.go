@@ -463,19 +463,19 @@ type EdgeOSNATSConfig struct {
 
 // BACnetServerConfig 北向 BACnet Server 配置，以从机模式运行，对外暴露点位数据
 type BACnetServerConfig struct {
-	ID           string         `json:"id" yaml:"id"`
-	Name         string         `json:"name" yaml:"name"`
-	Enable       bool           `json:"enable" yaml:"enable"`
-	Interface    string         `json:"interface" yaml:"interface"`       // 网络接口名 (如 eth0)，空则自动选择
-	IP           string         `json:"ip" yaml:"ip"`                     // 绑定的 IP 地址，空则自动选择
-	Port         int            `json:"port" yaml:"port"`                 // BACnet 端口，默认 47808 (0xBAC0)
-	SubnetCIDR   int            `json:"subnet_cidr" yaml:"subnet_cidr"`   // 子网 CIDR，默认 24
-	DeviceID     int            `json:"device_id" yaml:"device_id"`       // BACnet 设备实例 ID，默认自动生成
-	DeviceName   string         `json:"device_name" yaml:"device_name"`   // BACnet 设备名称
-	VendorID     uint32         `json:"vendor_id" yaml:"vendor_id"`       // 厂商 ID，默认 999
-	VendorName   string         `json:"vendor_name" yaml:"vendor_name"`   // 厂商名称
-	MaxPDU       uint16         `json:"max_pdu" yaml:"max_pdu"`           // 最大 PDU 大小，默认 1476
-	Devices      OpcUaDeviceMap `json:"devices" yaml:"devices"`           // 暴露的设备列表，空则全部暴露
+	ID             string         `json:"id" yaml:"id"`
+	Name           string         `json:"name" yaml:"name"`
+	Enable         bool           `json:"enable" yaml:"enable"`
+	Interface      string         `json:"interface" yaml:"interface"`             // 网络接口名 (如 eth0)，空则自动选择
+	IP             string         `json:"ip" yaml:"ip"`                           // 绑定的 IP 地址，空则自动选择
+	Port           int            `json:"port" yaml:"port"`                       // BACnet 端口，默认 47808 (0xBAC0)
+	SubnetCIDR     int            `json:"subnet_cidr" yaml:"subnet_cidr"`         // 子网 CIDR，默认 24
+	DeviceID       int            `json:"device_id" yaml:"device_id"`             // BACnet 设备实例 ID，默认自动生成
+	DeviceName     string         `json:"device_name" yaml:"device_name"`         // BACnet 设备名称
+	VendorID       uint32         `json:"vendor_id" yaml:"vendor_id"`             // 厂商 ID，默认 999
+	VendorName     string         `json:"vendor_name" yaml:"vendor_name"`         // 厂商名称
+	MaxPDU         uint16         `json:"max_pdu" yaml:"max_pdu"`                 // 最大 PDU 大小，默认 1476
+	Devices        OpcUaDeviceMap `json:"devices" yaml:"devices"`                 // 暴露的设备列表，空则全部暴露
 	VirtualDevices OpcUaDeviceMap `json:"virtual_devices" yaml:"virtual_devices"` // 虚拟设备
 }
 

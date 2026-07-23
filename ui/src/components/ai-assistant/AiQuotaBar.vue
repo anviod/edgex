@@ -50,10 +50,10 @@ import { computed } from 'vue'
 
 const props = defineProps({
   quota: { type: Object, default: null },
-  mode: { type: String, default: 'local' }
+  mode: { type: String, default: 'remote' }
 })
 
-const modeLabel = computed(() => (props.mode === 'remote' ? 'AI Model Center' : '本地 Mock'))
+const modeLabel = computed(() => (props.mode === 'remote' ? 'AI Model Center' : '云端'))
 const showTokenUsage = computed(() => props.mode === 'remote')
 const ariaLabel = computed(() =>
   showTokenUsage.value ? 'AI 配额使用情况' : 'AI 今日任务使用情况'

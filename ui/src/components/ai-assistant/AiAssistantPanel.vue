@@ -89,7 +89,7 @@
 
           <!-- Full mode body -->
           <template v-else>
-            <AiQuotaBar :quota="quota" :mode="aiStatus?.mode || 'local'" />
+            <AiQuotaBar :quota="quota" :mode="aiStatus?.mode || 'remote'" />
 
             <nav class="ai-panel__tabs" role="tablist" aria-label="工作台">
               <button
@@ -157,6 +157,7 @@
                     />
                     <AiWorkbenchEdge v-else-if="state.workspace === 'edge'" />
                     <AiWorkbenchDiagnostics v-else-if="state.workspace === 'diagnostics'" />
+                    <AiMcpHelp v-else-if="state.workspace === 'mcp'" />
                   </div>
                 </section>
 
@@ -222,6 +223,7 @@ import AiWorkbenchValidation from './AiWorkbenchValidation.vue'
 import AiWorkbenchCases from './AiWorkbenchCases.vue'
 import AiWorkbenchEdge from './AiWorkbenchEdge.vue'
 import AiWorkbenchDiagnostics from './AiWorkbenchDiagnostics.vue'
+import AiMcpHelp from './AiMcpHelp.vue'
 import AiSettingsDialog from './AiSettingsDialog.vue'
 
 const route = useRoute()
@@ -248,7 +250,6 @@ const initialized = ref(false)
 
 const statusLabel = computed(() => {
   if (!aiStatus.value) return '连接中…'
-  if (aiStatus.value.mode === 'local') return '本地 Mock 模式 · 四阶段流水线'
   return `${aiStatus.value.provider || 'AI Model Center'} · 四阶段流水线`
 })
 

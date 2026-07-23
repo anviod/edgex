@@ -89,15 +89,22 @@ export const AI_WORKSPACES = [
     id: 'edge',
     label: '边缘场景',
     goal: 'G4',
-    description: '场景描述 → EdgeRule / 模版 JSON 草案',
+    description: '场景描述 → EdgeRule 草稿包',
     icon: 'edge'
   },
   {
     id: 'diagnostics',
     label: '联调诊断',
     goal: 'G5',
-    description: 'diagnostics + 日志 → 排查步骤',
+    description: '通道健康卡 + 诊断快照',
     icon: 'diagnostics'
+  },
+  {
+    id: 'mcp',
+    label: 'MCP 接入',
+    goal: 'G6',
+    description: 'MCP Server · 外部 LLM 操作接口',
+    icon: 'mcp'
   }
 ]
 

@@ -1,6 +1,8 @@
 package server
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -87,8 +89,9 @@ func (s *Server) getAiSettings(c *fiber.Ctx) error {
 
 type aiSettingsUpdateRequest struct {
 	model.AICopilotSettings
-	APIKeySet   bool `json:"api_key_set"`
-	PasswordSet bool `json:"password_set"`
+	APIKeySet    bool `json:"api_key_set"`
+	PasswordSet  bool `json:"password_set"`
+	McpApiKeySet bool `json:"mcp_api_key_set"`
 }
 
 func (s *Server) putAiSettings(c *fiber.Ctx) error {
@@ -131,14 +134,17 @@ func mergeAiSettingsUpdate(current model.AICopilotSettings, req aiSettingsUpdate
 	if strings.TrimSpace(out.Password) == "" && req.PasswordSet {
 		out.Password = current.Password
 	}
+	if strings.TrimSpace(out.McpApiKey) == "" && req.McpApiKeySet {
+		out.McpApiKey = current.McpApiKey
+	}
 	return mergeAiSettingsDefaults(out)
 }
 
 func validateAiSettings(s model.AICopilotSettings) error {
 	switch s.DeploymentMode {
-	case "local", "remote", "cloud", "":
+	case "remote", "cloud", "":
 	default:
-		return fmt.Errorf("deployment_mode 无效，可选 local / remote / cloud")
+		return fmt.Errorf("deployment_mode 无效，可选 remote / cloud")
 	}
 	if s.DeploymentMode == "cloud" && !s.EnableCloud {
 		return fmt.Errorf("云端模式需显式启用 enable_cloud")
@@ -155,4 +161,78 @@ func validateAiSettings(s model.AICopilotSettings) error {
 		return fmt.Errorf("cloud 模式需填写 API Base URL")
 	}
 	return nil
+}
+
+// ── MCP 激活管理 ──
+
+// handleMcpActivate 处理 MCP 全功能激活（用户确认后开启全功能读写）
+func (s *Server) handleMcpActivate(c *fiber.Ctx) error {
+	var req struct {
+		FullAccess bool   `json:"full_access"`
+		ApiKey     string `json:"api_key"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"code": "1", "message": "请求格式无效", "data": nil,
+		})
+	}
+
+	settings := s.loadAiCopilotSettings()
+
+	// 如果提供了新的 API Key 则更新
+	if strings.TrimSpace(req.ApiKey) != "" && len(req.ApiKey) >= 8 {
+		settings.McpApiKey = req.ApiKey
+	}
+
+	settings.McpFullAccess = req.FullAccess
+	settings.McpEnabled = true
+
+	if err := s.saveAiCopilotSettings(settings); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"code": "1", "message": "保存 MCP 配置失败", "data": nil,
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"code":    "0",
+		"message": "success",
+		"data": fiber.Map{
+			"mcp_enabled":     settings.McpEnabled,
+			"mcp_full_access": settings.McpFullAccess,
+			"mcp_api_key_set": settings.McpApiKey != "",
+		},
+	})
+}
+
+// handleMcpGenerateKey 生成随机 MCP API Key（64 字符十六进制 / 256 位熵）
+func (s *Server) handleMcpGenerateKey(c *fiber.Ctx) error {
+	// 32 随机字节 → 64 字符十六进制（256 位安全强度）
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"code": "1", "message": "密钥生成失败", "data": nil,
+		})
+	}
+	apiKey := hex.EncodeToString(b)
+	return c.JSON(fiber.Map{
+		"code":    "0",
+		"message": "success",
+		"data": fiber.Map{
+			"api_key": apiKey,
+		},
+	})
+}
+
+// handleMcpStatus 返回 MCP 当前激活状态
+func (s *Server) handleMcpStatus(c *fiber.Ctx) error {
+	settings := s.loadAiCopilotSettings()
+	return c.JSON(fiber.Map{
+		"code":    "0",
+		"message": "success",
+		"data": fiber.Map{
+			"mcp_enabled":     settings.McpEnabled,
+			"mcp_full_access": settings.McpFullAccess,
+			"mcp_api_key_set": settings.McpApiKey != "",
+		},
+	})
 }

@@ -32,27 +32,27 @@ type ChannelStatus struct {
 
 // ChannelManager 管理所有采集通道及其下的设备
 type ChannelManager struct {
-	channels               map[string]*model.Channel // channel.id -> channel
-	drivers                map[string]drv.Driver     // channel.id -> driver
-	driverMus              map[string]*sync.Mutex    // channel.id -> mutex for driver access
-	pipeline               *DataPipeline
-	stateManager           *CommunicationManageTemplate
-	deviceAdapterManager   *DeviceAdapterManager
-	protocolRegistry       *ProtocolAdapterRegistry
-	scanEngineAdapter      *ScanEngineAdapter
-	shadowCore             *ShadowCore
-	mu                     sync.RWMutex
-	ctx                    context.Context
-	cancel                 context.CancelFunc
-	saveFunc               func([]model.Channel) error
-	statusHandler          func(deviceID string, status int)
-	topologyChangeHandler  func()
-	topologyDebounceMu     sync.Mutex
-	topologyDebounceTimer  *time.Timer
-	tagRegistry            *TagRegistry
-	pointDegradation       *PointDegradationManager
-	soakMonitor            *SoakMonitor
-	jobs                   *AsyncJobManager
+	channels              map[string]*model.Channel // channel.id -> channel
+	drivers               map[string]drv.Driver     // channel.id -> driver
+	driverMus             map[string]*sync.Mutex    // channel.id -> mutex for driver access
+	pipeline              *DataPipeline
+	stateManager          *CommunicationManageTemplate
+	deviceAdapterManager  *DeviceAdapterManager
+	protocolRegistry      *ProtocolAdapterRegistry
+	scanEngineAdapter     *ScanEngineAdapter
+	shadowCore            *ShadowCore
+	mu                    sync.RWMutex
+	ctx                   context.Context
+	cancel                context.CancelFunc
+	saveFunc              func([]model.Channel) error
+	statusHandler         func(deviceID string, status int)
+	topologyChangeHandler func()
+	topologyDebounceMu    sync.Mutex
+	topologyDebounceTimer *time.Timer
+	tagRegistry           *TagRegistry
+	pointDegradation      *PointDegradationManager
+	soakMonitor           *SoakMonitor
+	jobs                  *AsyncJobManager
 }
 
 func NewChannelManager(pipeline *DataPipeline, saveFunc func([]model.Channel) error) *ChannelManager {
@@ -2410,8 +2410,21 @@ func normalizeModbusChannelConfig(config map[string]any) {
 	if config == nil {
 		return
 	}
-	url, ok := config["url"].(string)
-	if !ok || url == "" {
+	url, _ := config["url"].(string)
+	if url == "" {
+		// 从 ip/port 构造 URL
+		ip, _ := config["ip"].(string)
+		if ip == "" {
+			ip, _ = config["host"].(string)
+		}
+		port := 502
+		if p, ok := coerceConfigInt(config["port"]); ok {
+			port = p
+		}
+		if ip != "" {
+			url = fmt.Sprintf("tcp://%s:%d", ip, port)
+			config["url"] = url
+		}
 		return
 	}
 	url = strings.TrimSpace(url)

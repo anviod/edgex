@@ -2,185 +2,258 @@
   <a-modal
     v-model:visible="visible"
     title="AI 助手设置"
-    :width="720"
+    :width="960"
     modal-class="ai-settings-modal"
     unmount-on-close
     :mask-closable="false"
     render-to-body
     @cancel="handleCancel"
   >
+    <!-- 顶部横幅 -->
     <div class="ai-settings-banner">
-      <span class="ai-settings-banner__tag">Copilot</span>
-      <span>
-        配置 AI 部署模式、平台接入与认证方式。设置保存至网关
-        <code>config.db</code>（<code>ai_copilot</code>），立即影响配额栏与状态显示。
-      </span>
+      <div class="ai-settings-banner__icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M12 2v3"/><path d="M12 19v3"/><path d="M4.93 4.93l2.12 2.12"/><path d="M16.95 16.95l2.12 2.12"/><path d="M2 12h3"/><path d="M19 12h3"/><path d="M4.93 19.07l2.12-2.12"/><path d="M16.95 7.05l2.12-2.12"/>
+        </svg>
+      </div>
+      <div class="ai-settings-banner__body">
+        <div class="ai-settings-banner__title">Industrial Protocol Copilot</div>
+        <div class="ai-settings-banner__desc">
+          配置保存至 <code>config.db</code> · <code>ai_copilot</code> bucket，立即生效
+        </div>
+      </div>
     </div>
 
-    <a-form :model="form" layout="vertical" class="ai-settings-form">
-      <a-form-item label="部署模式" required>
-        <a-radio-group v-model="form.deployment_mode" type="button" size="small" @change="onDeploymentChange">
-          <a-radio
-            v-for="m in AI_DEPLOYMENT_MODES"
-            :key="m.value"
-            :value="m.value"
-          >
-            {{ m.label }}
-          </a-radio>
-        </a-radio-group>
-        <div class="ai-settings-hint">{{ deploymentHint }}</div>
-      </a-form-item>
+    <!-- 三大分类 Tabs -->
+    <a-tabs v-model:active-key="activeTab" class="ai-settings-tabs" @change="onTabChange">
+      <!-- ── Tab 1: MCP 接入 ── -->
+      <a-tab-pane key="mcp" title="MCP 接入">
+        <div class="ai-settings-tab-body">
+          <div class="ai-settings-intro">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <span>外部 LLM 应用（Claude Desktop、Cursor 等）通过标准 MCP 协议安全操作 EdgeX 工业网关</span>
+          </div>
 
-      <a-form-item label="平台 / 提供商" required>
-        <a-select
-          v-model="form.provider"
-          placeholder="选择 AI 平台"
-          allow-search
-          popup-container=".ai-settings-modal"
-          @change="onProviderChange"
-        >
-          <a-option
-            v-for="p in availableProviders"
-            :key="p.value"
-            :value="p.value"
-            :label="p.label"
-          />
-        </a-select>
-      </a-form-item>
+          <div class="ai-settings-grid">
+            <!-- 左栏：服务开关 -->
+            <div class="ai-settings-card">
+              <div class="ai-settings-card__row">
+                <div class="ai-settings-card__label">
+                  <span class="ai-settings-card__title">启用 MCP 服务</span>
+                  <span class="ai-settings-card__desc">开启后外部 LLM 可连接 EdgeX 网关</span>
+                </div>
+                <a-switch v-model="form.mcp_enabled" />
+              </div>
 
-      <template v-if="form.deployment_mode === 'remote'">
-        <a-form-item label="gRPC 端点" required>
-          <a-input
-            v-model="form.grpc_endpoint"
-            placeholder="192.168.1.10:50051"
-            class="mono-text"
-          />
-        </a-form-item>
-      </template>
+              <template v-if="form.mcp_enabled">
+                <div class="ai-settings-card__divider"></div>
+                <div class="ai-settings-card__row">
+                  <div class="ai-settings-card__label">
+                    <span class="ai-settings-card__title">全功能读写</span>
+                    <span class="ai-settings-card__desc" :class="form.mcp_full_access ? 'ai-settings-card__desc--warn' : ''">
+                      {{ form.mcp_full_access ? '已激活 — 允许创建/删除/写入' : '未激活 — 仅允许只读查询' }}
+                    </span>
+                  </div>
+                  <a-switch v-model="form.mcp_full_access" />
+                </div>
+              </template>
+            </div>
 
-      <template v-if="form.deployment_mode === 'cloud'">
-        <a-form-item>
-          <template #label>
-            <span>启用云端调用</span>
-            <a-tooltip
-              content="对应规划文档 enable_cloud；未启用时不允许保存 cloud 模式"
-              popup-container=".ai-settings-modal"
-            >
-              <icon-question-circle class="ai-settings-label-icon" />
-            </a-tooltip>
-          </template>
-          <a-switch v-model="form.enable_cloud" />
-        </a-form-item>
-
-        <a-form-item label="API Base URL" required>
-          <a-input
-            v-model="form.base_url"
-            placeholder="https://api.openai.com/v1"
-            class="mono-text"
-          />
-        </a-form-item>
-
-        <a-form-item label="认证方式">
-          <a-select v-model="form.auth_type" popup-container=".ai-settings-modal">
-            <a-option
-              v-for="a in AI_AUTH_TYPES"
-              :key="a.value"
-              :value="a.value"
-              :label="a.label"
-            />
-          </a-select>
-          <div v-if="authHint" class="ai-settings-hint">{{ authHint }}</div>
-        </a-form-item>
-
-        <template v-if="form.auth_type === 'bearer' || form.auth_type === 'azure_key'">
-          <a-form-item :label="form.auth_type === 'azure_key' ? 'API Key（Azure）' : 'API Key / Token'">
-            <a-input-password
-              v-model="form.api_key"
-              :placeholder="form.api_key_set ? '已设置，留空保持不变' : '输入 API Key'"
-              allow-clear
-            />
-          </a-form-item>
-        </template>
-
-        <template v-if="form.auth_type === 'api_key'">
-          <a-row :gutter="12">
-            <a-col :span="10">
-              <a-form-item label="Header 名称">
-                <a-input v-model="form.api_key_header" placeholder="X-API-Key" class="mono-text" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="14">
-              <a-form-item label="Header 值">
+            <!-- 右栏：API Key -->
+            <div class="ai-settings-card" v-if="form.mcp_enabled">
+              <div class="ai-settings-card__field">
+                <label class="ai-settings-card__field-label">MCP API Key</label>
                 <a-input-password
-                  v-model="form.api_key"
-                  :placeholder="form.api_key_set ? '已设置，留空保持不变' : '输入密钥'"
+                  v-model="form.mcp_api_key"
+                  :placeholder="form.mcp_api_key_set ? '已设置，留空保持不变' : '设置 MCP API Key（至少 8 位）'"
                   allow-clear
                 />
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </template>
+                <div class="ai-settings-card__hint">
+                  支持 <code>Authorization: Bearer &lt;key&gt;</code> 或 <code>X-MCP-API-Key</code> 认证，无需系统 JWT
+                </div>
+              </div>
+            </div>
+          </div>
 
-        <template v-if="form.auth_type === 'basic'">
-          <a-row :gutter="12">
-            <a-col :span="12">
-              <a-form-item label="用户名">
-                <a-input v-model="form.username" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="密码">
-                <a-input-password
-                  v-model="form.password"
-                  :placeholder="form.password_set ? '已设置，留空保持不变' : '输入密码'"
-                  allow-clear
+          <!-- 端点信息 -->
+          <div class="ai-settings-endpoint">
+            <span class="ai-settings-endpoint__label">MCP 端点</span>
+            <code class="ai-settings-endpoint__url">POST /api/mcp</code>
+            <span class="ai-settings-endpoint__status" :class="form.mcp_enabled ? 'ai-settings-endpoint__status--on' : 'ai-settings-endpoint__status--off'">
+              {{ form.mcp_enabled ? '就绪' : '未启用' }}
+            </span>
+          </div>
+        </div>
+      </a-tab-pane>
+
+      <!-- ── Tab 2: 本地 AI 模型 ── -->
+      <a-tab-pane key="remote" title="本地 AI 模型">
+        <div class="ai-settings-tab-body">
+          <div class="ai-settings-intro">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span>局域网 gRPC 对接 EdgeX AI Model Center，提供协议逆向、文档解析等高阶 AI 能力</span>
+          </div>
+
+          <div class="ai-settings-grid">
+            <div class="ai-settings-card">
+              <div class="ai-settings-card__field">
+                <label class="ai-settings-card__field-label">gRPC 端点 <span class="ai-settings-card__required">*</span></label>
+                <a-input
+                  v-model="form.grpc_endpoint"
+                  placeholder="192.168.1.10:50051"
+                  class="mono-text"
                 />
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </template>
+                <div class="ai-settings-card__hint">AI Model Center 的 gRPC 服务地址，格式 IP:Port</div>
+              </div>
+            </div>
 
-        <a-form-item v-if="form.auth_type === 'azure_key'" label="Azure API Version">
-          <a-input v-model="form.azure_api_version" placeholder="2024-02-15-preview" class="mono-text" />
-        </a-form-item>
+            <div class="ai-settings-card">
+              <div class="ai-settings-card__field">
+                <label class="ai-settings-card__field-label">模型</label>
+                <a-select
+                  v-model="form.model"
+                  allow-create
+                  allow-search
+                  placeholder="选择或输入模型 ID"
+                  popup-container=".ai-settings-modal"
+                >
+                  <a-option v-for="m in remoteModels" :key="m" :value="m" :label="m" />
+                </a-select>
+                <div class="ai-settings-card__hint">AI Model Center 上注册的服务/模型名称</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </a-tab-pane>
 
-        <a-form-item v-if="form.provider === 'azure-openai'" label="部署名称（Model）">
-          <a-input v-model="form.model" placeholder="gpt-4o-deployment" class="mono-text" />
-        </a-form-item>
-        <a-form-item v-else label="模型">
-          <a-select
-            v-model="form.model"
-            allow-create
-            allow-search
-            placeholder="选择或输入模型 ID"
-            popup-container=".ai-settings-modal"
-          >
-            <a-option v-for="m in modelOptions" :key="m" :value="m" :label="m" />
-          </a-select>
-        </a-form-item>
-      </template>
+      <!-- ── Tab 3: 云端大模型 ── -->
+      <a-tab-pane key="cloud" title="云端大模型">
+        <div class="ai-settings-tab-body">
+          <div class="ai-settings-intro">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+            <span>直连公网或私有 LLM API — OpenAI、DeepSeek、通义千问、文心一言等</span>
+          </div>
 
-      <a-collapse :bordered="false" class="ai-settings-collapse">
-        <a-collapse-item header="配额限制" key="quota">
-          <a-row :gutter="12">
-            <a-col :span="12">
-              <a-form-item label="每日 Token 上限">
-                <a-input-number v-model="form.tokens_limit" :min="1000" :max="10000000" :step="1000" style="width: 100%" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="每日任务上限">
-                <a-input-number v-model="form.tasks_limit" :min="1" :max="10000" :step="10" style="width: 100%" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </a-collapse-item>
-      </a-collapse>
-    </a-form>
+          <div class="ai-settings-card">
+            <div class="ai-settings-card__row">
+              <div class="ai-settings-card__label">
+                <span class="ai-settings-card__title">启用云端调用</span>
+                <span class="ai-settings-card__desc">未启用时不允许保存云端配置</span>
+              </div>
+              <a-switch v-model="form.enable_cloud" />
+            </div>
+
+            <template v-if="form.enable_cloud">
+              <div class="ai-settings-card__divider"></div>
+
+              <!-- 第一行：平台 + Base URL -->
+              <div class="ai-settings-card__row--fields">
+                <div class="ai-settings-card__field" style="flex:1">
+                  <label class="ai-settings-card__field-label">平台 / 提供商 <span class="ai-settings-card__required">*</span></label>
+                  <a-select
+                    v-model="form.provider"
+                    placeholder="选择 AI 平台"
+                    allow-search
+                    popup-container=".ai-settings-modal"
+                    @change="onProviderChange"
+                  >
+                    <a-option v-for="p in cloudProviders" :key="p.value" :value="p.value" :label="p.label" />
+                  </a-select>
+                </div>
+                <div class="ai-settings-card__field" style="flex:1">
+                  <label class="ai-settings-card__field-label">API Base URL <span class="ai-settings-card__required">*</span></label>
+                  <a-input v-model="form.base_url" placeholder="https://api.openai.com/v1" class="mono-text" />
+                </div>
+              </div>
+
+              <!-- 第二行：认证方式 + 模型 -->
+              <div class="ai-settings-card__row--fields">
+                <div class="ai-settings-card__field" style="flex:1">
+                  <label class="ai-settings-card__field-label">认证方式</label>
+                  <a-select v-model="form.auth_type" popup-container=".ai-settings-modal">
+                    <a-option v-for="a in AI_AUTH_TYPES" :key="a.value" :value="a.value" :label="a.label" />
+                  </a-select>
+                  <div v-if="authHint" class="ai-settings-card__hint">{{ authHint }}</div>
+                </div>
+                <div class="ai-settings-card__field" style="flex:1">
+                  <label class="ai-settings-card__field-label">{{ form.provider === 'azure-openai' ? '部署名称 (Model)' : '模型' }}</label>
+                  <a-select v-if="form.provider !== 'azure-openai'" v-model="form.model" allow-create allow-search placeholder="选择或输入模型 ID" popup-container=".ai-settings-modal">
+                    <a-option v-for="m in modelOptions" :key="m" :value="m" :label="m" />
+                  </a-select>
+                  <a-input v-else v-model="form.model" placeholder="gpt-4o-deployment" class="mono-text" />
+                </div>
+              </div>
+
+              <!-- 条件字段：API Key -->
+              <div class="ai-settings-card__divider" v-if="form.auth_type === 'bearer' || form.auth_type === 'azure_key' || form.auth_type === 'api_key' || form.auth_type === 'basic'"></div>
+
+              <template v-if="form.auth_type === 'bearer' || form.auth_type === 'azure_key'">
+                <div class="ai-settings-card__field">
+                  <label class="ai-settings-card__field-label">{{ form.auth_type === 'azure_key' ? 'API Key (Azure)' : 'API Key / Token' }}</label>
+                  <a-input-password v-model="form.api_key" :placeholder="form.api_key_set ? '已设置，留空保持不变' : '输入 API Key'" allow-clear />
+                </div>
+              </template>
+
+              <template v-if="form.auth_type === 'api_key'">
+                <div class="ai-settings-card__row--fields">
+                  <div class="ai-settings-card__field" style="flex:1">
+                    <label class="ai-settings-card__field-label">Header 名称</label>
+                    <a-input v-model="form.api_key_header" placeholder="X-API-Key" class="mono-text" />
+                  </div>
+                  <div class="ai-settings-card__field" style="flex:1">
+                    <label class="ai-settings-card__field-label">Header 值</label>
+                    <a-input-password v-model="form.api_key" :placeholder="form.api_key_set ? '已设置' : '输入密钥'" allow-clear />
+                  </div>
+                </div>
+              </template>
+
+              <template v-if="form.auth_type === 'basic'">
+                <div class="ai-settings-card__row--fields">
+                  <div class="ai-settings-card__field" style="flex:1">
+                    <label class="ai-settings-card__field-label">用户名</label>
+                    <a-input v-model="form.username" />
+                  </div>
+                  <div class="ai-settings-card__field" style="flex:1">
+                    <label class="ai-settings-card__field-label">密码</label>
+                    <a-input-password v-model="form.password" :placeholder="form.password_set ? '已设置' : '输入密码'" allow-clear />
+                  </div>
+                </div>
+              </template>
+
+              <div v-if="form.auth_type === 'azure_key'" class="ai-settings-card__field">
+                <label class="ai-settings-card__field-label">Azure API Version</label>
+                <a-input v-model="form.azure_api_version" placeholder="2024-02-15-preview" class="mono-text" />
+              </div>
+            </template>
+          </div>
+        </div>
+      </a-tab-pane>
+    </a-tabs>
+
+    <!-- 配额限制 -->
+    <div class="ai-settings-quota">
+      <div class="ai-settings-quota__head" @click="quotaOpen = !quotaOpen">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>配额限制</span>
+        <svg class="ai-settings-quota__chevron" :class="{ 'ai-settings-quota__chevron--open': quotaOpen }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div v-if="quotaOpen" class="ai-settings-quota__body">
+        <div class="ai-settings-card__row--fields">
+          <div class="ai-settings-card__field" style="flex:1">
+            <label class="ai-settings-card__field-label">每日 Token 上限</label>
+            <a-input-number v-model="form.tokens_limit" :min="1000" :max="10000000" :step="1000" style="width:100%" />
+          </div>
+          <div class="ai-settings-card__field" style="flex:1">
+            <label class="ai-settings-card__field-label">每日任务上限</label>
+            <a-input-number v-model="form.tasks_limit" :min="1" :max="10000" :step="10" style="width:100%" />
+          </div>
+        </div>
+      </div>
+    </div>
 
     <template #footer>
       <a-button @click="handleCancel">取消</a-button>
-      <a-button type="primary" :loading="saving" @click="handleSave">保存</a-button>
+      <a-button type="primary" :loading="saving" @click="handleSave">保存配置</a-button>
     </template>
   </a-modal>
 </template>
@@ -188,9 +261,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { Message } from '@arco-design/web-vue'
-import { IconQuestionCircle } from '@arco-design/web-vue/es/icon'
 import {
-  AI_DEPLOYMENT_MODES,
   AI_AUTH_TYPES,
   AI_PROVIDERS,
   defaultAiSettings,
@@ -212,26 +283,16 @@ const visible = computed({
 })
 
 const form = ref(defaultAiSettings())
+const activeTab = ref('remote')
+const quotaOpen = ref(false)
 
-const availableProviders = computed(() => {
-  const mode = form.value.deployment_mode
-  if (mode === 'local') {
-    return AI_PROVIDERS.filter((p) => p.deploymentMode === 'local')
-  }
-  if (mode === 'remote') {
-    return AI_PROVIDERS.filter((p) => p.deploymentMode === 'remote')
-  }
-  return AI_PROVIDERS.filter((p) => p.deploymentMode === 'cloud')
-})
+const cloudProviders = computed(() =>
+  AI_PROVIDERS.filter((p) => p.deploymentMode === 'cloud')
+)
 
-const deploymentHint = computed(() => {
-  const m = AI_DEPLOYMENT_MODES.find((d) => d.value === form.value.deployment_mode)
-  return m?.desc || ''
-})
-
-const authHint = computed(() => {
-  const a = AI_AUTH_TYPES.find((t) => t.value === form.value.auth_type)
-  return a?.desc || ''
+const remoteModels = computed(() => {
+  const preset = findProvider('edgex-center')
+  return preset?.models || []
 })
 
 const modelOptions = computed(() => {
@@ -239,8 +300,34 @@ const modelOptions = computed(() => {
   return preset?.models || []
 })
 
+const authHint = computed(() => {
+  const a = AI_AUTH_TYPES.find((t) => t.value === form.value.auth_type)
+  return a?.desc || ''
+})
+
+function resolveTab(mode) {
+  if (mode === 'cloud') return 'cloud'
+  return 'remote'
+}
+
+const onTabChange = (key) => {
+  if (key === 'mcp') return
+  form.value.deployment_mode = key
+  if (key === 'remote') {
+    applyProviderPreset(form.value, 'edgex-center')
+  } else if (key === 'cloud') {
+    const first = cloudProviders.value[0]
+    if (first) applyProviderPreset(form.value, first.value)
+  }
+}
+
+const onProviderChange = (provider) => {
+  applyProviderPreset(form.value, provider)
+}
+
 const syncForm = (settings) => {
   form.value = { ...defaultAiSettings(), ...(settings || {}) }
+  activeTab.value = resolveTab(form.value.deployment_mode)
 }
 
 watch(
@@ -252,15 +339,6 @@ watch(
 watch(visible, (open) => {
   if (open && props.settings) syncForm(props.settings)
 })
-
-const onDeploymentChange = (mode) => {
-  const match = AI_PROVIDERS.find((p) => p.deploymentMode === mode)
-  if (match) applyProviderPreset(form.value, match.value)
-}
-
-const onProviderChange = (provider) => {
-  applyProviderPreset(form.value, provider)
-}
 
 const handleCancel = () => {
   visible.value = false

@@ -1,8 +1,14 @@
-/** AI provider presets for AiSettingsDialog */
+/** AI 助手设置三大分类 */
+export const AI_SETTING_CATEGORIES = [
+  { value: 'mcp', label: 'MCP 接入', desc: '外部 LLM 通过 MCP 协议操作网关' },
+  { value: 'remote', label: '本地 AI 模型', desc: '局域网 gRPC 对接 EdgeX AI Model Center' },
+  { value: 'cloud', label: '云端大模型', desc: '直连公网或私有 LLM API' }
+]
+
+/** AI deployment modes (legacy — kept for compatibility) */
 export const AI_DEPLOYMENT_MODES = [
-  { value: 'local', label: '本地 Mock', desc: '确定性 Mock 流水线，无需外部 API' },
-  { value: 'remote', label: 'AI Model Center', desc: '局域网 gRPC 对接 EdgeX AI Server（Mode A/B）' },
-  { value: 'cloud', label: '云端 API', desc: '直连公网或私有 LLM API（Mode C，需 enable_cloud）' }
+  { value: 'remote', label: '本地 AI 模型', desc: '局域网 gRPC 对接 EdgeX AI Model Center（Mode A/B）' },
+  { value: 'cloud', label: '云端大模型', desc: '直连公网或私有 LLM API（Mode C，需 enable_cloud）' }
 ]
 
 export const AI_AUTH_TYPES = [
@@ -15,15 +21,6 @@ export const AI_AUTH_TYPES = [
 ]
 
 export const AI_PROVIDERS = [
-  {
-    value: 'edgex-local',
-    label: '本地 Mock',
-    deploymentMode: 'local',
-    authType: 'none',
-    baseUrl: '',
-    grpcEndpoint: '',
-    models: []
-  },
   {
     value: 'edgex-center',
     label: 'EdgeX AI Model Center',
@@ -112,8 +109,8 @@ export const AI_PROVIDERS = [
 ]
 
 export const defaultAiSettings = () => ({
-  deployment_mode: 'local',
-  provider: 'edgex-local',
+  deployment_mode: 'remote',
+  provider: 'edgex-center',
   grpc_endpoint: '127.0.0.1:50051',
   base_url: '',
   auth_type: 'bearer',
@@ -128,7 +125,11 @@ export const defaultAiSettings = () => ({
   model: '',
   enable_cloud: false,
   tokens_limit: 50000,
-  tasks_limit: 100
+  tasks_limit: 100,
+  mcp_enabled: false,
+  mcp_api_key: '',
+  mcp_api_key_set: false,
+  mcp_full_access: false
 })
 
 export function findProvider(value) {

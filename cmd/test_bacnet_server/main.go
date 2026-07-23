@@ -70,8 +70,8 @@ func main() {
 	// Step 1: 单播 WhoIs
 	fmt.Println("--- Step 1: Unicast WhoIs ---")
 	devices, err := client.WhoIs(&bacnet.WhoIsOpts{
-		Low:       -1,
-		High:      -1,
+		Low:  -1,
+		High: -1,
 		Destination: &btypes.Address{
 			Mac:    []byte{127, 0, 0, 1, byte(port >> 8), byte(port & 0xFF)},
 			MacLen: 6,

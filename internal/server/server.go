@@ -21,6 +21,7 @@ import (
 	"github.com/anviod/edgex/internal/ai_agent"
 	"github.com/anviod/edgex/internal/config"
 	"github.com/anviod/edgex/internal/core"
+	"github.com/anviod/edgex/internal/mcp"
 	"github.com/anviod/edgex/internal/model"
 	"github.com/anviod/edgex/internal/northbound/opcua"
 	"github.com/anviod/edgex/internal/pkg/logger"
@@ -77,6 +78,7 @@ type Server struct {
 	portSwitching          bool
 	aiAgent                *ai_agent.Agent
 	aiSettingsMem          *model.AICopilotSettings
+	mcpServer              *mcp.MCPServer // MCP 协议服务端（懒初始化）
 	storageAttachHook      func(*storage.Storage)
 	runtimeStartHook       func()
 	shadowSubscribeOnce    sync.Once
@@ -348,6 +350,14 @@ func (s *Server) setupRoutes() {
 	s.app.Get("/api/ws/values", websocket.New(s.handleWebSocket))
 	s.app.Get("/ws", websocket.New(s.handleWebSocket))
 
+	// MCP (Model Context Protocol) — 外部 LLM 接入端点（MCP API Key 认证，不走 JWT）
+	s.app.Post("/api/mcp", s.handleMCP)
+	s.app.Get("/api/mcp", s.handleMCP)
+	s.app.Delete("/api/mcp", s.handleMCP)
+	s.app.Post("/mcp", s.handleMCP)
+	s.app.Get("/mcp", s.handleMCP)
+	s.app.Delete("/mcp", s.handleMCP)
+
 	api := s.app.Group("/api")
 
 	// 认证相关 (无需 JWT)
@@ -395,6 +405,12 @@ func (s *Server) setupRoutes() {
 	api.Post("/ai/validate", s.postAiValidate)
 	api.Post("/ai/edge-rule/draft", s.postAiEdgeRuleDraft)
 	api.Get("/ai/diagnostics/summary", s.getAiDiagnosticsSummary)
+
+	// MCP 管理接口（UI 配置，走 JWT）
+	api.Get("/mcp/help", s.handleMCPHelp)
+	api.Post("/mcp/activate", s.handleMcpActivate)
+	api.Get("/mcp/status", s.handleMcpStatus)
+	api.Post("/mcp/generate-key", s.handleMcpGenerateKey)
 
 	// 系统设置
 	api.Get("/system", s.getSystemConfig)

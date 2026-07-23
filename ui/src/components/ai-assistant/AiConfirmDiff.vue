@@ -25,7 +25,7 @@
         @click="applyMode = 'import'"
       >
         导入模式
-        <small>写入 Channel / Point（本地 Mock 为模拟）</small>
+        <small>写入 Channel / Point 到生产配置</small>
       </button>
     </div>
 
@@ -62,7 +62,7 @@
 
     <p v-if="applyMode === 'import'" class="ai-confirm-diff__hint">
       导入将创建通道 <code>{{ deliverables?.driver_parameter?.name || '—' }}</code>
-      及 {{ deliverables?.point_definition?.points?.length || 0 }} 个点位（本地 Mock 不实际写入）
+      及 {{ deliverables?.point_definition?.points?.length || 0 }} 个点位
     </p>
   </div>
 </template>

@@ -29,9 +29,9 @@ const (
 )
 
 const (
-	asyncJobDefaultTTL   = 30 * time.Minute
-	asyncJobMaxEntries   = 256
-	asyncJobSweepEvery   = time.Minute
+	asyncJobDefaultTTL = 30 * time.Minute
+	asyncJobMaxEntries = 256
+	asyncJobSweepEvery = time.Minute
 )
 
 // AsyncJob is a pollable record for long scan/browse work.

@@ -1,4 +1,4 @@
-﻿package bacnet
+package bacnet
 
 import (
 	"net"
@@ -118,11 +118,14 @@ func verifyDeviceObjectName(client bacnetlib.Client, deviceID int, ip string, po
 }
 
 // locateDeviceAddress resolves a device via strict two-step discovery:
-//   Step 1: Direct ReadProperty verification using user-provided DeviceID+IP+Port.
-//   Step 2: Broadcast WhoIs on standard BACnet port 47808 for undiscovered devices.
+//
+//	Step 1: Direct ReadProperty verification using user-provided DeviceID+IP+Port.
+//	Step 2: Broadcast WhoIs on standard BACnet port 47808 for undiscovered devices.
+//
 // locateDeviceAddress 通过严格的两步流程发现设备：
-//   步骤1：使用用户提供的 DeviceID+IP+Port 直接 ReadProperty 验证。
-//   步骤2：对未发现的设备，使用标准 BACnet 默认端口 47808 广播 WhoIs。
+//
+//	步骤1：使用用户提供的 DeviceID+IP+Port 直接 ReadProperty 验证。
+//	步骤2：对未发现的设备，使用标准 BACnet 默认端口 47808 广播 WhoIs。
 func (d *BACnetDriver) locateDeviceAddress(client bacnetlib.Client, deviceID int, ip string, portHint int) (btypes.Device, bool) {
 	if client == nil {
 		return btypes.Device{}, false

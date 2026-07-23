@@ -22,11 +22,11 @@ import (
 // ---------------------------------------------------------------------------
 
 const (
-	workflowClientIP   = "192.168.3.115"
-	workflowClientPort = 47815
-	workflowSubnetCIDR = 24
-	workflowMaxPDU     = 1476
-	workflowTargetIP   = "192.168.3.115"
+	workflowClientIP      = "192.168.3.115"
+	workflowClientPort    = 47815
+	workflowSubnetCIDR    = 24
+	workflowMaxPDU        = 1476
+	workflowTargetIP      = "192.168.3.115"
 	workflowBroadcastPort = 47808
 )
 
@@ -46,8 +46,8 @@ var deviceConfigs = []deviceConfig{
 }
 
 type writeTarget struct {
-	DeviceID int
-	ObjectKey string // e.g. "AnalogValue:2"
+	DeviceID   int
+	ObjectKey  string // e.g. "AnalogValue:2"
 	WriteValue float64
 }
 
@@ -62,11 +62,11 @@ var writeTargets = []writeTarget{
 // ---------------------------------------------------------------------------
 
 type DeviceRecord struct {
-	DeviceID  int
-	IP        string
-	Port      int
+	DeviceID   int
+	IP         string
+	Port       int
 	ObjectName string
-	Device    btypes.Device
+	Device     btypes.Device
 }
 
 type PointRecord struct {
@@ -225,7 +225,7 @@ func TestBACnetDriver_FullWorkflow(t *testing.T) {
 		}
 		rp, err := client.ReadPropertyWithTimeout(testDev, btypes.PropertyData{
 			Object: btypes.Object{
-				ID: btypes.ObjectID{Type: btypes.DeviceType, Instance: btypes.ObjectInstance(cfg.ID)},
+				ID:         btypes.ObjectID{Type: btypes.DeviceType, Instance: btypes.ObjectInstance(cfg.ID)},
 				Properties: []btypes.Property{{Type: btypes.PropObjectName, ArrayIndex: btypes.ArrayAll}},
 			},
 		}, 10*time.Second)
@@ -294,7 +294,7 @@ func TestBACnetDriver_FullWorkflow(t *testing.T) {
 	for id, dev := range confirmedDevices {
 		rp, err := client.ReadPropertyWithTimeout(dev, btypes.PropertyData{
 			Object: btypes.Object{
-				ID: btypes.ObjectID{Type: btypes.DeviceType, Instance: btypes.ObjectInstance(id)},
+				ID:         btypes.ObjectID{Type: btypes.DeviceType, Instance: btypes.ObjectInstance(id)},
 				Properties: []btypes.Property{{Type: btypes.PropObjectName, ArrayIndex: btypes.ArrayAll}},
 			},
 		}, 5*time.Second)

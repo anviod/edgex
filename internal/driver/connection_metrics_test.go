@@ -3,8 +3,8 @@ package driver_test
 import (
 	"testing"
 
+	_ "github.com/anviod/bacnet" // 导入BACnet驱动
 	"github.com/anviod/edgex/internal/driver"
-	_ "github.com/anviod/bacnet"     // 导入BACnet驱动
 	_ "github.com/anviod/edgex/internal/driver/dlt645"     // 导入DLT645驱动
 	_ "github.com/anviod/edgex/internal/driver/ethernetip" // 导入EtherNet/IP驱动
 	_ "github.com/anviod/edgex/internal/driver/ice104"     // 导入ICE104驱动

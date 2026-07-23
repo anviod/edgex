@@ -81,8 +81,8 @@ func TestBACnet_AddDeviceFromScanPayload_DuplicateInstance(t *testing.T) {
 		Enable:   true,
 		Config: map[string]any{
 			"bacnet_device_id": 2228316,
-			"ip":              "192.168.3.106",
-			"port":            54103,
+			"ip":               "192.168.3.106",
+			"port":             54103,
 		},
 	}
 	err := cm.AddDevice(channelID, scanDev)
@@ -147,8 +147,8 @@ func TestBACnet_BatchAddDevicesFromScanPayload(t *testing.T) {
 			Enable:   true,
 			Config: map[string]any{
 				"bacnet_device_id": id,
-				"ip":              "192.168.3.106",
-				"port":            47808,
+				"ip":               "192.168.3.106",
+				"port":             47808,
 			},
 		}
 		require.NoError(t, cm.AddDevice(channelID, dev))

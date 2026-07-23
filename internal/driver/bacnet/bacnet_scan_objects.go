@@ -1,4 +1,4 @@
-﻿package bacnet
+package bacnet
 
 import (
 	"context"

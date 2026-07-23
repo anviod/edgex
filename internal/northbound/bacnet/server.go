@@ -21,17 +21,17 @@ import (
 // Server 是 BACnet Server 的核心实现，将 EdgeX 南向设备和点位映射为 BACnet 对象。
 // 遵循 OPC UA Server 的架构模式：Start/Stop 生命周期管理、Update 数据流、SyncAddressSpace 热更新。
 type Server struct {
-	config         model.BACnetServerConfig
-	sb             model.SouthboundManager
-	srv            server.Server              // 底层 BACnet 库 Server
-	mu             sync.RWMutex               // 保护 pointMap 和 deviceIDs
-	lifecycleMu    sync.Mutex                 // 保护 Start/Stop/UpdateConfig 生命周期
-	pointMap       map[string]pointMapping    // key: channelID/deviceID/pointID → BACnet 对象信息
-	deviceIDs      map[string]struct{}        // 已暴露的虚拟设备 ID 集合
-	ctx            context.Context
-	cancel         context.CancelFunc
-	stats          Stats
-	writeHistory   []WriteHistoryItem
+	config       model.BACnetServerConfig
+	sb           model.SouthboundManager
+	srv          server.Server           // 底层 BACnet 库 Server
+	mu           sync.RWMutex            // 保护 pointMap 和 deviceIDs
+	lifecycleMu  sync.Mutex              // 保护 Start/Stop/UpdateConfig 生命周期
+	pointMap     map[string]pointMapping // key: channelID/deviceID/pointID → BACnet 对象信息
+	deviceIDs    map[string]struct{}     // 已暴露的虚拟设备 ID 集合
+	ctx          context.Context
+	cancel       context.CancelFunc
+	stats        Stats
+	writeHistory []WriteHistoryItem
 }
 
 // pointMapping 记录一个 EdgeX 点位到 BACnet 对象的映射关系
@@ -46,12 +46,12 @@ type pointMapping struct {
 
 // Stats 统计信息
 type Stats struct {
-	ObjectCount   int       `json:"object_count"`   // BACnet 对象总数
-	PointCount    int       `json:"point_count"`    // 已映射点位总数
-	WriteCount    int64     `json:"write_count"`    // 外部写入次数
-	UpdateCount   int64     `json:"update_count"`   // 南向数据更新次数
+	ObjectCount   int       `json:"object_count"`    // BACnet 对象总数
+	PointCount    int       `json:"point_count"`     // 已映射点位总数
+	WriteCount    int64     `json:"write_count"`     // 外部写入次数
+	UpdateCount   int64     `json:"update_count"`    // 南向数据更新次数
 	LastWriteTime time.Time `json:"last_write_time"` // 最近一次外部写入时间
-	StartTime     time.Time `json:"start_time"`     // 服务启动时间
+	StartTime     time.Time `json:"start_time"`      // 服务启动时间
 }
 
 // WriteRequest 外部写入请求
