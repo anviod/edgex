@@ -71,6 +71,7 @@
       <div class="header-actions">
         <button
           class="ai-assistant-trigger"
+          :class="{ 'mcp-glow': mcpConnected }"
           title="AI 助手"
           @click="openAiAssistant"
         >
@@ -159,6 +160,7 @@ import LoginApi from '@/api/login'
 import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue'
 import AiAssistantIcon from '@/components/ai-assistant/AiAssistantIcon.vue'
 import AiAssistantPanel from '@/components/ai-assistant/AiAssistantPanel.vue'
+import { useAiAssistant } from './composables/useAiAssistant'
 import {
   IconApps, IconLink, IconSettings, IconArrowUp,
   IconFile, IconTool, IconThunderbolt, IconSunFill, IconMoonFill,
@@ -175,6 +177,7 @@ const changePwdRef = ref(null)
 const restartModalVisible = ref(false)
 const isDarkTheme = ref(false)
 const aiAssistantRef = ref(null)
+const { mcpConnected } = useAiAssistant()
 
 const openAiAssistant = () => {
   aiAssistantRef.value?.open()

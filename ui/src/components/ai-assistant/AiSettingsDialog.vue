@@ -34,54 +34,97 @@
             <span>外部 LLM 应用（Claude Desktop、Cursor 等）通过标准 MCP 协议安全操作 EdgeX 工业网关</span>
           </div>
 
-          <div class="ai-settings-grid">
-            <!-- 左栏：服务开关 -->
-            <div class="ai-settings-card">
-              <div class="ai-settings-card__row">
-                <div class="ai-settings-card__label">
-                  <span class="ai-settings-card__title">启用 MCP 服务</span>
-                  <span class="ai-settings-card__desc">开启后外部 LLM 可连接 EdgeX 网关</span>
-                </div>
-                <a-switch v-model="form.mcp_enabled" />
+          <!-- 单卡片：开关 + 配置一体化 -->
+          <div class="ai-settings-card ai-settings-card--vertical">
+            <div class="ai-settings-card__row">
+              <div class="ai-settings-card__label">
+                <span class="ai-settings-card__title">启用 MCP 服务</span>
+                <span class="ai-settings-card__desc">
+                  {{ form.mcp_enabled ? '外部 LLM 可通过 MCP 协议连接网关，支持 30 个工具、13 个提示词模板' : '关闭状态 — 外部客户端无法连接' }}
+                </span>
               </div>
-
-              <template v-if="form.mcp_enabled">
-                <div class="ai-settings-card__divider"></div>
-                <div class="ai-settings-card__row">
-                  <div class="ai-settings-card__label">
-                    <span class="ai-settings-card__title">全功能读写</span>
-                    <span class="ai-settings-card__desc" :class="form.mcp_full_access ? 'ai-settings-card__desc--warn' : ''">
-                      {{ form.mcp_full_access ? '已激活 — 允许创建/删除/写入' : '未激活 — 仅允许只读查询' }}
-                    </span>
-                  </div>
-                  <a-switch v-model="form.mcp_full_access" />
-                </div>
-              </template>
+              <a-switch v-model="form.mcp_enabled" />
             </div>
 
-            <!-- 右栏：API Key -->
-            <div class="ai-settings-card" v-if="form.mcp_enabled">
-              <div class="ai-settings-card__field">
-                <label class="ai-settings-card__field-label">MCP API Key</label>
+            <!-- 开启后展开的配置区域 -->
+            <template v-if="form.mcp_enabled">
+              <div class="ai-settings-card__divider"></div>
+
+              <!-- 全功能读写（二级配置） -->
+              <div class="ai-settings-status-item">
+                <span class="ai-settings-status-dot" :class="form.mcp_full_access ? 'ai-settings-status-dot--on' : 'ai-settings-status-dot--off'"></span>
+                <div class="ai-settings-status-item__text">
+                  <span class="ai-settings-status-item__label">全功能读写</span>
+                  <span class="ai-settings-status-item__desc">
+                    {{ form.mcp_full_access ? '已激活 — 所有 CRUD 操作可用（创建通道/设备/点位、写入、规则等）' : '未激活 — 仅支持只读查询（通道列表、设备状态、诊断信息等）' }}
+                  </span>
+                </div>
+                <a-switch v-model="form.mcp_full_access" size="small" class="ai-settings-status-item__action" />
+              </div>
+
+              <!-- MCP API Key（二级配置） -->
+              <div class="ai-settings-status-item">
+                <span class="ai-settings-status-dot" :class="form.mcp_api_key_set ? 'ai-settings-status-dot--on' : 'ai-settings-status-dot--off'"></span>
+                <div class="ai-settings-status-item__text">
+                  <span class="ai-settings-status-item__label">MCP API Key</span>
+                  <span class="ai-settings-status-item__desc">
+                    {{ form.mcp_api_key_set ? '已设置（' + mcpKeyMasked + '）' : '未设置 — 外部客户端无法完成认证' }}
+                  </span>
+                </div>
+                <div class="ai-settings-status-item__action">
+                  <a-button
+                    v-if="form.mcp_api_key_set"
+                    size="mini"
+                    @click="copyMcpKey"
+                  >
+                    复制
+                  </a-button>
+                  <a-button size="mini" @click="toggleMcpKeyInput">
+                    {{ showMcpKeyInput ? '取消' : '设置' }}
+                  </a-button>
+                </div>
+              </div>
+
+              <!-- API Key 输入区 -->
+              <div v-if="showMcpKeyInput" class="ai-settings-key-input">
                 <a-input-password
-                  v-model="form.mcp_api_key"
-                  :placeholder="form.mcp_api_key_set ? '已设置，留空保持不变' : '设置 MCP API Key（至少 8 位）'"
+                  v-model="mcpKeyDraft"
+                  placeholder="输入 MCP API Key（至少 8 位）"
                   allow-clear
+                  autocomplete="new-password"
+                  name="mcp-api-key-field"
+                  :readonly="mcpInputReadonly"
+                  @focus="onMcpKeyFocus"
                 />
-                <div class="ai-settings-card__hint">
+                <div class="ai-settings-key-input__actions">
+                  <a-button size="small" :loading="genKeyLoading" @click="generateMcpKey">
+                    生成密钥
+                  </a-button>
+                  <a-button type="primary" size="small" :loading="saveKeyLoading" @click="saveMcpKey">
+                    保存
+                  </a-button>
+                </div>
+                <div class="ai-settings-card__hint" style="margin-top: 6px; margin-bottom: 0">
                   支持 <code>Authorization: Bearer &lt;key&gt;</code> 或 <code>X-MCP-API-Key</code> 认证，无需系统 JWT
                 </div>
               </div>
-            </div>
-          </div>
 
-          <!-- 端点信息 -->
-          <div class="ai-settings-endpoint">
-            <span class="ai-settings-endpoint__label">MCP 端点</span>
-            <code class="ai-settings-endpoint__url">POST /api/mcp</code>
-            <span class="ai-settings-endpoint__status" :class="form.mcp_enabled ? 'ai-settings-endpoint__status--on' : 'ai-settings-endpoint__status--off'">
-              {{ form.mcp_enabled ? '就绪' : '未启用' }}
-            </span>
+              <!-- 端点信息（二级） -->
+              <div class="ai-settings-endpoint ai-settings-endpoint--indented">
+                <span class="ai-settings-endpoint__label">MCP 端点</span>
+                <code class="ai-settings-endpoint__url">POST /api/mcp</code>
+                <span class="ai-settings-endpoint__status ai-settings-endpoint__status--on">就绪</span>
+              </div>
+            </template>
+
+            <!-- 关闭时显示帮助按钮 -->
+            <template v-else>
+              <div class="ai-settings-card__divider"></div>
+              <div class="ai-settings-card__closed-hint">
+                <span>开启后可在接入方式区域查看各客户端配置示例</span>
+                <a-button size="mini" type="outline" @click="openMcpDocs">说明帮助</a-button>
+              </div>
+            </template>
           </div>
         </div>
       </a-tab-pane>
@@ -94,33 +137,31 @@
             <span>局域网 gRPC 对接 EdgeX AI Model Center，提供协议逆向、文档解析等高阶 AI 能力</span>
           </div>
 
-          <div class="ai-settings-grid">
-            <div class="ai-settings-card">
-              <div class="ai-settings-card__field">
-                <label class="ai-settings-card__field-label">gRPC 端点 <span class="ai-settings-card__required">*</span></label>
-                <a-input
-                  v-model="form.grpc_endpoint"
-                  placeholder="192.168.1.10:50051"
-                  class="mono-text"
-                />
-                <div class="ai-settings-card__hint">AI Model Center 的 gRPC 服务地址，格式 IP:Port</div>
-              </div>
+          <div class="ai-settings-card ai-settings-card--vertical">
+            <div class="ai-settings-card__field">
+              <label class="ai-settings-card__field-label">gRPC 端点 <span class="ai-settings-card__required">*</span></label>
+              <a-input
+                v-model="form.grpc_endpoint"
+                placeholder="192.168.1.10:50051"
+                class="mono-text"
+              />
+              <div class="ai-settings-card__hint">AI Model Center 的 gRPC 服务地址，格式 IP:Port</div>
             </div>
 
-            <div class="ai-settings-card">
-              <div class="ai-settings-card__field">
-                <label class="ai-settings-card__field-label">模型</label>
-                <a-select
-                  v-model="form.model"
-                  allow-create
-                  allow-search
-                  placeholder="选择或输入模型 ID"
-                  popup-container=".ai-settings-modal"
-                >
-                  <a-option v-for="m in remoteModels" :key="m" :value="m" :label="m" />
-                </a-select>
-                <div class="ai-settings-card__hint">AI Model Center 上注册的服务/模型名称</div>
-              </div>
+            <div class="ai-settings-card__divider"></div>
+
+            <div class="ai-settings-card__field">
+              <label class="ai-settings-card__field-label">模型</label>
+              <a-select
+                v-model="form.model"
+                allow-create
+                allow-search
+                placeholder="选择或输入模型 ID"
+                popup-container=".ai-settings-modal"
+              >
+                <a-option v-for="m in remoteModels" :key="m" :value="m" :label="m" />
+              </a-select>
+              <div class="ai-settings-card__hint">AI Model Center 上注册的服务/模型名称</div>
             </div>
           </div>
         </div>
@@ -230,24 +271,37 @@
       </a-tab-pane>
     </a-tabs>
 
-    <!-- 配额限制 -->
-    <div class="ai-settings-quota">
-      <div class="ai-settings-quota__head" @click="quotaOpen = !quotaOpen">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        <span>配额限制</span>
-        <svg class="ai-settings-quota__chevron" :class="{ 'ai-settings-quota__chevron--open': quotaOpen }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    <!-- 接入方式（仅 MCP Tab 可见） -->
+    <div v-if="activeTab === 'mcp'" class="ai-settings-access">
+      <div class="ai-settings-access__head">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <span>接入方式</span>
       </div>
-      <div v-if="quotaOpen" class="ai-settings-quota__body">
-        <div class="ai-settings-card__row--fields">
-          <div class="ai-settings-card__field" style="flex:1">
-            <label class="ai-settings-card__field-label">每日 Token 上限</label>
-            <a-input-number v-model="form.tokens_limit" :min="1000" :max="10000000" :step="1000" style="width:100%" />
-          </div>
-          <div class="ai-settings-card__field" style="flex:1">
-            <label class="ai-settings-card__field-label">每日任务上限</label>
-            <a-input-number v-model="form.tasks_limit" :min="1" :max="10000" :step="10" style="width:100%" />
-          </div>
+      <p class="ai-settings-access__desc">
+        外部 LLM 应用通过 MCP 协议安全操作 EdgeX 工业网关。使用 MCP API Key 简化认证（无需 JWT）。
+      </p>
+
+      <!-- 客户端 Tabs -->
+      <div class="ai-settings-access__tabs">
+        <button
+          v-for="c in mcpClients"
+          :key="c.key"
+          class="ai-settings-access__tab"
+          :class="{ 'ai-settings-access__tab--active': mcpClient === c.key }"
+          @click="mcpClient = c.key"
+        >{{ c.label }}</button>
+      </div>
+
+      <!-- 配置示例 -->
+      <div class="ai-settings-access__config">
+        <div class="ai-settings-access__config-head">
+          <span class="ai-settings-access__config-label">配置示例</span>
+          <button class="ai-settings-access__copy" @click="copyMcpConfig">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>{{ copyLabel }}</span>
+          </button>
         </div>
+        <pre class="ai-settings-access__code"><code>{{ mcpClientConfig }}</code></pre>
       </div>
     </div>
 
@@ -275,7 +329,7 @@ const props = defineProps({
   saving: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['update:modelValue', 'save'])
+const emit = defineEmits(['update:modelValue', 'save', 'refresh'])
 
 const visible = computed({
   get: () => props.modelValue,
@@ -284,7 +338,260 @@ const visible = computed({
 
 const form = ref(defaultAiSettings())
 const activeTab = ref('remote')
-const quotaOpen = ref(false)
+
+/* ── 接入方式 ── */
+const mcpClient = ref('claude')
+const copyLabel = ref('复制')
+const mcpClients = [
+  { key: 'claude', label: 'Claude Desktop' },
+  { key: 'cursor', label: 'Cursor' },
+  { key: 'windsurf', label: 'Windsurf' },
+  { key: 'continue', label: 'Continue.dev' }
+]
+
+const mcpEndpoint = computed(() => {
+  if (typeof window !== 'undefined') {
+    return window.location.origin + '/api/mcp'
+  }
+  return 'http://localhost:5173/api/mcp'
+})
+
+const mcpClientConfig = computed(() => {
+  const key = form.value.mcp_api_key || '替换为真实的 API Key'
+  const configs = {
+    claude: {
+      mcpServers: {
+        edgex: {
+          url: mcpEndpoint.value,
+          headers: { Authorization: `Bearer ${key}` }
+        }
+      }
+    },
+    cursor: {
+      mcpServers: {
+        edgex: {
+          url: mcpEndpoint.value,
+          headers: { Authorization: `Bearer ${key}` }
+        }
+      }
+    },
+    windsurf: {
+      mcpServers: {
+        edgex: {
+          url: mcpEndpoint.value,
+          headers: { Authorization: `Bearer ${key}` }
+        }
+      }
+    },
+    continue: {
+      mcpServers: {
+        edgex: {
+          transport: { type: 'http', url: mcpEndpoint.value },
+          auth: { type: 'bearer', token: key }
+        }
+      }
+    }
+  }
+  return JSON.stringify(configs[mcpClient.value] || configs.claude, null, 2)
+})
+
+function copyMcpConfig() {
+  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+    navigator.clipboard.writeText(mcpClientConfig.value).then(() => {
+      copyLabel.value = '已复制'
+      setTimeout(() => { copyLabel.value = '复制' }, 2000)
+    }).catch(() => {
+      fallbackCopy()
+    })
+  } else {
+    fallbackCopy()
+  }
+}
+
+function fallbackCopy() {
+  const ta = document.createElement('textarea')
+  ta.value = mcpClientConfig.value
+  ta.style.position = 'fixed'; ta.style.opacity = '0'
+  document.body.appendChild(ta)
+  ta.select()
+  document.execCommand('copy')
+  document.body.removeChild(ta)
+  copyLabel.value = '已复制'
+  setTimeout(() => { copyLabel.value = '复制' }, 2000)
+}
+
+/* ── MCP 状态展示 ── */
+const mcpKeyMasked = computed(() => {
+  const key = lastMcpKeyForCopy.value || form.value.mcp_api_key
+  if (!key) return '****'
+  if (key.length <= 8) return key.substring(0, 2) + '****' + key.substring(key.length - 2)
+  return key.substring(0, 4) + '****' + key.substring(key.length - 4)
+})
+
+/* ── MCP API Key 管理（独立保存，不依赖 form 保存） ── */
+const showMcpKeyInput = ref(false)
+const mcpKeyDraft = ref('')
+const genKeyLoading = ref(false)
+const saveKeyLoading = ref(false)
+const mcpInputReadonly = ref(true)
+const lastMcpKeyForCopy = ref('')
+
+function getAuthToken() {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('loginInfo')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        return parsed.token || (parsed.data && parsed.data.token) || ''
+      }
+    } catch (e) {}
+  }
+  return ''
+}
+
+async function generateMcpKey() {
+  genKeyLoading.value = true
+  try {
+    const token = getAuthToken()
+    const headers = { 'Content-Type': 'application/json' }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
+    // 1. 生成密钥
+    const genResp = await fetch('/api/mcp/generate-key', { method: 'POST', headers })
+    const genData = await genResp.json()
+    if (genData.code !== '0') {
+      Message.error(genData.message || '生成失败')
+      return
+    }
+    const newKey = genData.data.api_key
+
+    // 2. 立即通过 activate API 保存
+    const saveResp = await fetch('/api/mcp/activate', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ api_key: newKey, full_access: form.value.mcp_full_access })
+    })
+    const saveData = await saveResp.json()
+    if (saveData.code === '0') {
+      mcpKeyDraft.value = newKey
+      lastMcpKeyForCopy.value = newKey
+      form.value.mcp_api_key_set = true
+      emit('refresh')
+      Message.success('已生成并保存 64 位随机密钥')
+    } else {
+      Message.error(saveData.message || '保存失败')
+    }
+  } catch {
+    Message.error('网络错误')
+  } finally {
+    genKeyLoading.value = false
+  }
+}
+
+async function saveMcpKey() {
+  const key = mcpKeyDraft.value.trim()
+  if (!key || key.length < 8) {
+    Message.warning('API Key 至少需要 8 位字符')
+    return
+  }
+
+  saveKeyLoading.value = true
+  try {
+    const token = getAuthToken()
+    const headers = { 'Content-Type': 'application/json' }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
+    const resp = await fetch('/api/mcp/activate', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ api_key: key, full_access: form.value.mcp_full_access })
+    })
+    const data = await resp.json()
+    if (data.code === '0') {
+      form.value.mcp_api_key_set = true
+      lastMcpKeyForCopy.value = key
+      showMcpKeyInput.value = false
+      mcpKeyDraft.value = ''
+      emit('refresh')
+      Message.success('MCP API Key 已保存')
+    } else {
+      Message.error(data.message || '保存失败')
+    }
+  } catch {
+    Message.error('网络错误')
+  } finally {
+    saveKeyLoading.value = false
+  }
+}
+
+function toggleMcpKeyInput() {
+  showMcpKeyInput.value = !showMcpKeyInput.value
+  if (showMcpKeyInput.value) {
+    mcpKeyDraft.value = ''
+    mcpInputReadonly.value = true
+    // 延迟二次清空，应对浏览器自动填充
+    setTimeout(() => {
+      if (mcpKeyDraft.value && (mcpKeyDraft.value.includes('passwd') || mcpKeyDraft.value.includes('password'))) {
+        mcpKeyDraft.value = ''
+      }
+    }, 150)
+  }
+}
+
+function onMcpKeyFocus() {
+  mcpInputReadonly.value = false
+  // 如果浏览器已自动填充非用户输入的内容，清空
+  if (mcpKeyDraft.value && (mcpKeyDraft.value.includes('passwd') || mcpKeyDraft.value.includes('password'))) {
+    mcpKeyDraft.value = ''
+  }
+}
+
+function copyMcpKey() {
+  const key = lastMcpKeyForCopy.value || mcpKeyDraft.value
+  if (!key) {
+    Message.warning('无可复制的 Key，请重新生成或设置')
+    return
+  }
+  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+    navigator.clipboard.writeText(key).then(() => {
+      Message.success('MCP API Key 已复制到剪贴板')
+    }).catch(() => {
+      fallbackCopyText(key)
+    })
+  } else {
+    fallbackCopyText(key)
+  }
+}
+
+function fallbackCopyText(text) {
+  const ta = document.createElement('textarea')
+  ta.value = text
+  ta.style.position = 'fixed'; ta.style.opacity = '0'
+  document.body.appendChild(ta)
+  ta.select()
+  document.execCommand('copy')
+  document.body.removeChild(ta)
+  Message.success('MCP API Key 已复制到剪贴板')
+}
+
+function openMcpDocs() {
+  const token = getAuthToken()
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  fetch('/api/mcp/help', { headers })
+    .then(r => r.json())
+    .then(data => {
+      if (data && (data.tools || data.architecture)) {
+        // 在新窗口打开完整文档
+        const w = window.open('', '_blank')
+        if (w) {
+          w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>MCP 接入帮助</title></head><body style="font-family:system-ui;max-width:860px;margin:40px auto;padding:0 20px;color:#333;line-height:1.7"><h1>${data.title || 'MCP 接入指南'}</h1><p>${data.description || ''}</p></body></html>`)
+          w.document.close()
+        }
+      }
+    })
+    .catch(() => Message.error('获取帮助文档失败'))
+}
 
 const cloudProviders = computed(() =>
   AI_PROVIDERS.filter((p) => p.deploymentMode === 'cloud')

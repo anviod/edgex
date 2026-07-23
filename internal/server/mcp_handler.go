@@ -383,6 +383,123 @@ func (s *Server) registerMCPFullTools(mcpSrv *mcp.MCPServer) {
 			Required: []string{"virtual_device_id", "formula_points"},
 		},
 	}, s.mcpCreateVirtualDevice)
+
+	// ── 扩展工具 ──
+
+	// 通道重启
+	mcpSrv.RegisterTool(mcp.Tool{
+		Name:        "edgex_restart_channel",
+		Description: "重启指定通道的采集引擎（需要 MCP 全功能激活；先停止再启动，用于恢复异常连接）",
+		InputSchema: mcp.InputSchema{
+			Type:       "object",
+			Properties: map[string]mcp.PropertyDef{"channel_id": {Type: "string", Description: "通道 ID"}},
+			Required:   []string{"channel_id"},
+		},
+	}, s.mcpRestartChannel)
+
+	// 通道配置查询
+	mcpSrv.RegisterTool(mcp.Tool{
+		Name:        "edgex_get_channel_config",
+		Description: "获取指定通道的完整配置（包括 IP、端口、驱动参数、设备数、点位总数）",
+		InputSchema: mcp.InputSchema{
+			Type:       "object",
+			Properties: map[string]mcp.PropertyDef{"channel_id": {Type: "string", Description: "通道 ID"}},
+			Required:   []string{"channel_id"},
+		},
+	}, s.mcpGetChannelConfig)
+
+	// 设备更新
+	mcpSrv.RegisterTool(mcp.Tool{
+		Name:        "edgex_update_device",
+		Description: "更新已存在设备的配置（需要 MCP 全功能激活；支持修改名称、采集间隔、从站地址等参数）",
+		InputSchema: mcp.InputSchema{
+			Type: "object",
+			Properties: map[string]mcp.PropertyDef{
+				"channel_id": {Type: "string", Description: "通道 ID"},
+				"device_id":  {Type: "string", Description: "设备 ID"},
+				"name":       {Type: "string", Description: "新名称（可选）"},
+				"config":     {Type: "object", Description: "新配置（可选，JSON 对象）：slave_id, interval, degrade_on_failure 等"},
+				"enable":     {Type: "boolean", Description: "启用/禁用（可选）"},
+			},
+			Required: []string{"channel_id", "device_id"},
+		},
+	}, s.mcpUpdateDevice)
+
+	// 点位更新
+	mcpSrv.RegisterTool(mcp.Tool{
+		Name:        "edgex_update_point",
+		Description: "更新已存在点位的配置（需要 MCP 全功能激活；支持修改名称、地址、数据类型、缩放、字节序等参数）",
+		InputSchema: mcp.InputSchema{
+			Type: "object",
+			Properties: map[string]mcp.PropertyDef{
+				"channel_id":    {Type: "string", Description: "通道 ID"},
+				"device_id":     {Type: "string", Description: "设备 ID"},
+				"point_id":      {Type: "string", Description: "点位 ID"},
+				"name":          {Type: "string", Description: "新名称（可选）"},
+				"address":       {Type: "string", Description: "新地址（可选）"},
+				"datatype":      {Type: "string", Description: "新数据类型（可选）：int16, uint16, int32, uint32, float32, float64, bool, string"},
+				"scale":         {Type: "number", Description: "新缩放系数（可选）"},
+				"offset":        {Type: "number", Description: "新偏移量（可选）"},
+				"unit":          {Type: "string", Description: "新单位（可选）"},
+				"readwrite":     {Type: "string", Description: "新读写属性（可选）：R 或 RW"},
+				"word_order":    {Type: "string", Description: "新字节序（可选）：ABCD, CDAB, BADC, DCBA"},
+				"scan_class":    {Type: "string", Description: "新扫描类（可选）：fast, normal, slow"},
+			},
+			Required: []string{"channel_id", "device_id", "point_id"},
+		},
+	}, s.mcpUpdatePoint)
+
+	// 边缘规则列表
+	mcpSrv.RegisterTool(mcp.Tool{
+		Name:        "edgex_list_edge_rules",
+		Description: "列出所有边缘计算规则（规则名称、类型、条件、状态、触发次数）",
+		InputSchema: mcp.InputSchema{Type: "object", Properties: map[string]mcp.PropertyDef{}},
+	}, s.mcpListEdgeRules)
+
+	// 历史数据
+	mcpSrv.RegisterTool(mcp.Tool{
+		Name:        "edgex_get_point_history",
+		Description: "获取指定点位的历史数据（最近 N 条记录，含时间戳、值、质量）",
+		InputSchema: mcp.InputSchema{
+			Type: "object",
+			Properties: map[string]mcp.PropertyDef{
+				"channel_id": {Type: "string", Description: "通道 ID"},
+				"device_id":  {Type: "string", Description: "设备 ID"},
+				"point_id":   {Type: "string", Description: "点位 ID"},
+				"limit":      {Type: "number", Description: "返回记录数（默认 100，最大 1000）"},
+				"duration":   {Type: "string", Description: "时间范围（如 5m, 1h, 24h，与 limit 互斥）"},
+			},
+			Required: []string{"channel_id", "device_id", "point_id"},
+		},
+	}, s.mcpGetPointHistory)
+
+	// 设备启停
+	mcpSrv.RegisterTool(mcp.Tool{
+		Name:        "edgex_enable_device",
+		Description: "启用或禁用指定设备（需要 MCP 全功能激活；禁用后停止采集但不删除配置）",
+		InputSchema: mcp.InputSchema{
+			Type: "object",
+			Properties: map[string]mcp.PropertyDef{
+				"channel_id": {Type: "string", Description: "通道 ID"},
+				"device_id":  {Type: "string", Description: "设备 ID"},
+				"enable":     {Type: "boolean", Description: "true=启用, false=禁用"},
+			},
+			Required: []string{"channel_id", "device_id", "enable"},
+		},
+	}, s.mcpEnableDevice)
+
+	// 配置导出
+	mcpSrv.RegisterTool(mcp.Tool{
+		Name:        "edgex_export_config",
+		Description: "导出 EdgeX 完整配置（所有通道、设备、点位、边缘规则的 JSON 配置，可用于备份或迁移）",
+		InputSchema: mcp.InputSchema{
+			Type: "object",
+			Properties: map[string]mcp.PropertyDef{
+				"format": {Type: "string", Description: "导出格式：json（默认）或 yaml"},
+				"scope":  {Type: "string", Description: "导出范围：all（全部），channels（仅通道），rules（仅规则），默认 all"},
+			},
+		},
+	}, s.mcpExportConfig)
 }
 
 // ── 工具实现 ──
@@ -1232,6 +1349,399 @@ func (s *Server) mcpCreateVirtualDevice(args json.RawMessage) (*mcp.CallToolResu
 	return mcp.NewSuccessResult(result), nil
 }
 
+// ── 扩展工具实现 ──
+
+// mcpRestartChannel 重启通道
+func (s *Server) mcpRestartChannel(args json.RawMessage) (*mcp.CallToolResult, error) {
+	if blocked := s.mcpRequireFullAccess(); blocked != nil {
+		return blocked, nil
+	}
+	var params struct {
+		ChannelID string `json:"channel_id"`
+	}
+	if err := json.Unmarshal(args, &params); err != nil {
+		return mcp.NewErrorResult("参数解析失败: " + err.Error()), nil
+	}
+	if err := s.cm.StopChannel(params.ChannelID); err != nil {
+		return mcp.NewErrorResult("停止通道失败: " + err.Error()), nil
+	}
+	time.Sleep(500 * time.Millisecond)
+	if err := s.cm.StartChannel(params.ChannelID); err != nil {
+		return mcp.NewErrorResult("启动通道失败: " + err.Error()), nil
+	}
+	return mcp.NewSuccessResult(fmt.Sprintf("## 通道已重启\n\n通道 `%s` 已成功停止并重新启动。", params.ChannelID)), nil
+}
+
+// mcpGetChannelConfig 获取通道配置详情
+func (s *Server) mcpGetChannelConfig(args json.RawMessage) (*mcp.CallToolResult, error) {
+	var params struct {
+		ChannelID string `json:"channel_id"`
+	}
+	if err := json.Unmarshal(args, &params); err != nil {
+		return mcp.NewErrorResult("参数解析失败: " + err.Error()), nil
+	}
+	ch := s.cm.GetChannel(params.ChannelID)
+	if ch == nil {
+		return mcp.NewErrorResult("通道不存在: " + params.ChannelID), nil
+	}
+	devices := s.cm.GetChannelDevices(params.ChannelID)
+	totalPoints := 0
+	deviceList := make([]map[string]any, 0, len(devices))
+	for _, dev := range devices {
+		pts, _ := s.cm.GetDevicePoints(params.ChannelID, dev.ID)
+		totalPoints += len(pts)
+		deviceList = append(deviceList, map[string]any{
+			"device_id": dev.ID, "name": dev.Name, "enabled": dev.Enable,
+			"interval": time.Duration(dev.Interval).String(), "point_count": len(pts),
+		})
+	}
+	stats := s.cm.GetChannelStats()
+	status := "offline"
+	for _, cs := range stats {
+		if cs.ID == params.ChannelID && cs.Status == "online" {
+			status = "online"
+			break
+		}
+	}
+	result := map[string]any{
+		"channel_id":   ch.ID,
+		"name":         ch.Name,
+		"protocol":     ch.Protocol,
+		"enabled":      ch.Enable,
+		"status":       status,
+		"config":       ch.Config,
+		"device_count": len(devices),
+		"point_count":  totalPoints,
+		"devices":      deviceList,
+	}
+	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewSuccessResult("## 通道配置详情\n\n```json\n" + string(resultJSON) + "\n```"), nil
+}
+
+// mcpUpdateDevice 更新设备配置
+func (s *Server) mcpUpdateDevice(args json.RawMessage) (*mcp.CallToolResult, error) {
+	if blocked := s.mcpRequireFullAccess(); blocked != nil {
+		return blocked, nil
+	}
+	var params struct {
+		ChannelID string         `json:"channel_id"`
+		DeviceID  string         `json:"device_id"`
+		Name      string         `json:"name"`
+		Config    map[string]any `json:"config"`
+		Enable    *bool          `json:"enable"`
+	}
+	if err := json.Unmarshal(args, &params); err != nil {
+		return mcp.NewErrorResult("参数解析失败: " + err.Error()), nil
+	}
+	dev := s.cm.GetDevice(params.ChannelID, params.DeviceID)
+	if dev == nil {
+		return mcp.NewErrorResult("设备不存在: " + params.DeviceID), nil
+	}
+	updated := false
+	if params.Name != "" {
+		dev.Name = params.Name
+		updated = true
+	}
+	if params.Config != nil {
+		if dev.Config == nil {
+			dev.Config = make(map[string]any)
+		}
+		for k, v := range params.Config {
+			dev.Config[k] = v
+		}
+		updated = true
+	}
+	if params.Enable != nil {
+		dev.Enable = *params.Enable
+		updated = true
+	}
+	if !updated {
+		return mcp.NewErrorResult("未提供任何需要更新的字段"), nil
+	}
+	if err := s.cm.UpdateDevice(params.ChannelID, dev); err != nil {
+		return mcp.NewErrorResult("更新设备失败: " + err.Error()), nil
+	}
+	result := map[string]any{
+		"device_id": dev.ID, "name": dev.Name, "enabled": dev.Enable, "config": dev.Config,
+	}
+	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewSuccessResult("## 设备更新成功\n\n```json\n" + string(resultJSON) + "\n```"), nil
+}
+
+// mcpUpdatePoint 更新点位配置
+func (s *Server) mcpUpdatePoint(args json.RawMessage) (*mcp.CallToolResult, error) {
+	if blocked := s.mcpRequireFullAccess(); blocked != nil {
+		return blocked, nil
+	}
+	var params struct {
+		ChannelID  string   `json:"channel_id"`
+		DeviceID   string   `json:"device_id"`
+		PointID    string   `json:"point_id"`
+		Name       string   `json:"name"`
+		Address    string   `json:"address"`
+		Datatype   string   `json:"datatype"`
+		Scale      *float64 `json:"scale"`
+		Offset     *float64 `json:"offset"`
+		Unit       string   `json:"unit"`
+		ReadWrite  string   `json:"readwrite"`
+		WordOrder  string   `json:"word_order"`
+		ScanClass  string   `json:"scan_class"`
+	}
+	if err := json.Unmarshal(args, &params); err != nil {
+		return mcp.NewErrorResult("参数解析失败: " + err.Error()), nil
+	}
+	dev := s.cm.GetDevice(params.ChannelID, params.DeviceID)
+	if dev == nil {
+		return mcp.NewErrorResult("设备不存在: " + params.DeviceID), nil
+	}
+	var pt *model.Point
+	for i := range dev.Points {
+		if dev.Points[i].ID == params.PointID {
+			pt = &dev.Points[i]
+			break
+		}
+	}
+	if pt == nil {
+		return mcp.NewErrorResult("点位不存在: " + params.PointID), nil
+	}
+	updated := false
+	if params.Name != "" {
+		pt.Name = params.Name
+		updated = true
+	}
+	if params.Address != "" {
+		pt.Address = params.Address
+		updated = true
+	}
+	if params.Datatype != "" {
+		pt.DataType = params.Datatype
+		updated = true
+	}
+	if params.Scale != nil {
+		pt.Scale = *params.Scale
+		updated = true
+	}
+	if params.Offset != nil {
+		pt.Offset = *params.Offset
+		updated = true
+	}
+	if params.Unit != "" {
+		pt.Unit = params.Unit
+		updated = true
+	}
+	if params.ReadWrite != "" {
+		pt.ReadWrite = params.ReadWrite
+		updated = true
+	}
+	if params.WordOrder != "" {
+		pt.WordOrder = params.WordOrder
+		updated = true
+	}
+	if params.ScanClass != "" {
+		pt.ScanClass = params.ScanClass
+		updated = true
+	}
+	if !updated {
+		return mcp.NewErrorResult("未提供任何需要更新的字段"), nil
+	}
+	if _, err := s.cm.UpdatePoint(params.ChannelID, params.DeviceID, pt); err != nil {
+		return mcp.NewErrorResult("更新点位失败: " + err.Error()), nil
+	}
+	result := map[string]any{
+		"point_id": pt.ID, "name": pt.Name, "address": pt.Address, "datatype": pt.DataType,
+		"scale": pt.Scale, "offset": pt.Offset, "unit": pt.Unit, "readwrite": pt.ReadWrite,
+		"word_order": pt.WordOrder, "scan_class": pt.ScanClass,
+	}
+	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	return mcp.NewSuccessResult("## 点位更新成功\n\n```json\n" + string(resultJSON) + "\n```"), nil
+}
+
+// mcpListEdgeRules 列出边缘规则
+func (s *Server) mcpListEdgeRules(args json.RawMessage) (*mcp.CallToolResult, error) {
+	if s.ecm == nil {
+		return mcp.NewSuccessResult("## 边缘规则列表\n\n边缘计算引擎未初始化，当前没有配置规则。"), nil
+	}
+	rules := s.ecm.GetRules()
+	if len(rules) == 0 {
+		return mcp.NewSuccessResult("## 边缘规则列表\n\n当前没有配置任何边缘计算规则。可通过 `edgex_create_edge_rule` 创建。"), nil
+	}
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("## 边缘规则列表 (共 %d 个)\n\n", len(rules)))
+	sb.WriteString("| ID | 名称 | 类型 | 条件 | 状态 | 触发次数 | 动作数 |\n")
+	sb.WriteString("|----|------|------|------|------|----------|--------|\n")
+	ruleStates := s.ecm.GetRuleStates()
+	for _, rule := range rules {
+		status := "active"
+		if !rule.Enable {
+			status = "disabled"
+		}
+		triggerCount := int64(0)
+		if rs, ok := ruleStates[rule.ID]; ok {
+			triggerCount = rs.TriggerCount
+		}
+		sb.WriteString(fmt.Sprintf("| `%s` | %s | %s | %s | %s | %d | %d |\n",
+			rule.ID, rule.Name, rule.Type, truncate(rule.Condition, 40), status, triggerCount, len(rule.Actions)))
+	}
+	return mcp.NewSuccessResult(sb.String()), nil
+}
+
+// mcpGetPointHistory 获取点位历史数据
+func (s *Server) mcpGetPointHistory(args json.RawMessage) (*mcp.CallToolResult, error) {
+	var params struct {
+		ChannelID string  `json:"channel_id"`
+		DeviceID  string  `json:"device_id"`
+		PointID   string  `json:"point_id"`
+		Limit     float64 `json:"limit"`
+		Duration  string  `json:"duration"`
+	}
+	if err := json.Unmarshal(args, &params); err != nil {
+		return mcp.NewErrorResult("参数解析失败: " + err.Error()), nil
+	}
+	limit := 100
+	if params.Limit > 0 {
+		limit = int(params.Limit)
+		if limit > 1000 {
+			limit = 1000
+		}
+	}
+	if params.Duration != "" {
+		_, err := time.ParseDuration(params.Duration)
+		if err != nil {
+			return mcp.NewErrorResult("无效的时间范围: " + params.Duration + " (支持格式: 5m, 1h, 24h)"), nil
+		}
+	}
+	history, err := s.dsm.GetHistory(params.DeviceID, limit)
+	if err != nil {
+		return mcp.NewErrorResult("获取历史数据失败: " + err.Error()), nil
+	}
+	if len(history) == 0 {
+		return mcp.NewSuccessResult(fmt.Sprintf("## 点位 `%s` 历史数据\n\n暂无历史数据。点位可能尚未采集到数据。", params.PointID)), nil
+	}
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("## 点位 `%s` 历史数据 (最近 %d 条)\n\n", params.PointID, len(history)))
+	sb.WriteString("| 时间 | 值 | 质量 |\n")
+	sb.WriteString("|------|-----|------|\n")
+	for _, h := range history {
+		ts := fmt.Sprintf("%v", h["ts"])
+		val := fmt.Sprintf("%v", h["value"])
+		quality := fmt.Sprintf("%v", h["quality"])
+		sb.WriteString(fmt.Sprintf("| %s | %s | %s |\n", ts, val, quality))
+	}
+	return mcp.NewSuccessResult(sb.String()), nil
+}
+
+// mcpEnableDevice 启用/禁用设备
+func (s *Server) mcpEnableDevice(args json.RawMessage) (*mcp.CallToolResult, error) {
+	if blocked := s.mcpRequireFullAccess(); blocked != nil {
+		return blocked, nil
+	}
+	var params struct {
+		ChannelID string `json:"channel_id"`
+		DeviceID  string `json:"device_id"`
+		Enable    bool   `json:"enable"`
+	}
+	if err := json.Unmarshal(args, &params); err != nil {
+		return mcp.NewErrorResult("参数解析失败: " + err.Error()), nil
+	}
+	dev := s.cm.GetDevice(params.ChannelID, params.DeviceID)
+	if dev == nil {
+		return mcp.NewErrorResult("设备不存在: " + params.DeviceID), nil
+	}
+	dev.Enable = params.Enable
+	if err := s.cm.UpdateDevice(params.ChannelID, dev); err != nil {
+		return mcp.NewErrorResult("更新设备状态失败: " + err.Error()), nil
+	}
+	action := "启用"
+	if !params.Enable {
+		action = "禁用"
+	}
+	return mcp.NewSuccessResult(fmt.Sprintf("## 设备已%s\n\n设备 `%s` (%s) 已成功%s。", action, params.DeviceID, dev.Name, action)), nil
+}
+
+// mcpExportConfig 导出配置
+func (s *Server) mcpExportConfig(args json.RawMessage) (*mcp.CallToolResult, error) {
+	var params struct {
+		Format string `json:"format"`
+		Scope  string `json:"scope"`
+	}
+	json.Unmarshal(args, &params)
+	if params.Scope == "" {
+		params.Scope = "all"
+	}
+	if params.Format == "" {
+		params.Format = "json"
+	}
+	export := make(map[string]any)
+	export["export_time"] = time.Now().Format(time.RFC3339)
+	export["server"] = map[string]string{"name": "EdgeX", "version": "v0.0.8"}
+	if params.Scope == "all" || params.Scope == "channels" {
+		channels := s.cm.GetChannels()
+		chList := make([]map[string]any, 0, len(channels))
+		for _, ch := range channels {
+			chData := map[string]any{
+				"channel_id": ch.ID, "name": ch.Name, "protocol": ch.Protocol,
+				"enabled": ch.Enable, "config": ch.Config,
+			}
+			devices := s.cm.GetChannelDevices(ch.ID)
+			devList := make([]map[string]any, 0, len(devices))
+			for _, dev := range devices {
+				devData := map[string]any{
+					"device_id": dev.ID, "name": dev.Name, "enabled": dev.Enable,
+					"interval": time.Duration(dev.Interval).String(), "config": dev.Config,
+				}
+				ptList := make([]map[string]any, 0, len(dev.Points))
+				for _, p := range dev.Points {
+					ptList = append(ptList, map[string]any{
+						"point_id": p.ID, "name": p.Name, "address": p.Address,
+						"datatype": p.DataType, "readwrite": p.ReadWrite, "scale": p.Scale,
+						"offset": p.Offset, "unit": p.Unit, "word_order": p.WordOrder,
+						"scan_class": p.ScanClass, "register_type": string(p.RegisterType),
+						"function_code": p.FunctionCode,
+					})
+				}
+				devData["points"] = ptList
+				devList = append(devList, devData)
+			}
+			chData["devices"] = devList
+			chList = append(chList, chData)
+		}
+		export["channels"] = chList
+	}
+	if params.Scope == "all" || params.Scope == "rules" {
+		if s.ecm != nil {
+			rules := s.ecm.GetRules()
+			ruleStates := s.ecm.GetRuleStates()
+			ruleList := make([]map[string]any, 0, len(rules))
+			for _, rule := range rules {
+				triggerCount := int64(0)
+				actionStatus := int64(0)
+				if rs, ok := ruleStates[rule.ID]; ok {
+					triggerCount = rs.TriggerCount
+					actionStatus = rs.ActionSuccessCount
+				}
+				ruleList = append(ruleList, map[string]any{
+					"rule_id": rule.ID, "name": rule.Name, "type": rule.Type,
+					"condition": rule.Condition, "enabled": rule.Enable,
+					"expression": rule.Expression,
+					"trigger_count": triggerCount, "action_count": len(rule.Actions),
+					"action_success": actionStatus,
+				})
+			}
+			export["rules"] = ruleList
+		}
+	}
+	exportJSON, _ := json.MarshalIndent(export, "", "  ")
+	return mcp.NewSuccessResult("## 配置导出\n\n```json\n" + string(exportJSON) + "\n```"), nil
+}
+
+// truncate 截断字符串到指定长度
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
+}
+
 // tcpProtocols 需要 ip/port 的 TCP 协议白名单
 var tcpProtocols = map[string]bool{
 	"modbus-tcp":          true,
@@ -1488,6 +1998,30 @@ func (s *Server) registerMCPResources(mcpSrv *mcp.MCPServer) {
 		Description: "所有通道和设备的诊断信息汇总",
 		MimeType:    "application/json",
 	}, s.mcpResourceDiagnostics)
+
+	// 协议支持列表
+	mcpSrv.RegisterResource(mcp.Resource{
+		URI:         "edgex://protocols",
+		Name:        "协议支持列表",
+		Description: "EdgeX 支持的工业协议完整列表（含端口、特性）",
+		MimeType:    "application/json",
+	}, s.mcpResourceProtocols)
+
+	// 边缘规则
+	mcpSrv.RegisterResource(mcp.Resource{
+		URI:         "edgex://edge-rules",
+		Name:        "边缘规则",
+		Description: "所有边缘计算规则的配置和状态",
+		MimeType:    "application/json",
+	}, s.mcpResourceEdgeRules)
+
+	// 完整配置导出
+	mcpSrv.RegisterResource(mcp.Resource{
+		URI:         "edgex://config",
+		Name:        "完整配置",
+		Description: "EdgeX 完整配置导出（通道、设备、点位、规则）",
+		MimeType:    "application/json",
+	}, s.mcpResourceConfig)
 }
 
 func (s *Server) mcpResourceChannels(uri string) (*mcp.ReadResourceResult, error) {
@@ -1523,6 +2057,126 @@ func (s *Server) mcpResourceDiagnostics(uri string) (*mcp.ReadResourceResult, er
 		diag[ch.ID+"_devices"] = devDiag
 	}
 	data, _ := json.MarshalIndent(diag, "", "  ")
+	return &mcp.ReadResourceResult{
+		Contents: []mcp.ResourceContent{
+			{URI: uri, MimeType: "application/json", Text: string(data)},
+		},
+	}, nil
+}
+
+func (s *Server) mcpResourceProtocols(uri string) (*mcp.ReadResourceResult, error) {
+	protocols := []map[string]any{
+		{"name": "Modbus TCP", "type": "modbus-tcp", "port": 502, "transport": "TCP", "features": "MBAP + PDU, 功能码 01-06/15-16, holding/coil/discrete/input"},
+		{"name": "Modbus RTU", "type": "modbus-rtu", "port": 0, "transport": "Serial", "features": "RS-232/485, 功能码 01-06/15-16"},
+		{"name": "Siemens S7", "type": "s7", "port": 102, "transport": "TCP", "features": "S7-200/300/400/1200/1500, DB/I/Q/M 区, Put/Get"},
+		{"name": "BACnet/IP", "type": "bacnet", "port": 47808, "transport": "UDP", "features": "AI/AO/BI/BO/AV/BV/MSI/MSO, Who-Is/ReadProperty/WriteProperty"},
+		{"name": "OPC UA", "type": "opcua", "port": 4840, "transport": "TCP", "features": "Browse/Read/Write/Subscribe, NodeId, 安全策略"},
+		{"name": "EtherNet/IP", "type": "ethernetip", "port": 44818, "transport": "TCP", "features": "CIP, Class1/3, Tag Read/Write"},
+		{"name": "SNMP", "type": "snmp", "port": 161, "transport": "UDP", "features": "v1/v2c/v3, Get/GetNext/GetBulk/Walk, OID"},
+		{"name": "DL/T 645", "type": "dlt645", "port": 0, "transport": "Serial", "features": "中国电能表, 07/97 版本, Block/Field"},
+		{"name": "IEC 104", "type": "ice104", "port": 2404, "transport": "TCP", "features": "APCI+ASDU, 总召/时钟同步/单点/双点/测量值"},
+		{"name": "KNXnet/IP", "type": "knxnetip", "port": 3671, "transport": "UDP", "features": "Tunneling/Routing, GroupValue Read/Write"},
+		{"name": "Mitsubishi MELSEC", "type": "mitsubishi", "port": 5000, "transport": "TCP", "features": "MC 3E/4E, 位/字软元件, ASCII/Binary"},
+		{"name": "Omron FINS", "type": "omron", "port": 9600, "transport": "TCP", "features": "FINS UDP/TCP, CIO/WR/HR/DM/AR"},
+	}
+	data, _ := json.MarshalIndent(protocols, "", "  ")
+	return &mcp.ReadResourceResult{
+		Contents: []mcp.ResourceContent{
+			{URI: uri, MimeType: "application/json", Text: string(data)},
+		},
+	}, nil
+}
+
+func (s *Server) mcpResourceEdgeRules(uri string) (*mcp.ReadResourceResult, error) {
+	type ruleInfo struct {
+		ID             string           `json:"id"`
+		Name           string           `json:"name"`
+		Type           string           `json:"type"`
+		Condition      string           `json:"condition"`
+		Expression     string           `json:"expression"`
+		Actions        []model.RuleAction `json:"actions"`
+		Enable         bool             `json:"enable"`
+		TriggerCount   int64            `json:"trigger_count"`
+		ActionSuccess  int64            `json:"action_success_count"`
+	}
+	var rules []ruleInfo
+	if s.ecm != nil {
+		ruleStates := s.ecm.GetRuleStates()
+		for _, r := range s.ecm.GetRules() {
+			triggerCount := int64(0)
+			actionSuccess := int64(0)
+			if rs, ok := ruleStates[r.ID]; ok {
+				triggerCount = rs.TriggerCount
+				actionSuccess = rs.ActionSuccessCount
+			}
+			actions := r.Actions
+			if actions == nil {
+				actions = []model.RuleAction{}
+			}
+			rules = append(rules, ruleInfo{
+				ID: r.ID, Name: r.Name, Type: r.Type,
+				Condition: r.Condition, Expression: r.Expression,
+				Actions: actions, Enable: r.Enable,
+				TriggerCount: triggerCount, ActionSuccess: actionSuccess,
+			})
+		}
+	}
+	if rules == nil {
+		rules = []ruleInfo{}
+	}
+	data, _ := json.MarshalIndent(rules, "", "  ")
+	return &mcp.ReadResourceResult{
+		Contents: []mcp.ResourceContent{
+			{URI: uri, MimeType: "application/json", Text: string(data)},
+		},
+	}, nil
+}
+
+func (s *Server) mcpResourceConfig(uri string) (*mcp.ReadResourceResult, error) {
+	export := make(map[string]any)
+	export["export_time"] = time.Now().Format(time.RFC3339)
+	export["server"] = map[string]string{"name": "EdgeX", "version": "v0.0.8"}
+	channels := s.cm.GetChannels()
+	chList := make([]map[string]any, 0, len(channels))
+	for _, ch := range channels {
+		chData := map[string]any{"channel_id": ch.ID, "name": ch.Name, "protocol": ch.Protocol, "enabled": ch.Enable, "config": ch.Config}
+		devices := s.cm.GetChannelDevices(ch.ID)
+		devList := make([]map[string]any, 0, len(devices))
+		for _, dev := range devices {
+			devData := map[string]any{"device_id": dev.ID, "name": dev.Name, "enabled": dev.Enable, "interval": time.Duration(dev.Interval).String(), "config": dev.Config}
+			ptList := make([]map[string]any, 0, len(dev.Points))
+			for _, p := range dev.Points {
+				ptList = append(ptList, map[string]any{
+					"point_id": p.ID, "name": p.Name, "address": p.Address, "datatype": p.DataType,
+					"scale": p.Scale, "offset": p.Offset, "unit": p.Unit, "readwrite": p.ReadWrite,
+					"word_order": p.WordOrder, "scan_class": p.ScanClass, "register_type": string(p.RegisterType), "function_code": p.FunctionCode,
+				})
+			}
+			devData["points"] = ptList
+			devList = append(devList, devData)
+		}
+		chData["devices"] = devList
+		chList = append(chList, chData)
+	}
+	export["channels"] = chList
+	if s.ecm != nil {
+		rules := s.ecm.GetRules()
+		ruleStates := s.ecm.GetRuleStates()
+		ruleList := make([]map[string]any, 0, len(rules))
+		for _, r := range rules {
+			triggerCount := int64(0)
+			if rs, ok := ruleStates[r.ID]; ok {
+				triggerCount = rs.TriggerCount
+			}
+			ruleList = append(ruleList, map[string]any{
+				"rule_id": r.ID, "name": r.Name, "type": r.Type,
+				"condition": r.Condition, "enabled": r.Enable,
+				"trigger_count": triggerCount, "action_count": len(r.Actions),
+			})
+		}
+		export["rules"] = ruleList
+	}
+	data, _ := json.MarshalIndent(export, "", "  ")
 	return &mcp.ReadResourceResult{
 		Contents: []mcp.ResourceContent{
 			{URI: uri, MimeType: "application/json", Text: string(data)},
@@ -1575,6 +2229,7 @@ func (s *Server) initMCPServer() *mcp.MCPServer {
 
 // registerMCPPrompts 注册 MCP 提示词模板
 func (s *Server) registerMCPPrompts(mcpSrv *mcp.MCPServer) {
+	// 协议逆向
 	mcpSrv.RegisterPrompt(mcp.Prompt{
 		Name:        "protocol-reverse",
 		Description: "工业协议逆向工程：根据 PCAP 抓包与 HMI 显示值，分析协议结构并生成点位配置",
@@ -1584,6 +2239,7 @@ func (s *Server) registerMCPPrompts(mcpSrv *mcp.MCPServer) {
 		},
 	})
 
+	// 通道配置
 	mcpSrv.RegisterPrompt(mcp.Prompt{
 		Name:        "channel-config",
 		Description: "生成通道配置：根据协议类型和设备信息，生成完整的 Channel JSON 配置",
@@ -1594,11 +2250,112 @@ func (s *Server) registerMCPPrompts(mcpSrv *mcp.MCPServer) {
 		},
 	})
 
+	// 诊断分析
 	mcpSrv.RegisterPrompt(mcp.Prompt{
 		Name:        "diagnostics-analyze",
 		Description: "诊断分析：根据诊断数据，分析通道/设备异常原因并给出排查建议",
 		Arguments: []mcp.PromptArgument{
 			{Name: "channel_id", Description: "通道 ID", Required: true},
+		},
+	})
+
+	// ── 新增提示词 ──
+
+	// Modbus 快速接入
+	mcpSrv.RegisterPrompt(mcp.Prompt{
+		Name:        "modbus-quick-start",
+		Description: "Modbus TCP/RTU 设备快速接入指南：通道创建、设备注册、线圈/保持寄存器点位配置",
+		Arguments: []mcp.PromptArgument{
+			{Name: "ip", Description: "Modbus 设备 IP 地址", Required: true},
+			{Name: "port", Description: "Modbus 端口（默认 502）", Required: false},
+			{Name: "slave_id", Description: "从站 ID（默认 1）", Required: false},
+		},
+	})
+
+	// S7 快速接入
+	mcpSrv.RegisterPrompt(mcp.Prompt{
+		Name:        "s7-quick-start",
+		Description: "Siemens S7 PLC 快速接入指南：S7-200/300/400/1200/1500 系列连接配置、DB 块读写、点位优化",
+		Arguments: []mcp.PromptArgument{
+			{Name: "ip", Description: "S7 PLC IP 地址", Required: true},
+			{Name: "rack", Description: "机架号（默认 0）", Required: false},
+			{Name: "slot", Description: "槽位号（默认 1）", Required: false},
+		},
+	})
+
+	// BACnet 快速接入
+	mcpSrv.RegisterPrompt(mcp.Prompt{
+		Name:        "bacnet-quick-start",
+		Description: "BACnet/IP 楼宇自控协议快速接入指南：设备发现、对象/属性映射、AI/AO/BI/BO 点位配置",
+		Arguments: []mcp.PromptArgument{
+			{Name: "device_id", Description: "BACnet 设备实例 ID", Required: false},
+		},
+	})
+
+	// OPC UA 快速接入
+	mcpSrv.RegisterPrompt(mcp.Prompt{
+		Name:        "opcua-quick-start",
+		Description: "OPC UA 工业自动化协议快速接入指南：安全策略配置、节点浏览、订阅模式点位配置",
+		Arguments: []mcp.PromptArgument{
+			{Name: "endpoint", Description: "OPC UA 端点 URL（如 opc.tcp://192.168.1.1:4840）", Required: true},
+			{Name: "security", Description: "安全策略：None, Basic256, Basic256Sha256", Required: false},
+		},
+	})
+
+	// 点位批量生成
+	mcpSrv.RegisterPrompt(mcp.Prompt{
+		Name:        "point-batch-generator",
+		Description: "点位批量生成模板：根据起始地址、数量、数据类型自动生成 Modbus/S7/BACnet 点位配置 JSON",
+		Arguments: []mcp.PromptArgument{
+			{Name: "protocol", Description: "协议类型：modbus-tcp, s7, bacnet", Required: true},
+			{Name: "start_address", Description: "起始地址（如 40001 或 DB1.0）", Required: true},
+			{Name: "count", Description: "点位数量", Required: true},
+			{Name: "datatype", Description: "数据类型：uint16, int16, float32, float64, bool", Required: false},
+		},
+	})
+
+	// 边缘规则构建
+	mcpSrv.RegisterPrompt(mcp.Prompt{
+		Name:        "edge-rule-builder",
+		Description: "边缘计算规则构建助手：根据触发条件、动作类型、目标设备自动生成规则配置",
+		Arguments: []mcp.PromptArgument{
+			{Name: "rule_type", Description: "规则类型：threshold, schedule, expression, state_change", Required: true},
+			{Name: "channel_id", Description: "关联通道 ID", Required: false},
+		},
+	})
+
+	// 故障排查
+	mcpSrv.RegisterPrompt(mcp.Prompt{
+		Name:        "troubleshooting-guide",
+		Description: "工业协议故障排查流程：连接超时、数据跳变、断线重连、点位不可达等常见问题的诊断步骤",
+		Arguments: []mcp.PromptArgument{
+			{Name: "issue_type", Description: "问题类型：connection, data_quality, timeout, offline", Required: true},
+		},
+	})
+
+	// 数据流架构
+	mcpSrv.RegisterPrompt(mcp.Prompt{
+		Name:        "data-flow-architect",
+		Description: "数据流架构设计指南：从采集到上云的端到端数据链路设计，包括本地存储、边缘计算、北向推送",
+		Arguments: []mcp.PromptArgument{
+			{Name: "target", Description: "目标平台：mqtt, opcua, bacnet, rest, kafka", Required: false},
+		},
+	})
+
+	// 网关健康检查
+	mcpSrv.RegisterPrompt(mcp.Prompt{
+		Name:        "gateway-health-check",
+		Description: "网关健康检查清单：CPU/内存/磁盘/网络/采集延迟/断线重连等关键指标的监控与诊断",
+		Arguments:    []mcp.PromptArgument{},
+	})
+
+	// 协议迁移
+	mcpSrv.RegisterPrompt(mcp.Prompt{
+		Name:        "protocol-migration",
+		Description: "协议迁移指南：从一种工业协议迁移到另一种协议的配置转换、地址映射、数据类型对应关系",
+		Arguments: []mcp.PromptArgument{
+			{Name: "from", Description: "源协议类型", Required: true},
+			{Name: "to", Description: "目标协议类型", Required: true},
 		},
 	})
 }
@@ -1718,16 +2475,43 @@ func (s *Server) handleMCPSSE(c *fiber.Ctx) error {
 	return nil
 }
 
-// handleMCPHelp 返回 MCP 接入帮助文档
+// handleMCPHelp 返回 MCP 接入帮助文档（丰富版）
 func (s *Server) handleMCPHelp(c *fiber.Ctx) error {
 	settings := s.loadAiCopilotSettings()
 	if s.mcpServer == nil {
 		s.mcpServer = s.initMCPServer()
 	}
 
+	// 工具分类
+	type toolEntry struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Category    string `json:"category"` // read / write
+	}
+	readTools := []string{
+		"edgex_list_channels", "edgex_list_devices", "edgex_list_points",
+		"edgex_read_point", "edgex_get_system_info", "edgex_get_diagnostics",
+		"edgex_analyze_protocol", "edgex_get_protocol_help",
+		"edgex_list_edge_rules", "edgex_get_point_history", "edgex_export_config",
+		"edgex_get_channel_config",
+	}
+	readOnly := make(map[string]bool)
+	for _, n := range readTools {
+		readOnly[n] = true
+	}
+
+	var tools []toolEntry
+	for _, t := range s.mcpServer.GetTools() {
+		cat := "write"
+		if readOnly[t.Name] {
+			cat = "read"
+		}
+		tools = append(tools, toolEntry{Name: t.Name, Description: t.Description, Category: cat})
+	}
+
 	help := map[string]any{
 		"title":       "EdgeX MCP Server — 接入指南",
-		"description": "通过 MCP (Model Context Protocol) 协议，外部 LLM 应用可以安全地操作 EdgeX 工业网关",
+		"description": "通过 MCP (Model Context Protocol) 协议，外部 LLM 应用（Claude Desktop、Cursor、Windsurf、Continue.dev 等）可以安全地操作 EdgeX 工业网关。支持 30 个工具、13 个提示词模板、6 个资源端点。",
 		"transport":   "HTTP/SSE (JSON-RPC 2.0)",
 		"endpoint":    "/api/mcp",
 		"auth":        "MCP API Key（简化认证）— 在 EdgeX UI → AI 助手 → MCP 接入页面设置",
@@ -1749,12 +2533,21 @@ func (s *Server) handleMCPHelp(c *fiber.Ctx) error {
 				"config": `{"mcpServers":{"edgex":{"transport":{"type":"http","url":"http://<host>:8080/api/mcp"},"auth":{"type":"bearer","token":"<mcp_api_key>"}}}}`,
 			},
 		},
-		"tools":      s.mcpServer.GetToolNames(),
-		"resources":  s.mcpServer.GetResourceURIs(),
-		"prompts":    s.mcpServer.GetPromptNames(),
-		"security":   "全功能 CRUD 操作（创建/删除/写入）需要用户在 UI 中确认激活全功能权限；默认仅支持只读操作；所有操作通过 MCP API Key 认证",
-		"activation": "POST /api/mcp/activate — 激活全功能读写（需用户确认）",
-		"status":     "GET /api/mcp/status — 查询 MCP 激活状态",
+		"tools":        tools,
+		"tool_names":   s.mcpServer.GetToolNames(),
+		"resources":    s.mcpServer.GetResources(),
+		"prompts":      s.mcpServer.GetPrompts(),
+		"security":     "全功能 CRUD 操作（创建/删除/写入）需要用户在 UI 中确认激活全功能权限；默认仅支持只读操作；所有操作通过 MCP API Key 认证",
+		"activation":   "POST /api/mcp/activate — 激活全功能读写（需用户确认）",
+		"status":       "GET /api/mcp/status — 查询 MCP 激活状态",
+		"architecture": map[string]any{
+			"layers": []map[string]string{
+				{"name": "LLM 客户端", "desc": "Claude Desktop / Cursor / Windsurf / Continue.dev", "color": "purple"},
+				{"name": "MCP 协议层", "desc": "JSON-RPC 2.0 / SSE / Streamable HTTP", "color": "blue"},
+				{"name": "EdgeX 网关", "desc": "认证 → 权限检查 → 工具分发 → 数据读写", "color": "green"},
+				{"name": "工业设备", "desc": "Modbus / S7 / BACnet / OPC UA / SNMP / ICE104", "color": "orange"},
+			},
+		},
 	}
 
 	return c.JSON(help)

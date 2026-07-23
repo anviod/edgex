@@ -6,6 +6,7 @@
         v-if="!state.expanded"
         type="button"
         class="ai-fab"
+        :class="{ 'mcp-glow': mcpConnected }"
         title="打开 AI助手"
         aria-label="打开 AI助手"
         popovertarget="ai-assistant-hint"
@@ -202,6 +203,7 @@
     :settings="aiSettings"
     :saving="settingsSaving"
     @save="handleSaveSettings"
+    @refresh="fetchSettings"
   />
 </template>
 
@@ -230,7 +232,7 @@ const route = useRoute()
 const isLoginPage = computed(() => route.path === '/login' || route.path === '/install')
 
 const {
-  state, setExpanded, setMiniMode, setWorkspace, toggleSplitMode,
+  state, mcpConnected, setExpanded, setMiniMode, setWorkspace, toggleSplitMode,
   setPosition, setSize, collapseToFab
 } = useAiAssistant()
 

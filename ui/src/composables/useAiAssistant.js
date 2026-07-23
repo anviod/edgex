@@ -1,6 +1,46 @@
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 
 const STORAGE_KEY = 'edgex-ai-assistant'
+
+// MCP 连接状态（全局共享，供顶部按钮和悬浮 FAB 使用）
+const mcpConnected = ref(false)
+let mcpStatusTimer = null
+
+function getAuthToken() {
+  try {
+    const raw = localStorage.getItem('loginInfo')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      return parsed.token || (parsed.data && parsed.data.token) || ''
+    }
+  } catch { /* ignore */ }
+  return ''
+}
+
+async function checkMcpStatus() {
+  try {
+    const token = getAuthToken()
+    const headers = { 'Content-Type': 'application/json' }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const resp = await fetch('/api/mcp', { method: 'POST', headers })
+    mcpConnected.value = resp.ok
+  } catch {
+    mcpConnected.value = false
+  }
+}
+
+function startMcpStatusPolling() {
+  checkMcpStatus()
+  if (mcpStatusTimer) clearInterval(mcpStatusTimer)
+  mcpStatusTimer = setInterval(checkMcpStatus, 30000)
+}
+
+function stopMcpStatusPolling() {
+  if (mcpStatusTimer) {
+    clearInterval(mcpStatusTimer)
+    mcpStatusTimer = null
+  }
+}
 
 // splitMode: 'both' = 分栏, 'workspace' = 仅工作台, 'chat' = 仅对话
 const defaultState = () => ({
@@ -123,6 +163,13 @@ export const PIPELINE_STAGES = [
 ]
 
 export function useAiAssistant() {
+  onMounted(() => {
+    startMcpStatusPolling()
+  })
+  onUnmounted(() => {
+    stopMcpStatusPolling()
+  })
+
   const setExpanded = (value) => {
     state.value.expanded = value
     if (value) state.value.miniMode = false
@@ -166,6 +213,7 @@ export function useAiAssistant() {
 
   return {
     state,
+    mcpConnected,
     setExpanded,
     setMiniMode,
     setWorkspace,
