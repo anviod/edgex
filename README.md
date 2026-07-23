@@ -65,6 +65,7 @@ EdgeX 部署在工业现场，使命是打通 **OT 设备 ↔ IT 系统** 的数
 | **边缘计算** | [规则与联动](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html#边缘规则与联动控制) |
 | **系统管理** | Vue 3 管理 UI · JWT / LDAP · 安装向导 · config.db · 日志 · WebSocket 实时推送 |
 | **质量保障** | [工业级 SLA](#工业级-sla-与稳定性验证) · [轻量部署](#轻量灵活部署) |
+| **AI / MCP** | [MCP 接入指南](https://anviod.github.io/edgex/guide/mcp-access-guide.html) · [源码](docs/guide/mcp-access-guide.md) | MCP 协议接入，33 个工具 · 6 资源 · 13 提示词 |
 
 ## 文档导航
 
@@ -82,6 +83,7 @@ EdgeX 部署在工业现场，使命是打通 **OT 设备 ↔ IT 系统** 的数
 | [南向驱动矩阵](https://anviod.github.io/edgex/drivers/index.html) · [源码](docs/drivers/index.md) | 13 种协议驱动与开发规范 |
 | [开发计划](https://anviod.github.io/edgex/development_plan/index.html) · [源码](docs/development_plan/index.md) | Q3/Q4 交付跟踪与已交付里程碑 |
 | [测试验证](https://anviod.github.io/edgex/testing/index.html) · [源码](docs/testing/index.md) · [test/ 维护](test/README.md) | SLA 压测、Soak 与 `go test` 维护原则 |
+| [MCP 接入指南](https://anviod.github.io/edgex/guide/mcp-access-guide.html) · [源码](docs/guide/mcp-access-guide.md) | MCP 协议接入、工具清单与客户端配置 |
 
 ---
 
@@ -231,6 +233,7 @@ sudo systemctl enable --now edgex   # 若未自动启动
 | Q3 南向采集优化方案 | [docs/[TODO]边缘计算南向采集优化方案2026第三季度.md](docs/[TODO]边缘计算南向采集优化方案2026第三季度.md)（未发布至 Pages） |
 | 测试验证 | [在线阅读](https://anviod.github.io/edgex/testing/index.html) · [源码](docs/testing/index.md) · [test/ 维护](test/README.md) |
 | 运维参考 | [在线阅读](https://anviod.github.io/edgex/operations/index.html) · [源码](docs/operations/index.md) |
+| MCP 接入指南 | [在线阅读](https://anviod.github.io/edgex/guide/mcp-access-guide.html) · [源码](docs/guide/mcp-access-guide.md) |
 
 ---
 

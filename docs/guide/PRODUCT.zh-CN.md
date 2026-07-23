@@ -19,13 +19,28 @@ description: EdgeX 工业边缘网关产品手册
 | **影子数据面** | ShadowCore 内存真源，UI / 边缘规则 / 历史 / 北向共用同一快照 |
 | **边缘计算** | 阈值、表达式、窗口规则；虚拟影子公式聚合；本地写控联动 |
 | **北向无缝接入** | MQTT · Sparkplug B · OPC UA Server · BACnet Server · HTTP · EdgeOS，对接 SCADA / 云平台 |
-| **AI 高级能力** | 协议逆向 / 诊断类 Copilot 技能（`internal/ai_agent`） |
+| **AI / MCP 协同** | AI Copilot 协议逆向 + MCP Server 33 工具，外部 LLM 安全操作网关（`internal/mcp`） |
 
 ## 南向协议一览
 
 Modbus TCP/RTU · BACnet IP · OPC UA · Siemens S7 · EtherNet/IP · Omron FINS · SNMP · IEC 104 · DL/T645 · Mitsubishi SLMP · Profinet IO · KNXnet/IP · EtherCAT
 
 完整矩阵与覆盖率：[南向驱动](../drivers/index.html) · [测试报告](../testing/南向驱动测试报告.html)
+
+## AI 协同与 MCP
+
+EdgeX 提供双通道 AI 协同能力：
+
+| 通道 | 定位 | 协议 | 认证 |
+|------|------|------|------|
+| **AI Agent**（内部） | 协议逆向、文档解析、配置生成 | gRPC / REST | 系统 JWT |
+| **MCP Server**（对外） | 通道/设备/点位 CRUD、边缘规则 | MCP (JSON-RPC 2.0) | MCP API Key |
+
+- MCP 提供 33 个工具（8 只读 + 1 写操作 + 24 全功能 CRUD）
+- 支持 Claude Desktop、Cursor、Windsurf、Continue.dev
+- 全功能操作需用户 UI 显式激活
+
+详见 [MCP 接入指南](mcp-access-guide.html)。
 
 ## 架构主线（影子设备）
 
