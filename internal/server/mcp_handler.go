@@ -13,6 +13,7 @@ import (
 	"github.com/anviod/edgex/internal/mcp"
 	"github.com/anviod/edgex/internal/model"
 	"github.com/gofiber/fiber/v2"
+	"gopkg.in/yaml.v3"
 )
 
 // ── MCP 会话管理（MCP 2025-11-25 Streamable HTTP）──
@@ -384,6 +385,16 @@ func (s *Server) registerMCPFullTools(mcpSrv *mcp.MCPServer) {
 		},
 	}, s.mcpCreateVirtualDevice)
 
+	mcpSrv.RegisterTool(mcp.Tool{
+		Name:        "edgex_delete_virtual_device",
+		Description: "删除虚拟设备（需要 MCP 全功能激活）",
+		InputSchema: mcp.InputSchema{
+			Type:       "object",
+			Properties: map[string]mcp.PropertyDef{"virtual_device_id": {Type: "string", Description: "虚拟设备 ID"}},
+			Required:   []string{"virtual_device_id"},
+		},
+	}, s.mcpDeleteVirtualDevice)
+
 	// ── 扩展工具 ──
 
 	// 通道重启
@@ -516,13 +527,16 @@ func (s *Server) mcpListChannels(args json.RawMessage) (*mcp.CallToolResult, err
 	sb.WriteString("| ID | 名称 | 协议 | 状态 | 设备数 |\n")
 	sb.WriteString("|----|------|------|------|--------|\n")
 
+	stats := s.cm.GetChannelStats()
 	for _, ch := range channels {
 		deviceCount := len(s.cm.GetChannelDevices(ch.ID))
-		stats := s.cm.GetChannelStats()
 		status := "offline"
 		for _, cs := range stats {
-			if cs.ID == ch.ID && cs.Status == "online" {
-				status = "online"
+			if cs.ID == ch.ID {
+				status = strings.ToLower(cs.Status)
+				if status == "" {
+					status = "offline"
+				}
 				break
 			}
 		}
@@ -566,8 +580,9 @@ func (s *Server) mcpListDevices(args json.RawMessage) (*mcp.CallToolResult, erro
 		if sid, ok := dev.Config["slave_id"]; ok {
 			slaveID = fmt.Sprintf("%v", sid)
 		}
+		intervalStr := time.Duration(dev.Interval).String()
 		sb.WriteString(fmt.Sprintf("| `%s` | %s | %s | %s | %s | %d |\n",
-			dev.ID, dev.Name, slaveID, dev.Interval, enabled, len(points)))
+			dev.ID, dev.Name, slaveID, intervalStr, enabled, len(points)))
 	}
 
 	return mcp.NewSuccessResult(sb.String()), nil
@@ -1349,6 +1364,30 @@ func (s *Server) mcpCreateVirtualDevice(args json.RawMessage) (*mcp.CallToolResu
 	return mcp.NewSuccessResult(result), nil
 }
 
+// mcpDeleteVirtualDevice 删除虚拟设备
+func (s *Server) mcpDeleteVirtualDevice(args json.RawMessage) (*mcp.CallToolResult, error) {
+	if blocked := s.mcpRequireFullAccess(); blocked != nil {
+		return blocked, nil
+	}
+
+	var params struct {
+		VirtualDeviceID string `json:"virtual_device_id"`
+	}
+	if err := json.Unmarshal(args, &params); err != nil {
+		return mcp.NewErrorResult("参数解析失败: " + err.Error()), nil
+	}
+
+	if s.virtualShadow == nil {
+		return mcp.NewErrorResult("虚拟影子引擎未初始化"), nil
+	}
+
+	if err := s.virtualShadow.DeleteVirtualDevice(params.VirtualDeviceID); err != nil {
+		return mcp.NewErrorResult("删除虚拟设备失败: " + err.Error()), nil
+	}
+
+	return mcp.NewSuccessResult(fmt.Sprintf("## 虚拟设备已删除\n\n虚拟设备 `%s` 已成功删除。", params.VirtualDeviceID)), nil
+}
+
 // ── 扩展工具实现 ──
 
 // mcpRestartChannel 重启通道
@@ -1604,13 +1643,19 @@ func (s *Server) mcpGetPointHistory(args json.RawMessage) (*mcp.CallToolResult, 
 			limit = 1000
 		}
 	}
+	var history []map[string]any
+	var err error
 	if params.Duration != "" {
-		_, err := time.ParseDuration(params.Duration)
+		duration, err := time.ParseDuration(params.Duration)
 		if err != nil {
 			return mcp.NewErrorResult("无效的时间范围: " + params.Duration + " (支持格式: 5m, 1h, 24h)"), nil
 		}
+		end := time.Now()
+		start := end.Add(-duration)
+		history, err = s.dsm.GetHistoryByTimeRange(params.DeviceID, start, end, limit)
+	} else {
+		history, err = s.dsm.GetHistory(params.DeviceID, limit)
 	}
-	history, err := s.dsm.GetHistory(params.DeviceID, limit)
 	if err != nil {
 		return mcp.NewErrorResult("获取历史数据失败: " + err.Error()), nil
 	}
@@ -1730,8 +1775,21 @@ func (s *Server) mcpExportConfig(args json.RawMessage) (*mcp.CallToolResult, err
 			export["rules"] = ruleList
 		}
 	}
-	exportJSON, _ := json.MarshalIndent(export, "", "  ")
-	return mcp.NewSuccessResult("## 配置导出\n\n```json\n" + string(exportJSON) + "\n```"), nil
+	var output string
+	var lang string
+	if params.Format == "yaml" || params.Format == "yml" {
+		exportYAML, err := yaml.Marshal(export)
+		if err != nil {
+			return mcp.NewErrorResult("YAML 序列化失败: " + err.Error()), nil
+		}
+		output = string(exportYAML)
+		lang = "yaml"
+	} else {
+		exportBytes, _ := json.MarshalIndent(export, "", "  ")
+		output = string(exportBytes)
+		lang = "json"
+	}
+	return mcp.NewSuccessResult(fmt.Sprintf("## 配置导出 (format=%s)\n\n```%s\n%s\n```", params.Format, lang, output)), nil
 }
 
 // truncate 截断字符串到指定长度
@@ -1786,11 +1844,13 @@ func defaultPort(protocol string) int {
 	}
 }
 
-// generateID 生成简短唯一 ID
+// generateID 生成简短唯一 ID（含随机后缀，避免秒级并发碰撞）
 func generateID(prefix string) string {
-	raw := fmt.Sprintf("%s_%s", prefix, time.Now().Format("0102150405"))
-	if len(raw) > 14 {
-		return raw[:14]
+	b := make([]byte, 3)
+	rand.Read(b)
+	raw := fmt.Sprintf("%s_%s%s", prefix, time.Now().Format("0102150405"), hex.EncodeToString(b)[:4])
+	if len(raw) > 18 {
+		return raw[:18]
 	}
 	return raw
 }
@@ -1876,11 +1936,13 @@ func (s *Server) mcpGetProtocolHelp(args json.RawMessage) (*mcp.CallToolResult, 
 | port | 端口 | 502（TCP）/ 0（RTU） |
 | slave_id | 从站地址 | 1-247 |
 
-### 点位地址格式
-- **Holding Register**: 40001-49999（FC 03/06/16）
-- **Coil**: 00001-09999（FC 01/05/15）
-- **Discrete Input**: 10001-19999（FC 02）
-- **Input Register**: 30001-39999（FC 04）
+### 点位地址格式（PDU 偏移，0 基）
+- **Holding Register**: 地址 0~N，对应 PLC 地址 40001+N（FC 03/06/16）
+- **Coil**: 地址 0~N，对应 PLC 地址 00001+N（FC 01/05/15）
+- **Discrete Input**: 地址 0~N，对应 PLC 地址 10001+N（FC 02）
+- **Input Register**: 地址 0~N，对应 PLC 地址 30001+N（FC 04）
+
+> 提示：系统同时兼容传统 40001+ 写法，会自动转换为 PDU 偏移；但推荐直接使用 0 基偏移，避免歧义。
 
 ### 数据类型
 - uint16 / int16 / uint32 / int32 / float32 / float64
@@ -1895,7 +1957,7 @@ func (s *Server) mcpGetProtocolHelp(args json.RawMessage) (*mcp.CallToolResult, 
   "interval": "1s",
   "points": [{
     "name": "电压",
-    "address": "40001",
+    "address": "0",
     "register_type": "holding",
     "function_code": 3,
     "datatype": "float32",
@@ -1903,7 +1965,7 @@ func (s *Server) mcpGetProtocolHelp(args json.RawMessage) (*mcp.CallToolResult, 
     "unit": "V"
   }]
 }
-` + "```",
+` + "```\n> address \"0\" 对应 PLC 地址 40001（Holding Register 首地址）。\n",
 
 		"s7": `## Siemens S7 接入帮助
 

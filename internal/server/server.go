@@ -410,6 +410,7 @@ func (s *Server) setupRoutes() {
 	api.Get("/mcp/help", s.handleMCPHelp)
 	api.Post("/mcp/activate", s.handleMcpActivate)
 	api.Get("/mcp/status", s.handleMcpStatus)
+	api.Get("/mcp/key", s.handleMcpGetKey)
 	api.Post("/mcp/generate-key", s.handleMcpGenerateKey)
 
 	// 系统设置

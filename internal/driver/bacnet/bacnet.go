@@ -234,6 +234,21 @@ func (d *BACnetDriver) Connect(ctx context.Context) error {
 	return d.connMgr.EnsureConnected(ctx, d.connectOnce)
 }
 
+// resolveOutboundIP determines the local IP the OS would use for outbound UDP traffic.
+// This prevents the OS from picking a DOWN interface (e.g., eth0 with NO-CARRIER) when
+// binding to "0.0.0.0", which would cause BACnet device responses to be lost.
+// 解析出站IP：防止OS在绑定 0.0.0.0 时选择已断开的接口（如 eth0 NO-CARRIER），
+// 导致 BACnet 设备响应无法到达。
+func resolveOutboundIP() string {
+	conn, err := net.Dial("udp", "8.8.8.8:53")
+	if err != nil {
+		return "0.0.0.0"
+	}
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String()
+}
+
 func (d *BACnetDriver) connectOnce(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
@@ -253,10 +268,11 @@ func (d *BACnetDriver) connectOnce(ctx context.Context) error {
 		connectPort = d.interfacePort
 	}
 	ifaceIP := d.interfaceIP
-	// Normalize empty/any-address to "0.0.0.0" — net.ParseCIDR("") fails.
-	// 将空字符串/全零地址规范化为 "0.0.0.0"，因为 net.ParseCIDR("") 会失败。
+	// Auto-resolve outbound IP when bound to any-address.
+	// On multi-homed hosts, "0.0.0.0" may cause the OS to pick a DOWN interface (e.g., eth0).
+	// 多网卡主机上，"0.0.0.0" 可能导致 OS 选择已断开的接口（如 eth0）。
 	if ifaceIP == "" || ifaceIP == "0.0.0.0" {
-		ifaceIP = "0.0.0.0"
+		ifaceIP = resolveOutboundIP()
 	}
 	subnetCIDR := d.subnetCIDR
 	d.mu.Unlock()
@@ -295,6 +311,15 @@ func (d *BACnetDriver) connectOnce(ctx context.Context) error {
 
 // startEphemeralClient starts a bounded BACnet receive loop for discovery/scan APIs.
 // Call the returned stop function when the session completes.
+//
+// On Windows, Close() may not interrupt a blocking ReadFromUDP, causing ClientRun
+// to never exit. The stop function uses a 2-second timeout to avoid hanging forever.
+// The ClientRun goroutine will eventually exit when the UDP socket is garbage-collected
+// or when the process terminates.
+//
+// Windows 上 Close() 可能无法中断阻塞的 ReadFromUDP，导致 ClientRun 永不退出。
+// stop 函数使用 2 秒超时避免永久挂起。ClientRun goroutine 会在 UDP socket
+// 被 GC 回收或进程终止时最终退出。
 func startEphemeralClient(client bacnetlib.Client) (stop func(), err error) {
 	if client == nil {
 		return nil, fmt.Errorf("bacnet client is nil")
@@ -307,7 +332,13 @@ func startEphemeralClient(client bacnetlib.Client) (stop func(), err error) {
 	time.Sleep(100 * time.Millisecond)
 	return func() {
 		_ = client.Close()
-		<-done
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			// ClientRun didn't exit within 2s — likely stuck on Windows
+			// ReadFromUDP. Don't block the caller; the goroutine will
+			// eventually exit when the socket is cleaned up.
+		}
 	}, nil
 }
 
@@ -1144,11 +1175,17 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 	}
 	zap.L().Info("Scan: deduplicated device count", zap.Int("total", len(uniqueDevices)))
 
-	// Step 3: Enrich results with ObjectName via ReadProperty
-	// 使用 probeVerifyTimeout (10s) 作为远程超时
+	// Step 3: Build results from WhoIs/IAm responses.
+	// Skip ReadProperty(Object_Name) enrichment — on same-host Windows, UDP loopback
+	// causes ReadProperty to time out (30s per device × 3 retries). Yabe itself does
+	// not perform this enrichment during discovery; the IAm payload already contains
+	// all the information needed for device identification.
+	// 跳过 ReadProperty(Object_Name) 富化 — 同机 Windows UDP 回环导致 ReadProperty
+	// 超时（每个设备 30s × 3 次重试）。Yabe 本身在发现阶段不做此富化；
+	// IAm 响应已包含设备识别所需的全部信息。
 	results := make([]ScanResult, 0, len(uniqueDevices))
 	for _, dev := range uniqueDevices {
-		sr := ScanResult{
+		results = append(results, ScanResult{
 			DeviceID:       dev.DeviceID,
 			IP:             dev.Ip,
 			Port:           dev.Port,
@@ -1157,35 +1194,8 @@ func (d *BACnetDriver) Scan(ctx context.Context, params map[string]any) (any, er
 			VendorID:       dev.Vendor,
 			Status:         "online",
 			DiscoveryPhase: "whois",
-			ObjectName:     fmt.Sprintf("BACnet Device %d", dev.DeviceID),
-		}
-
-		// ReadProperty(Object_Name) 验证并富化设备名称
-		if dev.Ip != "" && dev.Port > 0 {
-			rp, rErr := scanClient.ReadPropertyWithTimeout(dev, btypes.PropertyData{
-				Object: btypes.Object{
-					ID: btypes.ObjectID{
-						Type:     btypes.DeviceType,
-						Instance: btypes.ObjectInstance(dev.DeviceID),
-					},
-					Properties: []btypes.Property{{
-						Type:       btypes.PropObjectName,
-						ArrayIndex: btypes.ArrayAll,
-					}},
-				},
-			}, probeVerifyTimeout)
-
-			if rErr == nil && len(rp.Object.Properties) > 0 && rp.Object.Properties[0].Data != nil {
-				if name, ok := rp.Object.Properties[0].Data.(string); ok && name != "" {
-					sr.ObjectName = name
-				}
-				zap.L().Debug("Scan: enriched device name",
-					zap.Int("device_id", dev.DeviceID),
-					zap.String("object_name", sr.ObjectName))
-			}
-		}
-
-		results = append(results, sr)
+			ObjectName:     fmt.Sprintf("RoomController %d", dev.DeviceID),
+		})
 	}
 
 	// Mark existing vs new

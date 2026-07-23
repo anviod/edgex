@@ -1314,9 +1314,17 @@ func (cm *ChannelManager) ReadPoint(channelID, deviceID, pointID string) (model.
 		return model.Value{}, fmt.Errorf("channel not found")
 	}
 
+	if !ch.Enable {
+		return model.Value{}, fmt.Errorf("channel is disabled")
+	}
+
 	dev := cm.GetDevice(channelID, deviceID)
 	if dev == nil {
 		return model.Value{}, fmt.Errorf("device not found")
+	}
+
+	if !dev.Enable {
+		return model.Value{}, fmt.Errorf("device is disabled")
 	}
 
 	// 查找点位配置

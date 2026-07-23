@@ -63,14 +63,25 @@ func mergeAiSettingsDefaults(in model.AICopilotSettings) model.AICopilotSettings
 	return in
 }
 
+// saveAiCopilotSettings persists settings to the database and syncs the
+// in-memory cache. The cache is the primary read path (loadAiCopilotSettings
+// checks aiSettingsMem first), so it MUST stay in sync after every write —
+// otherwise saved data (e.g. MCP API Key) is invisible until process restart.
 func (s *Server) saveAiCopilotSettings(settings model.AICopilotSettings) error {
 	cs, err := s.getConfigStore()
 	if err != nil {
+		// Database unavailable — fallback to in-memory only
 		cp := settings
 		s.aiSettingsMem = &cp
 		return nil
 	}
-	return cs.SaveAICopilotSettings(settings)
+	if err := cs.SaveAICopilotSettings(settings); err != nil {
+		return err
+	}
+	// Sync in-memory cache so subsequent loads reflect the latest save
+	cp := settings
+	s.aiSettingsMem = &cp
+	return nil
 }
 
 func (s *Server) applyAiCopilotSettings(settings model.AICopilotSettings) {
@@ -233,6 +244,29 @@ func (s *Server) handleMcpStatus(c *fiber.Ctx) error {
 			"mcp_enabled":     settings.McpEnabled,
 			"mcp_full_access": settings.McpFullAccess,
 			"mcp_api_key_set": settings.McpApiKey != "",
+		},
+	})
+}
+
+// handleMcpGetKey 返回 MCP API Key 明文（仅限 JWT 认证用户）
+func (s *Server) handleMcpGetKey(c *fiber.Ctx) error {
+	settings := s.loadAiCopilotSettings()
+	if settings.McpApiKey == "" {
+		return c.JSON(fiber.Map{
+			"code":    "0",
+			"message": "success",
+			"data": fiber.Map{
+				"api_key":     "",
+				"key_set":     false,
+			},
+		})
+	}
+	return c.JSON(fiber.Map{
+		"code":    "0",
+		"message": "success",
+		"data": fiber.Map{
+			"api_key":     settings.McpApiKey,
+			"key_set":     true,
 		},
 	})
 }
