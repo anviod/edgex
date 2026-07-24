@@ -4,6 +4,11 @@
 
 EdgeX（工业边缘网关）是一款轻量级工业边缘计算网关软件，面向制造、能源、楼宇等现场部署。后端采用 Go，管理界面采用 Vue 3 + Vuetify。
 
+<div align="center">
+  <img src="./docs/img/dataScanEngineCN.svg" width="100%" alt="" />
+  <p><small>图 1：数据流向总览</small></p>
+</div>
+
 ## 产品概览
 
 EdgeX 部署在工业现场，使命是打通 **OT 设备 ↔ IT 系统** 的数据通道 — 南向统一接入、边缘就地处理、北向灵活对接，一机完成采集到上报的闭环。**以南向 13 协议采集写入 ShadowCore 影子真源，联动虚拟设备、边缘规则、持久化与北向通道；并以工业级 SLA 与 Soak 长稳验证保障现场长期可靠运行。**
@@ -45,6 +50,13 @@ EdgeX 部署在工业现场，使命是打通 **OT 设备 ↔ IT 系统** 的数
 ### 工业级 SLA 与稳定性验证
 
 统计 SLA（非硬实时 PLC），内置门控与 `GET /api/diagnostics/scan-engine` 可观测。验证链路覆盖：**运行时指标监测** → **诊断 API 可观测** → **CI 五 gate 回归** → **Soak 长稳验证**。阈值定义、万 Tag 压测、Soak 长稳与部署建议见 [产品说明 — 工业级 SLA](https://anviod.github.io/edgex/guide/%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E.html#工业级-sla-与稳定性验证)（[源码](docs/guide/产品说明.md#工业级-sla-与稳定性验证)）。
+
+<div align="center">
+  <img src="./docs/img/productCapabilityLayers.svg" width="100%" alt="" />
+  <p><small>图 2：产品能力维度</small></p>
+</div>
+
+
 
 ### 轻量灵活部署
 
