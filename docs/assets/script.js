@@ -230,43 +230,78 @@ function initHeroVisual() {
           blips +
         '</div>';
     } else if (type === 'field') {
+      // Magnetic dipole field — glowing field lines + tilted electron orbits + pulsing core
+      // 1) Classic bar-magnet field lines (nested, symmetric about the vertical axis)
+      var loopDefs = [
+        { h: 130, w: 30,  op: 0.55 },
+        { h: 120, w: 55,  op: 0.42 },
+        { h: 105, w: 80,  op: 0.32 },
+        { h: 85,  w: 100, op: 0.22 },
+        { h: 60,  w: 115, op: 0.14 }
+      ];
+      var fieldLines = '';
+      for (var fl = 0; fl < loopDefs.length; fl++) {
+        var L = loopDefs[fl];
+        fieldLines +=
+          '<path class="fx-field__line" style="--op:' + L.op + '" d="M 0 ' + (-L.h) +
+          ' C ' + L.w + ' ' + (-L.h * 0.6) + ' ' + L.w + ' ' + (L.h * 0.6) + ' 0 ' + L.h +
+          ' C ' + (-L.w) + ' ' + (L.h * 0.6) + ' ' + (-L.w) + ' ' + (-L.h * 0.6) + ' 0 ' + (-L.h) + ' Z"/>';
+      }
+
+      // 2) Three tilted elliptical orbits, each carrying two antipodal electrons
       var orbits = '';
       var config = [
-        { rx: 110, ry: 45, tilt: 25, dur: 6 },
-        { rx: 125, ry: 55, tilt: -35, dur: 8 },
-        { rx: 135, ry: 65, tilt: 70, dur: 10 }
+        { rx: 110, ry: 45, tilt: 25,  dur: 6  },
+        { rx: 125, ry: 55, tilt: -35, dur: 8  },
+        { rx: 135, ry: 65, tilt: 70,  dur: 10 }
       ];
       for (var o = 0; o < config.length; o++) {
         var cfg = config[o];
+        var electrons = '';
+        for (var ei = 0; ei < 2; ei++) {
+          var eCls = ei === 0 ? '' : ' fx-field__electron--bottom';
+          var eDelay = (o * -2 + ei * (cfg.dur / 2)).toFixed(2);
+          electrons += '<span class="fx-field__electron' + eCls + '" style="--delay:' + eDelay + 's"></span>';
+        }
         orbits +=
           '<div class="fx-field__orbit-plane" style="--tilt:' + cfg.tilt + 'deg">' +
             '<div class="fx-field__orbit" style="--rx:' + cfg.rx + 'px;--ry:' + cfg.ry + 'px;--dur:' + cfg.dur + 's">' +
               '<span class="fx-field__orbit-line"></span>' +
-              '<span class="fx-field__electron" style="--delay:' + (o * -2).toFixed(1) + 's"></span>' +
+              electrons +
             '</div>' +
           '</div>';
       }
       innerContent =
         '<div class="fx-field">' + logo +
+          '<div class="fx-field__flux"></div>' +
+          '<svg class="fx-field__lines" viewBox="-150 -150 300 300">' + fieldLines + '</svg>' +
           '<div class="fx-field__core-halo"></div>' +
+          '<div class="fx-field__core"></div>' +
           orbits +
         '</div>';
     } else if (type === 'beacon') {
+      // Beacon tower — pulsing emitter, light cone, shockwave rings, rising embers
       var rings = '';
-      for (var k = 0; k < 4; k++) {
-        rings += '<span class="fx-beacon__ring" style="--delay:' + (k * 0.75).toFixed(2) + 's"></span>';
+      for (var k = 0; k < 5; k++) {
+        rings += '<span class="fx-beacon__ring" style="--delay:' + (k * 0.6).toFixed(2) + 's"></span>';
       }
       var particles = '';
-      for (var p = 0; p < 12; p++) {
-        var pX = (Math.sin(p) * 18).toFixed(1);
-        particles += '<span class="fx-beacon__particle" style="--x:' + pX + 'px;--delay:' + (Math.random() * 2.5).toFixed(2) + 's;--dur:' + (1.8 + Math.random() * 1.5).toFixed(1) + 's"></span>';
+      for (var p = 0; p < 16; p++) {
+        var pang = (p / 16) * Math.PI * 2;
+        var pSpread = 14 + Math.random() * 26;
+        var pX = (Math.cos(pang) * pSpread).toFixed(1);
+        var pDrift = (Math.sin(p) * 10).toFixed(1);
+        particles += '<span class="fx-beacon__particle" style="--x:' + pX + 'px;--drift:' + pDrift + 'px;--delay:' + (Math.random() * 2.5).toFixed(2) + 's;--dur:' + (1.8 + Math.random() * 1.6).toFixed(1) + 's"></span>';
       }
       innerContent =
         '<div class="fx-beacon">' + logo +
+          '<div class="fx-beacon__ground"></div>' +
           '<div class="fx-beacon__beam-group">' +
+            '<span class="fx-beacon__cone"></span>' +
             '<span class="fx-beacon__beam-core"></span>' +
             '<span class="fx-beacon__beam-flare"></span>' +
           '</div>' +
+          '<div class="fx-beacon__emitter"></div>' +
           '<div class="fx-beacon__base-plane">' + rings + '</div>' +
           '<div class="fx-beacon__particles">' + particles + '</div>' +
         '</div>';

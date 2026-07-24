@@ -11,9 +11,9 @@
       </div>
       <p class="hero-desc">单进程运行时，南向协议适配器接入，ShadowCore 内存状态持久化，边缘规则执行，北向数据转发。支持 Linux、Windows 与 ARM64 网关；无需云端依赖，无需容器。</p>
       <div class="hero-values">
-        <span class="value-tag">Modbus</span>
-        <span class="value-tag">BACnet</span>
-        <span class="value-tag">OPC UA</span>
+        <span class="value-tag">Modbus RTU/TCP</span>
+        <span class="value-tag">BACnet Client/Server</span>
+        <span class="value-tag">OPC UA Client/Server</span>
         <span class="value-tag">S7</span>
         <span class="value-tag">EtherNet/IP</span>
         <span class="value-tag">IEC 104</span>
@@ -31,15 +31,6 @@
   </div>
 </section>
 
-<!-- 系统定位 -->
-<section class="landing-section">
-  <div class="section-heading">
-    <div class="section-kicker">系统定位</div>
-    <h2>面向现场设计的边缘运行时</h2>
-    <p>确定性采集、本地状态持久化、协议无关的北向分发</p>
-  </div>
-  <p class="section-body">EdgeX 以单进程运行，将南向协议适配器绑定到统一的通道/设备模型，实时状态写入 ShadowCore，由 Execution Mapper 执行边缘规则，并通过 MQTT、HTTP、OPC UA Server、BACnet Server、Sparkplug B 或数据库连接器转发数据。配置采用声明式且跨重启持久化；运行时数据可重建，不影响配置库。</p>
-</section>
 
 <!-- 核心子系统 -->
 <section class="landing-section">
@@ -82,79 +73,54 @@
 </section>
 
 <!-- 架构设计 + 工程准则 并排 -->
-<div class="grid-2">
-  <section class="landing-section">
-    <div class="section-heading">
-      <div class="section-kicker">数据流</div>
-      <h2>流水线架构</h2>
-      <p>解耦的驱动 → 调度器 → 状态 → 计算 → 分发</p>
-    </div>
-    <div class="arch-flow" data-arch-flow>
-      <canvas class="arch-particles" data-arch-canvas></canvas>
-      <div class="arch-step">
-        <span class="arch-step__status"></span>
-        <span class="arch-step__num">01</span>
-        <span class="arch-step__label">现场总线</span>
-      </div>
-      <div class="arch-arrow">&#8594;</div>
-      <div class="arch-step">
-        <span class="arch-step__status"></span>
-        <span class="arch-step__num">02</span>
-        <span class="arch-step__label">协议驱动</span>
-      </div>
-      <div class="arch-arrow">&#8594;</div>
-      <div class="arch-step">
-        <span class="arch-step__status"></span>
-        <span class="arch-step__num">03</span>
-        <span class="arch-step__label">统一采集</span>
-      </div>
-      <div class="arch-arrow">&#8594;</div>
-      <div class="arch-step">
-        <span class="arch-step__status"></span>
-        <span class="arch-step__num">04</span>
-        <span class="arch-step__label">数据模型</span>
-      </div>
-      <div class="arch-arrow">&#8594;</div>
-      <div class="arch-step">
-        <span class="arch-step__status"></span>
-        <span class="arch-step__num">05</span>
-        <span class="arch-step__label">边缘计算</span>
-      </div>
-      <div class="arch-arrow">&#8594;</div>
-      <div class="arch-step">
-        <span class="arch-step__status"></span>
-        <span class="arch-step__num">06</span>
-        <span class="arch-step__label">北向输出</span>
-      </div>
-    </div>
-    <p class="arch-note">每个阶段暴露确定性接口；新增协议或计算节点无需改动流水线主干。</p>
-  </section>
-
-  <section class="landing-section">
-    <div class="section-heading">
-      <div class="section-kicker">工程准则</div>
-      <h2>设计原则</h2>
-    </div>
-    <ul class="principles-list">
-      <li class="principle-item">稳定性优先于过早优化</li>
-      <li class="principle-item">简单性优先于投机式抽象</li>
-      <li class="principle-item">本地执行优先于云端依赖</li>
-      <li class="principle-item">可恢复性优先于峰值吞吐</li>
-      <li class="principle-item">统一模型优先于功能堆砌</li>
-    </ul>
-    <p class="arch-note">所有变更在真实 ARM64 硬件上测量，并通过 soak 回归验证后方可合并。</p>
-  </section>
-</div>
-
-<!-- 采集执行层 -->
 <section class="landing-section">
   <div class="section-heading">
-    <div class="section-kicker">执行层</div>
-    <h2>ScanEngine + Execution Mapper</h2>
-    <p>确定性扫描调度与本地规则执行</p>
+    <div class="section-kicker">数据流</div>
+    <h2>流水线架构</h2>
+    <p>解耦的驱动 → 调度器 → 状态 → 计算 → 分发</p>
   </div>
-  <p class="section-body">ScanEngine 将点位分配到扫描类，应用 EDF 调度，通过 RTT/MTU 反馈自适应批量大小，并隔离故障设备以避免级联延迟。Execution Mapper 针对 ShadowCore 快照求值规则，触发动作并将事件记录到 WAL。两个子系统均为单二进制、零依赖，并可通过指标端点观测。</p>
+  <div class="arch-flow" data-arch-flow>
+    <canvas class="arch-particles" data-arch-canvas></canvas>
+    <div class="arch-step">
+      <span class="arch-step__status"></span>
+      <span class="arch-step__num">01</span>
+      <span class="arch-step__label">现场总线</span>
+    </div>
+    <div class="arch-arrow">&#8594;</div>
+    <div class="arch-step">
+      <span class="arch-step__status"></span>
+      <span class="arch-step__num">02</span>
+      <span class="arch-step__label">协议驱动</span>
+    </div>
+    <div class="arch-arrow">&#8594;</div>
+    <div class="arch-step">
+      <span class="arch-step__status"></span>
+      <span class="arch-step__num">03</span>
+      <span class="arch-step__label">统一采集</span>
+    </div>
+    <div class="arch-arrow">&#8594;</div>
+    <div class="arch-step">
+      <span class="arch-step__status"></span>
+      <span class="arch-step__num">04</span>
+      <span class="arch-step__label">数据模型</span>
+    </div>
+    <div class="arch-arrow">&#8594;</div>
+    <div class="arch-step">
+      <span class="arch-step__status"></span>
+      <span class="arch-step__num">05</span>
+      <span class="arch-step__label">边缘计算</span>
+    </div>
+    <div class="arch-arrow">&#8594;</div>
+    <div class="arch-step">
+      <span class="arch-step__status"></span>
+      <span class="arch-step__num">06</span>
+      <span class="arch-step__label">北向输出</span>
+    </div>
+  </div>
+  <p class="arch-note">每个阶段暴露确定性接口；新增协议或计算节点无需改动流水线主干。</p>
 </section>
+
+
 
 <!-- 项目概览 -->
 <section class="landing-section">
