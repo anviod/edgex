@@ -1760,15 +1760,15 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: stretch;
   gap: 0;
+  width: 100%;
   padding: 28px 22px;
   border-radius: var(--radius-md);
   background: var(--arch-bg);
   border: 1px solid var(--gold-border);
   box-shadow: var(--arch-flow-shadow);
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
   font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, monospace;
 }
 
@@ -1807,7 +1807,8 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  min-width: 108px;
+  flex: 1 1 0;
+  min-width: 0;
   padding: 12px 14px;
   margin-top: 14px;
   background: var(--arch-step-bg);
@@ -1816,7 +1817,6 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
   box-shadow: var(--arch-step-shadow);
   transition: border-color var(--transition-base), box-shadow var(--transition-base);
-  flex-shrink: 0;
 }
 
 .arch-step:hover {
@@ -1858,13 +1858,14 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  width: 20px;
+  min-width: 16px;
   height: 28px;
   margin-top: 14px;
   color: var(--gold-dark);
   font-weight: bold;
   font-size: 0.85rem;
-  flex-shrink: 0;
+  flex: 0 0 auto;
 }
 
 .arch-note {
@@ -2425,8 +2426,20 @@ code, pre { font-family: "JetBrains Mono", "SF Mono", "Fira Code", Consolas, mon
   .markdown-body { padding: 24px 20px; border-radius: var(--radius-md); }
   .feature-card { padding: 22px; border-radius: var(--radius-md); }
   .roadmap-table { display: block; overflow-x: auto; }
-  .arch-flow { gap: 6px; padding: 14px; flex-wrap: wrap; justify-content: center; }
-  .arch-step { padding: 6px 10px; font-size: 0.78rem; }
+  .arch-flow {
+    gap: 6px;
+    padding: 14px;
+    flex-wrap: wrap;
+    justify-content: stretch;
+    overflow: hidden;
+  }
+  .arch-step {
+    flex: 1 1 calc(33.333% - 16px);
+    min-width: 96px;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+  }
+  .arch-arrow { width: 16px; }
   .overview-table .overview-label { width: 90px; }
   .site-tagline p { font-size: 0.9rem; }
 }
