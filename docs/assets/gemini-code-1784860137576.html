@@ -393,9 +393,99 @@ body {
   animation: fx-hive-pulse 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   pointer-events: none;
 }
-@keyframes fx-hive-pulse {
-  0%, 100% { transform: scale(0.75); opacity: 0.25; filter: drop-shadow(0 0 5px var(--gold-glow)); }
-  50% { transform: scale(1.45); opacity: 0.85; filter: drop-shadow(0 0 18px var(--gold-bright)); }
+/* =========================================================
+   飞行粒子 & 动画配置（降速 + 随机路径）
+   ========================================================= */
+
+/* 1. 轨迹 A：轻微上拱弧线，缓慢飞行 */
+@keyframes flyPathA {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(120px, -25px) scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(250px, -5px) scale(0.5);
+    opacity: 0;
+  }
+}
+
+/* 2. 轨迹 B：波浪下沉弧线 */
+@keyframes flyPathB {
+  0% {
+    transform: translate(0, 0) scale(0.5);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  60% {
+    transform: translate(140px, 30px) scale(1.1);
+  }
+  80% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(280px, 10px) scale(0.4);
+    opacity: 0;
+  }
+}
+
+/* 3. 轨迹 C：S 型随机扰动轨迹 */
+@keyframes flyPathC {
+  0% {
+    transform: translate(0, 0) scale(0.4);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  40% {
+    transform: translate(90px, -15px) scale(0.9);
+  }
+  70% {
+    transform: translate(190px, 15px) scale(1);
+  }
+  100% {
+    transform: translate(300px, -20px) scale(0.3);
+    opacity: 0;
+  }
+}
+
+/* =========================================================
+   粒子应用类（不同时长、不同延迟、不同路径）
+   ========================================================= */
+
+.fly-particle {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* 粒子 1：慢速、轨迹 A */
+.fly-particle-1 {
+  animation: flyPathA 5.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation-delay: 0s;
+}
+
+/* 粒子 2：中慢速、轨迹 B、延迟启动 */
+.fly-particle-2 {
+  animation: flyPathB 4.6s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+  animation-delay: 1.8s;
+}
+
+/* 粒子 3：极慢速、轨迹 C、交错延迟 */
+.fly-particle-3 {
+  animation: flyPathC 6.5s ease-in-out infinite;
+  animation-delay: 3.2s;
 }
 
 /* 轨道微弱导轨 */
