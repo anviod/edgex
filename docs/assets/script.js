@@ -352,7 +352,10 @@ function initTypewriter() {
     'ScanEngine 10ms 级调度内核',
     '工业级 SLA · lag P95 <100ms',
     'AI 辅助设备接入与协议解析',
-    '单二进制 · 零依赖 · 跨平台部署'
+    '二进制 · 零依赖 · 跨平台 rpm/deb',
+    'MCP 服务发现与注册,多版本兼容',
+    '北向接口 · OpenAPI 3.0',
+    '无缝对接 SCADA 系统,支持数据采集与处理',
   ];
   var lineIndex = 0, i = 0, deleting = false;
 
