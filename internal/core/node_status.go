@@ -51,6 +51,15 @@ func (c *CommunicationManageTemplate) RegisterNode(deviceID, name string) *Devic
 	return node
 }
 
+// RuntimeSnapshot 返回节点运行时状态的一致性快照副本。
+// 调用方不得在无锁状态下直接读取 node.Runtime 字段，统一通过本方法取快照，
+// 由 node.mu 保证多字段的原子可见性。
+func (n *DeviceNodeTemplate) RuntimeSnapshot() NodeRuntimeState {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return *n.Runtime
+}
+
 // GetNode 获取指定的设备节点
 func (c *CommunicationManageTemplate) GetNode(deviceID string) *DeviceNodeTemplate {
 	c.mu.RLock()
@@ -154,9 +163,8 @@ func (c *CommunicationManageTemplate) ShouldCollect(node *DeviceNodeTemplate) bo
 //  2. 隔离状态避免频繁重试浪费资源
 //  3. 失败后重置成功计数
 func (c *CommunicationManageTemplate) onCollectFail(node *DeviceNodeTemplate) {
-	node.mu.Lock()
-	defer node.mu.Unlock()
 	// 记录旧状态
+	node.mu.Lock()
 	oldState := node.Runtime.State
 
 	// 更新失败统计
@@ -177,10 +185,12 @@ func (c *CommunicationManageTemplate) onCollectFail(node *DeviceNodeTemplate) {
 		}
 		node.Runtime.NextRetryTime = time.Now().Add(backoff)
 	}
+	newState := node.Runtime.State
+	node.mu.Unlock()
 
-	// 触发状态变更回调
-	if oldState != node.Runtime.State && c.OnStateChange != nil {
-		c.OnStateChange(node.DeviceID, oldState, node.Runtime.State)
+	// 回调在锁外触发，避免 node.mu -> cm.mu 的锁序反转（cm.mu 读路径会反向取 node.mu）。
+	if oldState != newState && c.OnStateChange != nil {
+		c.OnStateChange(node.DeviceID, oldState, newState)
 	}
 }
 
@@ -199,9 +209,8 @@ func (c *CommunicationManageTemplate) onCollectFail(node *DeviceNodeTemplate) {
 //  2. 降低恢复门槛（只需1次成功），避免设备长期处于不良状态
 //  3. 累计成功次数用于监控设备稳定性
 func (c *CommunicationManageTemplate) onCollectSuccess(node *DeviceNodeTemplate) {
-	node.mu.Lock()
-	defer node.mu.Unlock()
 	// 记录旧状态
+	node.mu.Lock()
 	oldState := node.Runtime.State
 
 	// 更新成功统计
@@ -212,10 +221,12 @@ func (c *CommunicationManageTemplate) onCollectSuccess(node *DeviceNodeTemplate)
 	if node.Runtime.SuccessCount >= 1 {
 		node.Runtime.State = NodeStateOnline
 	}
+	newState := node.Runtime.State
+	node.mu.Unlock()
 
-	// 触发状态变更回调
-	if oldState != node.Runtime.State && c.OnStateChange != nil {
-		c.OnStateChange(node.DeviceID, oldState, node.Runtime.State)
+	// 回调在锁外触发。
+	if oldState != newState && c.OnStateChange != nil {
+		c.OnStateChange(node.DeviceID, oldState, newState)
 	}
 }
 
@@ -228,13 +239,16 @@ func (c *CommunicationManageTemplate) MarkOffline(deviceID string) {
 		return
 	}
 
+	node.mu.Lock()
 	oldState := node.Runtime.State
 	node.Runtime.State = NodeStateOffline
 	node.Runtime.SuccessCount = 0
 	node.Runtime.LastFailTime = time.Now()
+	newState := node.Runtime.State
+	node.mu.Unlock()
 
-	if oldState != node.Runtime.State && c.OnStateChange != nil {
-		c.OnStateChange(deviceID, oldState, node.Runtime.State)
+	if oldState != newState && c.OnStateChange != nil {
+		c.OnStateChange(deviceID, oldState, newState)
 	}
 }
 
@@ -289,14 +303,17 @@ func (c *CommunicationManageTemplate) FinalizeCollect(node *DeviceNodeTemplate, 
 // or all Bad quality). Marks the device offline immediately instead of waiting for
 // repeated unstable cycles.
 func (c *CommunicationManageTemplate) onCollectUnreachable(node *DeviceNodeTemplate) {
+	node.mu.Lock()
 	oldState := node.Runtime.State
 
 	node.Runtime.FailCount++
 	node.Runtime.SuccessCount = 0
 	node.Runtime.LastFailTime = time.Now()
 	node.Runtime.State = NodeStateOffline
+	newState := node.Runtime.State
+	node.mu.Unlock()
 
-	if oldState != node.Runtime.State && c.OnStateChange != nil {
-		c.OnStateChange(node.DeviceID, oldState, node.Runtime.State)
+	if oldState != newState && c.OnStateChange != nil {
+		c.OnStateChange(node.DeviceID, oldState, newState)
 	}
 }

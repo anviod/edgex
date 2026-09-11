@@ -102,8 +102,98 @@ func NewChannelManager(pipeline *DataPipeline, saveFunc func([]model.Channel) er
 		}
 	}
 	cm.soakMonitor.Start()
+	cm.startChannelHealthWatchdog()
 
 	return cm
+}
+
+// Channel health watchdog tuning. Conservative by design: it only nudges
+// drivers that own a ConnectionManager-backed reconnect (ReconnectScheduler),
+// with a per-channel cooldown, so it can never amplify a fault into a
+// reconnect storm.
+const (
+	channelHealthInterval   = 15 * time.Second
+	channelReconnectCool    = 30 * time.Second
+	channelReconnectTimeout = 5 * time.Minute
+)
+
+// startChannelHealthWatchdog launches the loop that closes the "channel stuck
+// offline with no recovery" gap: when a channel's link is down and no
+// reconnect has been attempted recently, it asks the driver to reconnect.
+func (cm *ChannelManager) startChannelHealthWatchdog() {
+	go cm.channelHealthLoop()
+}
+
+func (cm *ChannelManager) channelHealthLoop() {
+	ticker := time.NewTicker(channelHealthInterval)
+	defer ticker.Stop()
+
+	lastAttempt := make(map[string]time.Time)
+	for {
+		select {
+		case <-cm.ctx.Done():
+			return
+		case <-ticker.C:
+			cm.safeCheckChannelHealth(lastAttempt)
+		}
+	}
+}
+
+// safeCheckChannelHealth isolates a panic so the watchdog itself can never
+// die and permanently disable channel-level recovery.
+func (cm *ChannelManager) safeCheckChannelHealth(lastAttempt map[string]time.Time) {
+	defer func() {
+		if r := recover(); r != nil {
+			zap.L().Error("[ChannelWatchdog] 健康巡检 panic 已恢复", zap.Any("panic", r), zap.Stack("stack"))
+		}
+	}()
+	cm.checkChannelHealth(lastAttempt)
+}
+
+func (cm *ChannelManager) checkChannelHealth(lastAttempt map[string]time.Time) {
+	type probe struct {
+		id   string
+		name string
+		d    drv.Driver
+	}
+	var probes []probe
+
+	cm.mu.RLock()
+	for id, chPtr := range cm.channels {
+		if chPtr == nil || !chPtr.Enable {
+			continue
+		}
+		d := cm.drivers[id]
+		if d == nil {
+			continue
+		}
+		probes = append(probes, probe{id: id, name: chPtr.Name, d: d})
+	}
+	cm.mu.RUnlock()
+
+	now := time.Now()
+	for _, p := range probes {
+		if isChannelLinkUp(p.d) {
+			continue
+		}
+		if last, ok := lastAttempt[p.id]; ok && now.Sub(last) < channelReconnectCool {
+			continue
+		}
+		sched, ok := p.d.(drv.ReconnectScheduler)
+		if !ok {
+			continue
+		}
+		lastAttempt[p.id] = now
+
+		zap.L().Warn("[ChannelWatchdog] 通道链路异常，触发自动重连",
+			zap.String("channel_id", p.id),
+			zap.String("channel", p.name),
+		)
+		if mc := model.GetGlobalMetricsCollector(); mc != nil {
+			mc.RecordReconnect(p.id)
+		}
+		sched.ScheduleReconnect(cm.ctx, channelReconnectTimeout)
+	}
 }
 
 func (cm *ChannelManager) SetShadowCore(sc *ShadowCore) {
@@ -240,12 +330,13 @@ func (cm *ChannelManager) GetDeviceDiagnostics(deviceID string) map[string]any {
 	}
 	node := cm.stateManager.GetNode(deviceID)
 	if node != nil {
-		out["state"] = int(node.Runtime.State)
-		total := node.Runtime.SuccessCount + node.Runtime.FailCount
+		rt := node.RuntimeSnapshot()
+		out["state"] = int(rt.State)
+		total := rt.SuccessCount + rt.FailCount
 		if total > 0 {
-			out["success_rate"] = float64(node.Runtime.SuccessCount) / float64(total)
+			out["success_rate"] = float64(rt.SuccessCount) / float64(total)
 		}
-		out["consecutive_failures"] = node.Runtime.FailCount
+		out["consecutive_failures"] = rt.FailCount
 	}
 	var pointIDs []string
 	now := time.Now()
@@ -398,13 +489,18 @@ func (cm *ChannelManager) GetChannelStats() []ChannelStatus {
 
 		for _, dev := range ch.Devices {
 			node := cm.stateManager.GetNode(dev.ID)
-			if node != nil && node.Runtime.State == NodeStateOnline {
-				online++
-				// 更新最后采集时间
-				if node.Runtime.LastSuccess.After(time.Time{}) {
-					if lastCollectTime == "" || node.Runtime.LastSuccess.After(parseTime(lastCollectTime)) {
-						lastCollectTime = node.Runtime.LastSuccess.Format(time.RFC3339)
+			if node != nil {
+				rt := node.RuntimeSnapshot()
+				if rt.State == NodeStateOnline {
+					online++
+					// 更新最后采集时间
+					if rt.LastSuccess.After(time.Time{}) {
+						if lastCollectTime == "" || rt.LastSuccess.After(parseTime(lastCollectTime)) {
+							lastCollectTime = rt.LastSuccess.Format(time.RFC3339)
+						}
 					}
+				} else {
+					offline++
 				}
 			} else {
 				offline++
@@ -754,12 +850,13 @@ func (cm *ChannelManager) GetChannels() []model.Channel {
 	for _, ch := range cm.channels {
 		c := ch.DeepCopy()
 		if node := cm.stateManager.GetNode(c.ID); node != nil {
+			rt := node.RuntimeSnapshot()
 			c.NodeRuntime = &model.NodeRuntime{
-				FailCount:     node.Runtime.FailCount,
-				SuccessCount:  node.Runtime.SuccessCount,
-				LastFailTime:  node.Runtime.LastFailTime,
-				NextRetryTime: node.Runtime.NextRetryTime,
-				State:         int(node.Runtime.State),
+				FailCount:     rt.FailCount,
+				SuccessCount:  rt.SuccessCount,
+				LastFailTime:  rt.LastFailTime,
+				NextRetryTime: rt.NextRetryTime,
+				State:         int(rt.State),
 			}
 		}
 		// Also update Device Runtime
@@ -826,12 +923,13 @@ func (cm *ChannelManager) GetChannel(channelID string) *model.Channel {
 			c.Devices = devs
 		}
 		if node := cm.stateManager.GetNode(c.ID); node != nil {
+			rt := node.RuntimeSnapshot()
 			c.NodeRuntime = &model.NodeRuntime{
-				FailCount:     node.Runtime.FailCount,
-				SuccessCount:  node.Runtime.SuccessCount,
-				LastFailTime:  node.Runtime.LastFailTime,
-				NextRetryTime: node.Runtime.NextRetryTime,
-				State:         int(node.Runtime.State),
+				FailCount:     rt.FailCount,
+				SuccessCount:  rt.SuccessCount,
+				LastFailTime:  rt.LastFailTime,
+				NextRetryTime: rt.NextRetryTime,
+				State:         int(rt.State),
 			}
 		}
 		return &c

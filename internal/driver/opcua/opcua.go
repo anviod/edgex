@@ -546,25 +546,33 @@ func (d *OpcUaDriver) scheduleReconnect(w *ClientWrapper) {
 	}
 
 	w.connMgr.ScheduleReconnect(context.Background(), timeout, func(ctx context.Context) error {
+		// Snapshot the client under d.mu, then release it before the network
+		// Connect. Holding the driver-wide lock across a 10s network RPC
+		// stalls Health()/GetMetrics()/all other devices on this driver.
 		d.mu.Lock()
-		defer d.mu.Unlock()
-
 		if w.Connected {
+			d.mu.Unlock()
 			return nil
 		}
-		if w.Client == nil {
+		client := w.Client
+		endpoint := w.Endpoint
+		d.mu.Unlock()
+
+		if client == nil {
 			return fmt.Errorf("opcua client not initialized")
 		}
 
-		zap.L().Info("[OPC UA] Reconnecting", zap.String("endpoint", w.Endpoint))
+		zap.L().Info("[OPC UA] Reconnecting", zap.String("endpoint", endpoint))
 
-		if err := w.Client.Connect(ctx); err != nil {
+		if err := client.Connect(ctx); err != nil {
 			return err
 		}
 
+		d.mu.Lock()
 		w.Connected = true
 		d.recordReconnect()
-		zap.L().Info("[OPC UA] Reconnected", zap.String("endpoint", w.Endpoint))
+		d.mu.Unlock()
+		zap.L().Info("[OPC UA] Reconnected", zap.String("endpoint", endpoint))
 		return nil
 	})
 }
@@ -635,20 +643,27 @@ func (d *OpcUaDriver) ReadPoints(ctx context.Context, points []model.Point) (map
 	}
 	if !client.Connected {
 		err := client.connMgr.EnsureConnected(ctx, func(ctx context.Context) error {
+			// Same rule as scheduleReconnect: never hold d.mu across the
+			// network Connect RPC.
 			d.mu.Lock()
-			defer d.mu.Unlock()
-
 			if client.Connected {
+				d.mu.Unlock()
 				return nil
 			}
-			if client.Client == nil {
+			oc := client.Client
+			d.mu.Unlock()
+
+			if oc == nil {
 				return fmt.Errorf("opcua client not initialized")
 			}
-			if err := client.Client.Connect(ctx); err != nil {
+			if err := oc.Connect(ctx); err != nil {
 				return err
 			}
+
+			d.mu.Lock()
 			client.Connected = true
 			d.recordReconnect()
+			d.mu.Unlock()
 			return nil
 		})
 		if err != nil {

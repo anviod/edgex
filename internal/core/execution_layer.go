@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -224,9 +225,11 @@ func (el *ExecutionLayer) serialQueueKey(task *ScanTask) string {
 	if task == nil {
 		return ""
 	}
-	if isSharedLinkProtocol(task.Protocol) && task.Params != nil {
-		if channelID, ok := task.Params["channelID"].(string); ok && channelID != "" {
-			return "shared:" + channelID
+	if isSharedLinkProtocol(task.Protocol) {
+		if params := task.paramsSnapshot(); params != nil {
+			if channelID, ok := params["channelID"].(string); ok && channelID != "" {
+				return "shared:" + channelID
+			}
 		}
 	}
 	return task.DeviceKey
@@ -425,7 +428,25 @@ func (el *ExecutionLayer) recordPointResults(task *ScanTask, values map[string]m
 	pd.RecordResults(task.DeviceKey, qualities)
 }
 
-func (el *ExecutionLayer) readPoints(d driver.Driver, task *ScanTask, ctx context.Context, points []model.Point) (map[string]model.Value, error) {
+func (el *ExecutionLayer) readPoints(d driver.Driver, task *ScanTask, ctx context.Context, points []model.Point) (values map[string]model.Value, err error) {
+	// Driver ReadPoints executes in a SerialQueue/WorkerPool goroutine. A
+	// panic here (malformed frame, CGO fault, slice bounds) would otherwise
+	// propagate out of that worker and crash the entire gateway process.
+	// Convert it into a normal read error so the circuit breaker records a
+	// failure and the scan task is rescheduled like any other bad collect.
+	defer func() {
+		if r := recover(); r != nil {
+			zap.L().Error("[ExecutionLayer] 驱动读取 panic 已恢复",
+				zap.Any("panic", r),
+				zap.String("deviceKey", task.DeviceKey),
+				zap.String("protocol", task.Protocol),
+				zap.Stack("stack"),
+			)
+			values = nil
+			err = fmt.Errorf("driver panic recovered: %v", r)
+		}
+	}()
+
 	if len(points) == 0 {
 		points = el.loadPoints(task)
 	}
@@ -434,18 +455,20 @@ func (el *ExecutionLayer) readPoints(d driver.Driver, task *ScanTask, ctx contex
 		return map[string]model.Value{}, nil
 	}
 
-	if task.Params != nil {
+	// Snapshot task params: the published map is immutable (copy-on-write),
+	// so reading it here cannot race with UpdateTaskDriverConfig.
+	if params := task.paramsSnapshot(); params != nil {
 		// channelMu is the sole I/O serialization guard for shared links.
 		// Transport.mu must only protect connection lifecycle (Connect/Disconnect),
 		// not Read/Write I/O — see v5.2 stable patch §评审项 2.
 		if isSharedLinkProtocol(task.Protocol) {
-			if mu, ok := task.Params["channelMu"].(*sync.Mutex); ok && mu != nil {
+			if mu, ok := params["channelMu"].(*sync.Mutex); ok && mu != nil {
 				mu.Lock()
 				defer mu.Unlock()
 			}
 		}
 		cfg := map[string]any{}
-		if base, ok := task.Params["driverConfig"].(map[string]any); ok && base != nil {
+		if base, ok := params["driverConfig"].(map[string]any); ok && base != nil {
 			for k, v := range base {
 				cfg[k] = v
 			}
@@ -475,7 +498,7 @@ func (el *ExecutionLayer) readPoints(d driver.Driver, task *ScanTask, ctx contex
 				return nil, err
 			}
 		}
-		if slaveID, ok := task.Params["slave_id"]; ok {
+		if slaveID, ok := params["slave_id"]; ok {
 			switch v := slaveID.(type) {
 			case float64:
 				d.SetSlaveID(uint8(v))
@@ -485,7 +508,7 @@ func (el *ExecutionLayer) readPoints(d driver.Driver, task *ScanTask, ctx contex
 		}
 	}
 
-	values, err := d.ReadPoints(ctx, points)
+	values, err = d.ReadPoints(ctx, points)
 	if err == nil {
 		el.recordPointResults(task, values)
 	}

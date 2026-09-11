@@ -41,6 +41,11 @@ type ScanEngineMetrics struct {
 	MaxScanLagMicros      atomic.Uint64
 	IntervalAdjustedTotal atomic.Uint64
 
+	// 恢复能力指标（对标 Kepware 诊断）：采集过程中被 recover 的 panic 次数
+	// 与成功重新入队的次数。 nonzero TaskPanicsTotal 是必须告警的严重信号。
+	TaskPanicsTotal     atomic.Uint64
+	TaskRecoveriesTotal atomic.Uint64
+
 	adaptiveFactorMu sync.RWMutex
 	adaptiveFactor   float64
 
@@ -394,6 +399,8 @@ func (m *ScanEngineMetrics) snapshotFields() map[string]any {
 		"scan_lag_samples":             samples,
 		"adaptive_slowdown_factor":     m.AdaptiveSlowdownFactor(),
 		"scan_interval_adjusted_total": m.IntervalAdjustedTotal.Load(),
+		"task_panics_total":            m.TaskPanicsTotal.Load(),
+		"task_recoveries_total":        m.TaskRecoveriesTotal.Load(),
 	}
 }
 

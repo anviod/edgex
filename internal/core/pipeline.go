@@ -12,6 +12,7 @@ type DataPipeline struct {
 	mu            sync.Mutex
 	pointBuf      map[string][]model.Value
 	signalChan    chan struct{}
+	done          chan struct{}
 	handlers      []func(model.Value)
 	batchHandlers []func([]model.Value)
 	shadowIngress *ShadowIngress
@@ -24,6 +25,7 @@ func NewDataPipeline(bufferSize int) *DataPipeline {
 	return &DataPipeline{
 		pointBuf:   make(map[string][]model.Value),
 		signalChan: make(chan struct{}, 1), // Non-blocking signal with size 1
+		done:       make(chan struct{}),
 		handlers:   make([]func(model.Value), 0),
 	}
 }
@@ -47,17 +49,25 @@ func (dp *DataPipeline) Start() {
 	dp.wg.Add(1)
 	go func() {
 		defer dp.wg.Done()
-		for range dp.signalChan {
-			dp.drainAndProcess()
+		for {
+			select {
+			case <-dp.signalChan:
+				dp.drainAndProcess()
+			case <-dp.done:
+				// 退出前最后一次清空缓冲，保证 Stop 前已提交的数据全部落地、无残留。
+				dp.drainAndProcess()
+				return
+			}
 		}
 	}()
 }
 
 // Stop 关闭 pipeline goroutine，确保后续不会再触发 batch handler 写数据库。
+// signalChan 永不关闭，避免并发 Push 向其发送时因通道已关闭而 panic。
 func (dp *DataPipeline) Stop() {
 	dp.stopOnce.Do(func() {
 		dp.stopped.Store(true)
-		close(dp.signalChan)
+		close(dp.done)
 	})
 	dp.wg.Wait()
 }
@@ -67,11 +77,18 @@ func (dp *DataPipeline) Push(val model.Value) {
 }
 
 func (dp *DataPipeline) PushBatch(vals []model.Value) {
-	if len(vals) == 0 || dp.stopped.Load() {
+	if len(vals) == 0 {
 		return
 	}
 
+	// 在持有 dp.mu 期间原子完成“停止判定 + 写入缓冲”，与 worker 的最终 drain
+	// 通过同一把锁互斥：任何通过停止判定的数据要么被 worker 常规消费，
+	// 要么被 done 分支的最后一次 drain 消费，关闭过程不会丢数据。
 	dp.mu.Lock()
+	if dp.stopped.Load() {
+		dp.mu.Unlock()
+		return
+	}
 	for _, val := range vals {
 		key := val.ChannelID + "/" + val.DeviceID + "/" + val.PointID
 		buf := dp.pointBuf[key]
@@ -83,9 +100,6 @@ func (dp *DataPipeline) PushBatch(vals []model.Value) {
 	}
 	dp.mu.Unlock()
 
-	if dp.stopped.Load() {
-		return
-	}
 	select {
 	case dp.signalChan <- struct{}{}:
 	default:

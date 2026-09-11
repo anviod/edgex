@@ -106,9 +106,11 @@ func (sqm *SerialQueueManager) Stop() {
 	sqm.mu.Lock()
 	defer sqm.mu.Unlock()
 
+	// 只关闭 stopCh 终止 worker，绝不 close(ctx.Queue)：
+	// Submit 可能在 Stop 期间仍在向 Queue 发送，关闭后发送会 panic/触发数据竞争。
+	// 未消费的任务随引擎停止一并丢弃，不会再触发任何回写。
 	for _, ctx := range sqm.contexts {
 		close(ctx.Worker.stopCh)
-		close(ctx.Queue)
 	}
 
 	sqm.wg.Wait()

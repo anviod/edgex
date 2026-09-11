@@ -23,10 +23,10 @@ type invokeMetricsCollector struct {
 	maxLatencyMs   int64
 
 	// 延迟环形缓冲区 | Latency ring buffer
-	latMu      sync.Mutex
-	latencies  []int64
-	latIdx     int
-	latFilled  bool
+	latMu     sync.Mutex
+	latencies []int64
+	latIdx    int
+	latFilled bool
 
 	// 错误码计数 | Error code counters
 	errMu     sync.Mutex
@@ -35,8 +35,8 @@ type invokeMetricsCollector struct {
 
 func newInvokeMetricsCollector() *invokeMetricsCollector {
 	return &invokeMetricsCollector{
-		latencies:  make([]int64, metricsRingCap),
-		errCounts:  make(map[string]int64),
+		latencies:    make([]int64, metricsRingCap),
+		errCounts:    make(map[string]int64),
 		minLatencyMs: -1, // sentinel: -1 means unset
 	}
 }
@@ -175,7 +175,7 @@ func percentile(sorted []int64, p int) int64 {
 	if len(sorted) == 0 {
 		return 0
 	}
-	idx := (p * len(sorted) + 99) / 100 // ceil(p/100 * n)
+	idx := (p*len(sorted) + 99) / 100 // ceil(p/100 * n)
 	if idx >= len(sorted) {
 		idx = len(sorted) - 1
 	}

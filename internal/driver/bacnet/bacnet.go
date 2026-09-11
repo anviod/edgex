@@ -203,6 +203,25 @@ func NewBACnetDriver() drv.Driver {
 	}
 }
 
+// BindLinkMutex injects channelMu into ConnectionManager so that
+// concurrent Connect/connectOnce calls serialize on the shared link.
+// Without this, rapid restart_channel cycles race past the early-return
+// IsRunning() check (d.connected=true && d.client.IsRunning()=false during
+// the window between d.client = X and StartBackgroundLoop(X) launching
+// ClientRun) and deadlock inside connectOnce's StopBackgroundLoop.
+//
+// Implements drv.LinkMutexBinder (see internal/driver/interface.go).
+func (d *BACnetDriver) BindLinkMutex(mu *sync.Mutex) {
+	if mu == nil {
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.connMgr != nil {
+		d.connMgr.SetLinkMutex(mu)
+	}
+}
+
 func (d *BACnetDriver) Init(config model.DriverConfig) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -292,13 +311,14 @@ func (d *BACnetDriver) connectOnce(ctx context.Context) error {
 		return ctx.Err()
 	}
 
-	// Step 1: Close old client under lock (fast pointer swap).
+	// Step 1: Swap the old client out under lock, then stop its background
+	// loop OUTSIDE the lock. StopBackgroundLoop waits for the old ClientRun
+	// goroutine to exit; if that goroutine ever calls back into the driver
+	// (e.g. device recovery), waiting while holding d.mu would deadlock.
+	// This keeps the lock order aligned with Disconnect (close outside lock).
 	d.mu.Lock()
-	if d.client != nil {
-		d.client.Close()
-		d.connMgr.StopBackgroundLoop()
-		d.client = nil
-	}
+	oldClient := d.client
+	d.client = nil
 	d.connected = false
 
 	connectPort := confirmedListenPort // 47809 — separate from discovery port 47808
@@ -314,6 +334,11 @@ func (d *BACnetDriver) connectOnce(ctx context.Context) error {
 	}
 	subnetCIDR := d.subnetCIDR
 	d.mu.Unlock()
+
+	if oldClient != nil {
+		_ = oldClient.Close()
+		d.connMgr.StopBackgroundLoop()
+	}
 
 	// Step 2: Create new client outside lock (involves UDP socket bind).
 	// 最佳实践: MaxPDU 设为 btypes.MaxAPDU (1476) 避免分包。
@@ -431,6 +456,13 @@ func (d *BACnetDriver) Disconnect() error {
 		_ = client.Close()
 	}
 	d.connMgr.StopBackgroundLoop()
+	// Reset ConnectionManager state so the next Connect() can
+	// re-enter EnsureConnected and create a fresh client.
+	// Without this, a previously-successful Connect leaves the
+	// manager in StateConnected, and CanRetry() returns false,
+	// so subsequent Connect calls fail silently inside the
+	// StartChannel goroutine — leaving devices offline.
+	d.connMgr.SetState(drv.StateDisconnected)
 	return nil
 }
 
@@ -840,6 +872,8 @@ func inferDataTypeFromAddress(address string) string {
 }
 
 func (d *BACnetDriver) Health() drv.HealthStatus {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
 	if d.connected && d.client != nil && d.client.IsRunning() {
 		return drv.HealthStatusGood
 	}

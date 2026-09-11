@@ -3,6 +3,7 @@ package snmp
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/anviod/edgeCore/internal/driver"
@@ -23,6 +24,11 @@ type SNMPDriver struct {
 	transport *SNMPTransport
 	decoder   *SNMPDecoder
 	scheduler *SNMPScheduler
+
+	// mu guards linkMu; linkMu is the shared-link channelMu injected by
+	// ChannelManager via BindLinkMutex so dial/install cannot race I/O.
+	mu     sync.Mutex
+	linkMu *sync.Mutex
 }
 
 func NewSNMPDriver() driver.Driver {
@@ -42,10 +48,29 @@ func (d *SNMPDriver) Connect(ctx context.Context) error {
 	if d.transport == nil {
 		return fmt.Errorf("snmp driver not initialized")
 	}
+	// Serialize dial/install with I/O on the shared link.
+	d.mu.Lock()
+	linkMu := d.linkMu
+	d.mu.Unlock()
+	if linkMu != nil {
+		linkMu.Lock()
+		defer linkMu.Unlock()
+	}
 	if err := d.transport.Connect(ctx); err != nil {
 		return fmt.Errorf("snmp connection failed: %w", err)
 	}
 	return nil
+}
+
+// BindLinkMutex injects channelMu into the driver so shared-link reconnect
+// dial/install cannot race I/O. Implements drv.LinkMutexBinder.
+func (d *SNMPDriver) BindLinkMutex(mu *sync.Mutex) {
+	if mu == nil {
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.linkMu = mu
 }
 
 func (d *SNMPDriver) Disconnect() error {

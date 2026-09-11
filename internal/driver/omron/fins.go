@@ -36,6 +36,11 @@ type finsBackend interface {
 type OmronFinsDriver struct {
 	config  model.DriverConfig
 	backend finsBackend
+
+	// mu guards linkMu; linkMu is the shared-link channelMu injected by
+	// ChannelManager via BindLinkMutex so dial/install cannot race I/O.
+	mu     sync.Mutex
+	linkMu *sync.Mutex
 }
 
 func NewOmronFinsDriver() driver.Driver {
@@ -75,10 +80,29 @@ func (d *OmronFinsDriver) Connect(ctx context.Context) error {
 	if d.backend == nil {
 		return fmt.Errorf("omron fins driver not initialized")
 	}
+	// Serialize dial/install with I/O on the shared link.
+	d.mu.Lock()
+	linkMu := d.linkMu
+	d.mu.Unlock()
+	if linkMu != nil {
+		linkMu.Lock()
+		defer linkMu.Unlock()
+	}
 	if err := d.backend.Connect(ctx); err != nil {
 		return fmt.Errorf("omron fins connection failed: %w", err)
 	}
 	return nil
+}
+
+// BindLinkMutex injects channelMu into the driver so shared-link reconnect
+// dial/install cannot race I/O. Implements drv.LinkMutexBinder.
+func (d *OmronFinsDriver) BindLinkMutex(mu *sync.Mutex) {
+	if mu == nil {
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.linkMu = mu
 }
 
 func (d *OmronFinsDriver) Disconnect() error {

@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	defaultOwner = "anviod"      // 仓库属主
-	defaultRepo  = "edgeCore"    // 仓库名
+	defaultOwner = "anviod"   // 仓库属主
+	defaultRepo  = "edgeCore" // 仓库名
 	defaultAPI   = "https://api.github.com"
 	checkTimeout = 5 * time.Second // 超时上限受制于 5s API 约束
 )

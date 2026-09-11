@@ -186,12 +186,13 @@ func resolveDeviceQualityScore(dev *model.Device, metrics *model.DeviceMetrics) 
 func (cm *ChannelManager) applyDeviceRuntimeState(ch *model.Channel, d drv.Driver, dev *model.Device) {
 	rawState := int(NodeStateOnline)
 	if node := cm.stateManager.GetNode(dev.ID); node != nil {
-		rawState = int(node.Runtime.State)
+		rt := node.RuntimeSnapshot()
+		rawState = int(rt.State)
 		dev.NodeRuntime = &model.NodeRuntime{
-			FailCount:     node.Runtime.FailCount,
-			SuccessCount:  node.Runtime.SuccessCount,
-			LastFailTime:  node.Runtime.LastFailTime,
-			NextRetryTime: node.Runtime.NextRetryTime,
+			FailCount:     rt.FailCount,
+			SuccessCount:  rt.SuccessCount,
+			LastFailTime:  rt.LastFailTime,
+			NextRetryTime: rt.NextRetryTime,
 			State:         rawState,
 		}
 	}

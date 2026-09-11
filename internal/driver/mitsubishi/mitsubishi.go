@@ -3,6 +3,7 @@ package mitsubishi
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/anviod/edgeCore/internal/driver"
@@ -22,6 +23,11 @@ type MitsubishiDriver struct {
 	transport *MCTransport
 	decoder   *MCDecoder
 	scheduler *MCScheduler
+
+	// mu guards linkMu; linkMu is the shared-link channelMu injected by
+	// ChannelManager via BindLinkMutex so dial/install cannot race I/O.
+	mu     sync.Mutex
+	linkMu *sync.Mutex
 }
 
 func NewMitsubishiDriver() driver.Driver {
@@ -55,10 +61,30 @@ func (d *MitsubishiDriver) Connect(ctx context.Context) error {
 	if d.driverCfg.ip == "" {
 		return fmt.Errorf("mitsubishi ip is required")
 	}
+	// Serialize dial/install with I/O on the shared link. Lock order must
+	// stay channelMu -> transport.mu, matching the scan I/O path.
+	d.mu.Lock()
+	linkMu := d.linkMu
+	d.mu.Unlock()
+	if linkMu != nil {
+		linkMu.Lock()
+		defer linkMu.Unlock()
+	}
 	if err := d.transport.Connect(ctx); err != nil {
 		return fmt.Errorf("mitsubishi connection failed: %w", err)
 	}
 	return nil
+}
+
+// BindLinkMutex injects channelMu into the driver so shared-link reconnect
+// dial/install cannot race I/O. Implements drv.LinkMutexBinder.
+func (d *MitsubishiDriver) BindLinkMutex(mu *sync.Mutex) {
+	if mu == nil {
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.linkMu = mu
 }
 
 func (d *MitsubishiDriver) Disconnect() error {

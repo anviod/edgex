@@ -250,17 +250,27 @@ func (t *ENIPTransport) scheduleReconnect() {
 	}
 
 	t.connMgr.ScheduleReconnect(context.Background(), timeout, func(ctx context.Context) error {
-		t.mu.Lock()
-		defer t.mu.Unlock()
-
-		if t.connected.Load() && t.tcp != nil {
-			t.tcp.Close()
-			t.tcp = nil
-		}
-		t.connected.Store(false)
-
+		// Reset the stale link in its own critical section, then release
+		// t.mu before connectOnce (which takes t.mu itself). Holding t.mu
+		// across connectOnce would self-deadlock: sync.Mutex is not
+		// reentrant, so every reconnect after maxFailCount would hang.
+		t.resetConnection()
 		return t.connectOnce(ctx)
 	})
+}
+
+// resetConnection closes the current link and clears the connected flag so
+// the next connectOnce installs a fresh client. Takes t.mu internally; must
+// not be called while already holding t.mu.
+func (t *ENIPTransport) resetConnection() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.tcp != nil {
+		t.tcp.Close()
+		t.tcp = nil
+	}
+	t.connected.Store(false)
 }
 
 func (t *ENIPTransport) NeedProbeCheck() bool {

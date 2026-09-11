@@ -154,4 +154,3 @@ func TestUpdatePoint_ScanClassChangeTriggersRestart(t *testing.T) {
 		t.Fatalf("stored scan_class = %q, want normal", stored.Points[0].ScanClass)
 	}
 }
-

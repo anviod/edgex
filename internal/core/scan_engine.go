@@ -70,7 +70,14 @@ type ScanTask struct {
 	Points              []model.Point
 	pointsScratch       []model.Point
 	Params              map[string]any
-	mu                  sync.RWMutex
+	// queued reports whether this task is currently present in
+	// ScanEngine.priorityQueue. It is the single source of truth that
+	// prevents double-enqueue (which would let the same task run
+	// concurrently in two workers and corrupt task-scoped state).
+	// Guarded by mu; only ever mutated while holding ScanEngine.mu so
+	// the se.mu -> task.mu lock order is preserved.
+	queued bool
+	mu     sync.RWMutex
 }
 
 func (t *ScanTask) GetStatus() ScanTaskStatus {
@@ -83,6 +90,41 @@ func (t *ScanTask) SetStatus(status ScanTaskStatus) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.Status = status
+}
+
+// isQueued reports whether the task is currently in the priority queue.
+func (t *ScanTask) isQueued() bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.queued
+}
+
+// setQueued marks queue membership. Must be called while holding
+// ScanEngine.mu, immediately around the corresponding heap operation.
+func (t *ScanTask) setQueued(v bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.queued = v
+}
+
+// paramsSnapshot returns the current immutable task parameters map.
+//
+// Contract: a published Params map is NEVER mutated in place. Writers call
+// setParams with a freshly built map; readers only read. That makes the
+// returned reference safe to use after the read lock is released, and
+// eliminates the "concurrent map read and map write" fatal error that a
+// live in-place update would otherwise cause against hot-path readers.
+func (t *ScanTask) paramsSnapshot() map[string]any {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.Params
+}
+
+// setParams atomically publishes a new Params map (copy-on-write).
+func (t *ScanTask) setParams(next map[string]any) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.Params = next
 }
 
 func (t *ScanTask) UpdateNextRun(interval time.Duration) {
@@ -320,6 +362,11 @@ func (se *ScanEngine) Stop() {
 
 	se.wg.Wait()
 
+	// 引擎已停止，丢弃所有未消费的聚合反馈挂起项，避免残留引用。
+	se.feedbackPendingMu.Lock()
+	se.feedbackPending = make(map[string]*ScanTask)
+	se.feedbackPendingMu.Unlock()
+
 	zap.L().Info("[ScanEngine] 调度引擎已停止")
 }
 
@@ -392,10 +439,10 @@ func (se *ScanEngine) dispatchLoop() {
 			}
 			return
 		case <-wakeCh:
-			se.processReadyTasks()
+			se.safeProcessReadyTasks()
 			scheduleWake()
 		case <-fallback.C:
-			se.processReadyTasks()
+			se.safeProcessReadyTasks()
 			scheduleWake()
 			if newTick := se.fallbackTickInterval(); newTick != fallbackTick {
 				fallbackTick = newTick
@@ -403,6 +450,47 @@ func (se *ScanEngine) dispatchLoop() {
 			}
 		}
 	}
+}
+
+// safeProcessReadyTasks wraps the dispatch tick with panic isolation and
+// queue self-repair. A panic in the dispatch path would otherwise kill the
+// only scheduling goroutine, permanently stalling EVERY device until the
+// whole process restarts. On panic we rebuild the priority queue from the
+// authoritative task map, restoring a consistent state (equivalent to a
+// rollback of the corrupted in-memory queue).
+func (se *ScanEngine) safeProcessReadyTasks() {
+	defer func() {
+		if r := recover(); r != nil {
+			se.metrics.TaskPanicsTotal.Add(1)
+			zap.L().Error("[ScanEngine] 调度循环 panic 已恢复，重建优先队列",
+				zap.Any("panic", r),
+				zap.Stack("stack"),
+			)
+			se.rebuildQueueAfterPanic()
+			se.metrics.TaskRecoveriesTotal.Add(1)
+		}
+	}()
+	se.processReadyTasks()
+}
+
+// rebuildQueueAfterPanic rebuilds the priority queue from the authoritative
+// se.tasks map, dropping duplicates and stale pointers and re-deriving each
+// task's queue-membership flag. Caller must not hold se.mu.
+func (se *ScanEngine) rebuildQueueAfterPanic() {
+	se.mu.Lock()
+	defer se.mu.Unlock()
+
+	pq := make(PriorityQueue, 0, len(se.tasks))
+	for _, t := range se.tasks {
+		if t.GetStatus() == ScanTaskStatusStopped {
+			t.setQueued(false)
+			continue
+		}
+		t.setQueued(true)
+		pq = append(pq, t)
+	}
+	heap.Init(&pq)
+	se.priorityQueue = &pq
 }
 
 func (se *ScanEngine) nextReadyTime() time.Time {
@@ -439,15 +527,18 @@ func (se *ScanEngine) processReadyTasks() {
 			break
 		}
 
+		// A task stopped by RemoveTask/RemoveTasksByDeviceKey must never be
+		// re-queued; check before the CanExecute push-back path.
+		if task.GetStatus() == ScanTaskStatusStopped {
+			continue
+		}
+
 		if !se.resourceCtrl.CanExecute() {
 			se.mu.Lock()
 			heap.Push(se.priorityQueue, task)
+			task.setQueued(true)
 			se.mu.Unlock()
 			break
-		}
-
-		if task.GetStatus() == ScanTaskStatusStopped {
-			continue
 		}
 
 		se.resourceCtrl.Acquire()
@@ -497,7 +588,9 @@ func (se *ScanEngine) popReadyTaskEDF(now time.Time) *ScanTask {
 	if bestIdx < 0 {
 		return nil
 	}
-	return heap.Remove(pq, bestIdx).(*ScanTask)
+	removed := heap.Remove(pq, bestIdx).(*ScanTask)
+	removed.setQueued(false)
+	return removed
 }
 
 // enforceHardJitterClamp forces immediate dispatch when now exceeds DeadlineAt.
@@ -554,34 +647,77 @@ func (se *ScanEngine) enforceAntiStarvation(now time.Time) {
 			task.mu.Unlock()
 			continue
 		}
-		if now.Sub(task.NextRun) > antiStarvationDuration {
-			se.metrics.RecordOverdue()
-			lastWarn, warned := se.overdueWarnAt[task.ID]
-			if !warned || now.Sub(lastWarn) >= antiStarvationWarnInterval {
-				se.overdueWarnAt[task.ID] = now
-				zap.L().Warn("[防饿死] 任务超过预期执行时间",
-					zap.String("taskID", task.ID),
-					zap.String("deviceKey", task.DeviceKey),
-					zap.Duration("overdue", now.Sub(task.NextRun)),
-				)
-			}
-			if task.Status == ScanTaskStatusIdle {
-				se.metrics.RecordStarvationRescue()
-				task.Priority = 10
-				task.LastScheduledAt = now
-				task.NextRun = now
-				task.DeadlineAt = now.Add(taskJitterBound(se.config.JitterBound))
-				task.mu.Unlock()
-				heap.Push(se.priorityQueue, task)
-				continue
-			}
+		if now.Sub(task.NextRun) <= antiStarvationDuration {
+			task.mu.Unlock()
+			continue
 		}
+
+		se.metrics.RecordOverdue()
+		lastWarn, warned := se.overdueWarnAt[task.ID]
+		if !warned || now.Sub(lastWarn) >= antiStarvationWarnInterval {
+			se.overdueWarnAt[task.ID] = now
+			zap.L().Warn("[防饿死] 任务超过预期执行时间",
+				zap.String("taskID", task.ID),
+				zap.String("deviceKey", task.DeviceKey),
+				zap.Duration("overdue", now.Sub(task.NextRun)),
+			)
+		}
+
+		if task.Status != ScanTaskStatusIdle {
+			task.mu.Unlock()
+			continue
+		}
+
+		se.metrics.RecordStarvationRescue()
+		task.Priority = 10
+		task.LastScheduledAt = now
+		task.NextRun = now
+		task.DeadlineAt = now.Add(taskJitterBound(se.config.JitterBound))
+		alreadyQueued := task.queued
 		task.mu.Unlock()
+
+		// Rescuing must NOT push a duplicate entry for a task that is already
+		// in the heap: two entries sharing one *ScanTask would let two workers
+		// run it concurrently and corrupt task-scoped state (Points/Status).
+		if alreadyQueued {
+			se.heapFixLocked(task)
+		} else {
+			task.setQueued(true)
+			heap.Push(se.priorityQueue, task)
+		}
+	}
+}
+
+// heapFixLocked re-heapifies an existing priority-queue entry in place.
+// Caller must hold se.mu.
+func (se *ScanEngine) heapFixLocked(task *ScanTask) {
+	pq := se.priorityQueue
+	for i := 0; i < pq.Len(); i++ {
+		if (*pq)[i] == task {
+			heap.Fix(pq, i)
+			return
+		}
 	}
 }
 
 func (se *ScanEngine) executeTaskAsync(task *ScanTask) {
 	defer se.resourceCtrl.Release()
+	// Driver code runs arbitrary protocol parsing (including CGO for BACnet);
+	// a single malformed frame must never take down the whole gateway. Recover
+	// the collect goroutine, count it, and re-arm the task so its schedule
+	// survives one bad I/O.
+	defer func() {
+		if r := recover(); r != nil {
+			se.metrics.TaskPanicsTotal.Add(1)
+			zap.L().Error("[ScanEngine] 采集任务 panic 已恢复",
+				zap.Any("panic", r),
+				zap.String("taskID", task.ID),
+				zap.String("deviceKey", task.DeviceKey),
+				zap.Stack("stack"),
+			)
+			se.rearmTaskAfterPanic(task)
+		}
+	}()
 
 	task.SetStatus(ScanTaskStatusRunning)
 
@@ -656,8 +792,42 @@ func (se *ScanEngine) executeTaskAsync(task *ScanTask) {
 	se.rescheduleTask(task, time.Now())
 
 	se.mu.Lock()
-	if se.running {
+	if se.running && !task.isQueued() && task.GetStatus() != ScanTaskStatusStopped {
 		heap.Push(se.priorityQueue, task)
+		task.setQueued(true)
+	}
+	se.mu.Unlock()
+}
+
+// rearmTaskAfterPanic restores a task to the schedule after its collect
+// goroutine panicked, so one bad frame cannot permanently silence a device.
+// It only re-arms tasks that are still registered and whose engine is running;
+// intentionally does NOT record a collect outcome (the panic is not a device
+// reachability signal).
+func (se *ScanEngine) rearmTaskAfterPanic(task *ScanTask) {
+	if task == nil {
+		return
+	}
+	if task.GetStatus() == ScanTaskStatusStopped {
+		return
+	}
+	task.SetStatus(ScanTaskStatusIdle)
+
+	se.mu.RLock()
+	running := se.running
+	registered := se.tasks[task.ID] == task
+	se.mu.RUnlock()
+	if !running || !registered {
+		return
+	}
+
+	se.rescheduleTask(task, time.Now())
+
+	se.mu.Lock()
+	if se.running && !task.isQueued() && task.GetStatus() != ScanTaskStatusStopped {
+		heap.Push(se.priorityQueue, task)
+		task.setQueued(true)
+		se.metrics.TaskRecoveriesTotal.Add(1)
 	}
 	se.mu.Unlock()
 }
@@ -682,7 +852,7 @@ func (se *ScanEngine) rescheduleTask(task *ScanTask, completedAt time.Time) {
 	next := anchor.Add(interval)
 	jitterBound := taskJitterBound(se.config.JitterBound)
 
-	channelID := taskShadowChannelID(task)
+	channelID := taskShadowChannelIDLocked(task)
 	for next.Before(completedAt) {
 		if !task.DeadlineAt.IsZero() && completedAt.After(task.DeadlineAt) {
 			se.metrics.RecordMissDeadlineForChannel(channelID)
@@ -713,13 +883,22 @@ func taskCollectPointIDs(task *ScanTask) []string {
 	return task.PointIDs
 }
 
-func taskShadowChannelID(task *ScanTask) string {
+// taskShadowChannelIDLocked assumes the caller already holds task.mu
+// (read or write). Needed because sync.RWMutex is NOT reentrant — taking
+// RLock twice while a writer waits deadlocks.
+func taskShadowChannelIDLocked(task *ScanTask) string {
 	if task.Params != nil {
 		if id, ok := task.Params["channelID"].(string); ok {
 			return id
 		}
 	}
 	return ""
+}
+
+func taskShadowChannelID(task *ScanTask) string {
+	task.mu.RLock()
+	defer task.mu.RUnlock()
+	return taskShadowChannelIDLocked(task)
 }
 
 func resolveCollectQuality(v model.Value) string {
@@ -881,7 +1060,8 @@ func (se *ScanEngine) applyAggregatedFeedback(deviceKey string, stats Aggregated
 	task := se.feedbackPending[deviceKey]
 	delete(se.feedbackPending, deviceKey)
 	se.feedbackPendingMu.Unlock()
-	if task == nil {
+	// 已停止/已移除的任务跳过状态回写，避免对失效任务做降级或重调度。
+	if task == nil || task.GetStatus() == ScanTaskStatusStopped {
 		return
 	}
 	se.updateTaskStateAggregated(task, stats)
@@ -908,7 +1088,7 @@ func (se *ScanEngine) updateTaskStateAggregated(task *ScanTask, stats Aggregated
 		task.LastFailure = time.Now()
 		task.FailRate = stats.FailRate
 
-		if stats.FailCount >= 3 && se.taskDegradeOnFailure(task) {
+		if stats.FailCount >= 3 && se.taskDegradeOnFailureLocked(task) {
 			shift := task.ConsecutiveFailures - 3
 			if shift > 6 {
 				shift = 6
@@ -975,7 +1155,7 @@ func (se *ScanEngine) updateTaskState(task *ScanTask, result *ExecuteResult) {
 		task.LastFailure = time.Now()
 		task.FailRate = (task.FailRate*0.8 + 1.0*0.2)
 
-		if task.ConsecutiveFailures >= 3 && se.taskDegradeOnFailure(task) {
+		if task.ConsecutiveFailures >= 3 && se.taskDegradeOnFailureLocked(task) {
 			shift := task.ConsecutiveFailures - 3
 			if shift > 6 {
 				shift = 6
@@ -1014,7 +1194,8 @@ func (se *ScanEngine) updateTaskState(task *ScanTask, result *ExecuteResult) {
 	}
 }
 
-func (se *ScanEngine) taskDegradeOnFailure(task *ScanTask) bool {
+// taskDegradeOnFailureLocked assumes the caller already holds task.mu.
+func (se *ScanEngine) taskDegradeOnFailureLocked(task *ScanTask) bool {
 	if task.Params == nil {
 		return true
 	}
@@ -1022,6 +1203,12 @@ func (se *ScanEngine) taskDegradeOnFailure(task *ScanTask) bool {
 		return v
 	}
 	return true
+}
+
+func (se *ScanEngine) taskDegradeOnFailure(task *ScanTask) bool {
+	task.mu.RLock()
+	defer task.mu.RUnlock()
+	return se.taskDegradeOnFailureLocked(task)
 }
 
 func (se *ScanEngine) AddTask(deviceKey, protocol string, interval time.Duration, priority int, pointIDs []string, params map[string]any) *ScanTask {
@@ -1091,6 +1278,7 @@ func (se *ScanEngine) addTask(deviceKey, protocol, scanClass string, interval ti
 	}
 
 	se.tasks[taskID] = task
+	task.queued = true
 	heap.Push(se.priorityQueue, task)
 
 	zap.L().Info("[ScanEngine] 添加任务",
@@ -1114,11 +1302,40 @@ func (se *ScanEngine) RemoveTask(taskID string) {
 		task.SetStatus(ScanTaskStatusStopped)
 		delete(se.tasks, taskID)
 		delete(se.overdueWarnAt, taskID)
+		se.removeFromQueueLocked(task)
+		se.dropPendingFeedback(task)
 		zap.L().Info("[ScanEngine] 移除任务",
 			zap.String("taskID", taskID),
 			zap.String("deviceKey", task.DeviceKey),
 		)
 	}
+}
+
+// dropPendingFeedback 清理任务在 feedbackPending 中的挂起项。
+// 仅当该 deviceKey 的挂起项仍指向本任务时才删除，避免误删同设备新增任务的条目。
+func (se *ScanEngine) dropPendingFeedback(task *ScanTask) {
+	if task == nil {
+		return
+	}
+	se.feedbackPendingMu.Lock()
+	if se.feedbackPending[task.DeviceKey] == task {
+		delete(se.feedbackPending, task.DeviceKey)
+	}
+	se.feedbackPendingMu.Unlock()
+}
+
+// removeFromQueueLocked drops a task's entry from the priority queue if present.
+// Caller must hold se.mu. Idempotent: safe when the task is mid-flight (absent).
+func (se *ScanEngine) removeFromQueueLocked(task *ScanTask) {
+	pq := se.priorityQueue
+	for i := 0; i < pq.Len(); {
+		if (*pq)[i] == task {
+			heap.Remove(pq, i)
+		} else {
+			i++
+		}
+	}
+	task.setQueued(false)
 }
 
 func (se *ScanEngine) RemoveTasksByDeviceKey(deviceKey string) {
@@ -1137,11 +1354,17 @@ func (se *ScanEngine) RemoveTasksByDeviceKey(deviceKey string) {
 		}
 	}
 
+	// 同步清理该设备的聚合反馈挂起项，防止已移除任务被回写或残留。
+	se.feedbackPendingMu.Lock()
+	delete(se.feedbackPending, deviceKey)
+	se.feedbackPendingMu.Unlock()
+
 	// 同步从优先队列中清除残留任务指针，防止 processReadyTasks 再次弹出执行。
 	pq := se.priorityQueue
 	for i := 0; i < pq.Len(); {
 		t := (*pq)[i]
 		if t.DeviceKey == deviceKey {
+			t.setQueued(false)
 			heap.Remove(pq, i)
 		} else {
 			i++
@@ -1214,23 +1437,33 @@ func (se *ScanEngine) UpdateTaskDriverConfig(deviceKey string, updates map[strin
 	defer se.mu.Unlock()
 
 	for _, task := range se.tasks {
-		if task.DeviceKey != deviceKey || task.Params == nil {
+		if task.DeviceKey != deviceKey {
 			continue
 		}
-		base, ok := task.Params["driverConfig"].(map[string]any)
+		params := task.paramsSnapshot()
+		if params == nil {
+			continue
+		}
+		base, ok := params["driverConfig"].(map[string]any)
 		if !ok || base == nil {
 			base = map[string]any{}
-		} else {
-			clone := make(map[string]any, len(base)+len(updates))
-			for k, v := range base {
-				clone[k] = v
-			}
-			base = clone
+		}
+		// Build a fresh driverConfig so readers holding the previous
+		// reference never observe a mutation.
+		nextDriverCfg := make(map[string]any, len(base)+len(updates))
+		for k, v := range base {
+			nextDriverCfg[k] = v
 		}
 		for k, v := range updates {
-			base[k] = v
+			nextDriverCfg[k] = v
 		}
-		task.Params["driverConfig"] = base
+		// Build a fresh outer params map and publish it atomically.
+		nextParams := make(map[string]any, len(params))
+		for k, v := range params {
+			nextParams[k] = v
+		}
+		nextParams["driverConfig"] = nextDriverCfg
+		task.setParams(nextParams)
 	}
 }
 
@@ -1383,9 +1616,20 @@ func (se *ScanEngine) slaWarningLoop() {
 		case <-se.stopCh:
 			return
 		case <-ticker.C:
-			se.logSLAWarnings()
+			se.safeSLAWarnings()
 		}
 	}
+}
+
+// safeSLAWarnings isolates a panic in the SLA reporting path so the
+// observability loop can never die and silently mute warnings.
+func (se *ScanEngine) safeSLAWarnings() {
+	defer func() {
+		if r := recover(); r != nil {
+			zap.L().Error("[ScanEngine] SLA 告警循环 panic 已恢复", zap.Any("panic", r), zap.Stack("stack"))
+		}
+	}()
+	se.logSLAWarnings()
 }
 
 func (se *ScanEngine) logSLAWarnings() {
