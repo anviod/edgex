@@ -276,9 +276,9 @@ func (m *Manager) installPkg(path, format string) error {
 	var err error
 	switch format {
 	case "deb":
-		out, err = m.execFn("dpkg", "--force-confnew", "--force-confmiss", "-i", path).CombinedOutput()
+		out, err = m.runPkgManager("dpkg", "--force-confnew", "--force-confmiss", "-i", path)
 	case "rpm":
-		out, err = m.execFn("rpm", "-Uvh", path).CombinedOutput()
+		out, err = m.runPkgManager("rpm", "-Uvh", path)
 	}
 	if err != nil {
 		return fmt.Errorf("%s 安装失败: %s: %s", format, strings.TrimSpace(string(out)), err)

@@ -4,6 +4,7 @@ set -e
 
 ROOT_DIR="/usr/local/bin/edgeCore"
 CONFIG_DIR="$ROOT_DIR/config"
+DATA_DIR="$ROOT_DIR/data"
 BACKUP_DIR="/tmp/edgeCore_backup"
 
 echo "[preinstall] Starting preinstall script..."
@@ -27,7 +28,9 @@ backup_dir() {
     fi
 }
 
-# 备份目录
+# 备份目录：升级/降级必须保留原有配置，否则通道/设备等业务数据
+# （位于 data/config.db，bbolt 存储）会随版本变更而丢失。
+backup_dir "$DATA_DIR" "$BACKUP_DIR/data"
 backup_dir "$CONFIG_DIR" "$BACKUP_DIR/config"
 
 echo "[preinstall] Completed."

@@ -78,6 +78,22 @@ func (m *Manager) Status() State {
 	return m.state
 }
 
+// runPkgManager 在独立 systemd transient unit 中执行包管理器。Web UI 升级时
+// dpkg/rpm 由 edgeCore 进程派生、运行于 edgeCore.service 的 CGroup 内；目标包
+// postinst 的 systemctl restart 会连同 postinst/dpkg 一并终止（dpkg 卡
+// half-configured，升级误报失败并回滚）。
+// 不能用 --scope：scope 生命周期绑定调用进程，edgeCore 被 restart 杀死时
+// systemd 会清理 scope 内进程。改为 --wait 创建独立 transient service unit，
+// 生命周期由 systemd 管理、与调用者解耦，edgeCore 死后 dpkg 仍能完成安装。
+// 非 systemd 环境（无 systemd-run）回退直接执行。
+func (m *Manager) runPkgManager(args ...string) ([]byte, error) {
+	if _, err := m.execFn("systemd-run", "--version").Output(); err == nil {
+		wrapped := append([]string{"--wait", "--quiet", "--slice=system.slice", "--"}, args...)
+		return m.execFn("systemd-run", wrapped...).CombinedOutput()
+	}
+	return m.execFn(args[0], args[1:]...).CombinedOutput()
+}
+
 // Checker 暴露底层的版本检查器（供 handler 查询）。
 func (m *Manager) Checker() *Checker { return m.checker }
 

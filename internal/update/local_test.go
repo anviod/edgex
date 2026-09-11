@@ -4,7 +4,9 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
 )
@@ -190,5 +192,48 @@ func TestArchIncompatibleFilenameStillParsed(t *testing.T) {
 	}
 	if !pkg.Compatible && pkg.Reason == "" {
 		t.Fatal("incompatible package should carry a reason")
+	}
+}
+
+func TestRunPkgManagerWrapsWithSystemdRun(t *testing.T) {
+	var calls [][]string
+	m := NewManager("", "", nil)
+	m.execFn = func(name string, arg ...string) *exec.Cmd {
+		calls = append(calls, append([]string{name}, arg...))
+		// 探测 systemd-run --version 与包装后的命令均返回成功
+		return exec.Command("echo", "ok")
+	}
+	if _, err := m.runPkgManager("dpkg", "--force-confnew", "--force-confmiss", "-i", "/tmp/x.deb"); err != nil {
+		t.Fatal(err)
+	}
+	if len(calls) != 2 {
+		t.Fatalf("expected 2 calls, got %v", calls)
+	}
+	want := []string{"systemd-run", "--wait", "--quiet", "--slice=system.slice", "--", "dpkg", "--force-confnew", "--force-confmiss", "-i", "/tmp/x.deb"}
+	if !reflect.DeepEqual(calls[1], want) {
+		t.Fatalf("unexpected wrapped call: %v", calls[1])
+	}
+}
+
+func TestRunPkgManagerFallback(t *testing.T) {
+	var calls [][]string
+	m := NewManager("", "", nil)
+	m.execFn = func(name string, arg ...string) *exec.Cmd {
+		calls = append(calls, append([]string{name}, arg...))
+		// systemd-run 不可用（探测失败），后续直接执行
+		if name == "systemd-run" {
+			return exec.Command("sh", "-c", "exit 127")
+		}
+		return exec.Command("echo", "ok")
+	}
+	if _, err := m.runPkgManager("rpm", "-Uvh", "/tmp/x.rpm"); err != nil {
+		t.Fatal(err)
+	}
+	if len(calls) != 2 {
+		t.Fatalf("expected 2 calls, got %v", calls)
+	}
+	want := []string{"rpm", "-Uvh", "/tmp/x.rpm"}
+	if !reflect.DeepEqual(calls[1], want) {
+		t.Fatalf("unexpected fallback call: %v", calls[1])
 	}
 }
