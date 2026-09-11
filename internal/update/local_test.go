@@ -126,6 +126,52 @@ func TestValidateLocalDebRpmMagic(t *testing.T) {
 	}
 }
 
+// TestValidateLocalInSubdir 模拟 handleUploadPackage 的暂存场景：文件保存于
+// MkdirTemp 子目录并保留原始文件名。ValidateLocal 依据 Base(path) 解析，
+// 子目录名不得污染 deb/rpm 的 edgeCore-v 命名解析。
+func TestValidateLocalInSubdir(t *testing.T) {
+	m := NewManager("", "", nil)
+	dir := t.TempDir()
+	sub := filepath.Join(dir, "edgeCore-upload-abc123")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	deb := filepath.Join(sub, "edgeCore-v0.1.1-arm64.deb")
+	writeHeadFile(t, deb, []byte("!<arch>\n"))
+	p, err := m.ValidateLocal(deb)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Format != "deb" || p.Version != "0.1.1" || p.Arch != "arm64" {
+		t.Fatalf("unexpected deb pkg: %+v", p)
+	}
+
+	tgz := filepath.Join(sub, "edgeCore-0.1.1-linux-arm64.tar.gz")
+	writeTestTar(t, tgz, "edgeCore")
+	p2, err := m.ValidateLocal(tgz)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p2.Format != "tar.gz" || p2.Version != "0.1.1" || p2.Arch != "arm64" {
+		t.Fatalf("unexpected tar.gz pkg: %+v", p2)
+	}
+
+	// 防御性：若历史遗留暂存路径将前缀拼入文件名，必须被识别为不合规而非误解析。
+	legacy := filepath.Join(dir, "edgeCore-upload-edgeCore-v0.1.1-arm64.deb")
+	writeHeadFile(t, legacy, []byte("!<arch>\n"))
+	p3, err := m.ValidateLocal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p3.Compatible {
+		t.Fatalf("legacy prefixed name must not be accepted: %+v", p3)
+	}
+	if p3.Reason != "文件名不符合规范，无法识别版本号" {
+		t.Fatalf("unexpected reason: %q", p3.Reason)
+	}
+}
+
 func TestArchIncompatibleFilenameStillParsed(t *testing.T) {
 	m := NewManager("", "", nil)
 	dir := t.TempDir()

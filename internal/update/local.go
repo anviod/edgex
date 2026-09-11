@@ -20,9 +20,9 @@ import (
 //	edgeCore-{{.RawVersion}}-linux-{{.Arch}}.tar.gz   （Arch: amd64/arm64/arm7）
 //	edgeCore-v{{.RawVersion}}-{{.Arch}}.{deb,rpm}     （Arch: amd64/arm64/arm）
 var (
-	reTar = regexp.MustCompile(`^edgeCore-(.+)-linux-(amd64|arm64|arm7)\.tar\.gz$`)
-	reDeb = regexp.MustCompile(`^edgeCore-v(.+)-(amd64|arm64|arm)\.deb$`)
-	reRpm = regexp.MustCompile(`^edgeCore-v(.+)-(amd64|arm64|arm)\.rpm$`)
+	reTar = regexp.MustCompile(`^edgeCore-(.+?)-linux-(amd64|arm64|arm7)\.tar\.gz$`)
+	reDeb = regexp.MustCompile(`^edgeCore-v(.+?)-(amd64|arm64|arm)\.deb$`)
+	reRpm = regexp.MustCompile(`^edgeCore-v(.+?)-(amd64|arm64|arm)\.rpm$`)
 )
 
 // LocalPackage 描述一个上传的本地安装包。

@@ -91,7 +91,13 @@ func (s *Server) handleUploadPackage(c *fiber.Ctx) error {
 	if fileName == "." || fileName == "/" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "非法文件名"})
 	}
-	dst := filepath.Join(os.TempDir(), "edgeCore-upload-"+fileName)
+	// 使用独立临时目录保存原始文件名，避免 "edgeCore-upload-" 前缀污染
+	// ValidateLocal 的命名解析（deb/rpm 正则要求 edgeCore-v 开头）。
+	dir, err := os.MkdirTemp("", "edgeCore-upload-")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "创建暂存目录失败: " + err.Error()})
+	}
+	dst := filepath.Join(dir, fileName)
 	if err := c.SaveFile(fileHeader, dst); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "保存上传文件失败: " + err.Error()})
 	}
